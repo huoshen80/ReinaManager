@@ -30,7 +30,6 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
             return Err(format!("路径不存在且无法创建: {} - {}", dir_path, e));
         }
     }
-
     #[cfg(target_os = "windows")]
     {
         // 使用正斜杠转换为反斜杠，Windows Explorer 更喜欢反斜杠
@@ -54,6 +53,13 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
                     )),
                 }
             }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        match Command::new("open").arg(&dir_path).spawn() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("无法在 macOS 上打开目录 '{}': {}", dir_path, e)),
         }
     }
 }
