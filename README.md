@@ -51,6 +51,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>å¦
 - [ ] Sync games status with Bangumi
 - [ ] Bulk import games
 - [ ] Tool: migrate whitecloud data into reinaManager
+- [ ] Add hide NSFW filter
 
 ## Demo
 ##### Frontend Demo
@@ -70,5 +71,6 @@ For more, you can download the latest Release Version: [Download](https://github
 ## License
 
 This project is licensed under the [AGPL-3.0 license](https://github.com/huoshen80/ReinaManager#AGPL-3.0-1-ov-file)
+
 
 
