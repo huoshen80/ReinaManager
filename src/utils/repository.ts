@@ -1,12 +1,13 @@
 import type { GameData, SavedataRecord } from '@/types';
 import { getDb } from './database';
+import {isNsfwGame} from "@/utils/index.ts";
 
 // 处理排序选项的工具函数
 function getSortConfig(sortOption = 'addtime', sortOrder: 'asc' | 'desc' = 'asc') {
-  let sortField = 'id';  
+  let sortField = 'id';
   const sortDirection = sortOrder.toUpperCase();
   let customSortSql = '';
-  
+
   switch (sortOption) {
     case 'addtime':
       sortField = 'id';
@@ -46,7 +47,7 @@ function getSortConfig(sortOption = 'addtime', sortOrder: 'asc' | 'desc' = 'asc'
     default:
       sortField = 'id';
   }
-  
+
   return { sortField, sortDirection, customSortSql };
 }
 
@@ -91,19 +92,30 @@ export async function insertGame(game: GameData) {
 export async function getGames(sortOption = 'addtime', sortOrder: 'asc' | 'desc' = 'asc'): Promise<GameData[]> {
   const db = await getDb();
   const { sortField, sortDirection, customSortSql } = getSortConfig(sortOption, sortOrder);
-  
+
   let query = `
     SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath , savepath, autosave, developer,all_titles,aveage_hours,clear FROM games
   `;
-  
+
   if (customSortSql) {
     query += ` ${customSortSql};`;
   } else {
     query += ` ORDER BY ${sortField} ${sortDirection};`;
   }
-  
+
   const rows = await db.select<GameData[]>(query);
   return processGameRows(rows);
+}
+
+// 通过tags中的R18来判断是否为NSFW
+// Todo 等待到可以用户自定义数据后或应该添加专门的一个key来存储是否为NSFW
+export function applyNsfwFilter(data: GameData[], nsfwFilter: boolean): GameData[] {
+  console.log("data:",data)
+  if (!nsfwFilter) return data;
+  return data.filter(game => {
+    const tags = typeof game.tags === "string" ? JSON.parse(game.tags) : game.tags;
+    return !isNsfwGame(tags);
+  });
 }
 
 // 通过内部ID获取游戏数据
@@ -112,17 +124,17 @@ export async function getGameById(id: number): Promise<GameData | null> {
   const rows = await db.select<GameData[]>(`
     SELECT * FROM games WHERE id = ? LIMIT 1;
   `, [id]);
-  
+
   if (rows.length === 0) return null;
   return processGameRows(rows)[0];
 }
 
-// 删除游戏记录 
+// 删除游戏记录
 export async function deleteGame(gameId: number) {
   const db = await getDb();
   // 删除相关的会话记录和统计数据
   await db.execute("DELETE FROM game_sessions WHERE game_id = ?", [gameId]);
-  await db.execute("DELETE FROM game_statistics WHERE game_id = ?", [gameId]);  
+  await db.execute("DELETE FROM game_statistics WHERE game_id = ?", [gameId]);
   //删除游戏数据
   await db.execute("DELETE FROM games WHERE id = ?", [gameId]);
 }
@@ -167,13 +179,13 @@ export async function searchGames(
       OR name LIKE ?)
       ${filterCondition}
   `;
-  
+
   if (customSortSql) {
     query += ` ${customSortSql};`;
   } else {
     query += ` ORDER BY ${sortField} ${sortDirection};`;
   }
-  
+
   const rows = await db.select<GameData[]>(query, [searchKeyword, searchKeyword, searchKeyword]);
   return processGameRows(rows);
 }
@@ -187,10 +199,10 @@ export async function filterGamesByType(
   if (type === 'all') {
     return getGames(sortOption, sortOrder);
   }
-  
+
   const db = await getDb();
   const { sortField, sortDirection, customSortSql } = getSortConfig(sortOption, sortOrder);
-  
+
   let filterCondition = '';
   if (type === 'local') {
     filterCondition = 'WHERE localpath IS NOT NULL AND localpath != ""';
@@ -199,19 +211,19 @@ export async function filterGamesByType(
   } else if (type === 'clear') {
     filterCondition = 'WHERE clear = 1';
   }
-  
+
   let query = `
     SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath, savepath, autosave, developer, all_titles, aveage_hours, clear
     FROM games
     ${filterCondition}
   `;
-  
+
   if (customSortSql) {
     query += ` ${customSortSql};`;
   } else {
     query += ` ORDER BY ${sortField} ${sortDirection};`;
   }
-  
+
   const rows = await db.select<GameData[]>(query);
   return processGameRows(rows);
 }

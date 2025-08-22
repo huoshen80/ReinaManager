@@ -65,17 +65,17 @@ export async function openurl(url: string) {
 
     // 启动游戏并开始监控
     export async function launchGameWithTracking(
-      gamePath: string, 
-      gameId: number,  
+      gamePath: string,
+      gameId: number,
       args?: string[],
     ): Promise<{success: boolean; message: string; process_id?: number}> {
       try {
-        const result = await invoke<{success: boolean; message: string; process_id?: number}>('launch_game', { 
-          gamePath, 
-          gameId,  
+        const result = await invoke<{success: boolean; message: string; process_id?: number}>('launch_game', {
+          gamePath,
+          gameId,
           args: args || [],
         });
-        
+
         return result;
       } catch (error) {
         const errorMessage = typeof error === 'string' ? error : 'Unknown error occurred';
@@ -92,14 +92,14 @@ export function getGamePlatformId(game: GameData): string | undefined {
 
 export function formatRelativeTime(time: string | number | Date): string {
     const now = new Date();
-    const target = time instanceof Date 
-        ? time 
+    const target = time instanceof Date
+        ? time
         : typeof time === 'number'
             ? new Date(time * (time.toString().length === 10 ? 1000 : 1))
             : new Date(time);
-    
+
     const diff = (now.getTime() - target.getTime()) / 1000; // 秒
-    
+
     if (diff < 60) return i18next.t('utils.relativetime.justNow'); // 刚刚
     if (diff < 3600) {
         const minutes = Math.floor(diff / 60);
@@ -133,20 +133,20 @@ function getWeekNumber(date: Date): number {
 
 // 格式化游戏时间
 export function formatPlayTime(minutes: number): string {
-  if (!minutes) return i18next.t('utils.formatPlayTime.minutes', { count: 0 }); 
-  
+  if (!minutes) return i18next.t('utils.formatPlayTime.minutes', { count: 0 });
+
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  
+
   if (hours === 0) {
     return i18next.t('utils.formatPlayTime.minutes', { count: mins });
   }
-  
+
   if (mins > 0) {
     return i18next.t('utils.formatPlayTime.hoursAndMinutes', { hours, minutes: mins });
-  } 
+  }
     return i18next.t('utils.formatPlayTime.hours', { count: hours });
-  
+
 }
 
 export  const handleDirectory = async () => {
@@ -183,10 +183,10 @@ export const handleGetFolder = async (defaultPath?: string) => {
 
 export const getGameDisplayName = (game: GameData, language?: string): string => {
   const currentLanguage = language || i18next.language;
-  
+
   // 只有当语言为zh-CN时才使用name_cn，其他语言都使用name
-  return currentLanguage === 'zh-CN' && game.name_cn 
-    ? game.name_cn 
+  return currentLanguage === 'zh-CN' && game.name_cn
+    ? game.name_cn
     : game.name;
 };
 
@@ -213,12 +213,12 @@ export const toggleGameClearStatus = async (
 
     const newClearStatus = game.clear === 1 ? 0 : 1;
     await updateGameClearStatus(gameId, newClearStatus as 1 | 0);
-    
+
     // 更新store中的games数组
     if (updateGamesInStore) {
       updateGamesInStore(gameId, newClearStatus as 1 | 0);
     }
-    
+
     // 调用成功回调
     if (onSuccess) {
       onSuccess(newClearStatus as 1 | 0, { ...game, clear: newClearStatus as 1 | 0 });
@@ -395,7 +395,7 @@ export async function moveBackupFolder(oldPath: string, newPath: string): Promis
   try {
     // 获取应用数据目录
     const appDataDir = await getAppDataDir();
-    
+
     // 确定旧备份目录和新备份目录路径
     const oldBackupDir = oldPath ? `${oldPath}/backups` : `${appDataDir}/backups`;
     const newBackupDir = `${newPath}/backups`;
@@ -405,7 +405,7 @@ export async function moveBackupFolder(oldPath: string, newPath: string): Promis
       oldPath: oldBackupDir,
       newPath: newBackupDir
     });
-    
+
     return {
       moved: result.success,
       message: result.message
@@ -420,3 +420,17 @@ export async function moveBackupFolder(oldPath: string, newPath: string): Promis
   }
 }
 
+/**
+ * 根据tags判断是否为NSFW
+ * @param tags
+ */
+export function isNsfwGame(tags: string[]): boolean {
+    if (!tags || tags.length === 0) return false;
+
+    if (tags.includes("R18")) return true;
+    // 如果tags均为英文且没有包含No Sexual Content 也为NSFW
+    const allEnglish = tags.every(tag => /^[\x00-\x7F]+$/.test(tag));
+    return allEnglish && !tags.includes("No Sexual Content");
+
+
+}

@@ -237,6 +237,43 @@ const AutoStartSettings = () => {
     );
 }
 
+const NsfwSettings = () => {
+    const { t } = useTranslation();
+    const { nsfwFilter, setNsfwFilter, nsfwCoverBlur, setNsfwCoverBlur } = useStore();
+
+    return (
+        <Box className="mb-6">
+            <InputLabel className="font-semibold mb-4">
+                {t('pages.Settings.nsfw.title')}
+            </InputLabel>
+
+            <Box className="pl-2">
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={nsfwFilter}
+                            onChange={e => setNsfwFilter(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label={t('pages.Settings.nsfw.filter')}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={nsfwCoverBlur}
+                            onChange={e => setNsfwCoverBlur(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label={t('pages.Settings.nsfw.coverBlur')}
+                />
+            </Box>
+        </Box>
+    );
+};
+
 const CloseBtnSettings = () => {
     const { t } = useTranslation();
     const { skipCloseRemind, defaultCloseAction, setSkipCloseRemind, setDefaultCloseAction } = useStore();
@@ -512,6 +549,9 @@ export const Settings: React.FC = () => {
 
                 {/* 语言设置 */}
                 <LanguageSelect />
+
+                {/* NSFW设置 */}
+                <NsfwSettings />
 
                 {/* 自启动设置 */}
                 <AutoStartSettings />

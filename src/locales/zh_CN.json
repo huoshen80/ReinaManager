@@ -47,6 +47,11 @@
                 "saveError": "BGM Token 保存失败",
                 "clearToken": "清除令牌"
             },
+            "nsfw": {
+                "title": "NSFW 设置",
+                "filter": "过滤 NSFW 内容",
+                "coverBlur": "模糊 NSFW 封面"
+            },
             "savePath": {
                 "title": "游戏存档备份路径",
                 "pathLabel": "备份根目录路径",
@@ -154,7 +159,7 @@
             "inputGameName": "输入游戏名称",
             "clearSearch": "清除搜索"
         },
-        "Toolbar": {            
+        "Toolbar": {
             "gameLibrary": "游戏仓库",
             "openGameFolder": "打开游戏目录",
             "deleteGame": "删除游戏",
@@ -259,7 +264,7 @@
         "added": "添加了 {{title}}",
         "played": "游玩了 {{title}}",
         "addedAt": "添加于 {{time}}",
-        "playedAtTime": "游玩于 {{time}}",  
+        "playedAtTime": "游玩于 {{time}}",
         "duration": "游戏时长: {{duration}}"
     },
         "lastPlayed": "最后游玩: {{time}}",

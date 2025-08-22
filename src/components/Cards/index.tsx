@@ -23,7 +23,7 @@ import { useStore } from '@/store';
 import type { GameData } from '@/types';
 import KeepAlive from 'react-activation';
 import { useTranslation } from 'react-i18next';
-import { getGameDisplayName } from '@/utils';
+import {getGameDisplayName, isNsfwGame} from '@/utils';
 
 /**
  * Cards 组件用于展示游戏卡片列表。
@@ -39,32 +39,42 @@ const CardItem = memo(({ card, isActive, onContextMenu, onClick, displayName }: 
     onContextMenu: (e: React.MouseEvent) => void;
     onClick: () => void;
     displayName: string;
-}) => (
-    <Card
-        key={card.id}
-        className={`min-w-24 max-w-full !transition-all ${isActive ? 'scale-y-105' : 'scale-y-100'}`}
-        onContextMenu={onContextMenu}
-    >
-        <CardActionArea
-            onClick={onClick}
-            className={`
-             duration-100 
-            hover:shadow-lg hover:scale-105 
-            active:shadow-sm active:scale-95 
-            `}
+}) => {
+    const { nsfwCoverBlur } = useStore();
+
+    // 确保 tags 统一为数组
+    const tags = typeof card.tags === "string" ? JSON.parse(card.tags) : card.tags;
+    const isNsfw = isNsfwGame(tags);
+
+    return (
+        <Card
+            key={card.id}
+            className={`min-w-24 max-w-full !transition-all ${isActive ? 'scale-y-105' : 'scale-y-100'}`}
+            onContextMenu={onContextMenu}
         >
-            <CardMedia
-                component="img"
-                className="h-auto aspect-[3/4]"
-                image={card.image}
-                alt="Card Image"
-                draggable="false"
-                loading="lazy"
-            />
-            <div className={`p-1 h-8 text-base  truncate ${isActive ? '!font-bold text-blue-500' : ''}`}>{displayName}</div>
-        </CardActionArea>
-    </Card>
-));
+            <CardActionArea
+                onClick={onClick}
+                className={`
+                    duration-100 
+                    hover:shadow-lg hover:scale-105 
+                    active:shadow-sm active:scale-95 
+                `}
+            >
+                <CardMedia
+                    component="img"
+                    className={`h-auto aspect-[3/4] ${nsfwCoverBlur && isNsfw ? 'blur-md' : ''}`}
+                    image={card.image}
+                    alt="Card Image"
+                    draggable="false"
+                    loading="lazy"
+                />
+                <div className={`p-1 h-8 text-base truncate ${isActive ? '!font-bold text-blue-500' : ''}`}>
+                    {displayName}
+                </div>
+            </CardActionArea>
+        </Card>
+    );
+});
 
 const Cards = () => {
     // 只订阅需要的状态，减少重渲染
