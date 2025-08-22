@@ -174,19 +174,16 @@ refreshGameData: async (customSortOption?: string, customSortOrder?: 'asc' | 'de
       data = isTauri()
         ? await searchGamesRepository(searchKeyword, gameFilterType, option, order) // 使用gameFilterType
         : searchGamesLocal(searchKeyword, gameFilterType, option, order); // 使用gameFilterType
-        console.error(data)
     } else {
       // 当没有搜索词时，根据筛选类型决定使用哪个函数
       if (gameFilterType !== 'all') {
         data = isTauri()
           ? await filterGamesByTypeRepository(gameFilterType, option, order)
           : filterGamesByTypeLocal(gameFilterType, option, order);
-        console.error(data)
       } else {
         data = isTauri()
           ? await getGamesRepository(option, order)
           : getGamesLocal(option, order);
-        console.error(data)
       }
     }
 
