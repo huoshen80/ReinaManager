@@ -47,6 +47,11 @@
                 "saveError": "BGM Token の保存に失敗しました",
                 "clearToken": "トークンをクリア"
             },
+            "nsfw": {
+                "title": "NSFWセット",
+                "filter": "NSFWコンテンツのフィルタリング",
+                "coverBlur": "ぼやけたNSFWカバー"
+            },
             "savePath": {
                 "title": "ゲームセーブバックアップパス",
                 "pathLabel": "バックアップルートディレクトリパス",
@@ -154,7 +159,7 @@
             "inputGameName": "ゲーム名を入力",
             "clearSearch": "検索をクリア"
         },
-        "Toolbar": {           
+        "Toolbar": {
             "gameLibrary": "ゲームライブラリ",
             "openGameFolder": "ゲームフォルダを開く",
             "deleteGame": "ゲームを削除",
@@ -170,7 +175,7 @@
             "gamePathNotFound": "ゲームパスが見つかりません",
             "launchFailed": "ゲーム起動に失敗しました:",
             "playing": "プレイ中..."
-        },        
+        },
         "SortModal": {
             "sort": "並べ替え",
             "sortMethod": "並べ替え方法：",
@@ -207,14 +212,14 @@
             "warning": "警告",
             "gameNotFound": "ゲームデータが見つかりません",
             "deleteBackupTitle": "バックアップを削除"
-        },        
+        },
         "AddModal": {
             "addGame": "ゲームを追加",
             "noExecutableSelected": "実行ファイルが選択されていません",
             "gameExists": "ゲームはすでに存在します",
             "selectLauncher": "ランチャーを選択",
             "selectExecutable": "実行ファイルを選択してください",
-            "enableCustomMode": "カスタムモードを有効化",            
+            "enableCustomMode": "カスタムモードを有効化",
             "enableVNDB": "VNDB APIを使用する（デフォルトではBGM API）",
             "gameName": "ゲーム名",
             "gameIDTips": "ゲームID（BGM IDまたはVNDB IDを入力）",
@@ -259,7 +264,7 @@
             "added": "{{title}}を追加しました",
             "played": "{{title}}をプレイしました",
             "addedAt": "{{time}}に追加",
-            "playedAtTime": "{{time}}にプレイ",  
+            "playedAtTime": "{{time}}にプレイ",
             "duration": "プレイ時間: {{duration}}"
         },
         "lastPlayed": "最終プレイ: {{time}}",

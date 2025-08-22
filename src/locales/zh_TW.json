@@ -47,6 +47,11 @@
                 "saveError": "BGM Token 儲存失敗",
                 "clearToken": "清除令牌"
             },
+            "nsfw": {
+                "title": "NSFW設定",
+                "filter": "過濾NSFW内容",
+                "coverBlur": "模糊NSFW封面"
+            },
             "savePath": {
                 "title": "遊戲存檔備份路徑",
                 "pathLabel": "備份根目錄路徑",
@@ -154,7 +159,7 @@
             "inputGameName": "輸入遊戲名稱",
             "clearSearch": "清除搜尋"
         },
-        "Toolbar": {            
+        "Toolbar": {
             "gameLibrary": "遊戲倉庫",
             "openGameFolder": "開啟遊戲目錄",
             "deleteGame": "刪除遊戲",
@@ -170,7 +175,7 @@
             "gamePathNotFound": "遊戲路徑未找到",
             "launchFailed": "遊戲啟動失敗:",
             "playing": "遊戲中..."
-        },        
+        },
         "SortModal": {
             "sort": "排序",
             "sortMethod": "排序方法：",
@@ -207,14 +212,14 @@
             "warning": "警告",
             "gameNotFound": "未找到遊戲資料",
             "deleteBackupTitle": "刪除備份"
-        },        
+        },
         "AddModal": {
             "addGame": "添加遊戲",
             "noExecutableSelected": "未選擇可執行程序",
             "gameExists": "遊戲已存在",
             "selectLauncher": "選擇啟動程序",
             "selectExecutable": "請選擇一個可執行程序",
-            "enableCustomMode": "啟用自定義模式",            
+            "enableCustomMode": "啟用自定義模式",
             "enableVNDB": "使用VNDB api(默認使用BGM api)",
             "gameName": "遊戲名稱",
             "gameIDTips": "遊戲ID（輸入BGM ID或VNDB ID）",
@@ -259,7 +264,7 @@
             "added": "添加了 {{title}}",
             "played": "遊玩了 {{title}}",
             "addedAt": "添加於 {{time}}",
-            "playedAtTime": "遊玩於 {{time}}",  
+            "playedAtTime": "遊玩於 {{time}}",
             "duration": "遊戲時長: {{duration}}"
         },
         "lastPlayed": "最後遊玩: {{time}}",

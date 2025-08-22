@@ -47,6 +47,11 @@
                 "saveError": "Failed to save BGM Token",
                 "clearToken": "Clear token"
             },
+            "nsfw": {
+                "title": "NSFW Settings",
+                "filter": "Filter NSFW content",
+                "coverBlur": "Blur NSFW cover"
+            },
             "savePath": {
                 "title": "Game Save Backup Path",
                 "pathLabel": "Backup Root Directory Path",
@@ -154,7 +159,7 @@
             "inputGameName": "Enter game name",
             "clearSearch": "Clear search"
         },
-        "Toolbar": {            
+        "Toolbar": {
             "gameLibrary": "Game Library",
             "openGameFolder": "Open Game Folder",
             "deleteGame": "Delete Game",
@@ -170,7 +175,7 @@
             "gamePathNotFound": "Game path not found",
             "launchFailed": "Failed to launch game:",
             "playing": "Playing..."
-        },        
+        },
         "SortModal": {
             "sort": "Sort",
             "sortMethod": "Sort Method:",
@@ -207,14 +212,14 @@
             "warning": "Warning",
             "gameNotFound": "Game data not found",
             "deleteBackupTitle": "Delete Backup?"
-        },        
+        },
         "AddModal": {
             "addGame": "Add Game",
             "noExecutableSelected": "No executable selected",
             "gameExists": "Game already exists",
             "selectLauncher": "Select Launcher",
             "selectExecutable": "Please select an executable file",
-            "enableCustomMode": "Enable Custom Mode",            
+            "enableCustomMode": "Enable Custom Mode",
             "enableVNDB": "Use VNDB API (BGM API by default)",
             "gameName": "Game Name",
             "gameIDTips": "Game ID (Enter BGM ID or VNDB ID)",
@@ -259,7 +264,7 @@
             "added": "Added {{title}}",
             "played": "Played {{title}}",
             "addedAt": "Added at {{time}}",
-            "playedAtTime": "Played at {{time}}",  
+            "playedAtTime": "Played at {{time}}",
             "duration": "Play duration: {{duration}}"
         },
         "lastPlayed": "Last played: {{time}}",

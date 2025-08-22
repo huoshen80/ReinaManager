@@ -42,8 +42,10 @@
       "nsis": {
         "installerIcon": "icons/icon.ico",
         "languages": [
+          "English",
           "SimpChinese",
-          "English"
+          "TradChinese",
+          "Japanese"
         ],
         "displayLanguageSelector": true
       }
