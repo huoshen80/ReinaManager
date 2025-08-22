@@ -230,7 +230,6 @@ refreshGameData: async (customSortOption?: string, customSortOrder?: 'asc' | 'de
           // 只有在明确指定 resetSearch=true 时才重置搜索关键字
           if (resetSearch) {
             set({ games: data, allGames: allData, searchKeyword: '' });
-            console.error(get().games)
           } else {
             set({ games: data, allGames: allData });
           }
