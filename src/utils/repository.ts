@@ -110,7 +110,6 @@ export async function getGames(sortOption = 'addtime', sortOrder: 'asc' | 'desc'
 // 通过tags中的R18来判断是否为NSFW
 // Todo 等待到可以用户自定义数据后或应该添加专门的一个key来存储是否为NSFW
 export function applyNsfwFilter(data: GameData[], nsfwFilter: boolean): GameData[] {
-  console.log("data:",data)
   if (!nsfwFilter) return data;
   return data.filter(game => {
     const tags = typeof game.tags === "string" ? JSON.parse(game.tags) : game.tags;

@@ -160,7 +160,7 @@ export const useStore = create<AppState>()(
                 await get().refreshGameData();
                 setSetting('nsfwFilter', enabled);
             },
-            nsfwCoverReplace: true,
+            nsfwCoverReplace: false,
             setNsfwCoverReplace: (enabled: boolean) => {
                 set({nsfwCoverReplace: enabled});
                 setSetting('nsfwCoverReplace', enabled);
