@@ -9,6 +9,7 @@
     "main"
   ],
   "permissions": [
-    "autostart:default"
+    "autostart:default",
+    "updater:default"
   ]
 }

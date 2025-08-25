@@ -31,6 +31,18 @@ document.addEventListener('keydown', (e) => {
 // 初始化全局状态后，挂载 React 应用
 initializeStores().then(async () => {
   await initTray()
+
+  // 应用启动后静默检查更新
+  const { silentCheckForUpdates } = await import('@/components/Update')
+  silentCheckForUpdates().then((result) => {
+    if (result.hasUpdate) {
+      console.log('发现新版本可用:', result.version)
+      // 可以在这里添加通知逻辑，比如显示在托盘或设置页面
+    } else if (result.version) {
+      console.log('当前已是最新版本:', result.version)
+    }
+  })
+
   createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
       <RouterProvider router={routers} />

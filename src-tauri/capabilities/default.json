@@ -31,6 +31,7 @@
     "core:window:allow-destroy",
     "http:allow-fetch",
     "http:default",
+    "updater:default",
     {
       "identifier": "fs:scope",
       "allow": [

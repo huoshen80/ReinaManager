@@ -72,5 +72,9 @@ For more, you can download the latest Release Version: [Download](https://github
 
 This project is licensed under the [AGPL-3.0 license](https://github.com/huoshen80/ReinaManager#AGPL-3.0-1-ov-file)
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=huoshen80/ReinaManager&type=Date)](https://star-history.com/#huoshen80/ReinaManager&Date)
+
 
 
