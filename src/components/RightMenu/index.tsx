@@ -23,7 +23,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
-import { useEffect, useState } from 'react';
+import {useEffect, useRef, useState} from 'react';
 import { Link } from 'react-router';
 import { useStore } from '@/store';
 import { handleOpenFolder, toggleGameClearStatus } from '@/utils';
@@ -57,6 +57,7 @@ const RightMenu: React.FC<RightMenuProps> = ({ isopen, anchorPosition, setAnchor
     const [isDeleting, setIsDeleting] = useState(false);
     const [gameData, setGameData] = useState<GameData | null>(null);
     const { t } = useTranslation();
+    const menuRef = useRef<HTMLDivElement | null>(null);
 
 
     // 检查该游戏是否正在运行
@@ -102,20 +103,24 @@ const RightMenu: React.FC<RightMenuProps> = ({ isopen, anchorPosition, setAnchor
             document.addEventListener('scroll', handleInteraction, true);
             window.addEventListener('resize', handleInteraction);
         }
+        // 计算菜单位置
+        if (menuRef.current && anchorPosition) {
+            const { offsetWidth, offsetHeight } = menuRef.current;
+            const newTop = Math.min(anchorPosition.top, window.innerHeight - offsetHeight);
+            const newLeft = Math.min(anchorPosition.left, window.innerWidth - offsetWidth);
+            menuRef.current.style.top = `${newTop}px`;
+            menuRef.current.style.left = `${newLeft}px`;
+        }
 
         return () => {
             document.removeEventListener('click', handleInteraction);
             document.removeEventListener('scroll', handleInteraction, true);
             window.removeEventListener('resize', handleInteraction);
         };
-    }, [isopen, setAnchorEl]);
+    }, [isopen, setAnchorEl,anchorPosition]);
 
     if (!isopen) return null;
-
-    const menuStyle = {
-        top: `min(${anchorPosition?.top ?? 0}px, calc(100vh - 14rem))`,
-        left: anchorPosition?.left ?? 0,
-    };
+    if (!anchorPosition) return null;
 
     /**
      * 删除游戏操作，带删除确认弹窗
@@ -168,7 +173,7 @@ const RightMenu: React.FC<RightMenuProps> = ({ isopen, anchorPosition, setAnchor
     return (
         <div
             className="fixed z-50 animate-fade-in animate-duration-200 select-none"
-            style={menuStyle}
+            ref={menuRef}
             onClick={(e) => e.stopPropagation()}
         >
             {/* 删除确认弹窗 */}
