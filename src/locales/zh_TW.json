@@ -50,7 +50,7 @@
             "nsfw": {
                 "title": "NSFW設定",
                 "filter": "過濾NSFW内容",
-                "coverBlur": "模糊NSFW封面"
+                "coverReplace": "模糊NSFW替換"
             },
             "savePath": {
                 "title": "遊戲存檔備份路徑",

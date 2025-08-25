@@ -50,7 +50,7 @@
             "nsfw": {
                 "title": "NSFWセット",
                 "filter": "NSFWコンテンツのフィルタリング",
-                "coverBlur": "ぼやけたNSFWカバー"
+                "coverReplace": "NSFW表紙の置き換え"
             },
             "savePath": {
                 "title": "ゲームセーブバックアップパス",

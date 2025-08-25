@@ -14,15 +14,15 @@
  * - @/store
  */
 
-import { useState, memo } from 'react';
+import {memo, useState} from 'react';
 import Card from '@mui/material/Card';
 import CardMedia from '@mui/material/CardMedia';
 import CardActionArea from '@mui/material/CardActionArea';
 import RightMenu from '@/components/RightMenu';
-import { useStore } from '@/store';
-import type { GameData } from '@/types';
+import {useStore} from '@/store';
+import type {GameData} from '@/types';
 import KeepAlive from 'react-activation';
-import { useTranslation } from 'react-i18next';
+import {useTranslation} from 'react-i18next';
 import {getGameDisplayName, isNsfwGame} from '@/utils';
 
 /**
@@ -33,14 +33,14 @@ import {getGameDisplayName, isNsfwGame} from '@/utils';
  * @returns {JSX.Element} 游戏卡片列表
  */
 // 单个卡片项，使用memo避免无关渲染
-const CardItem = memo(({ card, isActive, onContextMenu, onClick, displayName }: {
+const CardItem = memo(({card, isActive, onContextMenu, onClick, displayName}: {
     card: GameData;
     isActive: boolean;
     onContextMenu: (e: React.MouseEvent) => void;
     onClick: () => void;
     displayName: string;
 }) => {
-    const { nsfwCoverBlur } = useStore();
+    const {nsfwCoverReplace} = useStore();
 
     // 确保 tags 统一为数组
     const tags = typeof card.tags === "string" ? JSON.parse(card.tags) : card.tags;
@@ -62,8 +62,8 @@ const CardItem = memo(({ card, isActive, onContextMenu, onClick, displayName }: 
             >
                 <CardMedia
                     component="img"
-                    className={`h-auto aspect-[3/4] ${nsfwCoverBlur && isNsfw ? 'blur-md' : ''}`}
-                    image={card.image}
+                    className="h-auto aspect-[3/4]"
+                    image={nsfwCoverReplace && isNsfw ? "/images/NR18.png" : card.image}
                     alt="Card Image"
                     draggable="false"
                     loading="lazy"
@@ -81,7 +81,7 @@ const Cards = () => {
     const selectedGameId = useStore(s => s.selectedGameId);
     const setSelectedGameId = useStore(s => s.setSelectedGameId);
     const games = useStore(s => s.games);
-    const { i18n } = useTranslation();
+    const {i18n} = useTranslation();
     const [menuPosition, setMenuPosition] = useState<{
         mouseX: number;
         mouseY: number;
@@ -102,17 +102,18 @@ const Cards = () => {
     };
     return (
         <KeepAlive>
-            <div className="flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4">
+            <div
+                className="flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4">
                 {/* 右键菜单组件 */}
                 <RightMenu id={menuPosition?.cardId} isopen={Boolean(menuPosition)}
-                    anchorPosition={
-                        menuPosition
-                            ? { top: menuPosition.mouseY, left: menuPosition.mouseX }
-                            : undefined
-                    }
-                    setAnchorEl={(value) => {
-                        if (!value) setMenuPosition(null);
-                    }} />                {/* 游戏卡片渲染 */}
+                           anchorPosition={
+                               menuPosition
+                                   ? {top: menuPosition.mouseY, left: menuPosition.mouseX}
+                                   : undefined
+                           }
+                           setAnchorEl={(value) => {
+                               if (!value) setMenuPosition(null);
+                           }}/> {/* 游戏卡片渲染 */}
                 {games.map((card) => {
                     const displayName = getGameDisplayName(card, i18n.language);
 

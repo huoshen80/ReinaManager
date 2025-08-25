@@ -239,7 +239,7 @@ const AutoStartSettings = () => {
 
 const NsfwSettings = () => {
     const { t } = useTranslation();
-    const { nsfwFilter, setNsfwFilter, nsfwCoverBlur, setNsfwCoverBlur } = useStore();
+    const { nsfwFilter, setNsfwFilter, nsfwCoverReplace, setNsfwCoverReplace } = useStore();
 
     return (
         <Box className="mb-6">
@@ -262,12 +262,12 @@ const NsfwSettings = () => {
                 <FormControlLabel
                     control={
                         <Switch
-                            checked={nsfwCoverBlur}
-                            onChange={e => setNsfwCoverBlur(e.target.checked)}
+                            checked={nsfwCoverReplace}
+                            onChange={e => setNsfwCoverReplace(e.target.checked)}
                             color="primary"
                         />
                     }
-                    label={t('pages.Settings.nsfw.coverBlur')}
+                    label={t('pages.Settings.nsfw.coverReplace')}
                 />
             </Box>
         </Box>

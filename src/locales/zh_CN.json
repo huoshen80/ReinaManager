@@ -50,7 +50,7 @@
             "nsfw": {
                 "title": "NSFW 设置",
                 "filter": "过滤 NSFW 内容",
-                "coverBlur": "模糊 NSFW 封面"
+                "coverReplace": "NSFW 封面替换"
             },
             "savePath": {
                 "title": "游戏存档备份路径",
