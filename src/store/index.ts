@@ -131,6 +131,10 @@ export interface AppState {
     longPressLaunch: boolean;
     setLongPressLaunch: (enabled: boolean) => void;
 
+    // TAG翻译功能
+    tagTranslation: boolean;
+    setTagTranslation: (enabled: boolean) => void;
+
     // 更新游戏通关状态
     updateGameClearStatusInStore: (gameId: number, newClearStatus: 1 | 0) => void;
 
@@ -205,6 +209,13 @@ export const useStore = create<AppState>()(
             setLongPressLaunch: (enabled: boolean) => {
                 set({longPressLaunch: enabled});
                 setSetting('longPressLaunch', enabled);
+            },
+
+            // TAG翻译功能（默认关闭）
+            tagTranslation: false,
+            setTagTranslation: (enabled: boolean) => {
+                set({tagTranslation: enabled});
+                setSetting('tagTranslation', enabled);
             },
 
             // 优化刷新数据的方法，减少状态更新
@@ -604,12 +615,14 @@ export const useStore = create<AppState>()(
                 const cardClickMode = getSetting('cardClickMode') ?? 'navigate';
                 const doubleClickLaunch = getSetting('doubleClickLaunch') ?? false;
                 const longPressLaunch = getSetting('longPressLaunch') ?? false;
+                const tagTranslation = getSetting('tagTranslation') ?? false;
                 set({
                     nsfwFilter,
                     nsfwCoverReplace,
                     cardClickMode,
                     doubleClickLaunch,
                     longPressLaunch,
+                    tagTranslation,
                 });
 
                 // 然后并行加载其他数据

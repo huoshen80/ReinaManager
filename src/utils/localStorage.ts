@@ -38,6 +38,8 @@ interface Settings {
   doubleClickLaunch?: boolean;
   // 新增：长按启动游戏功能
   longPressLaunch?: boolean;
+  // 新增：TAG翻译功能
+  tagTranslation?: boolean;
 }
 
 // 默认设置
@@ -50,6 +52,7 @@ const DEFAULT_SETTINGS: Settings = {
   cardClickMode: 'navigate', // 默认使用导航模式
   doubleClickLaunch: false, // 默认关闭双击启动
   longPressLaunch: false, // 默认关闭长按启动
+  tagTranslation: false, // 默认关闭TAG翻译
 };
 
 // 获取所有游戏数据（增加排序功能）

@@ -277,6 +277,31 @@ const NsfwSettings = () => {
     );
 };
 
+const TagTranslationSettings = () => {
+    const { t } = useTranslation();
+    const { tagTranslation, setTagTranslation } = useStore();
+
+    return (
+        <Box className="mb-6">
+            <Stack direction="row" alignItems="center" className="min-w-60">
+                <Box>
+                    <InputLabel className="font-semibold mb-1">
+                        {t('pages.Settings.tagTranslation.title', 'TAG翻译')}
+                    </InputLabel>
+                    <Typography variant="caption" color="text.secondary">
+                        {t('pages.Settings.tagTranslation.description', '开启后将使用中文翻译显示游戏标签')}
+                    </Typography>
+                </Box>
+                <Switch
+                    checked={tagTranslation}
+                    onChange={(e) => setTagTranslation(e.target.checked)}
+                    color="primary"
+                />
+            </Stack>
+        </Box>
+    );
+};
+
 const CardClickModeSettings = () => {
     const { t } = useTranslation();
     const { cardClickMode, setCardClickMode, doubleClickLaunch, setDoubleClickLaunch, longPressLaunch, setLongPressLaunch } = useStore();
@@ -743,6 +768,10 @@ export const Settings: React.FC = () => {
 
                 {/* 语言设置 */}
                 <LanguageSelect />
+                <Divider sx={{ my: 3 }} />
+
+                {/* TAG翻译设置 */}
+                <TagTranslationSettings />
                 <Divider sx={{ my: 3 }} />
 
                 {/* NSFW设置 */}

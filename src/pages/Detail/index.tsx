@@ -31,6 +31,7 @@ import { Backup } from './Backup';
 import { getGameById } from '@/utils/repository';
 import i18n from '@/utils/i18n';
 import { getGameDisplayName } from '@/utils';
+import { translateTags } from '@/utils/tagTranslation';
 
 
 // Tab面板组件
@@ -70,7 +71,7 @@ const TabPanel = (props: TabPanelProps) => {
 export const Detail: React.FC = () => {
     const id = Number(useLocation().pathname.split('/').pop());
     const { t } = useTranslation();
-    const { setSelectedGameId, selectedGame, fetchGame } = useStore();
+    const { setSelectedGameId, selectedGame, fetchGame, tagTranslation } = useStore();
     const [tabIndex, setTabIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true); // 添加加载状态
     const [currentId, setCurrentId] = useState<number | null>(null); // 跟踪当前显示的游戏ID
@@ -190,8 +191,8 @@ export const Detail: React.FC = () => {
                         <Box className="mt-2">
                             <Typography variant="subtitle2" fontWeight="bold" gutterBottom component="div">{t('pages.Detail.gameTags')}</Typography>
                             <Stack direction="row" className="flex-wrap gap-1">
-                                {selectedGame.tags?.map(tag => (
-                                    <Chip key={tag} label={tag} size="small" variant="outlined" />
+                                {translateTags(selectedGame.tags || [], tagTranslation).map((tag, index) => (
+                                    <Chip key={`${selectedGame.tags?.[index] || tag}-${index}`} label={tag} size="small" variant="outlined" />
                                 ))}
                             </Stack>
                         </Box>
