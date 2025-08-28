@@ -1,5 +1,6 @@
 import type { GameData } from '@/types/index';
 import { getGameDisplayName } from './index';
+import { pinyin } from 'pinyin-pro';
 
 
 // 定义本地存储的 key
@@ -224,10 +225,8 @@ export function searchGamesLocal(
     return filterGamesByTypeLocal(type, sortOption, sortOrder);
   }
 
-  // 使用增强搜索
-  // 动态导入增强搜索模块
+  // 使用增强搜索功能
   try {
-    // 由于这是同步函数，我们先用基础搜索，然后在未来版本中可以改为异步
     const games = getGames(sortOption, sortOrder);
     
     // 根据类型进行预筛选
@@ -237,20 +236,11 @@ export function searchGamesLocal(
     }
     // type === 'online' 或 'all' 不需要额外筛选，因为浏览器环境中所有游戏都是在线的
 
-    // 先使用简单的正则搜索作为fallback，之后可以通过异步调用增强搜索
-    const searchRegex = new RegExp(keyword.trim(), 'i');
-    const basicResults = baseGames.filter(game => {
-      const displayName = getGameDisplayName(game);
-      const searchFields = [
-        game.name || '',
-        game.name_cn || '',
-        game.developer || ''
-      ].join(' ');
-      
-      return searchRegex.test(displayName) || searchRegex.test(searchFields);
-    });
-
-    return basicResults;
+    // 使用完整的增强搜索算法
+    const searchResults = smartSearchLocal(baseGames, keyword);
+    
+    // 提取搜索结果中的游戏数据
+    return searchResults.map(result => result.item);
   } catch (error) {
     console.error('Enhanced search failed, falling back to basic search:', error);
     
@@ -268,6 +258,131 @@ export function searchGamesLocal(
 
     return filteredGames;
   }
+}
+
+// 本地增强搜索算法 - 完整实现
+function smartSearchLocal(
+  games: GameData[],
+  keyword: string,
+  limit: number = 50
+): Array<{ item: GameData; score: number }> {
+  if (!keyword || keyword.trim() === '') {
+    return games.map(game => ({ item: game, score: 1 }));
+  }
+
+  const searchTerm = keyword.toLowerCase().trim();
+  const results: Array<{ item: GameData; score: number }> = [];
+
+  for (const game of games) {
+    let score = 0;
+    const displayName = (game.name_cn || game.name || '').toLowerCase();
+    const englishName = (game.name || '').toLowerCase();
+    const developer = (game.developer || '').toLowerCase();
+    
+    // 1. 精确匹配检查
+    if (displayName === searchTerm || englishName === searchTerm) {
+      score = 1.0;
+    }
+    // 2. 开头匹配
+    else if (displayName.startsWith(searchTerm) || englishName.startsWith(searchTerm)) {
+      score = 0.9;
+    }
+    // 3. 包含匹配
+    else if (displayName.includes(searchTerm) || englishName.includes(searchTerm)) {
+      score = 0.8;
+    }
+    // 4. 开发商匹配
+    else if (developer.includes(searchTerm)) {
+      score = 0.6;
+    }
+
+    // 5. 拼音匹配 (仅对中文游戏名)
+    if (score === 0 && game.name_cn && /[\u4e00-\u9fff]/.test(game.name_cn)) {
+      try {
+        // 完整拼音匹配 (不带空格)
+        const pinyinFull = pinyin(game.name_cn, {
+          toneType: 'none',
+          type: 'string',
+          separator: ''
+        }).toLowerCase();
+        
+        // 拼音匹配 (带空格)
+        const pinyinSpaced = pinyin(game.name_cn, {
+          toneType: 'none',
+          type: 'string',
+          separator: ' '
+        }).toLowerCase();
+        
+        // 拼音首字母匹配
+        const pinyinFirst = pinyin(game.name_cn, {
+          pattern: 'first',
+          toneType: 'none',
+          type: 'string',
+          separator: ''
+        }).toLowerCase();
+        
+        // 检查各种拼音匹配方式
+        if (pinyinFull === searchTerm) {
+          score = 0.9; // 完整拼音精确匹配
+        } else if (pinyinSpaced.includes(searchTerm)) {
+          score = 0.8; // 拼音包含匹配
+        } else if (pinyinFull.includes(searchTerm) && searchTerm.length >= 2) {
+          score = 0.7; // 连续拼音部分匹配
+        } else if (pinyinFirst === searchTerm && searchTerm.length >= 2) {
+          score = 0.6; // 拼音首字母精确匹配
+        } else if (pinyinFirst.includes(searchTerm) && searchTerm.length >= 2) {
+          score = 0.5; // 拼音首字母部分匹配
+        }
+      } catch (error) {
+        // 如果拼音转换失败，忽略拼音匹配
+        console.warn('拼音转换失败:', error);
+      }
+    }
+
+    // 6. 模糊匹配 (编辑距离)
+    if (score === 0 && searchTerm.length >= 3) {
+      const distance = levenshteinDistanceLocal(searchTerm, displayName);
+      const similarity = 1 - distance / Math.max(searchTerm.length, displayName.length);
+      if (similarity > 0.6) {
+        score = similarity * 0.4;
+      }
+    }
+
+    if (score > 0) {
+      results.push({ item: game, score });
+    }
+  }
+
+  // 按分数排序并限制结果数量
+  return results
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+// 本地版本的编辑距离计算
+function levenshteinDistanceLocal(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i++) {
+    matrix[0][i] = i;
+  }
+
+  for (let j = 0; j <= str2.length; j++) {
+    matrix[j][0] = j;
+  }
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + indicator
+      );
+    }
+  }
+
+  return matrix[str2.length][str1.length];
 }
 
 export function filterGamesByTypeLocal(
