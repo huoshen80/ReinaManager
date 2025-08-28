@@ -52,6 +52,10 @@
                 "filter": "Filter NSFW content",
                 "coverReplace": "NSFW cover replace"
             },
+            "tagTranslation": {
+                "title": "TAG Translation",
+                "description": "Enable Chinese translation for game tags"
+            },
             "cardClickMode": {
                 "title": "Card Click Mode",
                 "navigate": "Navigation Mode (Single click to view details)",

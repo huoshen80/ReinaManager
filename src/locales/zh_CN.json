@@ -52,6 +52,10 @@
                 "filter": "过滤 NSFW 内容",
                 "coverReplace": "NSFW 封面替换"
             },
+            "tagTranslation": {
+                "title": "TAG翻译",
+                "description": "开启后将使用中文翻译显示游戏标签"
+            },
             "cardClickMode": {
                 "title": "卡片点击模式",
                 "navigate": "导航模式（单击跳转详情页）",

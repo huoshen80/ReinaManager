@@ -52,6 +52,10 @@
                 "filter": "NSFWコンテンツのフィルタリング",
                 "coverReplace": "NSFW表紙の置き換え"
             },
+            "tagTranslation": {
+                "title": "TAG翻訳",
+                "description": "ゲームタグの中国語翻訳を有効にする"
+            },
             "cardClickMode": {
                 "title": "カードクリックモード",
                 "navigate": "ナビゲーションモード（シングルクリックで詳細表示）",

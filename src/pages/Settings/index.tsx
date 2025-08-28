@@ -286,10 +286,10 @@ const TagTranslationSettings = () => {
             <Stack direction="row" alignItems="center" className="min-w-60">
                 <Box>
                     <InputLabel className="font-semibold mb-1">
-                        {t('pages.Settings.tagTranslation.title', 'TAG翻译')}
+                        {t('pages.Settings.tagTranslation.title')}
                     </InputLabel>
                     <Typography variant="caption" color="text.secondary">
-                        {t('pages.Settings.tagTranslation.description', '开启后将使用中文翻译显示游戏标签')}
+                        {t('pages.Settings.tagTranslation.description')}
                     </Typography>
                 </Box>
                 <Switch

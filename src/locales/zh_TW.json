@@ -52,6 +52,10 @@
                 "filter": "過濾NSFW内容",
                 "coverReplace": "模糊NSFW替換"
             },
+            "tagTranslation": {
+                "title": "TAG翻譯",
+                "description": "開啟後將使用中文翻譯顯示遊戲標籤"
+            },
             "cardClickMode": {
                 "title": "卡片點擊模式",
                 "navigate": "導航模式（單擊跳轉詳情頁）",
