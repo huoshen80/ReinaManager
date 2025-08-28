@@ -138,7 +138,7 @@ export async function deleteGame(gameId: number) {
   await db.execute("DELETE FROM games WHERE id = ?", [gameId]);
 }
 
-// 更新搜索游戏函数，添加类型筛选功能
+// 更新搜索游戏函数，添加类型筛选功能和增强搜索
 export async function searchGames(
   keyword: string,
   type: 'all' | 'local' | 'online' | 'clear' = 'all',
@@ -155,38 +155,27 @@ export async function searchGames(
     return filterGamesByType(type, sortOption, sortOrder);
   }
 
-  const db = await getDb();
-  const { sortField, sortDirection, customSortSql } = getSortConfig(sortOption, sortOrder);
-
-  // 构建类型筛选条件
-  let filterCondition = '';
-  if (type === 'local') {
-    filterCondition = 'AND (localpath IS NOT NULL AND localpath != "")';
-  } else if (type === 'online') {
-    filterCondition = 'AND (localpath IS NULL OR localpath = "")';
-  } else if (type === 'clear') {
-    filterCondition = 'AND clear = 1';
-  }
-
-  // 使用LIKE进行模糊搜索
-  const searchKeyword = `%${keyword}%`;
-  let query = `
-    SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath, savepath, autosave, developer, all_titles, aveage_hours, clear
-    FROM games
-    WHERE 
-      ((name_cn LIKE ? OR (name_cn IS NULL OR name_cn = '') AND name LIKE ?)
-      OR name LIKE ?)
-      ${filterCondition}
-  `;
-
-  if (customSortSql) {
-    query += ` ${customSortSql};`;
+  // 使用增强搜索：先获取所有游戏数据，然后使用客户端搜索
+  const { smartSearch } = await import('./enhancedSearch');
+  
+  // 根据类型筛选获取基础数据
+  let baseGames: GameData[];
+  if (type !== 'all') {
+    baseGames = await filterGamesByType(type, sortOption, sortOrder);
   } else {
-    query += ` ORDER BY ${sortField} ${sortDirection};`;
+    baseGames = await getGames(sortOption, sortOrder);
   }
 
-  const rows = await db.select<GameData[]>(query, [searchKeyword, searchKeyword, searchKeyword]);
-  return processGameRows(rows);
+  // 如果没有关键词，直接返回筛选结果
+  if (!keyword || keyword.trim() === '') {
+    return baseGames;
+  }
+
+  // 使用增强搜索
+  const searchResults = smartSearch(baseGames, keyword);
+  
+  // 提取搜索结果中的游戏数据
+  return searchResults.map(result => result.item);
 }
 
 // 根据游戏类型进行筛选（全部/本地/网络）

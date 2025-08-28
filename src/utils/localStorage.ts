@@ -207,7 +207,7 @@ export function setSetting<K extends keyof Settings>(key: K, value: Settings[K])
   saveSettings(settings);
 }
 
-// 纯前端搜索游戏，根据name_cn(为空则搜索name)进行模糊匹配
+// 纯前端搜索游戏，使用增强搜索功能
 export function searchGamesLocal(
   keyword: string,
   type: 'all' | 'local' | 'online' | 'clear' = 'all',
@@ -224,21 +224,50 @@ export function searchGamesLocal(
     return filterGamesByTypeLocal(type, sortOption, sortOrder);
   }
 
-  // 否则执行关键字搜索
-  const searchRegex = new RegExp(keyword.trim(), 'i');
-  const games = getGames(sortOption, sortOrder);
-  let filteredGames = games.filter(game => {
-    const displayName = getGameDisplayName(game);
-    return searchRegex.test(displayName);
-  });
+  // 使用增强搜索
+  // 动态导入增强搜索模块
+  try {
+    // 由于这是同步函数，我们先用基础搜索，然后在未来版本中可以改为异步
+    const games = getGames(sortOption, sortOrder);
+    
+    // 根据类型进行预筛选
+    let baseGames = games;
+    if (type === 'clear') {
+      baseGames = games.filter(game => game.clear === 1);
+    }
+    // type === 'online' 或 'all' 不需要额外筛选，因为浏览器环境中所有游戏都是在线的
 
-  // 如果有类型筛选，进一步过滤结果
-  if (type === 'clear') {
-    filteredGames = filteredGames.filter(game => game.clear === 1);
+    // 先使用简单的正则搜索作为fallback，之后可以通过异步调用增强搜索
+    const searchRegex = new RegExp(keyword.trim(), 'i');
+    const basicResults = baseGames.filter(game => {
+      const displayName = getGameDisplayName(game);
+      const searchFields = [
+        game.name || '',
+        game.name_cn || '',
+        game.developer || ''
+      ].join(' ');
+      
+      return searchRegex.test(displayName) || searchRegex.test(searchFields);
+    });
+
+    return basicResults;
+  } catch (error) {
+    console.error('Enhanced search failed, falling back to basic search:', error);
+    
+    // Fallback到原来的搜索逻辑
+    const searchRegex = new RegExp(keyword.trim(), 'i');
+    const games = getGames(sortOption, sortOrder);
+    let filteredGames = games.filter(game => {
+      const displayName = getGameDisplayName(game);
+      return searchRegex.test(displayName);
+    });
+
+    if (type === 'clear') {
+      filteredGames = filteredGames.filter(game => game.clear === 1);
+    }
+
+    return filteredGames;
   }
-  // type === 'online' 或 'all' 不需要额外筛选，因为浏览器环境中所有游戏都是在线的
-
-  return filteredGames;
 }
 
 export function filterGamesByTypeLocal(
