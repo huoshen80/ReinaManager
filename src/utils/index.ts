@@ -182,12 +182,61 @@ export const handleGetFolder = async (defaultPath?: string) => {
 }
 
 export const getGameDisplayName = (game: GameData, language?: string): string => {
+  // 优先使用自定义名字
+  if (game.custom_name && game.custom_name.trim() !== '') {
+    return game.custom_name;
+  }
+
   const currentLanguage = language || i18next.language;
 
   // 只有当语言为zh-CN时才使用name_cn，其他语言都使用name
   return currentLanguage === 'zh-CN' && game.name_cn
     ? game.name_cn
     : game.name;
+};
+
+/**
+ * 获取游戏显示的封面图片
+ * @param game 游戏数据
+ * @returns 封面图片URL或BASE64数据
+ */
+export const getGameDisplayImage = (game: GameData): string => {
+  // 优先使用自定义封面（BASE64）
+  if (game.custom_image_base64 && game.custom_image_base64.trim() !== '') {
+    return game.custom_image_base64;
+  }
+
+  // 回退到原始封面
+  return game.image || '';
+};
+
+/**
+ * 检查游戏是否有自定义内容
+ * @param game 游戏数据
+ * @returns 是否有自定义名字或封面
+ */
+export const hasCustomContent = (game: GameData): boolean => {
+  const hasCustomName = Boolean(game.custom_name && game.custom_name.trim() !== '');
+  const hasCustomImage = Boolean(game.custom_image_base64 && game.custom_image_base64.trim() !== '');
+  return hasCustomName || hasCustomImage;
+};
+
+/**
+ * 检查游戏是否有自定义名字
+ * @param game 游戏数据
+ * @returns 是否有自定义名字
+ */
+export const hasCustomName = (game: GameData): boolean => {
+  return Boolean(game.custom_name && game.custom_name.trim() !== '');
+};
+
+/**
+ * 检查游戏是否有自定义封面
+ * @param game 游戏数据
+ * @returns 是否有自定义封面
+ */
+export const hasCustomImage = (game: GameData): boolean => {
+  return Boolean(game.custom_image_base64 && game.custom_image_base64.trim() !== '');
 };
 
 /**

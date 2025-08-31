@@ -30,6 +30,8 @@ export interface GameData {
     all_titles?: string[];
     aveage_hours?: number;
     clear?: 1 | 0;
+    custom_name?: string; // 用户自定义名字
+    custom_image_base64?: string; // 用户自定义封面的BASE64编码数据
 }
 
 /**

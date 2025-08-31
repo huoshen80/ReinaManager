@@ -60,30 +60,39 @@ function processGameRows(rows: GameData[]): GameData[] {
 }
 
 // 插入游戏数据，将 tags 序列化存储
-export async function insertGame(game: GameData) {
+export async function insertGame(game: GameData): Promise<void> {
   const db = await getDb();
   await db.execute(
     `
-    INSERT INTO games (bgm_id,vndb_id,id_type, date, image, summary, name, name_cn, tags, rank, score, time, localpath, developer, all_titles, aveage_hours)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO games (
+      bgm_id, vndb_id, id_type, date, image, summary, name, name_cn, 
+      tags, rank, score, time, localpath, savepath, autosave, 
+      developer, all_titles, aveage_hours, clear, 
+      custom_name, custom_image_base64
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      game.bgm_id,
-      game.vndb_id,
-      game.id_type,
-      game.date,
-      game.image,
-      game.summary,
+      game.bgm_id || null,
+      game.vndb_id || null,
+      game.id_type || 'custom',
+      game.date || null,
+      game.image || null,
+      game.summary || null,
       game.name,
-      game.name_cn,
-      JSON.stringify(game.tags),
-      game.rank,
-      game.score,
-      game.time,
-      game.localpath,
-      game.developer,
-      JSON.stringify(game.all_titles),
-      game.aveage_hours
+      game.name_cn || null,
+      game.tags ? JSON.stringify(game.tags) : null,
+      game.rank || null,
+      game.score || null,
+      game.time ? (game.time instanceof Date ? game.time.toISOString() : game.time) : null,
+      game.localpath || null,
+      game.savepath || null,
+      game.autosave || 0,
+      game.developer || null,
+      game.all_titles ? JSON.stringify(game.all_titles) : null,
+      game.aveage_hours || null,
+      game.clear || 0,
+      game.custom_name || null,
+      game.custom_image_base64 || null
     ]
   );
 }
@@ -94,7 +103,7 @@ export async function getGames(sortOption = 'addtime', sortOrder: 'asc' | 'desc'
   const { sortField, sortDirection, customSortSql } = getSortConfig(sortOption, sortOrder);
 
   let query = `
-    SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath , savepath, autosave, developer,all_titles,aveage_hours,clear FROM games
+    SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath , savepath, autosave, developer,all_titles,aveage_hours,clear, custom_name, custom_image_base64 FROM games
   `;
 
   if (customSortSql) {
@@ -201,7 +210,7 @@ export async function filterGamesByType(
   }
 
   let query = `
-    SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath, savepath, autosave, developer, all_titles, aveage_hours, clear
+    SELECT id, bgm_id,vndb_id, date, image, summary, name, name_cn, tags, rank, score, time, localpath, savepath, autosave, developer, all_titles, aveage_hours, clear, custom_name, custom_image_base64
     FROM games
     ${filterCondition}
   `;
@@ -223,7 +232,7 @@ export const updateGame = async (id: number, game: GameData) => {
   await db.execute(
     `
     UPDATE games
-    SET bgm_id = ?, vndb_id = ?, id_type = ?, date = ?, image = ?, summary = ?, name = ?, name_cn = ?, tags = ?, rank = ?, score = ?,  developer = ?, all_titles = ?, aveage_hours = ?
+    SET bgm_id = ?, vndb_id = ?, id_type = ?, date = ?, image = ?, summary = ?, name = ?, name_cn = ?, tags = ?, rank = ?, score = ?,  developer = ?, all_titles = ?, aveage_hours = ?, custom_name = ?, custom_image_base64 = ?
     WHERE id = ?;
     `,
     [
@@ -241,6 +250,8 @@ export const updateGame = async (id: number, game: GameData) => {
       game.developer,
       JSON.stringify(game.all_titles),
       game.aveage_hours,
+      game.custom_name || null,
+      game.custom_image_base64 || null,
       id
     ]
   );
@@ -267,6 +278,40 @@ export const updateGameClearStatus = async (id: number, clear: 1 | 0) => {
     WHERE id = ?;
     `,
     [clear, id]
+  );
+}
+
+/**
+ * 更新游戏的自定义名字
+ * @param id 游戏ID
+ * @param customName 自定义名字
+ */
+export const updateGameCustomName = async (id: number, customName: string | null) => {
+  const db = await getDb();
+  await db.execute(
+    `
+    UPDATE games
+    SET custom_name = ?
+    WHERE id = ?;
+    `,
+    [customName, id]
+  );
+}
+
+/**
+ * 更新游戏的自定义封面（BASE64）
+ * @param id 游戏ID
+ * @param customImageBase64 BASE64编码的封面图片
+ */
+export const updateGameCustomImage = async (id: number, customImageBase64: string | null) => {
+  const db = await getDb();
+  await db.execute(
+    `
+    UPDATE games
+    SET custom_image_base64 = ?
+    WHERE id = ?;
+    `,
+    [customImageBase64, id]
   );
 }
 

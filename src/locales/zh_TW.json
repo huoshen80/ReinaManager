@@ -320,5 +320,29 @@
             "executable": "可執行檔",
             "allFiles": "所有檔案"
         }
+    },
+    "common": {
+        "save": "儲存",
+        "cancel": "取消",
+        "confirm": "確認",
+        "delete": "刪除",
+        "clear": "清除",
+        "restore": "恢復"
+    },
+    "customContent": {
+        "title": "自訂內容",
+        "customName": "自訂名稱",
+        "customCover": "自訂封面",
+        "customNameHelp": "留空則使用原始名稱",
+        "selectImage": "選擇圖片",
+        "imageSizeLimit": "支援PNG、JPG、WEBP等格式，最大5MB，建議尺寸400x600",
+        "nameUpdateSuccess": "自訂名稱更新成功",
+        "nameUpdateFailed": "自訂名稱更新失敗",
+        "imageUpdateSuccess": "自訂封面更新成功",
+        "imageUpdateFailed": "自訂封面更新失敗",
+        "imageSelected": "圖片選擇成功",
+        "clearCustomName": "清除自訂名稱",
+        "restoreOriginalName": "恢復原始名稱",
+        "hasCustomContent": "已自訂"
     }
 }

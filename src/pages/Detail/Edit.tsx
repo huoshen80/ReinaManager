@@ -23,6 +23,7 @@ import { ViewUpdateGameBox, StatusAlert } from "@/components/AlertBox";
 import { handleDirectory } from "@/utils";
 import { updateGameLocalPath } from "@/utils/repository";
 import { useTranslation } from 'react-i18next';
+import CustomContentEditor from "@/components/CustomContentEditor";
 /**
  * Edit 组件
  * 游戏信息编辑页面，利用全局状态管理优化，减少冗余代码。
@@ -300,6 +301,21 @@ export const Edit = (): JSX.Element => {
                 >
                     {t('pages.Detail.Edit.updateLocalPath', '更新可执行文件路径')}
                 </Button>
+
+                {/* 自定义内容编辑器 */}
+                {selectedGame && (
+                    <CustomContentEditor
+                        game={selectedGame}
+                        onUpdate={(updatedGame) => {
+                            // 更新全局状态中的selectedGame
+                            useStore.getState().setSelectedGame(updatedGame);
+                        }}
+                        onError={(error) => {
+                            setFetchError(error);
+                        }}
+                        disabled={isLoading}
+                    />
+                )}
             </Stack>
         </Box>
     );

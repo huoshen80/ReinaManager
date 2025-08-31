@@ -3,7 +3,7 @@ mod migrations;
 mod utils;
 
 use backup::savedata::{create_savedata_backup, delete_savedata_backup};
-// use migrations::get_migrations;
+use migrations::get_migrations;
 use tauri::Manager;
 use utils::{
     fs::{move_backup_folder, open_directory},
@@ -26,7 +26,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_sql::Builder::new().build())
+        .plugin(
+            tauri_plugin_sql::Builder::new()
+                .add_migrations("sqlite:data/reina_manager.db", get_migrations())
+                .build()
+        )
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             launch_game,

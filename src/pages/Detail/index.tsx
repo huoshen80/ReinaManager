@@ -30,7 +30,7 @@ import { Edit } from './Edit';
 import { Backup } from './Backup';
 import { getGameById } from '@/utils/repository';
 import i18n from '@/utils/i18n';
-import { getGameDisplayName } from '@/utils';
+import { getGameDisplayName, getGameDisplayImage } from '@/utils';
 import { translateTags } from '@/utils/tagTranslation';
 
 
@@ -137,8 +137,8 @@ export const Detail: React.FC = () => {
                     {/* 左侧：游戏图片 */}
                     <Box>
                         <img
-                            src={selectedGame.image}
-                            alt={selectedGame.name}
+                            src={getGameDisplayImage(selectedGame)}
+                            alt={getGameDisplayName(selectedGame, i18n.language)}
                             className="max-h-65 max-w-40 lg:max-w-80 rounded-lg shadow-lg select-none"
                             onDragStart={(event) => event.preventDefault()}
                         />

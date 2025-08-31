@@ -320,5 +320,29 @@
             "executable": "実行ファイル",
             "allFiles": "すべてのファイル"
         }
+    },
+    "common": {
+        "save": "保存",
+        "cancel": "キャンセル",
+        "confirm": "確認",
+        "delete": "削除",
+        "clear": "クリア",
+        "restore": "復元"
+    },
+    "customContent": {
+        "title": "カスタムコンテンツ",
+        "customName": "カスタム名",
+        "customCover": "カスタムカバー",
+        "customNameHelp": "空白の場合、元の名前を使用します",
+        "selectImage": "画像を選択",
+        "imageSizeLimit": "PNG、JPG、WEBP形式をサポート、最大5MB、推奨サイズ400x600",
+        "nameUpdateSuccess": "カスタム名の更新に成功しました",
+        "nameUpdateFailed": "カスタム名の更新に失敗しました",
+        "imageUpdateSuccess": "カスタムカバーの更新に成功しました",
+        "imageUpdateFailed": "カスタムカバーの更新に失敗しました",
+        "imageSelected": "画像の選択に成功しました",
+        "clearCustomName": "カスタム名をクリア",
+        "restoreOriginalName": "元の名前を復元",
+        "hasCustomContent": "カスタマイズ済み"
     }
 }

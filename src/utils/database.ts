@@ -96,7 +96,9 @@ const createTable=async(db:Database)=>{
       developer TEXT,
       all_titles TEXT,
       aveage_hours REAL,
-      clear INTEGER DEFAULT 0
+      clear INTEGER DEFAULT 0,
+      custom_name TEXT,
+      custom_image_base64 TEXT
     );
   `);
 
@@ -150,6 +152,7 @@ const createTable=async(db:Database)=>{
 
   // 创建索引
   await db.execute('CREATE INDEX IF NOT EXISTS idx_games_autosave ON games(autosave);');
+  await db.execute('CREATE INDEX IF NOT EXISTS idx_games_custom_name ON games(custom_name);');
   await db.execute('CREATE INDEX IF NOT EXISTS idx_savedata_game_id ON savedata(game_id);');
   await db.execute('CREATE INDEX IF NOT EXISTS idx_savedata_backup_time ON savedata(backup_time);');
   await db.execute('CREATE INDEX IF NOT EXISTS idx_game_sessions_game_id ON game_sessions(game_id);');

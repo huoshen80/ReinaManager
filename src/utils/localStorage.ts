@@ -275,20 +275,21 @@ function smartSearchLocal(
 
   for (const game of games) {
     let score = 0;
+    const customName = (game.custom_name || '').toLowerCase();
     const displayName = (game.name_cn || game.name || '').toLowerCase();
     const englishName = (game.name || '').toLowerCase();
     const developer = (game.developer || '').toLowerCase();
     
-    // 1. 精确匹配检查
-    if (displayName === searchTerm || englishName === searchTerm) {
+    // 1. 精确匹配检查 (优先自定义名字)
+    if (customName === searchTerm || displayName === searchTerm || englishName === searchTerm) {
       score = 1.0;
     }
     // 2. 开头匹配
-    else if (displayName.startsWith(searchTerm) || englishName.startsWith(searchTerm)) {
+    else if (customName.startsWith(searchTerm) || displayName.startsWith(searchTerm) || englishName.startsWith(searchTerm)) {
       score = 0.9;
     }
     // 3. 包含匹配
-    else if (displayName.includes(searchTerm) || englishName.includes(searchTerm)) {
+    else if (customName.includes(searchTerm) || displayName.includes(searchTerm) || englishName.includes(searchTerm)) {
       score = 0.8;
     }
     // 4. 开发商匹配

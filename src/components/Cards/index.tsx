@@ -24,7 +24,7 @@ import { useGamePlayStore } from '@/store/gamePlayStore';
 import type { GameData } from '@/types';
 import KeepAlive from 'react-activation';
 import { useTranslation } from 'react-i18next';
-import { getGameDisplayName, isNsfwGame } from '@/utils';
+import { getGameDisplayName, getGameDisplayImage, isNsfwGame } from '@/utils';
 import { useNavigate } from 'react-router';
 
 /**
@@ -155,7 +155,7 @@ const CardItem = memo(({ card, isActive, onContextMenu, onClick, onDoubleClick, 
                 <CardMedia
                     component="img"
                     className="h-auto aspect-[3/4]"
-                    image={nsfwCoverReplace && isNsfw ? "/images/NR18.png" : card.image}
+                    image={nsfwCoverReplace && isNsfw ? "/images/NR18.png" : getGameDisplayImage(card)}
                     alt="Card Image"
                     draggable="false"
                     loading="lazy"

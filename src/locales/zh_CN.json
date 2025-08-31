@@ -320,5 +320,29 @@
             "executable": "可执行文件",
             "allFiles": "所有文件"
         }
+    },
+    "common": {
+        "save": "保存",
+        "cancel": "取消",
+        "confirm": "确认",
+        "delete": "删除",
+        "clear": "清除",
+        "restore": "恢复"
+    },
+    "customContent": {
+        "title": "自定义内容",
+        "customName": "自定义名字",
+        "customCover": "自定义封面",
+        "customNameHelp": "留空则使用原始名字",
+        "selectImage": "选择图片",
+        "imageSizeLimit": "支持PNG、JPG、WEBP等格式，最大5MB，建议尺寸400x600",
+        "nameUpdateSuccess": "自定义名字更新成功",
+        "nameUpdateFailed": "自定义名字更新失败",
+        "imageUpdateSuccess": "自定义封面更新成功",
+        "imageUpdateFailed": "自定义封面更新失败",
+        "imageSelected": "图片选择成功",
+        "clearCustomName": "清除自定义名字",
+        "restoreOriginalName": "恢复原始名字",
+        "hasCustomContent": "已自定义"
     }
 }

@@ -320,5 +320,29 @@
             "executable": "Executable File",
             "allFiles": "All Files"
         }
+    },
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "delete": "Delete",
+        "clear": "Clear",
+        "restore": "Restore"
+    },
+    "customContent": {
+        "title": "Custom Content",
+        "customName": "Custom Name",
+        "customCover": "Custom Cover",
+        "customNameHelp": "Leave blank to use original name",
+        "selectImage": "Select Image",
+        "imageSizeLimit": "Supports PNG, JPG, WEBP formats, max 5MB, recommended size 400x600",
+        "nameUpdateSuccess": "Custom name updated successfully",
+        "nameUpdateFailed": "Failed to update custom name",
+        "imageUpdateSuccess": "Custom cover updated successfully",
+        "imageUpdateFailed": "Failed to update custom cover",
+        "imageSelected": "Image selected successfully",
+        "clearCustomName": "Clear custom name",
+        "restoreOriginalName": "Restore original name",
+        "hasCustomContent": "Customized"
     }
 }
