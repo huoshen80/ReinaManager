@@ -277,6 +277,12 @@
             "gameNotFound": "未找到遊戲資料",
             "deleteBackupTitle": "刪除備份"
         },
+      "Snackbar": {
+        "failedOpenGameFolder": "打開遊戲文件夾失敗",
+        "failedOpenBackupFolder": "打開備份文件夾失敗",
+        "failedOpenSaveFolder":"打開存檔文件夾失敗",
+        "failedOpenDatabaseBackupFolder": "打開數據庫備份文件夾失敗"
+      },
         "AddModal": {
             "addGame": "添加遊戲",
             "noExecutableSelected": "未選擇可執行程序",

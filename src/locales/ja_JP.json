@@ -277,6 +277,12 @@
             "gameNotFound": "ゲームデータが見つかりません",
             "deleteBackupTitle": "バックアップを削除"
         },
+      "Snackbar": {
+        "failedOpenGameFolder": "ゲームフォルダの開けに失敗しました",
+        "failedOpenBackupFolder": "バックアップフォルダの開けに失敗しました",
+        "failedOpenSaveFolder":"セーブデータフォルダの開けに失敗しました",
+        "failedOpenDatabaseBackupFolder": "データベースバックアップフォルダの開けに失敗しました"
+      },
         "AddModal": {
             "addGame": "ゲームを追加",
             "noExecutableSelected": "実行ファイルが選択されていません",

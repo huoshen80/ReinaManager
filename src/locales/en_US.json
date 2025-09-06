@@ -277,6 +277,12 @@
             "gameNotFound": "Game data not found",
             "deleteBackupTitle": "Delete Backup?"
         },
+      "Snackbar": {
+        "failedOpenGameFolder": "Failed to open the game folder",
+        "failedOpenBackupFolder": "Failed to open the backup folder",
+        "failedOpenSaveFolder":"Failed to open the save folder",
+        "failedOpenDatabaseBackupFolder": "Failed to open the database backup folder"
+      },
         "AddModal": {
             "addGame": "Add Game",
             "noExecutableSelected": "No executable selected",
