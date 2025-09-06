@@ -23,10 +23,7 @@ pub struct MoveResult {
 pub async fn open_directory(dir_path: String) -> Result<(), String> {
     // 首先检查路径是否存在
     if !Path::new(&dir_path).exists() {
-        // 如果路径不存在，尝试创建它
-        if let Err(e) = fs::create_dir_all(&dir_path) {
-            return Err(format!("路径不存在且无法创建: {} - {}", dir_path, e));
-        }
+        return Err(format!("路径不存在且无法创建: {}", dir_path));
     }
 
     #[cfg(target_os = "windows")]
