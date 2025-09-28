@@ -1,11 +1,11 @@
 mod backup;
-mod migrations;
 mod utils;
 
 use backup::savedata::{create_savedata_backup, delete_savedata_backup};
-use migrations::get_migrations;
+use migration::MigratorTrait;
 use tauri::Manager;
 use utils::{
+    connection::establish_connection,
     fs::{copy_file, delete_file, delete_game_covers, move_backup_folder, open_directory},
     game_monitor::monitor_game,
     launch::launch_game,
@@ -28,11 +28,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
-        .plugin(
-            tauri_plugin_sql::Builder::new()
-                .add_migrations("sqlite:data/reina_manager.db", get_migrations())
-                .build(),
-        )
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             launch_game,
@@ -46,6 +41,21 @@ pub fn run() {
             delete_game_covers,
         ])
         .setup(|app| {
+            // 执行 SeaORM 数据库迁移
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match establish_connection(&app_handle).await {
+                    Ok(conn) => {
+                        log::info!("开始执行数据库迁移...");
+                        match migration::Migrator::up(&conn, None).await {
+                            Ok(_) => log::info!("数据库迁移完成"),
+                            Err(e) => log::error!("数据库迁移失败: {}", e),
+                        }
+                    }
+                    Err(e) => log::error!("无法建立数据库连接进行迁移: {}", e),
+                }
+            });
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()

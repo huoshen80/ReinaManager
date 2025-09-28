@@ -21,7 +21,7 @@ export interface GameData {
     score?: number;
     bgm_id?: string | null;
     vndb_id?: string | null;
-    id_type?: string | 'bgm' | 'vndb' | 'mixed' | 'custom';
+    id_type?: string | string | 'bgm' | 'vndb' | 'mixed' | 'custom' | 'Whitecloud';
     time?: Date;
     localpath?: string;
     savepath?: string;
@@ -32,7 +32,34 @@ export interface GameData {
     clear?: 1 | 0;
     custom_name?: string;
     custom_cover?: string | null; // 存储自定义封面的文件扩展名，如 'jpg', 'png', 'webp' 等
-    aliases?: string[]; 
+    aliases?: string[];
+}
+
+export interface BgmGameData {
+  id: number;
+  image: string;
+  name: string;
+  name_cn: string;
+  aliases: string[];
+  summary: string;
+  tags: string[];
+  rank: number | null;
+  score: number;
+  developer: string | null;
+}
+
+export interface VndbGameData {
+  id: number;
+  image: string;
+  name: string;
+  name_cn: string;
+  all_titles: string[];
+  aliases: string[];
+  summary: string;
+  tags: Object[];//多类型标签，待扩展
+  aveage_hours: number;
+  developer: string | null;
+  score: number;
 }
 
 /**
