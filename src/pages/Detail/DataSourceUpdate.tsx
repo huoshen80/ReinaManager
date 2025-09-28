@@ -11,9 +11,9 @@ import {
     type SelectChangeEvent
 } from "@mui/material";
 import UpdateIcon from '@mui/icons-material/Update';
-import { fetchFromBgm } from "@/api/bgm";
-import { fetchFromVNDB } from "@/api/vndb";
-import fetchMixedData from "@/api/mixed";
+import { fetchBgmById } from "@/api/bgm";
+import { fetchVndbById } from "@/api/vndb";
+import { fetchMixedById } from "@/api/mixed";
 import type { GameData } from "@/types";
 import { useTranslation } from 'react-i18next';
 import { snackbar } from "@/components/Snackbar";
@@ -57,7 +57,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
             case "bgm": {
                 if (!bgmId) throw new Error(t('pages.Detail.DataSourceUpdate.bgmIdRequired', 'Bangumi ID 不能为空'));
                 try {
-                    fetchedData = await fetchFromBgm(bgmId, bgmToken, bgmId);
+                    fetchedData = await fetchBgmById(bgmId, bgmToken);
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : t('pages.Detail.DataSourceUpdate.unknownError', '未知错误');
                     console.error("Bangumi 数据获取失败:", errorMessage);
@@ -68,7 +68,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
             case "vndb": {
                 if (!vndbId) throw new Error(t('pages.Detail.DataSourceUpdate.vndbIdRequired', 'VNDB ID 不能为空'));
                 try {
-                    fetchedData = await fetchFromVNDB(vndbId, vndbId);
+                    fetchedData = await fetchVndbById(vndbId);
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : t('pages.Detail.DataSourceUpdate.unknownError', '未知错误');
                     console.error("VNDB 数据获取失败:", errorMessage);
@@ -79,12 +79,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
             case "mixed": {
                 if (!bgmId && !vndbId) throw new Error(t('pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired', 'Bangumi ID 或 VNDB ID 不能为空'));
                 try {
-                    fetchedData = await fetchMixedData(
-                        bgmId || vndbId,
-                        bgmToken,
-                        bgmId,
-                        vndbId
-                    );
+                    fetchedData = await fetchMixedById(bgmId, vndbId, bgmToken);
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : t('pages.Detail.DataSourceUpdate.unknownError', '未知错误');
                     console.error("Mixed 数据获取失败:", errorMessage);

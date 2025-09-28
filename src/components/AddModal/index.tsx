@@ -29,9 +29,9 @@ import AddIcon from '@mui/icons-material/Add';
 import FileOpenIcon from '@mui/icons-material/FileOpen';
 import { useModal } from '@/components/Toolbar';
 import { useEffect, useState } from 'react';
-import { fetchFromBgm } from '@/api/bgm';
-import { fetchFromVNDB } from '@/api/vndb';
-import fetchMixedData from '@/api/mixed';
+import { fetchBgmById, fetchBgmByName } from '@/api/bgm';
+import { fetchVndbById, fetchVndbByName } from '@/api/vndb';
+import { fetchMixedById, fetchMixedByName } from '@/api/mixed';
 import Alert from '@mui/material/Alert';
 import { useStore } from '@/store/';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -110,12 +110,24 @@ const AddModal: React.FC = () => {
             }            // 根据 apiSource 状态选择数据源
             let res: GameData | string;
             if (apiSource === 'vndb') {
-                res = await fetchFromVNDB(formText, isID ? formText : undefined);
+                if (isID) {
+                    res = await fetchVndbById(formText);
+                } else {
+                    res = await fetchVndbByName(formText);
+                }
             } else if (apiSource === 'mixed') {
                 const { bgmId, vndbId } = parseGameId(formText, isID);
-                res = await fetchMixedData(formText, bgmToken, bgmId, vndbId);
+                if (isID && (bgmId || vndbId)) {
+                    res = await fetchMixedById(bgmId, vndbId, bgmToken);
+                } else {
+                    res = await fetchMixedByName(formText, bgmToken);
+                }
             } else {
-                res = await fetchFromBgm(formText, bgmToken, isID ? formText : undefined);
+                if (isID) {
+                    res = await fetchBgmById(formText, bgmToken);
+                } else {
+                    res = await fetchBgmByName(formText, bgmToken);
+                }
             }
             // 错误处理
             if (typeof res === 'string') {

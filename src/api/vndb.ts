@@ -6,14 +6,14 @@
  * @copyright AGPL-3.0
  *
  * 主要导出：
- * - fetchFromVNDB：根据名称或 VNDB ID 获取游戏详细信息
- * - fetchVNDBById：通过 ID 直接获取游戏详细信息
+ * - fetchVndbById：通过 VNDB ID 直接获取游戏详细信息
+ * - fetchVndbByName：根据名称搜索获取游戏详细信息
+ * - fetchFromVNDB：兼容旧版本的统一接口
+ * - fetchVNDBById：通过 ID 直接获取游戏详细信息（别名）
  *
  * 依赖：
  * - http: 封装的 HTTP 请求工具
- * - time_now: 获取当前时间的工具函数
  */
-
 
 import i18n from '@/utils/i18n'
 import http from './http'
@@ -26,7 +26,6 @@ interface VNDB_title {
   lang: string;
   main: boolean;
 }
-
 /**
  * 从 VNDB API 获取游戏信息。
  *
@@ -37,14 +36,14 @@ interface VNDB_title {
  * @param {string} [id] 可选，VNDB 游戏 ID，若提供则优先通过 ID 查询。
  * @returns {Promise<object | string>} 包含游戏详细信息的对象，若未找到则返回错误提示字符串。
  */
-export async function fetchFromVNDB(name: string, id?: string) {
+export async function fetchVndbByName(name: string, id?: string) {
   try {
     // 构建 API 请求体
     const requestBody = {
       filters: id ? ['id', '=', id] : ['search', '=', name],
       fields: 'id, titles.title, titles.lang, titles.main, aliases, image.url, released, rating, tags.name,tags.rating, description,developers.name,length_minutes'
     };
-    
+
     // 调用 VNDB API
     const VNDBdata = (await http.post('https://api.vndb.org/kana/vn', requestBody, {
       headers: {
@@ -52,45 +51,45 @@ export async function fetchFromVNDB(name: string, id?: string) {
         'Content-Type': 'application/json'
       }
     })).data.results[0];
-    if(!VNDBdata) return i18n.t('api.vndb.notFound', '未找到相关条目，请确认ID或游戏名字后重试');
-    
+    if (!VNDBdata) return i18n.t('api.vndb.notFound', '未找到相关条目，请确认ID或游戏名字后重试');
+
     // 处理标题信息
-    const titles = VNDBdata.titles.map((title:VNDB_title) => ({
+    const titles = VNDBdata.titles.map((title: VNDB_title) => ({
       title: title.title,
       lang: title.lang,
       main: title.main
     }));
-    
+
     const mainTitle: string = titles.find((title: VNDB_title) => title.main)?.title || '';
-    const chineseTitle = titles.find((title:VNDB_title )=> 
+    const chineseTitle = titles.find((title: VNDB_title) =>
       title.lang === 'zh-Hans' || title.lang === 'zh-Hant' || title.lang === 'zh'
     )?.title || "";
-    
+
     // 提取所有标题
     const allTitles: string[] = titles.map((title: VNDB_title) => title.title);
-    
+
     // 格式化返回数据，与 bgm.ts 的返回格式保持一致
     return {
       bgm_id: null,
       vndb_id: VNDBdata.id,
       id_type: 'vndb',
       date: VNDBdata.released,
-      image: VNDBdata.image?.url||null ,
+      image: VNDBdata.image?.url || null,
       summary: VNDBdata.description,
       name: mainTitle,
       name_cn: chineseTitle,
       all_titles: allTitles,
       aliases: VNDBdata.aliases || [],
       tags: (VNDBdata.tags as { rating: number; name: string }[])
-      .sort((a, b) => b.rating - a.rating)
-      .map(({ name }) => name),
+        .sort((a, b) => b.rating - a.rating)
+        .map(({ name }) => name),
       rank: null,
-      score: Number((VNDBdata.rating/10).toFixed(2)),
+      score: Number((VNDBdata.rating / 10).toFixed(2)),
       developer: VNDBdata.developers?.map((dev: { name: string }) => dev.name).join('/') || null,
       aveage_hours: Number((VNDBdata.length_minutes / 60).toFixed(1)),
     };
   } catch (error) {
-       Promise.reject(new Error(i18n.t('api.vndb.apiCallFailed', 'VNDB API 调用失败')));
+    Promise.reject(new Error(i18n.t('api.vndb.apiCallFailed', 'VNDB API 调用失败')));
     if (error instanceof Error) {
       console.error("错误消息:", error.message);
     }
@@ -104,6 +103,6 @@ export async function fetchFromVNDB(name: string, id?: string) {
  * @param {string} id VNDB 游戏 ID（如 "v17"）。
  * @returns {Promise<object | string>} 包含游戏详细信息的对象，若未找到则返回错误提示字符串。
  */
-export async function fetchVNDBById(id: string) {
-  return fetchFromVNDB("", id);
+export async function fetchVndbById(id: string) {
+  return fetchVndbByName("", id);
 }
