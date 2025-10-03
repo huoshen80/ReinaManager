@@ -300,7 +300,7 @@ const WindowsHandler: React.FC = () => {
         let unlisten = () => { };
         // 拦截关闭
         // @ts-ignore: onCloseRequested API provides preventDefault
-        w.onCloseRequested((event) => {
+        w.onCloseRequested(async (event) => {
             // @ts-ignore
             event.preventDefault();
             // 获取最新的状态值，避免闭包陷阱
