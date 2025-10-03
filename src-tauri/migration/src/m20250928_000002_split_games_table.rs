@@ -113,12 +113,16 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     // 5. 迁移数据从原 games 表到新表结构
     // 5.1 迁移核心 games 数据
     txn.execute(Statement::from_string(
-        DatabaseBackend::Sqlite,
-        r#"INSERT INTO "games_new" (id, bgm_id, vndb_id, id_type, date, localpath, savepath, autosave, clear, custom_name, custom_cover, created_at, updated_at)
-         SELECT id, bgm_id, vndb_id, id_type, date, localpath, savepath, autosave, clear, custom_name, custom_cover,
-                COALESCE(time, strftime('%s', 'now')),
-                strftime('%s', 'now')
-         FROM games"#
+     DatabaseBackend::Sqlite,
+     r#"INSERT INTO "games_new" (id, bgm_id, vndb_id, id_type, date, localpath, savepath, autosave, clear, custom_name, custom_cover, created_at, updated_at)
+      SELECT id, bgm_id, vndb_id, id_type, date, localpath, savepath, autosave, clear, custom_name, custom_cover,
+          COALESCE(
+              -- 尝试把 ISO8601 格式 (YYYY-MM-DDTHH:MM:SS.sssZ) 转为 SQLite 可解析的 datetime 并取 unix 秒
+              strftime('%s', replace(substr(time, 1, 19), 'T', ' ')),
+              strftime('%s', 'now')
+          ),
+          strftime('%s', 'now')
+      FROM games"#
     )).await?;
 
     // 5.2 迁移 BGM 相关数据

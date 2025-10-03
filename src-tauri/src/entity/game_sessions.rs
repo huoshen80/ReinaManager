@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "game_sessions")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub session_id: Option<i32>,
+    pub session_id: i32,
     pub game_id: i32,
     pub start_time: i32,
     pub end_time: i32,

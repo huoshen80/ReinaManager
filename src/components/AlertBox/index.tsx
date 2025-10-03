@@ -20,10 +20,12 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
-import type { GameData } from '@/types';
+import type { FullGameData } from '@/types';
 
 /**
  * 通用提示框属性类型
@@ -58,7 +60,7 @@ interface AlertDeleteBoxProps {
 
 // 定义 ViewUpdateGameBoxProps 接口
 interface ViewUpdateGameBoxProps {
-    game: GameData | string | null;
+    fullgame: FullGameData | string | null;
     open: boolean;
     setOpen: (value: boolean) => void;
     onConfirm: () => void;
@@ -189,26 +191,50 @@ export const AlertDeleteBox: React.FC<AlertDeleteBoxProps> = ({
  * @returns {JSX.Element} 更新游戏信息弹窗
  */
 export const ViewUpdateGameBox: React.FC<ViewUpdateGameBoxProps> = ({
-    game,
+    fullgame,
     open,
     setOpen,
     onConfirm
 }) => {
     const { t } = useTranslation();
-
     return (
         <AlertBox
             open={open}
             setOpen={setOpen}
             title={t('components.AlertBox.confirmUpdateTitle')}
             message={
-                (game && typeof game !== 'string') ?
-                    <>
-                        <p>{t('components.AlertBox.gameName')}: {game.name}</p>
-                        <img src={game.image} alt={game.name} style={{ maxWidth: '100%', maxHeight: '200px' }} />
-                    </>
-                    :
-                    <p>{t('components.AlertBox.noData')}</p>
+                (fullgame && typeof fullgame !== 'string') ? (
+                    <Box className="flex gap-2 items-start w-full">
+                        {fullgame.bgm_data && (
+                            <Box className="text-left">
+                                <Typography variant="subtitle1" gutterBottom>
+                                    {t('components.AlertBox.bgmData', "BGM 数据")}
+                                </Typography>
+                                <Typography variant="body2" className="mb-1">
+                                    {t('components.AlertBox.gameName')}: {fullgame.bgm_data.name}
+                                </Typography>
+                                {fullgame.bgm_data.image && (
+                                    <img src={fullgame.bgm_data.image} alt={`BGM ${fullgame.bgm_data.name}`} className="w-full h-auto max-h-64 object-contain rounded" />
+                                )}
+                            </Box>
+                        )}
+                        {fullgame.vndb_data && (
+                            <Box className="text-left">
+                                <Typography variant="subtitle1" gutterBottom>
+                                    {t('components.AlertBox.vndbData', "VNDB 数据")}
+                                </Typography>
+                                <Typography variant="body2" className="mb-1">
+                                    {t('components.AlertBox.gameName')}: {fullgame.vndb_data.name}
+                                </Typography>
+                                {fullgame.vndb_data.image && (
+                                    <img src={fullgame.vndb_data.image} alt={`VNDB ${fullgame.vndb_data.name}`} className="w-full h-auto max-h-64 object-contain rounded" />
+                                )}
+                            </Box>
+                        )}
+                    </Box>
+                ) : (
+                    <Typography>{t('components.AlertBox.noData', "没有数据")}</Typography>
+                )
             }
             onConfirm={onConfirm}
             confirmText={t('components.AlertBox.confirm')}

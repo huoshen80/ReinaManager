@@ -168,7 +168,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
  * @returns {JSX.Element}
  */
 const MoreButton = () => {
-    const { selectedGame, getGameById, setSelectedGame, updateGameClearStatusInStore } = useStore();
+    const { selectedGame, setSelectedGame, updateGameClearStatusInStore } = useStore();
     const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
@@ -199,7 +199,7 @@ const MoreButton = () => {
     const handleToggleClearStatus = async () => {
         if (selectedGame?.id === undefined) return;
         try {
-            await toggleGameClearStatus(selectedGame.id, getGameById, (_, updatedGame) => {
+            await toggleGameClearStatus(selectedGame.id, (_, updatedGame) => {
                 // 更新store中的游戏数据
                 setSelectedGame(updatedGame);
             }, (gameId, newStatus) => {

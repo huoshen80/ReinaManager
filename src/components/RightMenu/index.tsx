@@ -168,7 +168,7 @@ const RightMenu: React.FC<RightMenuProps> = ({ isopen, anchorPosition, setAnchor
     const handleSwitchClearStatus = async () => {
         if (id === null || id === undefined) return;
         try {
-            await toggleGameClearStatus(id, getGameById, (_, updatedGame) => {
+            await toggleGameClearStatus(id, (_, updatedGame) => {
                 // 更新本地状态
                 setGameData(updatedGame);
             }, (gameId, newStatus) => {

@@ -4,20 +4,26 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "savedata")]
+#[sea_orm(table_name = "game_collection_link")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
+    #[sea_orm(primary_key)]
     pub id: i32,
     pub game_id: i32,
-    #[sea_orm(column_type = "Text")]
-    pub file: String,
-    pub backup_time: i32,
-    pub file_size: i32,
+    pub collection_id: i32,
+    pub sort_order: i32,
     pub created_at: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::collections::Entity",
+        from = "Column::CollectionId",
+        to = "super::collections::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Collections,
     #[sea_orm(
         belongs_to = "super::games::Entity",
         from = "Column::GameId",
@@ -26,6 +32,12 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Games,
+}
+
+impl Related<super::collections::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Collections.def()
+    }
 }
 
 impl Related<super::games::Entity> for Entity {

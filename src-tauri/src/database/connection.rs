@@ -58,3 +58,9 @@ pub async fn establish_connection(app: &AppHandle) -> Result<DatabaseConnection,
     // 6. 连接数据库
     Database::connect(options).await
 }
+
+/// 关闭数据库连接
+pub async fn close_connection(conn: DatabaseConnection) -> Result<(), DbErr> {
+    conn.close().await?;
+    Ok(())
+}

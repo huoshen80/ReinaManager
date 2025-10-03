@@ -1,77 +1,59 @@
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@tauri-apps/api/core';
-import { getDb } from './database';
 import type { GameSession, GameStatistics, GameTimeStats } from '../types';
 import { formatPlayTime, getLocalDateString, createGameSavedataBackup } from '@/utils';
-import { getGameById } from '@/utils/repository';
+import { gameService, statsService } from '@/services';
+import type { DailyStats } from '@/services/types';
 
 // 类型定义
 export type TimeUpdateCallback = (gameId: number, minutes: number) => void;
 export type SessionEndCallback = (gameId: number, minutes: number) => void;
 
-// 记录游戏会话 - 直接使用内部ID
+// 记录游戏会话 - 使用后端统计服务
 export async function recordGameSession(
-  gameId: number, // 改为number类型
+  gameId: number,
   minutes: number, 
   startTime: number, 
   endTime: number,
 ): Promise<number> {
-  const db = await getDb();
-  
   // 当前日期，格式YYYY-MM-DD
   const date = getLocalDateString(endTime);
   
   try {
-    // 插入游戏会话记录
-    const result = await db.execute(
-      `INSERT INTO game_sessions (
-        game_id, start_time, end_time, duration, date
-      ) VALUES (?, ?, ?, ?, ?);`,
-      [gameId, startTime, endTime, minutes, date],
+    // 通过后端服务记录游戏会话
+    const sessionId = await statsService.recordGameSession(
+      gameId,
+      startTime,
+      endTime,
+      minutes,
+      date
     );
     
     // 更新统计信息
     await updateGameStatistics(gameId);
     
-    return result.lastInsertId ?? -1;
+    return sessionId;
   } catch (error) {
     console.error('记录游戏会话失败:', error);
     throw error;
   }
 }
 
-// 更新游戏统计信息函数 - 优化版
+// 更新游戏统计信息函数 - 使用后端服务
 export async function updateGameStatistics(gameId: number): Promise<void> {
-  const db = await getDb();
-  
   try {
-    // 1. 获取现有统计数据，保留实时更新积累的数据
-    const existingStats = await db.select<{
-      total_time: number;
-      session_count: number;
-      last_played: number | null;
-      daily_stats: string;
-    }[]>(`SELECT total_time, session_count, last_played, daily_stats 
-           FROM game_statistics WHERE game_id = ?;`, [gameId]);
+    // 1. 获取现有统计数据
+    const existingStats = await statsService.getGameStatistics(gameId);
     
     // 2. 获取最新的会话数据
-    const sessions = await db.select<{
-      id: number;
-      start_time: number;
-      end_time: number;
-      duration: number;
-    }[]>(`
-      SELECT session_id as id, start_time, end_time, duration
-      FROM game_sessions 
-      WHERE game_id = ?;
-    `, [gameId]);
+    const sessions = await statsService.getGameSessions(gameId, 1000, 0);
     
     // 3. 计算基础统计信息（总时间、会话数等）
     const stats = {
-      total_time: sessions.reduce((sum, session) => sum + session.duration, 0),
+      total_time: sessions.reduce((sum: number, session) => sum + (session.duration || 0), 0),
       session_count: sessions.length,
       last_played: sessions.length > 0 
-        ? Math.max(...sessions.map(s => s.end_time)) 
+        ? Math.max(...sessions.map((s) => s.end_time || 0)) 
         : null
     };
     
@@ -80,6 +62,11 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
     
     // 处理每个会话，正确分配跨天时间
     for (const session of sessions) {
+      // 跳过没有必要数据的会话
+      if (!session.start_time || !session.end_time || !session.duration) {
+        continue;
+      }
+      
       // 使用本地日期字符串
       const startDateStr = getLocalDateString(session.start_time);
       const endDateStr = getLocalDateString(session.end_time);
@@ -111,7 +98,6 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
         
         // 计算第一天和第二天的秒数
         const firstDaySeconds = midnightTimestamp - session.start_time;
-        // const secondDaySeconds = session.end_time - midnightTimestamp;
         
         // 按比例分配分钟数
         const firstDayMinutes = Math.round((firstDaySeconds / totalSeconds) * session.duration);
@@ -126,48 +112,44 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
       }
     }
 
-// 5. 合并现有统计和会话统计
-const today = getLocalDateString();
-let dailyStats: Array<{date: string; playtime: number}> = [];
+    // 5. 合并现有统计和会话统计
+    const today = getLocalDateString();
+    let dailyStats: DailyStats[] = [];
 
-// 解析现有的每日统计数据
-if (existingStats.length > 0 && existingStats[0].daily_stats) {
-  try {
-    // 确保解析出的数据是预期的格式
-    const parsed = JSON.parse(existingStats[0].daily_stats);
-    
-    // 验证解析出的数据是否是数组
-    if (Array.isArray(parsed)) {
-      dailyStats = parsed;
-    } else if (typeof parsed === 'object') {
-      // 处理可能是对象格式的情况
-      dailyStats = Object.entries(parsed).map(([date, playtime]) => ({
-        date,
-        playtime: typeof playtime === 'number' ? playtime : 0
-      }));
+    // 解析现有的每日统计数据
+    if (existingStats && existingStats.daily_stats) {
+      try {
+        // 如果 daily_stats 是字符串，解析它；如果已经是数组，直接使用
+        const parsed = typeof existingStats.daily_stats === 'string' 
+          ? JSON.parse(existingStats.daily_stats)
+          : existingStats.daily_stats;
+        
+        if (Array.isArray(parsed)) {
+          dailyStats = parsed;
+        } else if (typeof parsed === 'object') {
+          dailyStats = Object.entries(parsed).map(([date, playtime]) => ({
+            date,
+            playtime: typeof playtime === 'number' ? playtime : 0
+          }));
+        }
+      } catch (e) {
+        console.error('解析游戏统计数据失败:', e);
+        dailyStats = [];
+      }
     }
-  } catch (e) {
-    console.error('解析游戏统计数据失败:', e);
-    // 确保错误时也有一个有效的空数组
-    dailyStats = [];
-  }
-}
 
-// 确保即使没有会话数据时，也能创建今天的记录
-if (sessionsStatsMap.size === 0 && !dailyStats.some(item => item.date === today)) {
-  // 如果没有会话数据且今天没有记录，添加一个初始记录
-  dailyStats.push({ date: today, playtime: 0 });
-}
+    // 确保即使没有会话数据时，也能创建今天的记录
+    if (sessionsStatsMap.size === 0 && !dailyStats.some(item => item.date === today)) {
+      dailyStats.push({ date: today, playtime: 0 });
+    }
     
     // 根据会话数据更新统计
     for (const [date, playtime] of sessionsStatsMap.entries()) {
-      // 查找现有数据中是否有这一天
       const existingIndex = dailyStats.findIndex(item => item.date === date);
       
       if (existingIndex >= 0) {
         // 如果是今天的数据，保留现有数据中可能包含的实时更新记录
         if (date === today) {
-          // 如果实时统计已经记录了时间，检查是否超过从会话计算的时间
           const realTimePlaytime = dailyStats[existingIndex].playtime;
           const sessionPlaytime = playtime;
           
@@ -186,18 +168,13 @@ if (sessionsStatsMap.size === 0 && !dailyStats.some(item => item.date === today)
     // 6. 按日期降序排序
     dailyStats.sort((a, b) => b.date.localeCompare(a.date));
     
-    // 7. 更新统计表
-    await db.execute(
-      `REPLACE INTO game_statistics 
-       (game_id, total_time, session_count, last_played, daily_stats)
-       VALUES (?, ?, ?, ?, ?);`,
-      [
-        gameId,
-        stats.total_time || 0,
-        stats.session_count || 0,
-        stats.last_played || null,
-        JSON.stringify(dailyStats),
-      ]
+    // 7. 通过后端服务更新统计表
+    await statsService.updateGameStatistics(
+      gameId,
+      stats.total_time || 0,
+      stats.session_count || 0,
+      stats.last_played || null,
+      dailyStats
     );
   } catch (error) {
     console.error('更新游戏统计失败:', error);
@@ -205,38 +182,29 @@ if (sessionsStatsMap.size === 0 && !dailyStats.some(item => item.date === today)
   }
 }
 
-// 获取游戏统计信息 - 直接使用内部ID
+// 获取游戏统计信息 - 使用后端服务
 export async function getGameStatistics(gameId: number): Promise<GameStatistics | null> {
-  const db = await getDb();
+  const stats = await statsService.getGameStatistics(gameId);
   
-  const stats = await db.select<GameStatistics[]>(
-    'SELECT * FROM game_statistics WHERE game_id = ?;',
-    [gameId],
-  );
-  
-  if (stats.length === 0) {
+  if (!stats) {
     return null;
   }
   
-  const result = stats[0];
-  
   // 解析JSON存储的每日统计数据
-  if (typeof result.daily_stats === 'string') {
+  if (stats.daily_stats && typeof stats.daily_stats === 'string') {
     try {
-      const parsedStats = JSON.parse(result.daily_stats);
-       
-        result.daily_stats = parsedStats;
-      
+      const parsedStats = JSON.parse(stats.daily_stats);
+      stats.daily_stats = parsedStats;
     } catch (e) {
       console.error('解析游戏统计数据失败:', e);
-      result.daily_stats = [];
+      stats.daily_stats = [];
     }
   }
   
-  return result;
+  return stats;
 }
 
-// 获取今天的游戏时间 - 直接使用内部ID
+// 获取今天的游戏时间 - 使用后端服务
 export async function getTodayGameTime(gameId: number): Promise<number> {
   const stats = await getGameStatistics(gameId);
   const today = getLocalDateString();
@@ -249,33 +217,21 @@ export async function getTodayGameTime(gameId: number): Promise<number> {
   return todayRecord?.playtime || 0;
 }
 
-// 获取游戏会话历史 - 直接使用内部ID
+// 获取游戏会话历史 - 使用后端服务
 export async function getGameSessions(
   gameId: number,
   limit = 10, 
   offset = 0,
 ): Promise<GameSession[]> {
-  const db = await getDb();
-  
-  const sessions = await db.select<GameSession[]>(
-    `
-    SELECT * FROM game_sessions
-    WHERE game_id = ?
-    ORDER BY start_time DESC
-    LIMIT ? OFFSET ?;
-    `,
-    [gameId, limit, offset],
-  );
-  
-  return sessions;
+  return statsService.getGameSessions(gameId, limit, offset);
 }
-// 优化：一次性获取所有游戏的最近会话记录
+
+// 优化：一次性获取所有游戏的最近会话记录 - 使用后端服务
 export async function getRecentSessionsForAllGames(
   gameIds: number[],
   limit = 10
 ): Promise<Map<number, GameSession[]>> {
   if (!isTauri()) {
-    // 浏览器环境下返回空的Map，因为没有会话功能
     return new Map();
   }
 
@@ -283,24 +239,7 @@ export async function getRecentSessionsForAllGames(
     return new Map();
   }
 
-  const db = await getDb();
-  
-  // 为每个游戏获取最近的会话记录，使用ROW_NUMBER进行分组限制
-  const placeholders = gameIds.map(() => '?').join(',');
-  const sessions = await db.select<(GameSession & { game_id: number })[]>(
-    `
-    WITH ranked_sessions AS (
-      SELECT *,
-             ROW_NUMBER() OVER (PARTITION BY game_id ORDER BY start_time DESC) as rn
-      FROM game_sessions
-      WHERE game_id IN (${placeholders})
-    )
-    SELECT * FROM ranked_sessions 
-    WHERE rn <= ?
-    ORDER BY game_id, start_time DESC;
-    `,
-    [...gameIds, limit],
-  );
+  const sessions = await statsService.getRecentSessionsForAll(gameIds, limit);
   
   // 将结果按game_id分组
   const sessionMap = new Map<number, GameSession[]>();
@@ -366,28 +305,10 @@ const unlistenStart = listen<{gameId: number; processId: number; startTime: numb
     const { gameId } = event.payload;
     
     try {
-      // 只记录游戏启动，不增加会话计数
+      // 只记录游戏启动，通过后端服务初始化统计记录
       console.log(`游戏 ${gameId} 开始运行`);
       
-      // 检查是否需要创建初始记录
-      const db = await getDb();
-      const stats = await db.select<{count: number}[]>(
-        'SELECT COUNT(*) as count FROM game_statistics WHERE game_id = ?;',
-        [gameId]
-      );
-      
-      if (stats[0].count === 0) {
-        // 如果没有统计记录，创建一个初始记录（但session_count为0）
-        await db.execute(
-          `INSERT INTO game_statistics 
-           (game_id, total_time, session_count, daily_stats)
-           VALUES (?, 0, 0, ?);`,
-          [
-            gameId,
-            JSON.stringify([])
-          ]
-        );
-      }
+      await statsService.initGameStatistics(gameId);
     } catch (error) {
       console.error('游戏启动记录失败:', error);
     }
@@ -447,7 +368,12 @@ const unlistenEnd = listen<{gameId: number; totalMinutes: number; totalSeconds: 
       
       // 检查是否需要自动备份
       try {
-        const game = await getGameById(gameId);
+        const fullgame = await gameService.getGameById(gameId);
+        if (!fullgame) {
+          console.error('游戏数据未找到，无法进行自动备份');
+          return;
+        }
+        const game = fullgame.game;
         if (game && game.autosave === 1 && game.savepath) {
           console.log(`开始自动备份游戏 ${gameId}，存档路径: ${game.savepath}`);
           await createGameSavedataBackup(gameId, game.savepath, true);

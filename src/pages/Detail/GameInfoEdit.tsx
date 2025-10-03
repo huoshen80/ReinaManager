@@ -14,7 +14,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
-import type { GameData } from "@/types";
+import type { FullGameData, GameData } from "@/types";
 import { handleDirectory, getGameCover } from "@/utils";
 import { getGameDisplayName } from "@/utils";
 import { useTranslation } from 'react-i18next';
@@ -24,7 +24,7 @@ import { selectImageFile, uploadSelectedImage, deleteCustomCoverFile, getPreview
 
 interface GameInfoEditProps {
     selectedGame: GameData | null;
-    onSave: (data: Partial<GameData>) => Promise<void>;
+    onSave: (data: Partial<FullGameData>) => Promise<void>;
     disabled?: boolean;
 }
 
@@ -152,8 +152,10 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
             await deleteCustomCoverFile(selectedGame.id, selectedGame.custom_cover);
 
             // 触发父组件刷新数据
-            const updateData: Partial<GameData> = {
-                custom_cover: null
+            const updateData: Partial<FullGameData> = {
+                game: {
+                    custom_cover: null
+                }
             };
             await onSave(updateData);
 
@@ -171,36 +173,40 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
         setIsLoading(true);
 
         try {
-            const updateData: Partial<GameData> = {};
+            const gameUpdates: any = {};
 
             // 处理自定义封面上传
             if (selectedImagePath && selectedGame.id) {
                 // 将选择的文件保存到最终位置
                 const extension = await uploadSelectedImage(selectedGame.id, selectedImagePath);
-                updateData.custom_cover = extension;
+                gameUpdates.custom_cover = extension;
             }
 
             // 准备其他更新数据
             if (localPath !== (selectedGame.localpath || "")) {
-                updateData.localpath = localPath;
+                gameUpdates.localpath = localPath;
             }
 
             // 检查自定义名称是否有变化
             const currentDisplayName = getGameDisplayName(selectedGame, i18n.language);
             const currentCustomName = selectedGame.custom_name || currentDisplayName;
             if (gameNote !== currentCustomName) {
-                updateData.custom_name = gameNote;
+                gameUpdates.custom_name = gameNote;
             }
+
+            const updateData: Partial<FullGameData> = {
+                game: gameUpdates
+            };
 
             // 先保存到数据库
             await onSave(updateData);
 
             // 保存成功后设置临时封面URL（如果有新封面）
-            if (selectedImagePath && updateData.custom_cover) {
+            if (selectedImagePath && gameUpdates.custom_cover) {
                 // 生成新的封面URL作为临时封面，确保立即显示新图片
                 const newCoverUrl = getGameCover({
                     ...selectedGame,
-                    custom_cover: updateData.custom_cover
+                    custom_cover: gameUpdates.custom_cover
                 });
                 setTempCoverUrl(newCoverUrl);
             }

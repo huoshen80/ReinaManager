@@ -25,7 +25,6 @@ tauri = { version = "^2.7.0", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-http = "2.5.1"
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-dialog = "^2.3.2"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 sysinfo = "0.29.11"

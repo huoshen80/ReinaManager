@@ -1,4 +1,4 @@
-import type { GameData } from '@/types/index';
+import type { FullGameData, GameData } from '@/types/index';
 import { getGameDisplayName } from './index';
 import { enhancedSearch } from './enhancedSearch';
 
@@ -137,15 +137,15 @@ function setGames(games: GameData[]): void {
 }
 
 // 插入一条游戏数据
-export function insertGame(game: GameData): void {
+export function insertGame(fullgame: FullGameData): void {
   const games = getGames();
 
   // 如果游戏没有ID，分配一个新ID
-  if (!game.id) {
-    game.id = getNextId();
+  if (!fullgame.game.id) {
+    fullgame.game.id = getNextId();
   }
 
-  games.push(game);
+  // games.push(fullgame);纯前端摆烂~
   setGames(games);
 }
 

@@ -8,7 +8,7 @@ import type { GameTimeStats } from '@/types';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { useGamePlayStore } from '@/store/gamePlayStore';
 import { useTranslation } from 'react-i18next';
-import { getSavedataCount } from '@/utils/repository';
+import { savedataService } from '@/services';
 
 
 /**
@@ -49,7 +49,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps): JSX.E
     const fetchStats = useCallback(async () => {
         try {
             const gameStats = await loadGameStats(gameID, true); // 强制刷新
-            setBackupCount(await getSavedataCount(gameID));
+            setBackupCount(await savedataService.getSavedataCount(gameID));
             setStats(gameStats);
         } catch (error) {
             console.error('加载游戏统计失败:', error);

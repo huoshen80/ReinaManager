@@ -7,8 +7,6 @@
   ],
   "permissions": [
     "dialog:default",
-    "sql:default",
-    "sql:allow-execute",
     "core:path:default",
     "core:path:allow-dirname",
     "core:event:default",

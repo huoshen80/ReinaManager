@@ -1,14 +1,20 @@
-import {open} from '@tauri-apps/plugin-shell';
-import {convertFileSrc, invoke, isTauri} from '@tauri-apps/api/core';
-import {path} from '@tauri-apps/api';
-import type {GameData, HanleGamesProps} from '@/types';
-import i18next, {t} from 'i18next';
-import {open as openDirectory} from '@tauri-apps/plugin-dialog';
-import {updateGame, saveSavedataRecord} from './repository';
-import {getSavePathRepository} from './settingsConfig';
-import {resourceDir} from '@tauri-apps/api/path';
-import {snackbar} from "@/components/Snackbar";
+import { open } from '@tauri-apps/plugin-shell';
+import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
+import { path } from '@tauri-apps/api';
+import type { GameData, HanleGamesProps } from '@/types';
+import i18next, { t } from 'i18next';
+import { open as openDirectory } from '@tauri-apps/plugin-dialog';
+import { gameService, savedataService } from '@/services';
+import { resourceDir } from '@tauri-apps/api/path';
+import { snackbar } from "@/components/Snackbar";
 import { useScrollStore } from '@/store/scrollStore';
+import { getDisplayGameData } from './dataTransform';
+
+// 导出 API 数据转换工具
+export {
+  transformApiGameData,
+  type AppendFields,
+} from './apiDataTransform';
 
 // 缓存资源目录路径
 let cachedResourceDirPath: string | null = null;
@@ -67,7 +73,7 @@ export async function openurl(url: string) {
     }
 }
 
-export const handleOpenFolder = async ({id, getGameById}: HanleGamesProps) => {
+export const handleOpenFolder = async ({ id, getGameById }: HanleGamesProps) => {
     if (!id) {
         console.error('未选择游戏');
         return;
@@ -81,7 +87,7 @@ export const handleOpenFolder = async ({id, getGameById}: HanleGamesProps) => {
         const folder = await path.dirname(selectedGame.localpath);
         if (folder) {
             // 使用我们自己的后端函数打开文件夹
-            await invoke('open_directory', {dirPath: folder});
+            await invoke('open_directory', { dirPath: folder });
         }
     } catch (error) {
         snackbar.error(i18next.t('components.Snackbar.failedOpenGameFolder'));
@@ -109,13 +115,6 @@ export async function launchGameWithTracking(
     }
 }
 
-export function getGamePlatformId(game: GameData): string | undefined {
-    // 严格检查：非空字符串
-    if (game.bgm_id && game.bgm_id.trim() !== "") return game.bgm_id;
-    if (game.vndb_id && game.vndb_id.trim() !== "") return game.vndb_id;
-    return undefined;
-}
-
 export function formatRelativeTime(time: string | number | Date): string {
     const now = new Date();
     const target = time instanceof Date
@@ -129,15 +128,15 @@ export function formatRelativeTime(time: string | number | Date): string {
     if (diff < 60) return i18next.t('utils.relativetime.justNow'); // 刚刚
     if (diff < 3600) {
         const minutes = Math.floor(diff / 60);
-        return i18next.t('utils.relativetime.minutesAgo', {count: minutes});
+        return i18next.t('utils.relativetime.minutesAgo', { count: minutes });
     }
     if (diff < 86400) {
         const hours = Math.floor(diff / 3600);
-        return i18next.t('utils.relativetime.hoursAgo', {count: hours});
+        return i18next.t('utils.relativetime.hoursAgo', { count: hours });
     }
     if (diff < 7 * 86400) {
         const days = Math.floor(diff / 86400);
-        return i18next.t('utils.relativetime.daysAgo', {count: days});
+        return i18next.t('utils.relativetime.daysAgo', { count: days });
     }
 
     // 判断是否为上周
@@ -159,7 +158,7 @@ function getWeekNumber(date: Date): number {
 
 // 格式化游戏时间
 export function formatPlayTime(minutes: number): string {
-    if (!minutes) return i18next.t('utils.formatPlayTime.minutes', {count: 0});
+    if (!minutes) return i18next.t('utils.formatPlayTime.minutes', { count: 0 });
 
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -171,15 +170,15 @@ export function formatPlayTime(minutes: number): string {
         // 使用一个新的 i18next key 来格式化这个带小数的小时数
         return i18next.t('utils.formatPlayTime.hours', { count: totalHoursAsFloat });
     }
-    
+
     if (hours === 0) {
-        return i18next.t('utils.formatPlayTime.minutes', {count: mins});
+        return i18next.t('utils.formatPlayTime.minutes', { count: mins });
     }
 
     if (mins > 0) {
-        return i18next.t('utils.formatPlayTime.hoursAndMinutes', {hours, minutes: mins});
+        return i18next.t('utils.formatPlayTime.hoursAndMinutes', { hours, minutes: mins });
     }
-    return i18next.t('utils.formatPlayTime.hours', {count: hours});
+    return i18next.t('utils.formatPlayTime.hours', { count: hours });
 
 }
 
@@ -191,10 +190,10 @@ export const handleDirectory = async () => {
             name: t('utils.handleDirectory.executable'),
             extensions: ["exe", "bat", "cmd"]
         },
-            {
-                name: t('utils.handleDirectory.allFiles'),
-                extensions: ["*"]
-            }
+        {
+            name: t('utils.handleDirectory.allFiles'),
+            extensions: ["*"]
+        }
         ]
     });
     if (path === null) return null;
@@ -223,7 +222,7 @@ export const getGameDisplayName = (game: GameData, language?: string): string =>
     // 只有当语言为zh-CN时才使用name_cn，其他语言都使用name
     return currentLanguage === 'zh-CN' && game.name_cn
         ? game.name_cn
-        : game.name;
+        : (game.name || '');
 };
 export const getcustomCoverFolder = (gameID: number): string => {
     const resourceFolder = getResourceDirPath();
@@ -232,9 +231,9 @@ export const getcustomCoverFolder = (gameID: number): string => {
 }
 export const getGameCover = (game: GameData): string => {
     // 如果有自定义封面扩展名，构造自定义封面路径
-    if (game.custom_cover) {
+    if (game.custom_cover && game.id) {
         // 获取缓存的资源目录路径
-        const customCoverFolder = getcustomCoverFolder(game.id as number);
+        const customCoverFolder = getcustomCoverFolder(game.id);
         if (customCoverFolder) {
             // 使用数据库的custom_cover字段作为完整文件名（包含版本信息）
             // 例如：custom_cover = "jpg_1703123456789"
@@ -250,8 +249,8 @@ export const getGameCover = (game: GameData): string => {
         }
     }
 
-    // 使用默认封面
-    return game.image as string;
+    // 使用默认封面 (来自 bgm/vndb/other 数据的 image 字段)
+    return game.image || '';
 };
 
 /**
@@ -264,19 +263,19 @@ export const getGameCover = (game: GameData): string => {
  */
 export const toggleGameClearStatus = async (
     gameId: number,
-    getGameById: (id: number) => Promise<GameData | null>,
     onSuccess?: (newStatus: 1 | 0, gameData: GameData) => void,
     updateGamesInStore?: (gameId: number, newClearStatus: 1 | 0) => void
 ): Promise<void> => {
     try {
-        const game = await getGameById(gameId);
-        if (!game) {
+        const fullgame = await gameService.getGameById(gameId);
+        if (!fullgame) {
             console.error('游戏数据未找到');
             return;
         }
+        const game = getDisplayGameData(fullgame);
 
         const newClearStatus = game.clear === 1 ? 0 : 1;
-        await updateGame(gameId, {clear: newClearStatus as 1 | 0});
+        await gameService.updateGameWithRelated(gameId, { game: { clear: newClearStatus as 1 | 0 } });
 
         // 更新store中的games数组
         if (updateGamesInStore) {
@@ -285,7 +284,7 @@ export const toggleGameClearStatus = async (
 
         // 调用成功回调
         if (onSuccess) {
-            onSuccess(newClearStatus as 1 | 0, {...game, clear: newClearStatus as 1 | 0});
+            onSuccess(newClearStatus as 1 | 0, { ...game, clear: newClearStatus as 1 | 0 });
         }
     } catch (error) {
         console.error('更新游戏通关状态失败:', error);
@@ -371,7 +370,8 @@ export async function createGameSavedataBackup(
     if (!skipPathCheck && !saveDataPath) {
         throw new Error('存档路径不能为空');
     }
-    const saveRootPath = await getSavePathRepository();
+    const { settingsService } = await import('@/services');
+    const saveRootPath = await settingsService.getSaveRootPath();
 
     try {
         // 获取备份根目录
@@ -385,7 +385,7 @@ export async function createGameSavedataBackup(
         );
 
         // 保存备份信息到数据库
-        await saveSavedataRecord(
+        await savedataService.saveSavedataRecord(
             gameId,
             backupInfo.folder_name,
             backupInfo.backup_time,
@@ -404,12 +404,13 @@ export async function createGameSavedataBackup(
  * @param gameId 游戏ID
  */
 export async function openGameBackupFolder(gameId: number): Promise<void> {
-    const saveRootPath = await getSavePathRepository();
+    const { settingsService } = await import('@/services');
+    const saveRootPath = await settingsService.getSaveRootPath();
     try {
         const appDataDir = await getAppDataDir();
         const backupGameDir = (saveRootPath === '') ? `${appDataDir}/backups/game_${gameId}` : `${saveRootPath}/backups/game_${gameId}`;
         // 使用后端函数打开文件夹
-        await invoke('open_directory', {dirPath: backupGameDir});
+        await invoke('open_directory', { dirPath: backupGameDir });
     } catch (error) {
         snackbar.error(i18next.t('components.Snackbar.failedOpenBackupFolder'));
         console.error('打开备份文件夹失败:', error);
@@ -428,7 +429,7 @@ export async function openGameSaveDataFolder(saveDataPath: string): Promise<void
 
     try {
         // 使用后端函数打开文件夹
-        await invoke('open_directory', {dirPath: saveDataPath});
+        await invoke('open_directory', { dirPath: saveDataPath });
     } catch (error) {
         snackbar.error(i18next.t('components.Snackbar.failedOpenSaveFolder'));
         console.error('打开存档文件夹失败:', error);
@@ -444,7 +445,7 @@ export async function openDatabaseBackupFolder(): Promise<void> {
         const appDataDir = await getAppDataDir();
         const backupDir = `${appDataDir}/data/backups`;
         // 使用后端函数打开文件夹
-        await invoke('open_directory', {dirPath: backupDir});
+        await invoke('open_directory', { dirPath: backupDir });
     } catch (error) {
         snackbar.error(i18next.t('components.Snackbar.failedOpenDatabaseBackupFolder'));
         console.error('打开数据库备份文件夹失败:', error);
@@ -506,11 +507,25 @@ export function isNsfwGame(tags: string[]): boolean {
     return allEnglish && !tags.includes("No Sexual Content");
 }
 
+/**
+ * 通过tags中的R18来判断是否为NSFW并过滤
+ * @param data 游戏数据数组
+ * @param nsfwFilter 是否启用NSFW过滤
+ * @returns 过滤后的游戏数据
+ */
+export function applyNsfwFilter(data: GameData[], nsfwFilter: boolean): GameData[] {
+    if (!nsfwFilter) return data;
+    return data.filter(game => {
+        const tags = typeof game.tags === "string" ? JSON.parse(game.tags) : game.tags;
+        return !isNsfwGame(tags);
+    });
+}
+
 //主动保存指定路径的滚动条位置
 export const saveScrollPosition = (path: string) => {
     const SCROLL_CONTAINER_SELECTOR = 'main';
     const container = document.querySelector<HTMLElement>(SCROLL_CONTAINER_SELECTOR);
-    
+
     // 增加一个检查，确保容器是可滚动的，避免无效保存
     if (container && container.scrollHeight > container.clientHeight) {
         const scrollTop = container.scrollTop;
@@ -522,3 +537,17 @@ export const saveScrollPosition = (path: string) => {
         }));
     }
 };
+
+// 导出数据转换工具
+export { 
+    getDisplayGameData, 
+    getDisplayGameDataList, 
+    rawGameDataToDisplay, 
+    timestampToDate, 
+    dateToTimestamp, 
+    formatTimestamp,
+    // 兼容旧名称
+    toDisplayGameData,
+    toDisplayGameDataList,
+    gameDataToDisplay
+} from './dataTransform';

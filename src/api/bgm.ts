@@ -16,6 +16,7 @@
 import { tauriHttp } from './http'
 import pkg from '../../package.json'
 import i18n from '@/utils/i18n'
+import { ApiBgmData, RawGameData } from '@/types';
 
 /**
  * 过滤掉包含敏感关键词的标签。
@@ -30,6 +31,31 @@ function filterSensitiveTags(tags: string[]): string[] {
   return tags.filter(tag => {
     return !sensitiveKeywords.some(keyword => tag.includes(keyword));
   });
+}
+
+// 新增：将 BGM API 返回对象转换为统一的结构
+const transformBgmData = (BGMdata: any) => {
+  const game: RawGameData = {
+    bgm_id: String(BGMdata.id),
+    id_type: 'bgm',
+    date: BGMdata.date,
+  };
+
+  const bgm_data: ApiBgmData = {
+    image: BGMdata.images?.large || null,
+    summary: BGMdata.summary || null,
+    name: BGMdata.name || null,
+    name_cn: BGMdata.name_cn || null,
+    aliases: BGMdata.infobox?.find((k: { key: string }) => k.key === '别名')?.value?.map((k: { v: string }) => k.v) || [],
+    tags_Array: filterSensitiveTags(
+      (BGMdata.tags || []).map((tag: { name: string }) => tag.name)
+    ),
+    rank: BGMdata.rating?.rank ?? null,
+    score: BGMdata.rating?.score ?? null,
+    developer: BGMdata.infobox?.find((k: { key: string }) => k.key === '开发' || k.key === '游戏开发商')?.value || null,
+  };
+
+  return { game, bgm_data };
 }
 
 /**
@@ -59,22 +85,11 @@ export async function fetchBgmById(id: string, BGM_TOKEN: string) {
       return i18n.t('api.bgm.notFound', '未找到相关条目，请确认游戏ID后重试');
     }
 
+    const transformed = transformBgmData(BGMdata);
     return {
-      bgm_id: String(BGMdata.id),
-      vndb_id: null,
-      id_type: 'bgm',
-      date: BGMdata.date,
-      image: BGMdata.images.large,
-      summary: BGMdata.summary,
-      name: BGMdata.name,
-      name_cn: BGMdata.name_cn,
-      aliases: BGMdata.infobox?.find((k: { key: string }) => k.key === '别名')?.value?.map((k: { v: string }) => k.v) || [],
-      tags: filterSensitiveTags(
-        BGMdata.tags?.map((tag: { name: string }) => tag.name) || []
-      ),
-      rank: BGMdata.rating?.rank,
-      score: BGMdata.rating?.score,
-      developer: BGMdata.infobox?.find((k: { key: string }) => k.key === '开发' || k.key === '游戏开发商')?.value || null,
+      ...transformed,
+      vndb_data: null,
+      other_data: null,
     };
   } catch (error) {
     console.error('BGM API调用失败:', error);
@@ -117,22 +132,11 @@ export async function fetchBgmByName(name: string, BGM_TOKEN: string) {
       return i18n.t('api.bgm.notFound', '未找到相关条目，请确认游戏名字后重试，或未设置BGM_TOKEN');
     }
 
+    const transformed = transformBgmData(BGMdata);
     return {
-      bgm_id: String(BGMdata.id),
-      vndb_id: null,
-      id_type: 'bgm',
-      date: BGMdata.date,
-      image: BGMdata.images.large,
-      summary: BGMdata.summary,
-      name: BGMdata.name,
-      name_cn: BGMdata.name_cn,
-      aliases: BGMdata.infobox?.find((k: { key: string }) => k.key === '别名')?.value?.map((k: { v: string }) => k.v) || [],
-      tags: filterSensitiveTags(
-        BGMdata.tags?.map((tag: { name: string }) => tag.name) || []
-      ),
-      rank: BGMdata.rating?.rank,
-      score: BGMdata.rating?.score,
-      developer: BGMdata.infobox?.find((k: { key: string }) => k.key === '开发' || k.key === '游戏开发商')?.value || null,
+      ...transformed,
+      vndb_data: null,
+      other_data: null,
     };
   } catch (error) {
     console.error('BGM API调用失败:', error);

@@ -10,7 +10,6 @@
  *
  * 依赖：
  * - @mui/material
- * - @mui/x-charts/LineChart
  * - @/store
  * - @/store/gamePlayStore
  * - @/types
@@ -149,7 +148,7 @@ export const Detail: React.FC = () => {
                         <img
                             src={getGameCover(selectedGame)}
                             loading='lazy'
-                            alt={selectedGame.name}
+                            // alt={selectedGame.name}
                             className="max-h-65 max-w-40 lg:max-w-80 rounded-lg shadow-lg select-none"
                             onDragStart={(event) => event.preventDefault()}
                         />
@@ -180,7 +179,7 @@ export const Detail: React.FC = () => {
                             <Box>
                                 <Typography variant="subtitle2" fontWeight="bold" component="div">{t('pages.Detail.addTime')}</Typography>
                                 <Typography component="div">
-                                    {selectedGame.time ? new Date(selectedGame.time).toLocaleDateString() : '-'}
+                                    {selectedGame.created_at ? new Date(selectedGame.created_at * 1000).toLocaleDateString() : '-'}
                                 </Typography>
                             </Box>
                             {selectedGame.rank !== 0 && selectedGame.rank !== null &&
@@ -188,10 +187,10 @@ export const Detail: React.FC = () => {
                                     <Typography variant="subtitle2" fontWeight="bold" component="div">{t('pages.Detail.gameRanking')}</Typography>
                                     <Typography component="div">{selectedGame.rank || '-'}</Typography>
                                 </Box>}
-                            {selectedGame.aveage_hours !== 0 && selectedGame.aveage_hours &&
+                            {selectedGame.average_hours !== 0 && selectedGame.average_hours &&
                                 <Box>
                                     <Typography variant="subtitle2" fontWeight="bold" component="div">{t('pages.Detail.expected_hours')}</Typography>
-                                    <Typography component="div">{selectedGame.aveage_hours || '-'}h</Typography>
+                                    <Typography component="div">{selectedGame.average_hours || '-'}h</Typography>
                                 </Box>}
                             <Box>
                                 <Typography variant="subtitle2" fontWeight="bold" component="div">{t('pages.Detail.gameScore')}</Typography>

@@ -24,15 +24,11 @@ import BackupIcon from '@mui/icons-material/Backup';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import { handleGetFolder, deleteSavedataBackup, getAppDataDir, createGameSavedataBackup, openGameBackupFolder, openGameSaveDataFolder } from '@/utils';
-import {
-    getSavedataRecords,
-    deleteSavedataRecord
-} from '@/utils/repository';
-import type { SavedataRecord, GameData } from '@/types';
+import { savedataService, settingsService } from '@/services';
+import type { SavedataRecord, RawGameData } from '@/types';
 import { useTranslation } from 'react-i18next';
 import { AlertDeleteBox } from '@/components/AlertBox';
 import { snackbar } from '@/components/Snackbar';
-import { getSavePathRepository } from "@/utils/settingsConfig";
 
 /**
  * Backup 组件
@@ -85,7 +81,7 @@ export const Backup = (): JSX.Element => {
         if (!selectedGame?.id) return;
 
         try {
-            const records = await getSavedataRecords(selectedGame.id);
+            const records = await savedataService.getSavedataRecords(selectedGame.id);
             setBackupList(records);
         } catch (error) {
             console.error('加载备份列表失败:', error);
@@ -94,13 +90,16 @@ export const Backup = (): JSX.Element => {
     };
 
     // 统一的设置更新逻辑
-    const handleSettingUpdate = async (updateData: Partial<GameData>, successMessage: string, failureMessage: string) => {
+    const handleSettingUpdate = async (updateData: Partial<RawGameData>, successMessage: string, failureMessage: string) => {
         if (!selectedGame?.id) return;
 
         setIsUpdatingSettings(true);
 
         try {
-            await updateGame(selectedGame.id, updateData);
+            const fullgame = {
+                game: { ...updateData }
+            };
+            await updateGame(selectedGame.id, fullgame);
             snackbar.success(successMessage);
 
             // 移除本地状态同步，由 useEffect 负责
@@ -211,7 +210,7 @@ export const Backup = (): JSX.Element => {
         try {
             // 获取备份文件完整路径
             const appDataDir = await getAppDataDir();
-            const saveRootPath = await getSavePathRepository();
+            const saveRootPath = await settingsService.getSaveRootPath();
             const backupGameDir = (saveRootPath === '') ? `${appDataDir}` : `${saveRootPath}`;
             const backupFilePath = `${backupGameDir}/backups/game_${backupToDelete.game_id}/${backupToDelete.file}`;
 
@@ -219,7 +218,7 @@ export const Backup = (): JSX.Element => {
             await deleteSavedataBackup(backupFilePath);
 
             // 从数据库删除记录
-            await deleteSavedataRecord(backupToDelete.id);
+            await savedataService.deleteSavedataRecord(backupToDelete.id);
 
             snackbar.success(t('pages.Detail.Backup.deleteSuccess', '备份删除成功'));
             loadBackupList();
@@ -228,7 +227,7 @@ export const Backup = (): JSX.Element => {
             setDeleteDialogOpen(false);
             setBackupToDelete(null);
         } catch (error) {
-            await deleteSavedataRecord(backupToDelete.id);
+            await savedataService.deleteSavedataRecord(backupToDelete.id);
             const errorMessage = error instanceof Error ? error.message : t('pages.Detail.Backup.unknownError', '未知错误');
             snackbar.error(`${t('pages.Detail.Backup.deleteFailed', '删除失败')}: ${errorMessage}`);
         } finally {
@@ -252,7 +251,6 @@ export const Backup = (): JSX.Element => {
 
     return (
         <Box sx={{ p: 3 }}>
-
             <Stack spacing={3}>
                 {/* 自动备份设置 */}
                 <Card>
@@ -377,7 +375,7 @@ export const Backup = (): JSX.Element => {
                         </Typography>
 
                         {backupList.length === 0 ? (
-                            <Typography color="textSecondary">
+                            <Typography color="textSecondary" component="div">
                                 {t('pages.Detail.Backup.noBackups', '暂无备份记录')}
                             </Typography>
                         ) : (
@@ -387,14 +385,15 @@ export const Backup = (): JSX.Element => {
                                         <ListItemText
                                             primary={backup.file}
                                             secondary={
-                                                <Box>
-                                                    <Typography variant="body2" color="textSecondary">
+                                                <>
+                                                    <Typography variant="body2" color="textSecondary" component="span">
                                                         {t('pages.Detail.Backup.backupTime', '备份时间')}: {formatDate(backup.backup_time)}
                                                     </Typography>
-                                                    <Typography variant="body2" color="textSecondary">
+                                                    <br />
+                                                    <Typography variant="body2" color="textSecondary" component="span">
                                                         {t('pages.Detail.Backup.fileSize', '文件大小')}: {formatFileSize(backup.file_size)}
                                                     </Typography>
-                                                </Box>
+                                                </>
                                             }
                                         />
                                         <ListItemSecondaryAction>

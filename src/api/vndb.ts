@@ -17,6 +17,7 @@
 
 import i18n from '@/utils/i18n'
 import http from './http'
+import type { RawGameData, ApiVndbData } from '@/types'
 
 /**
  * VNDB 标题对象接口。
@@ -68,25 +69,33 @@ export async function fetchVndbByName(name: string, id?: string) {
     // 提取所有标题
     const allTitles: string[] = titles.map((title: VNDB_title) => title.title);
 
-    // 格式化返回数据，与 bgm.ts 的返回格式保持一致
-    return {
-      bgm_id: null,
+    // 格式化返回数据，和 bgm.ts 的返回格式保持一致
+    const game: RawGameData = {
       vndb_id: VNDBdata.id,
       id_type: 'vndb',
       date: VNDBdata.released,
+    };
+
+    const vndb: ApiVndbData = {
       image: VNDBdata.image?.url || null,
       summary: VNDBdata.description,
       name: mainTitle,
       name_cn: chineseTitle,
-      all_titles: allTitles,
-      aliases: VNDBdata.aliases || [],
-      tags: (VNDBdata.tags as { rating: number; name: string }[])
+      all_titles_Array: allTitles,
+      aliases_Array: VNDBdata.aliases || [],
+      tags_Array: (VNDBdata.tags as { rating: number; name: string }[])
         .sort((a, b) => b.rating - a.rating)
         .map(({ name }) => name),
-      rank: null,
       score: Number((VNDBdata.rating / 10).toFixed(2)),
       developer: VNDBdata.developers?.map((dev: { name: string }) => dev.name).join('/') || null,
-      aveage_hours: Number((VNDBdata.length_minutes / 60).toFixed(1)),
+      average_hours: Number((VNDBdata.length_minutes / 60).toFixed(1)),
+    };
+
+    return {
+      game,
+      vndb_data: vndb,
+      bgm_data: null,
+      other_data: null,
     };
   } catch (error) {
     Promise.reject(new Error(i18n.t('api.vndb.apiCallFailed', 'VNDB API 调用失败')));

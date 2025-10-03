@@ -8,12 +8,13 @@ import {
     CardContent,
     Typography
 } from "@mui/material";
-import type { GameData } from "@/types";
+import type { FullGameData } from "@/types";
 import { ViewUpdateGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useTranslation } from 'react-i18next';
 import { DataSourceUpdate } from './DataSourceUpdate';
 import { GameInfoEdit } from './GameInfoEdit';
+import { gameService } from "@/services/gameService";
 
 /**
  * Edit 组件
@@ -28,33 +29,40 @@ export const Edit = (): JSX.Element => {
     const { t } = useTranslation();
 
     // UI 状态
-    const [gameData, setGameData] = useState<GameData | null>(null);
+    const [gameData, setGameData] = useState<FullGameData | null>(null);
     const [openViewBox, setOpenViewBox] = useState(false);
 
     // 确认更新游戏数据（从数据源）
     const handleConfirmGameUpdate = () => {
         if (gameData) {
             updateGame(id, gameData);
+            switch (gameData.game.id_type) {
+                case 'bgm':
+                    gameService.deleteVndbData(id);
+                    gameService.deleteOtherData(id);
+                    break;
+                case 'vndb':
+                    gameService.deleteBgmData(id);
+                    gameService.deleteOtherData(id);
+                    break;
+            }
+
             setOpenViewBox(false);
             snackbar.success(t('pages.Detail.Edit.updateSuccess', '游戏信息已更新'));
         }
     };
 
     // 处理数据源获取的数据
-    const handleDataSourceFetched = (result: GameData) => {
-        const updatedResult = {
-            ...result
-        };
-        setGameData(updatedResult);
+    const handleDataSourceFetched = (result: FullGameData) => {
+        setGameData(result);
         setOpenViewBox(true);
     };
 
     // 处理游戏信息保存
-    const handleGameInfoSave = async (data: Partial<GameData>) => {
+    const handleGameInfoSave = async (data: Partial<FullGameData>) => {
         if (!selectedGame) return;
 
         try {
-            // 使用统一的updateGame函数，一次性更新所有字段
             await updateGame(id, data);
             snackbar.success(t('pages.Detail.Edit.updateSuccess', '游戏信息已成功更新'));
         } catch (error) {
@@ -72,7 +80,7 @@ export const Edit = (): JSX.Element => {
                 open={openViewBox}
                 setOpen={setOpenViewBox}
                 onConfirm={handleConfirmGameUpdate}
-                game={gameData}
+                fullgame={gameData}
             />
 
             <Stack spacing={4}>

@@ -32,7 +32,7 @@ import { isEnabled } from '@tauri-apps/plugin-autostart';
 import { toggleAutostart } from '@/components/AutoStart';
 import { Switch, FormControlLabel, RadioGroup, Radio, Checkbox, CircularProgress, IconButton, InputAdornment, Typography, Link, Divider } from '@mui/material';
 import { backupDatabase } from '@/utils/database';
-import { getSavePathRepository, setSavePathRepository } from '@/utils/settingsConfig';
+import { settingsService } from '@/services';
 import { snackbar } from '@/components/Snackbar';
 import BackupIcon from '@mui/icons-material/Backup';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
@@ -468,7 +468,7 @@ const SavePathSettings = () => {
     useEffect(() => {
         const loadSavePath = async () => {
             try {
-                const currentPath = await getSavePathRepository();
+                const currentPath = await settingsService.getSaveRootPath();
                 setSavePath(currentPath);
                 setOriginalPath(currentPath); // 保存原始路径
             } catch (error) {
@@ -494,7 +494,7 @@ const SavePathSettings = () => {
 
         try {
             // 首先保存新路径到数据库
-            await setSavePathRepository(savePath);
+            await settingsService.setSaveRootPath(savePath);
 
             // 如果路径发生了变化，需要移动备份文件夹
             if (originalPath !== savePath || originalPath !== '') {

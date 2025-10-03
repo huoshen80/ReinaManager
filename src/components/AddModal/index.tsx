@@ -31,18 +31,17 @@ import { useModal } from '@/components/Toolbar';
 import { useEffect, useState } from 'react';
 import { fetchBgmById, fetchBgmByName } from '@/api/bgm';
 import { fetchVndbById, fetchVndbByName } from '@/api/vndb';
-import { fetchMixedById, fetchMixedByName } from '@/api/mixed';
+import { fetchMixedData } from '@/api/mixed';
 import Alert from '@mui/material/Alert';
 import { useStore } from '@/store/';
 import CircularProgress from '@mui/material/CircularProgress';
 import { isTauri } from '@tauri-apps/api/core';
 import Switch from '@mui/material/Switch';
 import { RadioGroup, FormControlLabel, Radio } from '@mui/material';
-import { time_now } from '@/utils';
+import { transformApiGameData } from '@/utils/apiDataTransform';
 import { getSetting, setSetting } from '@/utils/localStorage';
 import { useTranslation } from 'react-i18next';
-import { getGamePlatformId, handleDirectory } from '@/utils';
-import type { GameData } from '@/types';
+import { handleDirectory } from '@/utils';
 
 /**
  * AddModal 组件用于添加新游戏条目。
@@ -57,7 +56,7 @@ import type { GameData } from '@/types';
  */
 const AddModal: React.FC = () => {
     const { t } = useTranslation();
-    const { bgmToken, addGame, games } = useStore();
+    const { bgmToken, games, addGame } = useStore();
     const { isopen, handleOpen, handleClose } = useModal();
     const [formText, setFormText] = useState('');
     const [error, setError] = useState('');
@@ -94,72 +93,118 @@ const AddModal: React.FC = () => {
     const handleSubmit = async () => {
         try {
             setLoading(true);
-            if (customMode && !path) {
-                setError(t('components.AddModal.noExecutableSelected'));
-                setTimeout(() => {
-                    setError('');
-                }, 5000);
-                return;
+
+            const defaultdata = {
+                game: { localpath: path, autosave: 0, clear: 0 },
             }
+            // 场景1: 自定义模式
             if (customMode) {
-                await addGame({ id_type: 'custom', localpath: path, name: formText, name_cn: '', image: "/images/default.png", time: time_now() });
+                if (!path) {
+                    setError(t('components.AddModal.noExecutableSelected'));
+                    setTimeout(() => setError(''), 5000);
+                    return;
+                }
+
+                const customGameData = transformApiGameData(
+                    { game: { id_type: 'custom' } },
+                    { ...defaultdata, other: { name: formText, image: "/images/default.png" } }
+                );
+
+                addGame(customGameData);
                 setFormText('');
                 setPath('');
                 handleClose();
                 return;
-            }            // 根据 apiSource 状态选择数据源
-            let res: GameData | string;
-            if (apiSource === 'vndb') {
-                if (isID) {
-                    res = await fetchVndbById(formText);
-                } else {
-                    res = await fetchVndbByName(formText);
+            }
+
+            // 场景2-4: 通过 API 获取数据
+            let apiData;
+
+            if (apiSource === 'bgm') {
+                // BGM 单一数据源
+                const result = isID
+                    ? await fetchBgmById(formText, bgmToken)
+                    : await fetchBgmByName(formText, bgmToken);
+
+                if (typeof result === 'string') {
+                    setError(result);
+                    setTimeout(() => setError(''), 5000);
+                    return;
                 }
-            } else if (apiSource === 'mixed') {
-                const { bgmId, vndbId } = parseGameId(formText, isID);
-                if (isID && (bgmId || vndbId)) {
-                    res = await fetchMixedById(bgmId, vndbId, bgmToken);
-                } else {
-                    res = await fetchMixedByName(formText, bgmToken);
+                apiData = result;
+
+            } else if (apiSource === 'vndb') {
+                // VNDB 单一数据源
+                const result = isID
+                    ? await fetchVndbById(formText)
+                    : await fetchVndbByName(formText);
+
+                if (typeof result === 'string') {
+                    setError(result);
+                    setTimeout(() => setError(''), 5000);
+                    return;
                 }
+                apiData = result;
+
             } else {
-                if (isID) {
-                    res = await fetchBgmById(formText, bgmToken);
-                } else {
-                    res = await fetchBgmByName(formText, bgmToken);
+                // Mixed 混合数据源
+                const { bgmId, vndbId } = isID ? parseGameId(formText, true) : {};
+
+                if (isID && !bgmId && !vndbId) {
+                    setError(t('components.AddModal.invalidIDFormat'));
+                    setTimeout(() => setError(''), 5000);
+                    return;
                 }
+
+                const { bgm_data, vndb_data } = await fetchMixedData({
+                    bgm_id: bgmId,
+                    vndb_id: vndbId,
+                    name: !isID ? formText : undefined,
+                    BGM_TOKEN: bgmToken,
+                });
+
+                if (!bgm_data && !vndb_data) {
+                    setError(t('components.AddModal.noDataSource'));
+                    setTimeout(() => setError(''), 5000);
+                    return;
+                }
+
+                // 合并两个数据源
+                apiData = {
+                    game: { ...bgm_data?.game, ...vndb_data?.game, id_type: 'mixed' },//date不一致时，可能会出现搜索结果不同的问题
+                    bgm_data: bgm_data?.bgm_data || null,
+                    vndb_data: vndb_data?.vndb_data || null,
+                    other_data: null
+                };
             }
-            // 错误处理
-            if (typeof res === 'string') {
-                setError(res);
-                setTimeout(() => {
-                    setError('');
-                }, 5000);
-                return null;
-            }
-            const gameWithPath = { ...res, localpath: path, time: time_now() };
+
+            // 统一使用 transformApiGameData 处理所有数据
+            const fullGameData = transformApiGameData(apiData, { ...defaultdata });
+
             // 检查是否已存在相同游戏
-            if (games.find((game) => getGamePlatformId(game) === getGamePlatformId(gameWithPath))) {
+            const existingGame = games.find((game) => {
+                if (fullGameData.game.bgm_id && game.bgm_id === fullGameData.game.bgm_id) return true;
+                if (fullGameData.game.vndb_id && game.vndb_id === fullGameData.game.vndb_id) return true;
+                return false;
+            });
+
+            if (existingGame) {
                 setError(t('components.AddModal.gameExists'));
-                setTimeout(() => {
-                    setError('');
-                }, 5000);
-                return null;
+                setTimeout(() => setError(''), 5000);
+                return;
             }
-            // 添加新游戏
-            await addGame(gameWithPath);
+
+            addGame(fullGameData);
             setFormText('');
             setPath('');
             handleClose();
+
         } catch (error) {
-            // 捕获自定义错误并显示
             const errorMessage = error instanceof Error
                 ? error.message
                 : t('components.AddModal.unknownError');
             setError(errorMessage);
-            setTimeout(() => {
-                setError('');
-            }, 5000);
+            setTimeout(() => setError(''), 5000);
         } finally {
             setLoading(false);
         }

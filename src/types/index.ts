@@ -7,59 +7,123 @@
  */
 
 /**
- * 游戏数据结构
+ * 游戏基础表数据 (games 表) - 后端原始数据
  */
-export interface GameData {
+export interface RawGameData {
     id?: number;
-    date?: string;
-    image?: string;
-    summary?: string;
-    name: string;
-    name_cn?: string;
-    tags?: string[];
-    rank?: number | null;
-    score?: number;
     bgm_id?: string | null;
     vndb_id?: string | null;
-    id_type?: string | string | 'bgm' | 'vndb' | 'mixed' | 'custom' | 'Whitecloud';
-    time?: Date;
-    localpath?: string;
-    savepath?: string;
-    autosave?: 1 | 0; // 是否自动保存，1表示是，0表示否
+    id_type?: string; // 'bgm' | 'vndb' | 'mixed' | 'custom' | 'Whitecloud'
+    date?: string | null;
+    localpath?: string | null;
+    savepath?: string | null;
+    autosave?: number | null;
+    clear?: number | null;
+    custom_name?: string | null;
+    custom_cover?: string | null;
+    created_at?: number | null;
+    updated_at?: number | null;
+}
+
+/**
+ * BGM 数据结构(bgm_data 表)
+ */
+export interface BgmData {
+    game_id?: number;
+    image?: string;
+    name?: string;
+    name_cn?: string | null;
+    aliases?: string | null; // JSON 字符串
+    summary?: string | null;
+    tags?: string | null; // JSON 字符串
+    rank?: number | null;
+    score?: number | null;
+    developer?: string | null;
+}
+
+export interface ApiBgmData extends BgmData {
+  aliases_Array?: string[] | null; // api获取字段
+  tags_Array?: string[] | null; // api获取字段
+}
+
+/**
+ * VNDB 数据结构(vndb_data 表)
+ */
+export interface VndbData {
+    game_id?: number;
+    image?: string;
+    name?: string;
+    name_cn?: string | null;
+    all_titles?: string | null; // JSON 字符串
+    aliases?: string | null; // JSON 字符串
+    summary?: string | null;
+    tags?: string | null; // JSON 字符串
+    average_hours?: number | null;
+    developer?: string | null;
+    score?: number | null;
+}
+
+export interface ApiVndbData extends VndbData {
+  all_titles_Array?: string[] | null; // api获取字段
+  aliases_Array?: string[] | null; // api获取字段
+  tags_Array?: string[] | null; // api获取字段
+}
+
+
+/**
+ * 其他数据结构(other_data 表)
+ */
+export interface OtherData {
+    game_id?: number;
+    image?: string | null;
+    name?: string | null;
+    summary?: string | null;
+    tags?: string | null; // JSON 字符串
+    developer?: string | null;
+}
+
+/**
+ * 完整游戏数据 - 包含关联的 BGM/VNDB/Other 数据
+ */
+export interface FullGameData {
+    game: RawGameData;
+    bgm_data?: BgmData | null;
+    vndb_data?: VndbData | null;
+    other_data?: OtherData | null;
+}
+
+/**
+ * 游戏数据结构 - 最终显示层,所有字段已展平
+ * 这是组件使用的统一数据格式
+ */
+export interface GameData {
+    // 基础字段 (来自 games 表)
+    id?: number;
+    bgm_id?: string | null;
+    vndb_id?: string | null;
+    id_type?: string;
+    date?: string | null;
+    localpath?: string | null;
+    savepath?: string | null;
+    autosave?: number | null;
+    clear?: number | null;
+    custom_name?: string | null;
+    custom_cover?: string | null;
+    created_at?: number | null;
+    updated_at?: number | null;
+    
+    // 展平的关联数据字段 (来自 bgm/vndb/other 表)
+    image?: string;
+    name?: string;
+    name_cn?: string | null;
+    summary?: string | null;
+    tags?: string[];
+    rank?: number | null;
+    score?: number | null;
     developer?: string | null;
     all_titles?: string[];
-    aveage_hours?: number;
-    clear?: 1 | 0;
-    custom_name?: string;
-    custom_cover?: string | null; // 存储自定义封面的文件扩展名，如 'jpg', 'png', 'webp' 等
     aliases?: string[];
-}
-
-export interface BgmGameData {
-  id: number;
-  image: string;
-  name: string;
-  name_cn: string;
-  aliases: string[];
-  summary: string;
-  tags: string[];
-  rank: number | null;
-  score: number;
-  developer: string | null;
-}
-
-export interface VndbGameData {
-  id: number;
-  image: string;
-  name: string;
-  name_cn: string;
-  all_titles: string[];
-  aliases: string[];
-  summary: string;
-  tags: Object[];//多类型标签，待扩展
-  aveage_hours: number;
-  developer: string | null;
-  score: number;
+    average_hours?: number | null;
 }
 
 /**

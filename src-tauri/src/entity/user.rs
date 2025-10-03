@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "user")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Option<i32>,
+    pub id: i32,
     #[sea_orm(column_name = "BGM_TOKEN", column_type = "Text", nullable)]
     pub bgm_token: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]

@@ -144,22 +144,12 @@ async function getGameActivities(games: GameData[], language: string): Promise<{
     const addItems: ActivityItem[] = [];
     const added: RecentGame[] = [];
 
-    const filteredGames = games.filter(game => typeof game.id === 'number' && game.time);
+    // 过滤有效的游戏数据(有 ID 和创建时间)
+    const filteredGames = games.filter(game => typeof game.id === 'number' && game.created_at);
     for (const game of filteredGames) {
-        // 先处理 Date 对象，确保时间正确
-        const addedDate = new Date();
-        if (typeof game.time === 'object' && game.time instanceof Date) {
-            addedDate.setTime(game.time.getTime());
-        } else if (typeof game.time === 'number') {
-            // 检查时间戳是秒还是毫秒
-            const multiplier = game.time > 10000000000 ? 1 : 1000;
-            addedDate.setTime(game.time * multiplier);
-        } else if (typeof game.time === 'string') {
-            addedDate.setTime(new Date(game.time).getTime());
-        }
-
-        // 使用处理好的 Date 获取时间戳（确保为秒级）
-        const timestamp = Math.floor(addedDate.getTime() / 1000);
+        // created_at 是秒级时间戳
+        const timestamp = game.created_at as number;
+        const addedDate = new Date(timestamp * 1000);
         const gameTitle = getGameDisplayName(game, language);
 
         const item: ActivityItem = {
