@@ -136,12 +136,41 @@ pub async fn launch_game<R: Runtime>(
         None => return Err("无法获取游戏可执行文件名".to_string()),
     };
 
+    // 检查文件后缀是否为 xp3
+    let is_xp3 = game_path.to_lowercase().ends_with(".xp3");
+    let (executable, working_dir, launch_args) = if is_xp3 {
+        // 对于 xp3 文件，使用 TVP/krkr2.exe 启动
+        let current_dir = std::env::current_dir()
+            .map_err(|e| format!("无法获取当前工作目录: {}", e))?;
+        
+        let krkr2_path = current_dir.join("TVP").join("krkr2.exe");
+        if !krkr2_path.exists() {
+            return Err(format!("找不到启动器: {}", krkr2_path.display()));
+        }
+
+        let tvp_dir = current_dir.join("TVP");
+        if !tvp_dir.exists() {
+            return Err(format!("找不到工作目录: {}", tvp_dir.display()));
+        }
+
+        // 构建参数：game_path 作为第一个参数
+        let mut xp3_args = vec![game_path.clone()];
+        if let Some(mut additional_args) = args {
+            xp3_args.append(&mut additional_args);
+        }
+
+        (krkr2_path.to_string_lossy().into_owned(), tvp_dir, Some(xp3_args))
+    } else {
+        // 对于其他文件，使用原有逻辑
+        (game_path.clone(), game_dir.to_path_buf(), args)
+    };
+
     // 创建命令，设置工作目录为游戏所在目录
-    let mut command = Command::new(&game_path);
-    command.current_dir(game_dir);
+    let mut command = Command::new(&executable);
+    command.current_dir(working_dir);
 
     // 克隆一份参数用于普通启动与可能的提权回退
-    let args_clone = args.clone();
+    let args_clone = launch_args.clone();
     if let Some(arguments) = &args_clone {
         command.args(arguments);
     }

@@ -123,43 +123,50 @@ async fn run_game_monitor<R: Runtime>(
                 if !available_pids.is_empty() {
                     // 从可用进程中选择最佳的 PID
                     let matched_pid = select_best_pid(process_id, &executable_path, sys);
-                    // 检查找到的 PID 是否与当前认为已结束的 PID 不同，
-                    // 或者虽然 PID 相同但我们之前从未切换过进程 (说明可能是原始进程重启)。
-                    if process_id != matched_pid || !switched_process {
+                    // 排除管理器程序
+                    if matched_pid == std::process::id() {
                         println!(
-                            "通过路径 '{}' 找到潜在的新进程实例 PID: {}",
-                            executable_path, matched_pid
+                            "路径匹配找到的 PID {} 与管理器程序相同。",
+                            matched_pid
                         );
-                        // 再次确认这个找到的 PID 当前是否真的在运行。
-                        if is_process_running(matched_pid) {
-                            println!("确认 PID {} 正在运行。切换监控目标。", matched_pid);
-                            process_id = matched_pid; // 更新当前监控的 PID。
-                            switched_process = true; // 标记已经发生过切换。
-                            consecutive_failures = 0; // 重置失败计数器。
-                                                      // (可选) 通知前端 PID 发生变化。
-                            app_handle
-                                .emit(
-                                    "game-process-switched",
-                                    json!({ "gameId": game_id, "newProcessId": matched_pid }),
-                                )
-                                .ok(); // .ok() 忽略发送错误
-                            continue; // 继续下一轮循环，监控新的 PID。
+                    } else {
+                        // 检查找到的 PID 是否与当前认为已结束的 PID 不同，
+                        // 或者虽然 PID 相同但我们之前从未切换过进程 (说明可能是原始进程重启)。
+                        if process_id != matched_pid || !switched_process {
+                            println!(
+                                "通过路径 '{}' 找到潜在的新进程实例 PID: {}",
+                                executable_path, matched_pid
+                            );
+                            // 再次确认这个找到的 PID 当前是否真的在运行。
+                            if is_process_running(matched_pid) {
+                                println!("确认 PID {} 正在运行。切换监控目标。", matched_pid);
+                                process_id = matched_pid; // 更新当前监控的 PID。
+                                switched_process = true; // 标记已经发生过切换。
+                                consecutive_failures = 0; // 重置失败计数器。
+                                                        // (可选) 通知前端 PID 发生变化。
+                                app_handle
+                                    .emit(
+                                        "game-process-switched",
+                                        json!({ "gameId": game_id, "newProcessId": matched_pid }),
+                                    )
+                                    .ok(); // .ok() 忽略发送错误
+                                continue; // 继续下一轮循环，监控新的 PID。
+                            } else {
+                                println!(
+                                    "路径匹配找到的 PID {} 当前并未运行，无法切换。",
+                                    matched_pid
+                                );
+                            }
                         } else {
                             println!(
-                                "路径匹配找到的 PID {} 当前并未运行，无法切换。",
+                                "路径匹配找到的 PID {} 与当前已结束的 PID 相同，且已切换过，不再切换。",
                                 matched_pid
                             );
                         }
-                    } else {
-                        println!(
-                            "路径匹配找到的 PID {} 与当前已结束的 PID 相同，且已切换过，不再切换。",
-                            matched_pid
-                        );
                     }
                 } else {
                     println!("未通过路径 '{}' 找到匹配的进程。", executable_path);
                 }
-
                 // 如果执行到这里，说明没有找到可以切换到的新进程实例。
                 println!("未找到可切换的活动进程，结束监控会话。");
                 break; // 退出监控循环。

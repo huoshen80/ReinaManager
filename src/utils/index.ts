@@ -206,7 +206,7 @@ export const handleDirectory = async () => {
 		filters: [
 			{
 				name: t("utils.handleDirectory.executable"),
-				extensions: ["exe", "bat", "cmd"],
+				extensions: ["exe", "bat", "cmd", "xp3"],
 			},
 			{
 				name: t("utils.handleDirectory.allFiles"),
