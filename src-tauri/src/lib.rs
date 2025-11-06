@@ -136,7 +136,7 @@ pub fn run() {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Info)
+                        .level(log::LevelFilter::Debug)
                         .targets([
                             Target::new(TargetKind::LogDir {
                                 // set custom log file name for debug
