@@ -1,0 +1,155 @@
+name: Build & Test Common
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04-arm
+            rust_target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            rust_target: aarch64-pc-windows-msvc
+    environment: TAURI_KEY # 指定使用这个环境
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Get version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version is $VERSION"
+
+      - name: Compute short target name
+        id: short
+        shell: bash
+        run: |
+          case "${{ matrix.rust_target }}" in
+            *x86_64-pc-windows*) SHORT=win_x64 ;;
+            *aarch64-pc-windows*) SHORT=win_arm64 ;;
+            *x86_64-unknown-linux-gnu*) SHORT=linux_x64 ;;
+            *aarch64-unknown-linux-gnu*) SHORT=linux_arm64 ;;
+            *) SHORT=unknown ;;
+          esac
+          echo "SHORT=$SHORT" >> $GITHUB_OUTPUT
+      - name: install dependencies for build
+        if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libsoup-3.0-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Build with Tauri Action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          # 不在这里创建 GitHub release，仅构建
+          args: --target ${{ matrix.rust_target }}
+          tagName: ""
+          releaseName: ""
+          releaseBody: ""
+          releaseDraft: false
+          prerelease: false
+          includeDebug: false
+          includeRelease: true
+          tauriScript: pnpm tauri
+
+      # Upload build artifacts for testings
+      - name: Upload Executable (Artifact)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-exe
+          path: src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager.exe
+          if-no-files-found: warn
+
+      - name: Upload MSI Installer (Artifact)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-msi
+          path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi/*.msi
+          if-no-files-found: warn
+
+      - name: Upload NSIS Installer (Artifact)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-setup
+          path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe
+          if-no-files-found: warn
+      - name: Upload deb (Artifact)
+        if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-deb
+          path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/deb/*.deb
+          if-no-files-found: warn
+      - name: Upload rpm (Artifact)
+        if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-rpm
+          path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/rpm/*.rpm
+          if-no-files-found: warn
+      - name: Upload AppImage (Artifact)
+        if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-appimage
+          path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn
