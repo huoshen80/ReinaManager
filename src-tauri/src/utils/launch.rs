@@ -3,13 +3,13 @@ use crate::utils::game_monitor::{monitor_game, stop_game_session};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use tauri::{command, AppHandle,  Runtime};
+use tauri::{command, AppHandle, Runtime};
 #[cfg(target_os = "windows")]
 use {
     crate::utils::fs::PathManager,
-    tauri::Manager,
     log::{error, info},
     sysinfo::{ProcessRefreshKind, RefreshKind, System},
+    tauri::Manager,
     tokio::time,
 };
 
@@ -186,7 +186,7 @@ pub async fn launch_game<R: Runtime>(
         Some(name) => name,
         None => return Err("无法获取游戏可执行文件名".to_string()),
     };
-    
+
     // 根据启动选项决定启动方式
     #[cfg(target_os = "windows")]
     let mut command = if use_le {
