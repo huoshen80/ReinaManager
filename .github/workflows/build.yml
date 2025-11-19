@@ -107,7 +107,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p .cargo
-          
+
           # === Linux 配置 ===
           if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]] || [[ "${{ matrix.os }}" == "ubuntu-22.04-arm" ]]; then
             echo "Configuring mold for Linux..."
@@ -116,14 +116,14 @@ jobs:
           linker = "clang"
           rustflags = ["-C", "link-arg=-fuse-ld=mold"]
           EOF
-          
+
           # === Windows 配置 ===
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Configuring lld for Windows..."
             cat >> .cargo/config.toml <<EOF
           [target.x86_64-pc-windows-msvc]
           linker = "lld-link"
-          
+
           [target.aarch64-pc-windows-msvc]
           linker = "lld-link"
           EOF
@@ -152,11 +152,13 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           # 不在这里创建 GitHub release，仅构建
-          args: --target ${{ matrix.rust_target }}
+          args: >-
+            --target ${{ matrix.rust_target }}
+            -c '{"bundle": {"createUpdaterArtifacts": false}}'
           tagName: ""
           releaseName: ""
           releaseBody: ""
