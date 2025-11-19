@@ -133,11 +133,13 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           # 不在这里创建 GitHub release，仅构建
-          args: --target ${{ matrix.rust_target }}
+          args: >-
+            --target ${{ matrix.rust_target }}
+            -c '{"bundle": {"createUpdaterArtifacts": false}}'
           tagName: ""
           releaseName: ""
           releaseBody: ""
