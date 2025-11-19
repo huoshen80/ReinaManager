@@ -31,6 +31,8 @@ dependencies = [
  "tokio",
  "url",
  "windows 0.62.2",
+ "zbus",
+ "zbus_systemd",
 ]
 
 [[package]]
@@ -1759,6 +1761,7 @@ checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
 dependencies = [
  "futures-channel",
  "futures-core",
+ "futures-executor",
  "futures-io",
  "futures-sink",
  "futures-task",
@@ -1866,6 +1869,7 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -8009,6 +8013,17 @@ dependencies = [
  "serde",
  "winnow 0.7.14",
  "zvariant",
+]
+
+[[package]]
+name = "zbus_systemd"
+version = "0.25800.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6a2f7b9069a167831b75297e75c7c85f1fb6581d02c5ec9ebfff34e582208ba"
+dependencies = [
+ "futures",
+ "serde",
+ "zbus",
 ]
 
 [[package]]
