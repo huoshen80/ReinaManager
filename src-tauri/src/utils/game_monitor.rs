@@ -203,6 +203,7 @@ pub async fn monitor_game<R: Runtime>(
     game_id: u32,
     process_id: u32,
     executable_path: String,
+    #[cfg(target_os = "linux")] systemd_unit_name: String,
 ) {
     let app_handle_clone = app_handle.clone();
     let mut sys = System::new();
@@ -528,7 +529,9 @@ fn start_foreground_hook<R: Runtime + 'static>(
     game_directory: String,
     app_handle: AppHandle<R>,
     game_id: u32,
-    stop_signal: Arc<AtomicBool>,
+    process_id: u32,
+    executable_path: String,
+    #[cfg(target_os = "linux")] systemd_unit_name: String,
 ) {
     // 使用 tokio::task::spawn_blocking 统一运行时管理
     tokio::task::spawn_blocking(move || {
