@@ -101,7 +101,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p .cargo
-          
+
           # === Linux 配置 ===
           if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]] || [[ "${{ matrix.os }}" == "ubuntu-22.04-arm" ]]; then
             echo "Configuring mold for Linux..."
@@ -110,14 +110,14 @@ jobs:
           linker = "clang"
           rustflags = ["-C", "link-arg=-fuse-ld=mold"]
           EOF
-          
+
           # === Windows 配置 ===
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Configuring lld for Windows..."
             cat >> .cargo/config.toml <<EOF
           [target.x86_64-pc-windows-msvc]
           linker = "lld-link"
-          
+
           [target.aarch64-pc-windows-msvc]
           linker = "lld-link"
           EOF

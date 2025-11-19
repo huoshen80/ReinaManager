@@ -6,7 +6,6 @@
 // ============================================================================
 // 外部依赖导入
 // ============================================================================
-
 use log::{debug, error, info, warn};
 use parking_lot::RwLock;
 use serde_json::json;
@@ -210,6 +209,7 @@ pub async fn monitor_game<R: Runtime>(
     let app_handle_clone = app_handle.clone();
     #[cfg(target_os = "windows")]
     let mut sys = System::new();
+
     #[cfg(target_os = "windows")]
     tauri::async_runtime::spawn(async move {
         if let Err(e) = run_game_monitor(
@@ -267,7 +267,7 @@ async fn run_game_monitor<R: Runtime>(
     game_id: u32,
     initial_pid: u32,
     executable_path: String,
-    sys: &mut System,
+    #[allow(unused_variables)] sys: &mut System,
 ) -> Result<(), String> {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();
@@ -277,9 +277,8 @@ async fn run_game_monitor<R: Runtime>(
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // 初始扫描：获取所有候选 PID
-    let candidate_pids_vec = get_all_candidate_pids(&executable_path, sys);
-    let mut candidate_pids_set: HashSet<u32> = candidate_pids_vec.into_iter().collect();
-
+    let candidate_pids = get_all_candidate_pids(&executable_path, sys);
+    let mut candidate_pids_set: HashSet<u32> = candidate_pids.into_iter().collect();
     // 如果初始 PID 不在候选列表中，手动添加（容错）
     if !candidate_pids_set.contains(&initial_pid) && is_process_running(initial_pid) {
         candidate_pids_set.insert(initial_pid);
@@ -906,68 +905,67 @@ fn get_timestamp() -> u64 {
         .expect("系统时间错误: 时间回溯")
         .as_secs()
 }
+
+#[cfg(target_os = "linux")]
+static SESSION_CONN: tokio::sync::OnceCell<zbus::Connection> = tokio::sync::OnceCell::const_new();
+#[cfg(target_os = "linux")]
+static MANAGER_PROXY: tokio::sync::OnceCell<zbus_systemd::systemd1::ManagerProxy<'static>> =
+    tokio::sync::OnceCell::const_new();
+#[cfg(target_os = "linux")]
+pub async fn get_connection() -> Result<&'static zbus::Connection, zbus::Error> {
+    SESSION_CONN
+        .get_or_try_init(|| async { zbus::Connection::session().await })
+        .await
+}
+#[cfg(target_os = "linux")]
+pub async fn get_manager_proxy(
+) -> Result<&'static zbus_systemd::systemd1::ManagerProxy<'static>, zbus::Error> {
+    MANAGER_PROXY
+        .get_or_try_init(|| async {
+            let connection = get_connection().await?;
+            zbus_systemd::systemd1::ManagerProxy::new(connection).await
+        })
+        .await
+}
 /// 根据 systemd user scope 名称查找所有正在运行的进程 PID 列表 (仅 Linux)。
 #[cfg(target_os = "linux")]
-fn get_process_id_by_scope(systemd_scope: &str) -> Vec<u32> {
-    use std::process::Command;
-    let mut pids = Vec::new();
-    // 等到有在exe_dir下的进程为止
-
-    // 使用 systemctl 命令获取 scope 的进程信息
-    let output_control_group = Command::new("systemctl")
-        .args([
-            "--user",
-            "show",
-            "--property",
-            "ControlGroup",
-            "--value",
-            systemd_scope,
-        ])
-        .output();
-    if let Ok(output) = output_control_group {
-        if output.status.success() {
-            let control_group = String::from_utf8_lossy(&output.stdout);
-            if control_group.trim().is_empty() {
-                debug!("systemd scope '{}' 的 ControlGroup 信息为空", systemd_scope);
-                return pids;
-            }
-            let control_group_path = format!("/sys/fs/cgroup{}", control_group.trim());
-            // 读取 cgroup 目录下的 cgroup.procs 文件，获取所有进程 PID
-            let procs_path = format!("{}/cgroup.procs", control_group_path);
-            let procs_content = std::fs::read_to_string(&procs_path);
-            if let Ok(content) = procs_content {
-                for line in content.lines() {
-                    if let Ok(pid) = line.trim().parse::<u32>() {
-                        pids.push(pid);
-                    }
-                }
-                debug!(
-                    "找到 systemd scope '{}' 下的进程 PID 列表: {:?}",
-                    systemd_scope, pids
-                );
-                return pids;
-            } else {
-                debug!(
-                    "无法读取 systemd scope '{}' 的 cgroup.procs 文件",
-                    procs_path
-                );
-                return pids;
-            }
+async fn get_process_id_by_scope(systemd_scope: &str) -> Option<Vec<u32>> {
+    let manager = match get_manager_proxy().await {
+        Ok(m) => m,
+        Err(e) => {
+            debug!("无法连接到 systemd 管理器: {}", e);
+            return None;
         }
-    } else {
-        debug!("无法获取 systemd scope 的 ControlGroup 信息");
-        return pids;
+    };
+    let ps = match manager.get_unit_processes(systemd_scope.to_owned()).await {
+        Ok(p) => p,
+        Err(e) => {
+            debug!(
+                "无法获取 systemd scope '{}' 的进程列表: {}",
+                systemd_scope, e
+            );
+            return None;
+        }
+    };
+    #[cfg(debug_assertions)]
+    {
+        debug!(
+            "找到 systemd scope '{}' 下的进程 PID 列表: {:?}",
+            systemd_scope, ps
+        );
     }
 
-    pids
+    ps.into_iter().map(|p| p.1).collect::<Vec<u32>>().into()
 }
 /// 获取游戏进程 pidss
 #[cfg(target_os = "linux")]
-fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
+async fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
     let manager_pid = std::process::id();
 
     // Linux 下通过 systemd scope 查找进程
     let available_pids: Vec<u32> = get_process_id_by_scope(systemd_scope)
+        .await
+        .unwrap_or_default()
         .into_iter()
         .filter(|&pid| pid != manager_pid) // 过滤掉管理器自身
         .collect();
@@ -988,9 +986,10 @@ fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
 /// TODO: 未来可考虑集成 x11 或 wayland 合成器特定功能实现。
 #[cfg(not(target_os = "windows"))]
 fn check_any_foreground(_candidate_pids: &[u32]) -> Option<u32> {
-    None
+    Some(_candidate_pids[0])
 }
 #[cfg(target_os = "linux")]
+#[allow(unused)]
 fn is_process_running(pid: u32) -> bool {
     use std::fs::exists;
     // 在 Linux 上，可以通过检查 /proc/<pid> 目录是否存在来判断进程是否运行
@@ -1003,25 +1002,48 @@ fn is_process_running(pid: u32) -> bool {
 /// # Returns
 /// 如果 scope 处于活动状态，返回 true；否则返回 false。
 #[cfg(target_os = "linux")]
-fn is_game_running(systemd_scope: &str) -> bool {
-    use std::process::Command;
-
-    // 使用 systemctl is-active 命令检查 systemd scope 的状态
-    //TODO: 考虑使用 D-Bus 直接查询 systemd 状态
-    let output = Command::new("systemctl")
-        .args(["--user", "is-active", systemd_scope])
-        .output();
-
-    if let Ok(output) = output {
-        // 如果命令执行成功，检查输出是否为 "active"
-        if output.status.success() {
-            let status = String::from_utf8_lossy(&output.stdout);
-            return status.trim() == "active";
+async fn is_game_running(systemd_scope: &str) -> bool {
+    match get_manager_proxy().await {
+        Ok(manager) => match manager.get_unit(systemd_scope.to_owned()).await {
+            Ok(u) => {
+                if let Ok(connection) = get_connection().await {
+                    match zbus_systemd::systemd1::UnitProxy::new(connection, u).await {
+                        Ok(unit) => match unit.active_state().await {
+                            Ok(state) => {
+                                debug!(
+                                    "systemd scope '{}' 的 active_state: {}",
+                                    systemd_scope, state
+                                );
+                                state == "active"
+                            }
+                            Err(e) => {
+                                error!(
+                                    "无法获取 systemd scope '{}' 的 active_state: {}",
+                                    systemd_scope, e
+                                );
+                                false
+                            }
+                        },
+                        Err(e) => {
+                            error!("无法创建 systemd Unit 代理: {}", e);
+                            false
+                        }
+                    }
+                } else {
+                    error!("无法连接到 systemd 管理器");
+                    false
+                }
+            }
+            Err(e) => {
+                error!("无法获取 systemd unit '{}': {}", systemd_scope, e);
+                false
+            }
+        },
+        Err(e) => {
+            error!("无法连接到 systemd 管理器: {}", e);
+            false
         }
     }
-
-    // 如果命令执行失败或状态不是 active，则认为游戏未运行
-    false
 }
 #[cfg(target_os = "linux")]
 fn select_best_from_candidates(candidate_pids: &[u32]) -> Option<u32> {
@@ -1058,7 +1080,7 @@ async fn run_game_monitor(
     tokio::time::sleep(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS * 3)).await;
 
     // 初始扫描：获取所有候选 PID
-    let candidate_pids = get_all_candidate_pids(systemd_scope);
+    let candidate_pids = get_all_candidate_pids(systemd_scope).await;
 
     // 从候选中选择最佳 PID 作为主监控对象
     let mut best_pid = match select_best_from_candidates(&candidate_pids) {
@@ -1087,7 +1109,7 @@ async fn run_game_monitor(
     tokio::time::sleep(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS * 9)).await;
 
     // 等待后重新扫描，获取最新的进程状态
-    let mut candidate_pids = get_all_candidate_pids(systemd_scope);
+    let mut candidate_pids = get_all_candidate_pids(systemd_scope).await;
     if let Some(new_best) = select_best_from_candidates(&candidate_pids) {
         if new_best != best_pid {
             info!(
@@ -1106,7 +1128,7 @@ async fn run_game_monitor(
         tick_interval.tick().await;
 
         #[cfg(target_os = "linux")]
-        let game_running = is_game_running(systemd_scope);
+        let game_running = is_game_running(systemd_scope).await;
         if !game_running {
             consecutive_failures += 1;
             debug!(
@@ -1162,7 +1184,7 @@ async fn run_game_monitor(
                         .map_err(|e| format!("无法发送 game-time-update 事件: {}", e))?;
                 }
             } else {
-                candidate_pids = get_all_candidate_pids(systemd_scope);
+                candidate_pids = get_all_candidate_pids(systemd_scope).await;
             }
         }
     }
