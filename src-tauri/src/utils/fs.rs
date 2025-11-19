@@ -201,6 +201,7 @@ impl PathManager {
     }
 
     /// 同步获取LE路径（需要先调用preload_config_paths）
+    #[cfg(target_os = "windows")]
     pub fn get_le_path(&self) -> Result<String, String> {
         let cache = self.cache.lock().expect("路径管理器缓存锁已被污染");
         match &cache.le_path {
@@ -210,6 +211,7 @@ impl PathManager {
     }
 
     /// 同步获取Magpie路径（需要先调用preload_config_paths）
+    #[cfg(target_os = "windows")]
     pub fn get_magpie_path(&self) -> Result<String, String> {
         let cache = self.cache.lock().expect("路径管理器缓存锁已被污染");
         match &cache.magpie_path {
