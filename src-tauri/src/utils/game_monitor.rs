@@ -214,6 +214,8 @@ pub async fn monitor_game<R: Runtime>(
             process_id,
             executable_path,
             &mut sys,
+            #[cfg(target_os = "linux")]
+            &systemd_scope,
         )
         .await
         {
