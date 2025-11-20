@@ -153,6 +153,8 @@ pub async fn launch_game<R: Runtime>(
             if std::env::var("WAYLAND_DISPLAY").is_ok() {
                 command.env("DISPLAY", "");
             }
+            command.stdout(std::process::Stdio::null()); // 避免 wine 输出干扰
+            command.stderr(std::process::Stdio::null());
         }
         command.arg(&game_path); // 添加游戏可执行文件路径
         command.current_dir(game_dir);
@@ -167,7 +169,6 @@ pub async fn launch_game<R: Runtime>(
     match command.spawn() {
         Ok(child) => {
             let process_id = child.id();
-
             // 启动游戏监控
             monitor_game(
                 app_handle,
@@ -191,6 +192,7 @@ pub async fn launch_game<R: Runtime>(
                 process_id: Some(process_id),
             })
         }
+        #[allow(unused_variables)]
         Err(e) => {
             #[cfg(target_os = "windows")]
             {

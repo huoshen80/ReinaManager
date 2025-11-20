@@ -52,7 +52,9 @@ sea-orm = { version = "1.1.19", features = [
 # Misc
 url = "2.5.7"
 migration = { path = "migration" }
-
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "5.12.0"
+zbus_systemd = { version = "0.25800.0", features = ["systemd1"] }
 # Windows system APIs
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = [
