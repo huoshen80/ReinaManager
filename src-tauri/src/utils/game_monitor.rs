@@ -6,7 +6,7 @@
 // ============================================================================
 // 外部依赖导入
 // ============================================================================
-
+use std::path::Path;
 use log::{debug, error, info, warn};
 use parking_lot::RwLock;
 use serde_json::json;
@@ -206,6 +206,7 @@ pub async fn monitor_game<R: Runtime>(
 ) {
     let app_handle_clone = app_handle.clone();
     let mut sys = System::new();
+
     #[cfg(target_os = "windows")]
     tauri::async_runtime::spawn(async move {
         if let Err(e) = run_game_monitor(
@@ -214,8 +215,6 @@ pub async fn monitor_game<R: Runtime>(
             process_id,
             executable_path,
             &mut sys,
-            #[cfg(target_os = "linux")]
-            &systemd_scope,
         )
         .await
         {
@@ -267,7 +266,7 @@ async fn run_game_monitor<R: Runtime>(
     game_id: u32,
     initial_pid: u32,
     executable_path: String,
-    sys: &mut System,
+    #[allow(unused_variables)] sys: &mut System,
 ) -> Result<(), String> {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();
@@ -277,9 +276,8 @@ async fn run_game_monitor<R: Runtime>(
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // 初始扫描：获取所有候选 PID
-    let candidate_pids_vec = get_all_candidate_pids(&executable_path, sys);
-    let mut candidate_pids_set: HashSet<u32> = candidate_pids_vec.into_iter().collect();
-
+    let mut candidate_pids = get_all_candidate_pids(&executable_path, sys);
+    let mut candidate_pids_set: HashSet<u32> = candidate_pids.into_iter().collect();
     // 如果初始 PID 不在候选列表中，手动添加（容错）
     if !candidate_pids_set.contains(&initial_pid) && is_process_running(initial_pid) {
         candidate_pids_set.insert(initial_pid);
@@ -540,9 +538,7 @@ fn start_foreground_hook<R: Runtime + 'static>(
     game_directory: String,
     app_handle: AppHandle<R>,
     game_id: u32,
-    process_id: u32,
-    #[cfg(target_os = "linux")] systemd_scope: String,
-    executable_path: String,
+    stop_signal: Arc<AtomicBool>,
 ) {
     // 使用 tokio::task::spawn_blocking 统一运行时管理
     tokio::task::spawn_blocking(move || {
@@ -1008,9 +1004,10 @@ async fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
 /// TODO: 未来可考虑集成 x11 或 wayland 合成器特定功能实现。
 #[cfg(not(target_os = "windows"))]
 fn check_any_foreground(_candidate_pids: &[u32]) -> Option<u32> {
-    None
+    Some(_candidate_pids[0])
 }
 #[cfg(target_os = "linux")]
+#[allow(unused)]
 fn is_process_running(pid: u32) -> bool {
     use std::fs::exists;
     // 在 Linux 上，可以通过检查 /proc/<pid> 目录是否存在来判断进程是否运行
