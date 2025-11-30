@@ -53,7 +53,7 @@ export async function backupDatabase(): Promise<BackupResult> {
  *
  * @returns Promise<ImportResult | null> 导入成功返回结果对象，取消返回 null
  */
-export async function importDatabase(): Promise<ImportResult | null> {
+export async function importDatabase(): Promise<string | null> {
 	// 打开文件选择对话框
 	const filePath = await open({
 		filters: [{ name: "SQLite Database", extensions: ["db"] }],
@@ -66,9 +66,9 @@ export async function importDatabase(): Promise<ImportResult | null> {
 	}
 
 	// 调用后端命令导入数据库
-	const result = await invoke<ImportResult>("import_database", {
-		sourcePath: filePath,
+	await invoke("import_database", {
+		sourcePath: filePath as string,
 	});
 
-	return result;
+	return filePath as string;
 }
