@@ -49,7 +49,6 @@ pub fn run() {
             restore_savedata_backup,
             delete_file,
             delete_game_covers,
-            backup_database,
             import_database,
             // 游戏数据相关 commands
             insert_game,
