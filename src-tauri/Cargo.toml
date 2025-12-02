@@ -1,6 +1,6 @@
 [package]
 name = "ReinaManager"
-version = "0.10.0"
+version = "0.11.0"
 description = "A lightweight visual novel manager"
 authors = ["huoshen80"]
 license = "GNU AFFERO GENERAL PUBLIC LICENSE"
