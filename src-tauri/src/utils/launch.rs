@@ -149,10 +149,6 @@ pub async fn launch_game<R: Runtime>(
             // Windows 可执行文件需要使用 wine 启动
             //TODO: 可配置exe文件的运行方式
             command.arg("wine");
-            // 如果在 Wayland 环境下，清除 DISPLAY 变量以优先使用 Wayland
-            if std::env::var("WAYLAND_DISPLAY").is_ok() {
-                command.env("DISPLAY", "");
-            }
             command.stdout(std::process::Stdio::null()); // 避免 wine 输出干扰
             command.stderr(std::process::Stdio::null());
         }
