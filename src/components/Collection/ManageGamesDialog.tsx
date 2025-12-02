@@ -52,7 +52,12 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 	categoryName,
 }) => {
 	const { t, i18n } = useTranslation();
-	const { allGames, categoryGames, updateCategoryGames } = useStore();
+	const { allGames, categoryGamesCache, updateCategoryGames } = useStore();
+
+	// 从缓存获取分类游戏 ID（未经 NSFW 筛选的完整列表）
+	const categoryGameIds = useMemo(() => {
+		return categoryGamesCache[categoryId] || [];
+	}, [categoryGamesCache, categoryId]);
 
 	// 对话框状态
 	const [leftSearchInput, setLeftSearchInput] = useState(""); // 左栏搜索输入
@@ -78,17 +83,12 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 		}
 	}, [open, categoryId]);
 
-	// 同步分类游戏到本地状态
+	// 同步分类游戏到本地状态（使用未筛选的 ID 列表）
 	useEffect(() => {
 		if (open) {
-			const categoryGameIds = new Set(
-				categoryGames
-					.map((g) => g.id)
-					.filter((id): id is number => id !== undefined),
-			);
-			setGamesInCategory(categoryGameIds);
+			setGamesInCategory(new Set(categoryGameIds));
 		}
-	}, [open, categoryGames]);
+	}, [open, categoryGameIds]);
 
 	// 左栏：未在分类中的游戏
 	const availableGames = useMemo(() => {

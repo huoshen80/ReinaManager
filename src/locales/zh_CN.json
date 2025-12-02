@@ -78,7 +78,7 @@
 				"doubleClickLaunch": "双击启动游戏",
 				"doubleClickLaunchNote": "开启后会导致左键单击延迟200ms（仅导航模式）",
 				"longPressLaunch": "长按启动游戏",
-				"longPressLaunchNote": "长按卡片800ms后启动游戏"
+				"longPressLaunchNote": "长按卡片800ms后启动游戏，开启后收藏夹拖拽排序功能将被禁用"
 			},
 			"savePath": {
 				"title": "游戏存档备份路径",

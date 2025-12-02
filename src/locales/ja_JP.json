@@ -72,7 +72,7 @@
 				"doubleClickLaunch": "ダブルクリックでゲーム起動",
 				"doubleClickLaunchNote": "有効にすると左クリックが200ms遅延します（ナビゲーションモードのみ）",
 				"longPressLaunch": "長押しでゲーム起動",
-				"longPressLaunchNote": "カードを800ms長押しするとゲームが起動します"
+				"longPressLaunchNote": "カードを800ms長押しするとゲームが起動します。有効にするとコレクションのドラッグソート機能が無効になります"
 			},
 			"savePath": {
 				"title": "ゲームセーブバックアップパス",

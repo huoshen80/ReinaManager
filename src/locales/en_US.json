@@ -72,7 +72,7 @@
 				"doubleClickLaunch": "Double-click to launch game",
 				"doubleClickLaunchNote": "Enabling this will cause a 200ms delay for left-click (navigation mode only)",
 				"longPressLaunch": "Long-press to launch game",
-				"longPressLaunchNote": "Launch game after long-pressing card for 800ms"
+				"longPressLaunchNote": "Launch game after long-pressing card for 800ms. Enabling this will disable collection drag-sort feature"
 			},
 			"savePath": {
 				"title": "Game Save Backup Path",

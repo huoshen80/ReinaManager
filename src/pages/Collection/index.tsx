@@ -573,7 +573,16 @@ export const Collection: React.FC = () => {
 					</Box>
 				))}
 
-			{showLevel === "games" && <Cards gamesData={categoryGames} />}
+			{showLevel === "games" && (
+				<Cards
+					gamesData={categoryGames}
+					categoryId={
+						selectedCategoryId !== null && selectedCategoryId > 0
+							? selectedCategoryId
+							: undefined
+					}
+				/>
+			)}
 
 			{/* 统一的右键菜单 */}
 			<CollectionRightMenu

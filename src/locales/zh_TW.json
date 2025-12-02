@@ -72,7 +72,7 @@
 				"doubleClickLaunch": "雙擊啟動遊戲",
 				"doubleClickLaunchNote": "開啟後會導致左鍵單擊延遲200ms（僅導航模式）",
 				"longPressLaunch": "長按啟動遊戲",
-				"longPressLaunchNote": "長按卡片800ms後啟動遊戲"
+				"longPressLaunchNote": "長按卡片800ms後啟動遊戲，開啟後收藏夾拖曳排序功能將被禁用"
 			},
 			"savePath": {
 				"title": "遊戲存檔備份路徑",

@@ -134,7 +134,7 @@ export interface AppState {
 
 	// NSFW相关
 	nsfwFilter: boolean;
-	setNsfwFilter: (enabled: boolean) => void;
+	setNsfwFilter: (enabled: boolean) => Promise<void>;
 	nsfwCoverReplace: boolean;
 	setNsfwCoverReplace: (enabled: boolean) => void;
 
@@ -273,8 +273,17 @@ export const useStore = create<AppState>()(
 
 			// NSFW相关
 			nsfwFilter: false,
-			setNsfwFilter: (enabled: boolean) => {
+			setNsfwFilter: async (enabled: boolean) => {
 				set({ nsfwFilter: enabled });
+
+				// 如果当前在分类页面，刷新 categoryGames 以应用新的 NSFW 筛选
+				const { selectedCategoryId, selectedCategoryName } = get();
+				if (selectedCategoryId !== null) {
+					await get().fetchGamesByCategory(
+						selectedCategoryId,
+						selectedCategoryName || undefined,
+					);
+				}
 			},
 			nsfwCoverReplace: false,
 			setNsfwCoverReplace: (enabled: boolean) => {
@@ -369,26 +378,32 @@ export const useStore = create<AppState>()(
 								backendSortOption,
 								backendSortOrder,
 							);
-							let baseData = getDisplayGameDataList(
+							const baseData = getDisplayGameDataList(
 								fullGames,
 								i18next.language,
 							);
 
-							if (option === "namesort") {
-								baseData = get().sortGamesByName(baseData, order);
-							}
+							// allData 保持完整数据（不筛选），用于统计和管理
+							allData = baseData;
 
-							baseData = applyNsfwFilter(baseData, nsfwFilter);
+							// 显示数据需要排序和筛选
+							let displayData =
+								option === "namesort"
+									? get().sortGamesByName(baseData, order)
+									: baseData;
+
+							displayData = applyNsfwFilter(displayData, nsfwFilter);
 
 							// 搜索处理
 							if (searchKeyword && searchKeyword.trim() !== "") {
-								const searchResults = enhancedSearch(baseData, searchKeyword);
+								const searchResults = enhancedSearch(
+									displayData,
+									searchKeyword,
+								);
 								data = searchResults.map((result) => result.item);
 							} else {
-								data = baseData;
+								data = displayData;
 							}
-
-							allData = baseData; // 复用数据，不需要第二次请求
 						} else {
 							// 需要两次请求：一次获取筛选数据，一次获取全部
 							const fullGames = await gameService.getFullGames(
@@ -891,14 +906,12 @@ export const useStore = create<AppState>()(
 						const cache = get().categoryGamesCache;
 						const cachedGameIds = cache[categoryId];
 
+						let gameIds: number[];
 						if (cachedGameIds) {
-							// 从 allGames 中筛选
-							gameDataList = allGames.filter((game) =>
-								cachedGameIds.includes(game.id ?? -1),
-							);
+							gameIds = cachedGameIds;
 						} else {
 							// 缓存缺失，重新获取
-							const gameIds =
+							gameIds =
 								await collectionService.getGamesInCollection(categoryId);
 
 							// 更新 store 缓存
@@ -908,12 +921,12 @@ export const useStore = create<AppState>()(
 									[categoryId]: gameIds,
 								},
 							}));
-
-							// 从 allGames 中筛选游戏
-							gameDataList = allGames.filter((game) =>
-								gameIds.includes(game.id ?? 0),
-							);
 						}
+
+						// 按照 gameIds 的顺序从 allGames 中获取游戏（保持排序）
+						gameDataList = gameIds
+							.map((id) => allGames.find((game) => game.id === id))
+							.filter((game): game is GameData => !!game);
 					} // 应用NSFW筛选
 					const filteredGames = applyNsfwFilter(gameDataList, get().nsfwFilter);
 					// 只在首次设置时更新 selectedCategoryId 和 selectedCategoryName
@@ -1204,27 +1217,32 @@ export const useStore = create<AppState>()(
 						return;
 					}
 
+					// 1. 乐观更新：先更新前端状态，防止列表闪烁
+					const { allGames, nsfwFilter } = get();
+					// 根据 ID 列表重新排序当前分类的游戏
+					const newOrderGames = gameIds
+						.map((id) => allGames.find((g) => g.id === id))
+						.filter((g): g is GameData => !!g);
+
+					// 应用 NSFW 筛选
+					const filteredGames = applyNsfwFilter(newOrderGames, nsfwFilter);
+
+					// 立即更新状态
+					set((state) => ({
+						categoryGames: filteredGames,
+						categoryGamesCache: {
+							...state.categoryGamesCache,
+							[categoryId]: gameIds,
+						},
+					}));
+
+					// 2. 后台异步更新数据库
 					await collectionService.updateCategoryGames(gameIds, categoryId);
-
-					// 清除缓存
-					set((state) => {
-						const newCache = { ...state.categoryGamesCache };
-						delete newCache[categoryId];
-						return { categoryGamesCache: newCache };
-					});
-
-					// 如果当前选中的是这个分类，刷新游戏列表
-					if (get().selectedCategoryId === categoryId) {
-						await get().fetchGamesByCategory(categoryId);
-					}
-					// 刷新当前分组的分类列表（更新游戏数量）
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
 				} catch (error) {
 					console.error("Failed to update category games:", error);
-					throw error; // 重新抛出错误供上层处理
+					// 更新失败，回滚状态（重新获取）
+					await get().fetchGamesByCategory(categoryId);
+					throw error;
 				}
 			},
 
