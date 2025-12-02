@@ -1,3 +1,24 @@
+## [0.11.0](https://github.com/huoshen80/ReinaManager/compare/v0.10.0...v0.11.0) (2025-12-02)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 新功能
+
+* 添加数据库导入功能 ([73d8ea3](https://github.com/huoshen80/ReinaManager/commit/73d8ea317a12cb8e4a5ca7f3bca5f86c4afde9d5))
+* 为收藏页面游戏列表添加拖拽排序功能 关闭 [[#28](https://github.com/huoshen80/ReinaManager/issues/28)](https://github.com/huoshen80/ReinaManager/commit/2be37dc39e5af3bed7d38e43f12d61fe44d9a5d2))
+* 添加游戏计时器模式设置，支持实际游玩时间和游戏启动时间两种计时方式 关闭 [#29](https://github.com/huoshen80/ReinaManager/issues/29) ([072f0c6](https://github.com/huoshen80/ReinaManager/commit/072f0c6beb17e121ea88654c91dcff6e22148faa))
+
+</details>
+
+### Features
+
+* add database import functionality ([73d8ea3](https://github.com/huoshen80/ReinaManager/commit/73d8ea317a12cb8e4a5ca7f3bca5f86c4afde9d5))
+* add drag-and-drop sorting feat to the collections page game list close [[#28](https://github.com/huoshen80/ReinaManager/issues/28)](https://github.com/huoshen80/ReinaManager/issues/28) ([2be37dc](https://github.com/huoshen80/ReinaManager/commit/2be37dc39e5af3bed7d38e43f12d61fe44d9a5d2))
+* add game timer mode settings, supporting playtime and elapsed close [#29](https://github.com/huoshen80/ReinaManager/issues/29) ([072f0c6](https://github.com/huoshen80/ReinaManager/commit/072f0c6beb17e121ea88654c91dcff6e22148faa))
+
+
+
 ## [0.10.0](https://github.com/huoshen80/ReinaManager/compare/v0.9.0...v0.10.0) (2025-11-25)
 
 <details>
