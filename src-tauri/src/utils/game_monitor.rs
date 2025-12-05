@@ -16,9 +16,7 @@ use serde_json::json;
 use std::collections::HashSet;
 #[cfg(target_os = "windows")]
 use std::path::Path;
-#[cfg(target_os = "windows")]
-#[cfg(target_os = "windows")]
-use std::path::Path;
+
 #[cfg(target_os = "windows")]
 use std::sync::OnceLock;
 #[cfg(target_os = "windows")]
@@ -1012,12 +1010,7 @@ async fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
 
     available_pids
 }
-/// Linux 下的前台判定暂未实现，直接返回 None。
-/// TODO: 未来可考虑集成 x11 或 wayland 合成器特定功能实现。
-#[cfg(not(target_os = "windows"))]
-fn check_any_foreground(_candidate_pids: &[u32]) -> Option<u32> {
-    Some(_candidate_pids[0])
-}
+
 #[cfg(target_os = "linux")]
 #[allow(unused)]
 fn is_process_running(pid: u32) -> bool {
@@ -1094,9 +1087,156 @@ fn select_best_from_candidates(candidate_pids: &[u32]) -> Option<u32> {
 /// TODO: 未来可考虑集成 x11 或 wayland 合成器特定功能实现。
 #[cfg(target_os = "linux")]
 fn check_any_has_window(_candidate_pids: &[u32]) -> Option<u32> {
-    // Linux 下暂无实现此功能
+    check_any_has_window_x11(_candidate_pids)
+}
+/// TODO: 未来可考虑集成其他 wayland 合成器特定功能实现。
+#[cfg(not(target_os = "windows"))]
+fn check_any_foreground(_candidate_pids: &[u32]) -> Option<u32> {
+    check_any_foreground_x11(_candidate_pids)
+}
+
+#[cfg(target_os = "linux")]
+fn check_any_foreground_x11(candidate_pids: &[u32]) -> Option<u32> {
+    // 1. 连接到 X Server
+    let (conn, screen_num) = xcb::Connection::connect(None).ok()?;
+    let setup = conn.get_setup();
+    // 获取当前屏幕的根窗口 (Root Window)
+    let screen = setup.roots().nth(screen_num as usize)?;
+    let root_window = screen.root();
+
+    // 2. 获取 Atom 标识符
+    // 我们需要 "_NET_ACTIVE_WINDOW" 来找当前活动窗口
+    // 我们需要 "_NET_WM_PID" 来找窗口对应的 PID
+    let cookie_active = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_ACTIVE_WINDOW",
+    });
+    let cookie_pid = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_WM_PID",
+    });
+
+    let atom_active_window = conn.wait_for_reply(cookie_active).ok()?.atom();
+    let atom_net_wm_pid = conn.wait_for_reply(cookie_pid).ok()?.atom();
+
+    // 3. 获取当前活动窗口的 ID
+    // 向 Root Window 请求 _NET_ACTIVE_WINDOW 属性
+    let active_win_cookie = conn.send_request(&xcb::x::GetProperty {
+        delete: false,
+        window: root_window,
+        property: atom_active_window,
+        long_offset: 0,
+        long_length: 1, // 我们只需要读 1 个值
+        r#type: xcb::x::ATOM_WINDOW,
+    });
+
+    let active_win_reply = conn.wait_for_reply(active_win_cookie).ok()?;
+
+    // 如果没有值，说明没有活动窗口或不支持 EWMH
+    if active_win_reply.value::<xcb::x::Window>().is_empty() {
+        return None;
+    }
+
+    // 提取 Window ID
+    let active_window = active_win_reply
+        .value::<xcb::x::Window>()
+        .first()
+        .copied()?;
+
+    // 4. 获取该窗口的 PID
+    // 向活动窗口请求 _NET_WM_PID 属性
+    let pid_cookie = conn.send_request(&xcb::x::GetProperty {
+        delete: false,
+        window: active_window,
+        property: atom_net_wm_pid,
+        r#type: xcb::x::ATOM_CARDINAL, // PID 通常是 Cardinal 类型
+        long_offset: 0,
+        long_length: 1,
+    });
+
+    let pid_reply = conn.wait_for_reply(pid_cookie).ok()?;
+
+    if pid_reply.value::<xcb::x::Window>().is_empty() {
+        return None;
+    }
+
+    // 提取 PID
+    let active_pid = pid_reply.value::<u32>().first().copied()?;
+
+    // 5. 检查是否匹配
+    if candidate_pids.contains(&active_pid) {
+        Some(active_pid)
+    } else {
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn check_any_has_window_x11(candidate_pids: &[u32]) -> Option<u32> {
+    // 1. 连接到 X Server
+    let (conn, screen_num) = xcb::Connection::connect(None).ok()?;
+    let setup = conn.get_setup();
+    let screen = setup.roots().nth(screen_num as usize)?;
+    let root_window = screen.root();
+
+    // 2. 获取需要的 Atom 标识符
+    let cookie_client_list = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_CLIENT_LIST",
+    });
+    let cookie_pid = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_WM_PID",
+    });
+
+    let atom_client_list = conn.wait_for_reply(cookie_client_list).ok()?.atom();
+    let atom_net_wm_pid = conn.wait_for_reply(cookie_pid).ok()?.atom();
+
+    // 检查 atom 是否有效
+    if atom_client_list == xcb::x::ATOM_NONE || atom_net_wm_pid == xcb::x::ATOM_NONE {
+        return None;
+    }
+
+    // 3. 获取所有客户端窗口列表
+    let client_list_cookie = conn.send_request(&xcb::x::GetProperty {
+        delete: false,
+        window: root_window,
+        property: atom_client_list,
+        r#type: xcb::x::ATOM_WINDOW,
+        long_offset: 0,
+        long_length: 1024, // 足够容纳大量窗口
+    });
+
+    let client_list_reply = conn.wait_for_reply(client_list_cookie).ok()?;
+    let windows = client_list_reply.value::<xcb::x::Window>();
+
+    if windows.is_empty() {
+        return None;
+    }
+
+    // 4. 遍历所有窗口，检查其 PID 是否在候选列表中
+    for &window in windows {
+        let pid_cookie = conn.send_request(&xcb::x::GetProperty {
+            delete: false,
+            window,
+            property: atom_net_wm_pid,
+            r#type: xcb::x::ATOM_CARDINAL,
+            long_offset: 0,
+            long_length: 1,
+        });
+
+        if let Ok(pid_reply) = conn.wait_for_reply(pid_cookie) {
+            if let Some(&pid) = pid_reply.value::<u32>().first() {
+                if candidate_pids.contains(&pid) {
+                    return Some(pid);
+                }
+            }
+        }
+    }
+
     None
 }
+
 #[cfg(target_os = "linux")]
 async fn run_game_monitor(
     app_handle: &AppHandle<impl Runtime>,
