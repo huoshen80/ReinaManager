@@ -14,7 +14,7 @@ export default defineConfig({
 	},
 	clearScreen: false,
 	// 添加有关当前构建目标的额外前缀，使这些 CLI 设置的 Tauri 环境变量可以在客户端代码中访问
-	envPrefix: ["VITE_", "TAURI_ENV_*"],
+	envPrefix: ["VITE_", "TAURI_ENV_"],
 	build: {
 		// 使用 Vite 7 默认目标（baseline-widely-available），更符合 2025 的浏览器能力基线
 		// 若需固定更高目标，可设置为：windows 使用 'chrome107'，其他平台 'safari16'
