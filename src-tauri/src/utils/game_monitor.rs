@@ -9,7 +9,7 @@
 use log::{debug, error, info, warn};
 use parking_lot::RwLock;
 use serde_json::json;
-use std::path::Path;
+
 use std::{
     collections::HashSet,
     sync::{
@@ -19,10 +19,12 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(target_os = "windows")]
+use std::path::Path;
+#[cfg(target_os = "windows")]
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::time::{interval, MissedTickBehavior};
-
 #[cfg(target_os = "windows")]
 use windows::Win32::{
     Foundation::CloseHandle,
@@ -190,8 +192,9 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
 /// # Arguments
 /// * `app_handle` - Tauri 应用句柄，用于发送事件到前端
 /// * `game_id` - 游戏的唯一标识符
-/// * `process_id` - 要开始监控的游戏进程的初始 PID
-/// * `executable_path` - 游戏主可执行文件的完整路径，用于在进程重启或切换后重新查找
+/// * `process_id` - 要开始监控的游戏进程的初始 PID (仅 Windows)
+/// * `executable_path` - 游戏主可执行文件的完整路径，用于在进程重启或切换后重新查找 (仅 Windows)
+/// * `systemd_unit_name` - Linux 平台下的 systemd user scope 名称 (仅 Linux)
 ///
 /// # 工作流程
 /// 1. 创建 System 实例用于进程查询
@@ -200,27 +203,29 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
 pub async fn monitor_game<R: Runtime>(
     app_handle: AppHandle<R>,
     game_id: u32,
-    process_id: u32,
-    executable_path: String,
+    #[cfg(target_os = "windows")] process_id: u32,
+    #[cfg(target_os = "windows")] executable_path: String,
     #[cfg(target_os = "linux")] systemd_unit_name: String,
 ) {
     let app_handle_clone = app_handle.clone();
-    let mut sys = System::new();
 
     #[cfg(target_os = "windows")]
-    tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_game_monitor(
-            app_handle_clone,
-            game_id,
-            process_id,
-            executable_path,
-            &mut sys,
-        )
-        .await
-        {
-            error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
-        }
-    });
+    {
+        let mut sys = System::new();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = run_game_monitor(
+                app_handle_clone,
+                game_id,
+                process_id,
+                executable_path,
+                &mut sys,
+            )
+            .await
+            {
+                error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
+            }
+        });
+    }
     #[cfg(target_os = "linux")]
     tauri::async_runtime::spawn(async move {
         // 将 System 实例的可变引用传递给实际的监控循环
@@ -946,7 +951,6 @@ pub async fn get_manager_proxy(
 /// 根据 systemd user scope 名称查找所有正在运行的进程 PID 列表 (仅 Linux)。
 #[cfg(target_os = "linux")]
 async fn get_process_id_by_scope(systemd_scope: &str) -> Option<Vec<u32>> {
-    use std::process::Command;
     // 等到有在exe_dir下的进程为止
     let manager = match get_manager_proxy().await {
         Ok(m) => m,
@@ -1021,7 +1025,6 @@ fn is_process_running(pid: u32) -> bool {
 /// 如果 scope 处于活动状态，返回 true；否则返回 false。
 #[cfg(target_os = "linux")]
 async fn is_game_running(systemd_scope: &str) -> bool {
-    use std::process::Command;
     match get_manager_proxy().await {
         Ok(manager) => match manager.get_unit(systemd_scope.to_owned()).await {
             Ok(u) => {
