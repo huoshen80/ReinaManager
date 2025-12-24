@@ -322,12 +322,25 @@ export function formatPlayTime(minutes: number): string {
 	}
 	return i18next.t("utils.formatPlayTime.hours", { count: hours });
 }
-
-export const handleDirectory = async (droppedPath?: string) => {
+export const handleFolder = async () => {
+	const path = await openDirectory({
+		multiple: false,
+		directory: true,
+		filters: [
+			{
+				name: t("utils.handleDirectory.folder"),
+				extensions: ["*"],
+			},
+		],
+	});
+	if (path === null) return null;
+	return path;
+};
+export const handleExeFile = async (defaultPath: string = "") => {
 	const path = await openDirectory({
 		multiple: false,
 		directory: false,
-		defaultPath: droppedPath,
+		defaultPath: defaultPath,
 		filters: [
 			{
 				name: t("utils.handleDirectory.executable"),
@@ -411,7 +424,7 @@ export const handleDroppedPath = async (
 
 			// 多个可执行文件，弹出系统对话框让用户选择
 			snackbar.info(t("components.AddModal.selectFromFolder"));
-			const selected = await handleDirectory(droppedPath);
+			const selected = await handleExeFile(droppedPath);
 
 			return selected;
 		}
@@ -1001,3 +1014,46 @@ export {
 	getDisplayGameData,
 	getDisplayGameDataList,
 } from "./dataTransform";
+
+/**
+ * 从目录名中移除括号内容，提取搜索用的游戏名
+ * 例如: "[社团名] 游戏名 (版本)" -> "游戏名"
+ */
+export function trimDirnameToSearchName(dirName: string): string {
+	/**
+	 * 尝试移除一对括号及其内容
+	 */
+	function trimOnce(name: string, open: string, close: string): string {
+		const trimmed = name.trim();
+		if (trimmed.startsWith(open)) {
+			const pos = trimmed.indexOf(close);
+			if (pos !== -1) {
+				return trimmed.slice(pos + close.length).trim();
+			}
+		}
+		return trimmed;
+	}
+
+	/**
+	 * 循环移除所有括号直到没有变化
+	 */
+	function trim(name: string): string {
+		let currentName = name;
+
+		while (true) {
+			let trimmed = trimOnce(currentName, "[", "]");
+			trimmed = trimOnce(trimmed, "(", ")");
+			trimmed = trimOnce(trimmed, "【", "】");
+
+			// 如果没有变化则退出循环
+			if (trimmed === currentName) {
+				break;
+			}
+			currentName = trimmed;
+		}
+
+		return currentName.trim();
+	}
+
+	return trim(dirName);
+}

@@ -17,6 +17,17 @@
  * - react-i18next
  */
 
+import { AlertConfirmBox } from "@/components/AlertBox";
+import { toggleAutostart } from "@/components/AutoStart";
+import { PathSettingsModal } from "@/components/PathSettingsModal";
+import { snackbar } from "@/components/Snackbar";
+import { checkForUpdates } from "@/components/Update";
+import { useScrollRestore } from "@/hooks/common/useScrollRestore";
+import { settingsService } from "@/services";
+import { useStore } from "@/store";
+import type { LogLevel } from "@/types";
+import { openDatabaseBackupFolder } from "@/utils";
+import { backupDatabase, importDatabase } from "@/utils/database";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import BackupIcon from "@mui/icons-material/Backup";
 import BugReportIcon from "@mui/icons-material/BugReport";
@@ -24,6 +35,8 @@ import ClearIcon from "@mui/icons-material/Clear";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import RestoreIcon from "@mui/icons-material/Restore";
+import RestorePageIcon from "@mui/icons-material/RestorePage";
+import SaveIcon from "@mui/icons-material/Save";
 import UpdateIcon from "@mui/icons-material/Update";
 import {
 	Accordion,
@@ -55,21 +68,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { isEnabled } from "@tauri-apps/plugin-autostart";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { open as openurl } from "@tauri-apps/plugin-shell";
+import { load } from "@tauri-apps/plugin-store";
 import { PageContainer } from "@toolpad/core/PageContainer";
 import { join } from "pathe";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertConfirmBox } from "@/components/AlertBox";
-import { toggleAutostart } from "@/components/AutoStart";
-import { PathSettingsModal } from "@/components/PathSettingsModal";
-import { snackbar } from "@/components/Snackbar";
-import { checkForUpdates } from "@/components/Update";
-import { useScrollRestore } from "@/hooks/common/useScrollRestore";
-import { settingsService } from "@/services";
-import { useStore } from "@/store";
-import type { LogLevel } from "@/types";
-import { openDatabaseBackupFolder } from "@/utils";
-import { backupDatabase, importDatabase } from "@/utils/database";
 
 /**
  * LanguageSelect 组件
@@ -1472,10 +1475,17 @@ export const Settings: React.FC = () => {
 
 				{/* 计时模式设置 */}
 				<TimeTrackingModeSettings />
-				<Divider sx={{ my: 3 }} />
 
+				<Divider sx={{ my: 3 }} />
 				{/* 实验性功能 */}
 				<DevSettings />
+				{import.meta.env.TAURI_ENV_PLATFORM === "linux" && (
+					<>
+						<Divider sx={{ my: 3 }} />
+						{/* Linux 设置 */}
+						<LinuxLaunchCommandSettings />
+					</>
+				)}
 				<br />
 
 				{/* 关于 */}
@@ -1489,5 +1499,149 @@ export const Settings: React.FC = () => {
 				inSettingsPage={true}
 			/>
 		</PageContainer>
+	);
+};
+
+/**
+ * Linux 启动命令设置组件
+ * 用于配置 Linux 上启动 Windows 可执行文件的默认命令（如 wine, proton 等）
+ */
+const LinuxLaunchCommandSettings = () => {
+	const { t } = useTranslation();
+	const [launchCommand, setLaunchCommand] = useState("wine");
+	const [isLoading, setIsLoading] = useState(false);
+	const [originalCommand, setOriginalCommand] = useState("wine");
+
+	// Store key for persisting the setting
+	const STORE_KEY = "linux_launch_command";
+	const STORE_PATH = "settings.json";
+
+	// 加载当前设置的启动命令
+	useEffect(() => {
+		const loadLaunchCommand = async () => {
+			setIsLoading(true);
+			try {
+				const store = await load(STORE_PATH, {
+					autoSave: false,
+					defaults: {
+						[STORE_KEY]: "wine",
+					},
+				});
+				const savedCommand = await store.get<string>(STORE_KEY);
+				if (savedCommand) {
+					setLaunchCommand(savedCommand);
+					setOriginalCommand(savedCommand);
+				}
+			} catch (error) {
+				console.error("加载 Linux 启动命令失败:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+		loadLaunchCommand();
+	}, []);
+
+	const handleSaveCommand = async () => {
+		setIsLoading(true);
+
+		try {
+			const store = await load(STORE_PATH, { autoSave: false, defaults: {} });
+			await store.set(STORE_KEY, launchCommand.trim() || "wine");
+			await store.save();
+			setOriginalCommand(launchCommand.trim() || "wine");
+			snackbar.success(
+				t(
+					"pages.Settings.linuxLaunchCommand.saveSuccess",
+					"Linux 启动命令已保存",
+				),
+			);
+		} catch (error) {
+			console.error("保存 Linux 启动命令失败:", error);
+			snackbar.error(
+				t("pages.Settings.linuxLaunchCommand.saveError", "保存失败"),
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleReset = () => {
+		setLaunchCommand("wine");
+	};
+
+	return (
+		<Box className="mb-6">
+			<InputLabel className="font-semibold mb-4">
+				{t("pages.Settings.linuxLaunchCommand.title", "Linux 启动命令")}
+			</InputLabel>
+
+			<Typography
+				variant="caption"
+				color="text.secondary"
+				className="block mb-3"
+			>
+				{t(
+					"pages.Settings.linuxLaunchCommand.description",
+					"设置 Linux 上启动 Windows 可执行文件（.exe）时使用的命令。支持 wine、proton 或其他兼容层命令，也可以是 PATH 中的可执行文件或脚本的完整路径。",
+				)}
+			</Typography>
+
+			<Stack direction="row" spacing={2} alignItems="center" className="mb-2">
+				<TextField
+					label={t(
+						"pages.Settings.linuxLaunchCommand.commandLabel",
+						"启动命令",
+					)}
+					variant="outlined"
+					value={launchCommand}
+					onChange={(e) => setLaunchCommand(e.target.value)}
+					className="min-w-60 flex-grow"
+					placeholder="wine"
+					disabled={isLoading}
+					size="small"
+					helperText={t(
+						"pages.Settings.linuxLaunchCommand.helperText",
+						"例如: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+					)}
+				/>
+
+				<Tooltip
+					title={t(
+						"pages.Settings.linuxLaunchCommand.resetTooltip",
+						"重置为默认值 (wine)",
+					)}
+				>
+					<IconButton
+						onClick={handleReset}
+						disabled={isLoading || launchCommand === "wine"}
+						color="default"
+					>
+						<RestorePageIcon />
+					</IconButton>
+				</Tooltip>
+
+				<Button
+					variant="contained"
+					color="primary"
+					onClick={handleSaveCommand}
+					disabled={isLoading || launchCommand === originalCommand}
+					startIcon={<SaveIcon />}
+					className="px-4 py-2"
+				>
+					{t("pages.Settings.linuxLaunchCommand.saveBtn", "保存")}
+				</Button>
+			</Stack>
+
+			<Typography
+				variant="caption"
+				color="text.secondary"
+				className="block mt-2"
+			>
+				{t(
+					"pages.Settings.linuxLaunchCommand.note",
+					"注意：更改此设置后，需要重新启动游戏才能生效。",
+				)}
+			</Typography>
+		</Box>
 	);
 };

@@ -38,8 +38,9 @@ import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
+
 import type { UpdateGameParams } from "@/types";
-import { handleDirectory } from "@/utils";
+import { handleFolder } from "@/utils";
 
 /**
  * 格式化游戏时长显示
@@ -83,6 +84,7 @@ export const LaunchModal = () => {
 
 	// 用于 elapsed 模式下的前端计时器显示
 	const timerRef = useRef<HTMLSpanElement>(null);
+	const [stopping, setStopping] = useState(false);
 
 	// 路径设置对话框状态
 	const [pathDialogOpen, setPathDialogOpen] = useState(false);
@@ -154,19 +156,29 @@ export const LaunchModal = () => {
 			console.error(t("components.LaunchModal.launchFailed"), error);
 		}
 	};
-
-	/**
-	 * 停止游戏按钮点击事件
-	 */
 	const handleStopGame = async () => {
 		if (!selectedGameId) return;
 
 		try {
-			await stopGame(selectedGameId);
+			// 使用游戏停止函数
+			setStopping(true);
+			const res = await stopGame(selectedGameId);
+			setStopping(false);
+			if (!res) {
+				console.error(t("components.LaunchModal.stopFailed"));
+			}
 		} catch (error) {
 			console.error(t("components.LaunchModal.stopFailed"), error);
 		}
 	};
+	// 渲染不同状态的按钮
+	if (stopping) {
+		return (
+			<Button startIcon={<StopIcon />} disabled>
+				{t("components.LaunchModal.stoppingGame")}
+			</Button>
+		);
+	}
 
 	/**
 	 * 打开路径设置对话框
@@ -198,7 +210,7 @@ export const LaunchModal = () => {
 	 */
 	const handleSelectFolder = async () => {
 		try {
-			const selectedPath = await handleDirectory();
+			const selectedPath = await handleFolder();
 			if (selectedPath) {
 				setLocalPath(selectedPath);
 			}
