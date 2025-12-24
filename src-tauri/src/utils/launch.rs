@@ -169,7 +169,9 @@ pub async fn launch_game<R: Runtime>(
             monitor_game(
                 app_handle,
                 game_id,
+                #[cfg(target_os = "windows")]
                 process_id,
+                #[cfg(target_os = "windows")]
                 game_path.clone(),
                 #[cfg(target_os = "linux")]
                 systemd_unit_name.clone(),
