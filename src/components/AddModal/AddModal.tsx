@@ -9,6 +9,15 @@
  * - AddModal：添加游戏的弹窗组件
  */
 
+import { gameMetadataService } from "@/api";
+import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
+import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
+import { useAddGame } from "@/hooks/queries/useGames";
+import { useBgmToken } from "@/hooks/queries/useSettings";
+import { showGameAddedSuccess } from "@/providers/snackBar";
+import { useStore } from "@/store/appStore";
+import type { FullGameData, InsertGameParams } from "@/types";
+import { getErrorMessage, handleFolder } from "@/utils/appUtils";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import FileOpenIcon from "@mui/icons-material/FileOpen";
 import { FormControlLabel, Radio, RadioGroup } from "@mui/material";
@@ -31,15 +40,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { gameMetadataService } from "@/api";
-import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
-import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
-import { useAddGame } from "@/hooks/queries/useGames";
-import { useBgmToken } from "@/hooks/queries/useSettings";
-import { showGameAddedSuccess } from "@/providers/snackBar";
-import { useStore } from "@/store/appStore";
-import type { FullGameData, InsertGameParams } from "@/types";
-import { getErrorMessage, handleDirectory } from "@/utils/appUtils";
 import BulkImportTab from "./BulkImportTab";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
@@ -426,7 +426,7 @@ const AddModal: React.FC = () => {
 								fullWidth
 								variant="contained"
 								onClick={async () => {
-									const result = await handleDirectory();
+									const result = await handleFolder();
 									if (result) setAddModalPath(result);
 								}}
 								startIcon={<FileOpenIcon />}
