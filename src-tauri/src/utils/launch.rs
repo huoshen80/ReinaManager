@@ -214,8 +214,24 @@ pub async fn launch_game<R: Runtime>(
     #[cfg(target_os = "linux")]
     let systemd_unit_name = format!("reina_game_{}.scope", game_id);
     #[cfg(target_os = "linux")]
+    {
+        // 检查 systemd scope 是否存在且状态正常
+        let _ = check_scope_or_reset_failed(&systemd_unit_name).await;
+    }
+    #[cfg(target_os = "linux")]
     let mut command = {
-        //TODO: 使用dbus接口交互systemd
+        // 从 store 中读取 Linux 启动命令配置
+
+        use log::debug;
+        use tauri_plugin_store::StoreExt;
+        let linux_launch_command = app_handle
+            .store("settings.json")
+            .ok()
+            .and_then(|store| store.get("linux_launch_command"))
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| "wine".to_string());
+        let linux_launch_command = expand_path(&linux_launch_command);
+        debug!("使用的 Linux 启动命令: {:?}", linux_launch_command);
         let mut command = Command::new("systemd-run"); // 使用 systemd-run 启动游戏进程
         command.arg("--scope"); // 使用 scope 模式
         command.arg("--user"); // 以用户身份运行
@@ -225,13 +241,7 @@ pub async fn launch_game<R: Runtime>(
 
         command.arg(&systemd_unit_name); // 设置 systemd unit 名称
         if exe_name.to_string_lossy().ends_with(".exe") {
-            // Windows 可执行文件需要使用 wine 启动
-            //TODO: 可配置exe文件的运行方式
-            command.arg("wine");
-            // 如果在 Wayland 环境下，清除 DISPLAY 变量以优先使用 Wayland
-            if std::env::var("WAYLAND_DISPLAY").is_ok() {
-                command.env("DISPLAY", "");
-            }
+            command.arg(&linux_launch_command); // 使用配置的启动命令（如 wine）
         }
         command.arg(&game_path); // 添加游戏可执行文件路径
         command.current_dir(game_dir);
@@ -251,7 +261,6 @@ pub async fn launch_game<R: Runtime>(
             monitor_game(
                 app_handle.clone(),
                 game_id,
-                #[cfg(target_os = "windows")]
                 process_id,
                 #[cfg(target_os = "windows")]
                 game_path.clone(),
@@ -359,10 +368,9 @@ pub async fn launch_game<R: Runtime>(
                     Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
                 }
             }
+
             #[cfg(not(target_os = "windows"))]
-            {
-                Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
-            }
+            Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
         }
     }
 }
@@ -385,8 +393,8 @@ pub struct StopResult {
 ///
 /// 停止结果，包含成功标志、消息和终止的进程数量
 #[command]
-pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
-    match stop_game_session(game_id) {
+pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
+    match stop_game_session(game_id).await {
         Ok(terminated_count) => Ok(StopResult {
             success: true,
             message: format!(
@@ -485,4 +493,83 @@ pub struct LaunchResult {
     process_id: Option<u32>, // 添加进程ID字段
     #[cfg(target_os = "linux")]
     systemd_scope: Option<String>, // 添加 systemd scope 字段
+}
+#[cfg(target_os = "linux")]
+fn expand_path(path: &str) -> String {
+    if path.starts_with("~") {
+        if let Some(home_dir) = dirs::home_dir() {
+            path.replacen("~", &home_dir.to_string_lossy(), 1)
+        } else {
+            path.to_string()
+        }
+    } else {
+        path.to_string()
+    }
+}
+/// 在 Linux 上检查 systemd scope 的状态，如果是 failed 则重置它
+/// 返回bool值表示scope是否已经存在
+/// # Arguments
+/// * `systemd_unit_name` - systemd 单元名称
+///
+/// # Returns
+/// bool - 如果 scope 已存在则返回 true，否则返回 false
+#[cfg(target_os = "linux")]
+async fn check_scope_or_reset_failed(systemd_unit_name: &str) -> Result<bool, String> {
+    use crate::utils::game_monitor::{get_connection, get_manager_proxy};
+    let proxy = get_manager_proxy().await.map_err(|e| {
+        format!(
+            "连接到 systemd 失败，无法检查或重置单元 {}: {}",
+            systemd_unit_name, e
+        )
+    })?;
+    match proxy.get_unit(systemd_unit_name.to_string()).await {
+        Ok(u) => {
+            let conn = get_connection().await.map_err(|e| {
+                format!(
+                    "连接到 systemd 失败，无法检查或重置单元 {}: {}",
+                    systemd_unit_name, e
+                )
+            })?;
+            match zbus_systemd::systemd1::UnitProxy::new(conn, u).await {
+                Ok(unit_proxy) => {
+                    let active_state = unit_proxy
+                        .active_state()
+                        .await
+                        .map_err(|e| format!("获取单元 {} 状态失败: {}", systemd_unit_name, e))?;
+                    if active_state == "failed" {
+                        // 重置失败状态
+                        proxy
+                            .reset_failed_unit(systemd_unit_name.to_string())
+                            .await
+                            .map_err(|e| {
+                                format!("重置单元 {} 失败状态失败: {}", systemd_unit_name, e)
+                            })?;
+                    }
+                    Ok(true)
+                }
+                Err(e) => Err(format!(
+                    "创建单元代理失败，无法检查或重置单元 {}: {}",
+                    systemd_unit_name, e
+                )),
+            }
+        }
+        Err(e) => {
+            if let zbus::Error::MethodError(name, _, _) = &e {
+                if name.as_str() == "org.freedesktop.systemd1.NoSuchUnit" {
+                    // 单元不存在
+                    Ok(false)
+                } else {
+                    Err(format!(
+                        "检查单元 {} 是否存在时出错: {}",
+                        systemd_unit_name, e
+                    ))
+                }
+            } else {
+                Err(format!(
+                    "检查单元 {} 是否存在时出错: {}",
+                    systemd_unit_name, e
+                ))
+            }
+        }
+    }
 }

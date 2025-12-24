@@ -123,25 +123,6 @@ jobs:
           EOF
           fi
 
-      # Fork PR：禁用 updater artifacts 以支持无私钥构建
-      - name: Disable updater artifacts for fork PR
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
-        shell: bash
-        run: |
-          echo "🔍 Detected fork PR, disabling updater artifacts..."
-          node -e "
-            const fs = require('fs');
-            const path = './src-tauri/tauri.conf.json';
-            const config = JSON.parse(fs.readFileSync(path, 'utf8'));
-            
-            if (config.bundle) {
-              config.bundle.createUpdaterArtifacts = false;
-              console.log('✅ Disabled updater artifacts - build will succeed without signing keys');
-            }
-            
-            fs.writeFileSync(path, JSON.stringify(config, null, '\t'));
-          "
-
       - name: Build with Tauri Action
         uses: tauri-apps/tauri-action@v0
         env:
@@ -150,7 +131,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           # 不在这里创建 GitHub release，仅构建
-          args: --target ${{ matrix.rust_target }}
+          args: >-
+            --target ${{ matrix.rust_target }}
+            ${{ 
+              (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
+              && ''
+              || '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
+            }}
           tagName: ""
           releaseName: ""
           releaseBody: ""
