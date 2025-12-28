@@ -147,7 +147,7 @@ fn unregister_session(game_id: u32) {
 /// # Returns
 /// 成功返回终止的进程数量，失败返回错误信息
 #[cfg(target_os = "windows")]
-pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
+pub async fn stop_game_session(game_id: u32) -> Result<u32, String> {
     // 获取会话信息
     let sessions = get_sessions().read();
     let session = sessions
@@ -187,32 +187,38 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
 }
 
 #[cfg(target_os = "linux")]
-pub fn stop_game_session(_game_id: u32) -> Result<u32, String> {
-    use std::process::Command;
+pub async fn stop_game_session(_game_id: u32) -> Result<u32, String> {
+    stop_game_unit(_game_id).await.map(|_| 1)
+}
+#[cfg(target_os = "linux")]
+async fn stop_game_unit(game_id: u32) -> Result<(), String> {
+    // 1. 连接到 Session Bus (对应 --user)
+    let proxy = get_manager_proxy().await.map_err(|e| {
+        format!(
+            "无法连接到 D-Bus Session Bus 以停止游戏 {} 的 systemd scope: {}",
+            game_id, e
+        )
+    })?;
 
-    let com = Command::new("systemctl")
-        .arg("--user")
-        .arg("stop")
-        .arg(format!("reina_game_{}.scope", _game_id))
-        .output();
-    match com {
-        Ok(output) => {
-            if output.status.success() {
-                info!("成功停止游戏 {} 的 systemd scope", _game_id);
-                Ok(1) // 无统计终止的进程数量
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                Err(format!(
-                    "停止游戏 {} 的 systemd scope 失败: {}",
-                    _game_id, stderr
-                ))
-            }
+    // 2. 构造单元名称
+    let unit_name = format!("reina_game_{}.scope", game_id);
+
+    // 3. 调用停止方法
+    match proxy
+        .stop_unit(unit_name.clone(), "replace".to_string())
+        .await
+    {
+        Ok(job_path) => {
+            debug!("停止请求已发送: {}, Job: {:?}", unit_name, job_path);
         }
-        Err(e) => Err(format!(
-            "执行 systemctl 停止游戏 {} 的 systemd scope 失败: {}",
-            _game_id, e
-        )),
+        Err(e) => {
+            error!("停止单元失败: {:?}", e);
+            return Err(e)
+                .map_err(|e| format!("停止游戏 {} 的 systemd scope 失败: {}", game_id, e));
+        }
     }
+
+    Ok(())
 }
 /// 启动指定游戏进程的监控
 ///
