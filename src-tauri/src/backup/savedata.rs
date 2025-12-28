@@ -1,5 +1,4 @@
-use crate::database::repository::games_repository::GamesRepository;
-use crate::utils::fs::PathManager;
+use crate::{database::repository::games_repository::GamesRepository, utils::fs::PathManager};
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};

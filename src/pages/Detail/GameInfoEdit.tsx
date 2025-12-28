@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
 import type { FullGameData, GameData } from "@/types";
-import { getGameCover, getGameDisplayName, handleDirectory } from "@/utils";
+import { getGameCover, getGameDisplayName, handleExeFile } from "@/utils";
 import {
 	deleteCustomCoverFile,
 	getPreviewUrlFromPath,
@@ -96,7 +96,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 处理选择可执行文件路径
 	const handleSelectLocalPath = async () => {
 		try {
-			const selectedPath = await handleDirectory();
+			const selectedPath = await handleExeFile();
 			if (selectedPath) {
 				setLocalPath(selectedPath);
 			}
