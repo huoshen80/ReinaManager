@@ -2,7 +2,9 @@
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
 	"description": "Capability for the main window",
-	"windows": ["main"],
+	"windows": [
+		"main"
+	],
 	"permissions": [
 		"dialog:default",
 		"core:path:default",
@@ -42,7 +44,14 @@
 		},
 		{
 			"identifier": "http:default",
-			"allow": [{ "url": "https://api.bgm.tv"},{"url": "https://www.ymgal.games"}]
+			"allow": [
+				{
+					"url": "https://api.bgm.tv"
+				},
+				{
+					"url": "https://www.ymgal.games"
+				}
+			]
 		}
 	]
 }

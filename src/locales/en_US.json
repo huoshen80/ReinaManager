@@ -146,6 +146,17 @@
 				"elapsed": "Total Elapsed Time",
 				"elapsedDesc": "Counts total time from game launch to exit, regardless of focus"
 			},
+			"linuxLaunchCommand": {
+				"title": "Linux Launch Command",
+				"description": "Set the command used to launch Windows executables (.exe) on Linux. Supports wine, proton or other compatibility layer commands, or full path to an executable/script in PATH.",
+				"commandLabel": "Launch Command",
+				"helperText": "e.g.: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+				"saveBtn": "Save",
+				"saveSuccess": "Linux launch command saved",
+				"saveError": "Save failed",
+				"resetTooltip": "Reset to default (wine)",
+				"note": "Note: Changes will take effect after restarting the game."
+			},
 			"logLevel": {
 				"title": "Log Settings",
 				"levelLabel": "Log Output Level",

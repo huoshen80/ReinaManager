@@ -52,10 +52,23 @@ export const initTray = async () => {
 				await window.destroy();
 			},
 		});
-
+		const openItem = await MenuItem.new({
+			id: "open",
+			text: i18n.t("components.Tray.open"),
+			action: async () => {
+				const window = getCurrentWindow();
+				try {
+					await window.show();
+					await window.unminimize();
+					await window.setFocus();
+				} catch (error) {
+					console.error("Failed to open window from tray:", error);
+				}
+			},
+		});
 		// 创建菜单
 		const menu = await Menu.new({
-			items: [quitItem],
+			items: [openItem, quitItem],
 		});
 
 		// 获取默认窗口图标
