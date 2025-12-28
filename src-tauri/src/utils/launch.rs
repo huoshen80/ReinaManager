@@ -4,7 +4,6 @@ use std::process::Command;
 use std::{env::home_dir, path::Path};
 use tauri::{command, AppHandle, Runtime};
 use tauri_plugin_store::StoreExt;
-
 // ================= Windows 提权启动（ShellExecuteExW with "runas"）支持 =================
 // 仅在 Windows 下编译，其他平台不包含该实现
 #[cfg(target_os = "windows")]
@@ -127,7 +126,13 @@ pub async fn launch_game<R: Runtime>(
         None => return Err("无法获取游戏可执行文件名".to_string()),
     };
     let mut command;
+    #[cfg(target_os = "linux")]
     let systemd_unit_name = format!("reina_game_{}.scope", game_id);
+    #[cfg(target_os = "linux")]
+    {
+        // 检查并重置可能失败的 systemd scope
+        let _ = check_scope_or_reset_failed(&systemd_unit_name).await?;
+    }
     // 创建命令，设置工作目录为游戏所在目录
     #[cfg(target_os = "windows")]
     {
@@ -137,7 +142,6 @@ pub async fn launch_game<R: Runtime>(
     #[cfg(target_os = "linux")]
     {
         // 从 store 中读取 Linux 启动命令配置
-
         use log::debug;
         let linux_launch_command = app_handle
             .store("settings.json")
@@ -244,17 +248,6 @@ pub async fn launch_game<R: Runtime>(
     }
 }
 
-fn expand_path(path: &str) -> String {
-    if path.starts_with("~") {
-        if let Some(home_dir) = home_dir() {
-            path.replacen("~", &home_dir.to_string_lossy(), 1)
-        } else {
-            path.to_string()
-        }
-    } else {
-        path.to_string()
-    }
-}
 /// 停止游戏结果
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StopResult {
@@ -273,8 +266,8 @@ pub struct StopResult {
 ///
 /// 停止结果，包含成功标志、消息和终止的进程数量
 #[command]
-pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
-    match stop_game_session(game_id) {
+pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
+    match stop_game_session(game_id).await {
         Ok(terminated_count) => Ok(StopResult {
             success: true,
             message: format!(
@@ -284,5 +277,83 @@ pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
             terminated_count,
         }),
         Err(e) => Err(format!("停止游戏失败: {}", e)),
+    }
+}
+fn expand_path(path: &str) -> String {
+    if path.starts_with("~") {
+        if let Some(home_dir) = home_dir() {
+            path.replacen("~", &home_dir.to_string_lossy(), 1)
+        } else {
+            path.to_string()
+        }
+    } else {
+        path.to_string()
+    }
+}
+/// 在 Linux 上检查 systemd scope 的状态，如果是 failed 则重置它
+/// 返回bool值表示scope是否已经存在
+/// # Arguments
+/// * `systemd_unit_name` - systemd 单元名称
+///
+/// # Returns
+/// bool - 如果 scope 已存在则返回 true，否则返回 false
+#[cfg(target_os = "linux")]
+async fn check_scope_or_reset_failed(systemd_unit_name: &str) -> Result<bool, String> {
+    use crate::utils::game_monitor::{get_connection, get_manager_proxy};
+    let proxy = get_manager_proxy().await.map_err(|e| {
+        format!(
+            "连接到 systemd 失败，无法检查或重置单元 {}: {}",
+            systemd_unit_name, e
+        )
+    })?;
+    match proxy.get_unit(systemd_unit_name.to_string()).await {
+        Ok(u) => {
+            let conn = get_connection().await.map_err(|e| {
+                format!(
+                    "连接到 systemd 失败，无法检查或重置单元 {}: {}",
+                    systemd_unit_name, e
+                )
+            })?;
+            match zbus_systemd::systemd1::UnitProxy::new(conn, u).await {
+                Ok(unit_proxy) => {
+                    let active_state = unit_proxy
+                        .active_state()
+                        .await
+                        .map_err(|e| format!("获取单元 {} 状态失败: {}", systemd_unit_name, e))?;
+                    if active_state == "failed" {
+                        // 重置失败状态
+                        proxy
+                            .reset_failed_unit(systemd_unit_name.to_string())
+                            .await
+                            .map_err(|e| {
+                                format!("重置单元 {} 失败状态失败: {}", systemd_unit_name, e)
+                            })?;
+                    }
+                    Ok(true)
+                }
+                Err(e) => Err(format!(
+                    "创建单元代理失败，无法检查或重置单元 {}: {}",
+                    systemd_unit_name, e
+                )),
+            }
+        }
+        Err(e) => {
+            if let zbus::Error::MethodError(name, _, _) = &e {
+                if name.as_str() == "org.freedesktop.systemd1.NoSuchUnit" {
+                    // 单元不存在
+                    return Ok(false);
+                } else {
+                    return Err(format!(
+                        "检查单元 {} 是否存在时出错: {}",
+                        systemd_unit_name, e
+                    ));
+                }
+            } else {
+                return Err(format!(
+                    "检查单元 {} 是否存在时出错: {}",
+                    systemd_unit_name, e
+                ));
+            }
+        }
     }
 }
