@@ -6,21 +6,27 @@
 // ============================================================================
 // 外部依赖导入
 // ============================================================================
-use log::{debug, error, info, warn};
+#[cfg(target_os = "windows")]
+use log::warn;
+use log::{debug, error, info};
+#[cfg(target_os = "windows")]
 use parking_lot::RwLock;
 use serde_json::json;
-
-use std::{
-    collections::HashSet,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, OnceLock,
-    },
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
-
+#[cfg(target_os = "windows")]
+use std::collections::HashSet;
 #[cfg(target_os = "windows")]
 use std::path::Path;
+#[cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
+use std::path::Path;
+#[cfg(target_os = "windows")]
+use std::sync::OnceLock;
+#[cfg(target_os = "windows")]
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 #[cfg(target_os = "windows")]
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Runtime};
@@ -53,6 +59,7 @@ const MONITOR_CHECK_INTERVAL_SECS: u64 = 1;
 // ============================================================================
 
 /// 活跃的监控会话信息
+#[cfg(target_os = "windows")]
 pub struct ActiveSession {
     /// 停止信号，用于通知监控线程停止
     pub stop_signal: Arc<AtomicBool>,
@@ -64,6 +71,7 @@ pub struct ActiveSession {
 ///
 /// 用于在 Hook 线程和主监控循环之间共享信息
 /// 使用 parking_lot::RwLock 替代 std::sync::Mutex 以避免死锁
+#[cfg(target_os = "windows")]
 #[derive(Debug)]
 struct MonitorState {
     /// 当前是否有游戏窗口在前台
@@ -71,7 +79,7 @@ struct MonitorState {
     /// 当前活跃的游戏进程 PID
     best_pid: u32,
 }
-
+#[cfg(target_os = "windows")]
 impl MonitorState {
     /// 创建新的监控状态实例
     fn new(initial_pid: u32) -> Self {
@@ -85,16 +93,17 @@ impl MonitorState {
 /// Hook 线程守卫，确保线程在任何退出情况下都能正确停止
 ///
 /// 使用 RAII 模式，在析构时自动发送停止信号
+#[cfg(target_os = "windows")]
 struct HookGuard {
     stop_signal: Arc<AtomicBool>,
 }
-
+#[cfg(target_os = "windows")]
 impl HookGuard {
     fn new(stop_signal: Arc<AtomicBool>) -> Self {
         Self { stop_signal }
     }
 }
-
+#[cfg(target_os = "windows")]
 impl Drop for HookGuard {
     fn drop(&mut self) {
         // 无论函数如何退出（正常返回、?, panic 等），都会触发停止信号
@@ -108,19 +117,21 @@ impl Drop for HookGuard {
 // ============================================================================
 
 /// 全局会话存储（使用 parking_lot::RwLock 保护 HashMap）
+#[cfg(target_os = "windows")]
 static ACTIVE_SESSIONS: OnceLock<RwLock<std::collections::HashMap<u32, ActiveSession>>> =
     OnceLock::new();
 
 /// 获取全局会话存储的引用
+#[cfg(target_os = "windows")]
 fn get_sessions() -> &'static RwLock<std::collections::HashMap<u32, ActiveSession>> {
     ACTIVE_SESSIONS.get_or_init(|| RwLock::new(std::collections::HashMap::new()))
 }
-
+#[cfg(target_os = "windows")]
 /// 注册新的监控会话
 fn register_session(game_id: u32, session: ActiveSession) {
     get_sessions().write().insert(game_id, session);
 }
-
+#[cfg(target_os = "windows")]
 /// 移除监控会话
 fn unregister_session(game_id: u32) {
     get_sessions().write().remove(&game_id);
@@ -130,15 +141,6 @@ fn unregister_session(game_id: u32) {
 // 公共 API
 // ============================================================================
 
-/// 获取指定游戏的候选 PID 列表
-#[allow(dead_code)]
-pub fn get_game_candidate_pids(game_id: u32) -> Option<HashSet<u32>> {
-    let sessions = get_sessions().read();
-    sessions
-        .get(&game_id)
-        .map(|s| s.candidate_pids.read().clone())
-}
-
 /// 停止指定游戏的监控并终止所有相关进程
 ///
 /// # Arguments
@@ -146,6 +148,7 @@ pub fn get_game_candidate_pids(game_id: u32) -> Option<HashSet<u32>> {
 ///
 /// # Returns
 /// 成功返回终止的进程数量，失败返回错误信息
+#[cfg(target_os = "windows")]
 pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
     // 获取会话信息
     let sessions = get_sessions().read();
@@ -185,6 +188,34 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
     Ok(terminated_count)
 }
 
+#[cfg(target_os = "linux")]
+pub fn stop_game_session(_game_id: u32) -> Result<u32, String> {
+    use std::process::Command;
+
+    let com = Command::new("systemctl")
+        .arg("--user")
+        .arg("stop")
+        .arg(format!("reina_game_{}.scope", _game_id))
+        .output();
+    match com {
+        Ok(output) => {
+            if output.status.success() {
+                info!("成功停止游戏 {} 的 systemd scope", _game_id);
+                Ok(1) // 无统计终止的进程数量
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                Err(format!(
+                    "停止游戏 {} 的 systemd scope 失败: {}",
+                    _game_id, stderr
+                ))
+            }
+        }
+        Err(e) => Err(format!(
+            "执行 systemctl 停止游戏 {} 的 systemd scope 失败: {}",
+            _game_id, e
+        )),
+    }
+}
 /// 启动指定游戏进程的监控
 ///
 /// 这是模块的主入口函数，由外部调用以开始监控一个游戏进程。
@@ -203,14 +234,13 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
 pub async fn monitor_game<R: Runtime>(
     app_handle: AppHandle<R>,
     game_id: u32,
-    #[cfg(target_os = "windows")] process_id: u32,
+    process_id: u32,
     #[cfg(target_os = "windows")] executable_path: String,
     #[cfg(target_os = "linux")] systemd_unit_name: String,
 ) {
-    let app_handle_clone = app_handle.clone();
-
     #[cfg(target_os = "windows")]
     {
+        let app_handle_clone = app_handle.clone();
         let mut sys = System::new();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = run_game_monitor(
@@ -228,11 +258,11 @@ pub async fn monitor_game<R: Runtime>(
     }
     #[cfg(target_os = "linux")]
     tauri::async_runtime::spawn(async move {
-        // 将 System 实例的可变引用传递给实际的监控循环
-        if let Err(e) =
-            run_game_monitor(app_handle_clone, game_id, systemd_unit_name.as_str()).await
-        {
+        if let Err(e) = run_game_monitor(&app_handle, game_id, &systemd_unit_name).await {
             error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
+            if let Err(e) = finalize_session(&app_handle, game_id, process_id, get_timestamp(), 0) {
+                error!("无法完成游戏会话结束: {}", e);
+            }
         }
     });
 }
@@ -655,18 +685,6 @@ fn start_foreground_hook<R: Runtime + 'static>(
     });
 }
 
-#[cfg(not(target_os = "windows"))]
-fn start_foreground_hook<R: Runtime + 'static>(
-    _state: Arc<RwLock<MonitorState>>,
-    _candidate_pids: Arc<RwLock<HashSet<u32>>>,
-    _game_directory: String,
-    _app_handle: AppHandle<R>,
-    _game_id: u32,
-    _stop_signal: Arc<AtomicBool>,
-) {
-    warn!("start_foreground_hook 在非 Windows 平台被调用，将被忽略");
-}
-
 // ============================================================================
 // 进程管理 - 进程查询与检测
 // ============================================================================
@@ -847,11 +865,6 @@ pub fn terminate_process(pid: u32) -> Result<(), String> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn terminate_process(_pid: u32) -> Result<(), String> {
-    Err("terminate_process 仅支持 Windows 平台".to_string())
-}
-
 /// 获取进程的可执行文件路径（Windows 平台）
 ///
 /// # Arguments
@@ -902,11 +915,6 @@ fn get_process_executable_path(pid: u32) -> Option<std::path::PathBuf> {
             None
         }
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn get_process_executable_path(_pid: u32) -> Option<std::path::PathBuf> {
-    None
 }
 
 // ============================================================================
@@ -1091,7 +1099,7 @@ fn check_any_has_window(_candidate_pids: &[u32]) -> Option<u32> {
 }
 #[cfg(target_os = "linux")]
 async fn run_game_monitor(
-    app_handle: AppHandle<impl Runtime>,
+    app_handle: &AppHandle<impl Runtime>,
     game_id: u32,
     systemd_scope: &str,
 ) -> Result<(), String> {
@@ -1212,7 +1220,7 @@ async fn run_game_monitor(
     }
 
     finalize_session(
-        &app_handle,
+        app_handle,
         game_id,
         best_pid,
         start_time,

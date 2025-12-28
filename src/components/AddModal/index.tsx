@@ -42,7 +42,7 @@ import { ViewGameBox } from "@/components/AlertBox";
 import { useModal } from "@/components/Toolbar";
 import { useStore } from "@/store/";
 import type { FullGameData } from "@/types";
-import { handleDirectory } from "@/utils";
+import { handleExeFile } from "@/utils";
 import GameSelectDialog from "./GameSelectDialog";
 
 /**
@@ -485,7 +485,7 @@ const AddModal: React.FC = () => {
 						className="w-md"
 						variant="contained"
 						onClick={async () => {
-							const result = await handleDirectory();
+							const result = await handleExeFile();
 							if (result) setPath(result);
 						}}
 						startIcon={<FileOpenIcon />}
