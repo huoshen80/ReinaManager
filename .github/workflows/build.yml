@@ -137,7 +137,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           # 不在这里创建 GitHub release，仅构建
-          args: --target ${{ matrix.rust_target }}
+          args: >-
+            --target ${{ matrix.rust_target }}
+            ${{ 
+              (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
+              && ''
+              || '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
+            }}
           tagName: ""
           releaseName: ""
           releaseBody: ""
