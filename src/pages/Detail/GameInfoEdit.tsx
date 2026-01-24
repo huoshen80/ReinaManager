@@ -341,6 +341,9 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			const imagePath = await selectImageFile();
 			if (!imagePath) return;
 
+			// 重置删除标记，因为用户选择了新图片
+			setShouldDeleteImage(false);
+
 			// 使用 Hook 提供的方法加载预览（现在是同步的）
 			selectImage(imagePath);
 		} catch (error) {

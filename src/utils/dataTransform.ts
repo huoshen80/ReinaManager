@@ -100,7 +100,12 @@ export function getDisplayGameData(
 		case "mixed":
 			// 混合数据源：合并所有可用数据
 			if (bgm_data || vndb_data || ymgal_data) {
-				mergeMultipleDataSources(baseData, { bgm_data, vndb_data, ymgal_data });
+				mergeMultipleDataSources(baseData, {
+					bgm_data,
+					vndb_data,
+					ymgal_data,
+					custom_data,
+				});
 			}
 			break;
 
@@ -115,6 +120,11 @@ export function getDisplayGameData(
 			if (anyData)
 				assignFromDataSource(baseData, anyData as DataSource, "fallback");
 		}
+	}
+
+	// 应用 custom_data 覆盖层（最高优先级）
+	if (custom_data) {
+		applyCustomDataOverride(baseData, custom_data);
 	}
 
 	return baseData;
@@ -182,9 +192,10 @@ function mergeMultipleDataSources(
 		bgm_data?: Nullable<BgmData>;
 		vndb_data?: Nullable<VndbData>;
 		ymgal_data?: Nullable<YmgalData>;
+		custom_data?: Nullable<CustomData>;
 	},
 ) {
-	const { bgm_data, vndb_data, ymgal_data } = sources;
+	const { bgm_data, vndb_data, ymgal_data, custom_data } = sources;
 
 	// 基础字段：优先级 BGM > VNDB > YMGal
 	const primarySource = bgm_data || vndb_data || ymgal_data;
@@ -199,6 +210,7 @@ function mergeMultipleDataSources(
 		...(bgm_data?.tags || []),
 		...(vndb_data?.tags || []),
 		...(ymgal_data?.tags || []),
+		...(custom_data?.tags || []),
 	];
 	target.tags = Array.from(new Set(allTags));
 
@@ -207,6 +219,7 @@ function mergeMultipleDataSources(
 		...(bgm_data?.aliases || []),
 		...(vndb_data?.aliases || []),
 		...(ymgal_data?.aliases || []),
+		...(custom_data?.aliases || []),
 	];
 	target.aliases = Array.from(new Set(allAliases));
 
@@ -219,6 +232,38 @@ function mergeMultipleDataSources(
 	// VNDB 特有字段
 	target.all_titles = vndb_data?.all_titles || [];
 	target.average_hours = vndb_data?.average_hours;
+}
+
+/**
+ * 应用 custom_data 覆盖层
+ * custom_data 具有最高优先级，用于覆盖其他数据源的字段
+ */
+function applyCustomDataOverride(target: GameData, customData: CustomData) {
+	// 基础字段覆盖
+	if (customData.summary) {
+		target.summary = customData.summary;
+	}
+	if (customData.developer) {
+		target.developer = customData.developer;
+	}
+	if (customData.nsfw) {
+		target.nsfw = customData.nsfw;
+	}
+	if (customData.date) {
+		target.date = customData.date;
+	}
+
+	// 数组字段增量合并
+	if (customData.aliases) {
+		target.aliases = Array.from(
+			new Set([...(target.aliases || []), ...customData.aliases]),
+		);
+	}
+	if (customData.tags) {
+		target.tags = Array.from(
+			new Set([...(target.tags || []), ...customData.tags]),
+		);
+	}
 }
 
 /**
