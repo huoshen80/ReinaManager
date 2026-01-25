@@ -33,8 +33,6 @@ let cachedIsPortableMode: boolean | null = null;
 
 // 缓存常用路径
 let cachedDbPath: string | null = null;
-let cachedDbBackupPath: string | null = null;
-let cachedSavedataBackupPath: string | null = null;
 
 /**
  * 路径初始化结果类型
@@ -44,8 +42,6 @@ export interface PathInitResult {
 	appDataDir: string; // 应用数据目录（便携或标准）
 	isPortableMode: boolean; // 是否便携模式
 	dbPath: string; // 数据库文件路径
-	dbBackupPath: string; // 数据库备份目录路径
-	savedataBackupPath: string; // 存档备份目录路径
 }
 
 /**
@@ -93,53 +89,12 @@ export const initPathCache = async (): Promise<PathInitResult> => {
 		cachedDbPath = join(cachedAppDataDir, "data", "reina_manager.db");
 	}
 
-	// 5 & 6. 并行获取数据库备份路径和存档备份路径
-	await Promise.all([refreshDbBackupPath(), refreshSavedataBackupPath()]);
-
 	return {
 		resourceDir: cachedResourceDirPath,
 		appDataDir: cachedAppDataDir || "",
 		isPortableMode: cachedIsPortableMode,
 		dbPath: cachedDbPath || "",
-		dbBackupPath: cachedDbBackupPath || "",
-		savedataBackupPath: cachedSavedataBackupPath || "",
 	};
-};
-
-/**
- * 刷新数据库备份路径缓存
- * 用于用户修改数据库备份路径配置后更新缓存
- */
-export const refreshDbBackupPath = async (): Promise<void> => {
-	if (!cachedAppDataDir) {
-		console.warn("应用数据目录未初始化，无法刷新数据库备份路径");
-		return;
-	}
-
-	const customDbBackupPath = await settingsService.getDbBackupPath();
-	if (customDbBackupPath && customDbBackupPath.trim() !== "") {
-		cachedDbBackupPath = customDbBackupPath;
-	} else {
-		cachedDbBackupPath = join(cachedAppDataDir, "data", "backups");
-	}
-};
-
-/**
- * 刷新存档备份路径缓存
- * 用于用户修改存档根路径配置后更新缓存
- */
-export const refreshSavedataBackupPath = async (): Promise<void> => {
-	if (!cachedAppDataDir) {
-		console.warn("应用数据目录未初始化，无法刷新存档备份路径");
-		return;
-	}
-
-	const customSaveRootPath = await settingsService.getSaveRootPath();
-	if (customSaveRootPath && customSaveRootPath.trim() !== "") {
-		cachedSavedataBackupPath = join(customSaveRootPath, "backups");
-	} else {
-		cachedSavedataBackupPath = join(cachedAppDataDir, "backups");
-	}
 };
 
 /**
@@ -166,17 +121,45 @@ export const getDbPath = (): string => {
 };
 
 /**
- * 获取缓存的数据库备份路径（同步）
+ * 获取数据库备份路径（异步）
  */
-export const getDbBackupPath = (): string => {
-	return cachedDbBackupPath || "";
+export const getDbBackupPath = async (): Promise<string> => {
+	try {
+		const backupDir = await settingsService.getDbBackupPath();
+		const backupFinalDir = join(getAppDataDirPath(), "data", "backups");
+		return backupDir ? backupDir : backupFinalDir;
+	} catch (error) {
+		console.error("获取数据库备份路径失败:", error);
+		const backupFinalDir = join(getAppDataDirPath(), "data", "backups");
+		return backupFinalDir;
+	}
 };
 
 /**
- * 获取缓存的存档备份路径（同步）
+ * 获取存档备份路径（异步）
+ * @param gameId 游戏ID
  */
-export const getSavedataBackupPath = (): string => {
-	return cachedSavedataBackupPath || "";
+export const getSavedataBackupPath = async (
+	gameId: number,
+): Promise<string> => {
+	try {
+		const savedataBackupPath = await settingsService.getSaveRootPath();
+		const backupGameDir = join(savedataBackupPath, `game_${gameId}`);
+		const savedataBackupFinalDir = join(
+			getAppDataDirPath(),
+			"backups",
+			`game_${gameId}`,
+		);
+		return savedataBackupPath ? backupGameDir : savedataBackupFinalDir;
+	} catch (error) {
+		console.error("获取存档备份路径失败:", error);
+		const savedataBackupFinalDir = join(
+			getAppDataDirPath(),
+			"backups",
+			`game_${gameId}`,
+		);
+		return savedataBackupFinalDir;
+	}
 };
 
 /**
@@ -591,10 +574,11 @@ export async function createGameSavedataBackup(
  */
 export async function openGameBackupFolder(gameId: number): Promise<void> {
 	try {
-		const savedataBackupPath = getSavedataBackupPath();
-		const backupGameDir = join(savedataBackupPath, `game_${gameId}`);
+		const backupPath = await getSavedataBackupPath(gameId);
 		// 使用后端函数打开文件夹
-		await invoke("open_directory", { dirPath: backupGameDir });
+		await invoke("open_directory", {
+			dirPath: backupPath,
+		});
 	} catch (error) {
 		snackbar.error(i18next.t("components.Snackbar.failedOpenBackupFolder"));
 		console.error("打开备份文件夹失败:", error);
@@ -628,9 +612,11 @@ export async function openGameSaveDataFolder(
  */
 export async function openDatabaseBackupFolder(): Promise<void> {
 	try {
-		const backupDir = getDbBackupPath();
+		const backupPath = await getDbBackupPath();
 		// 使用后端函数打开文件夹
-		await invoke("open_directory", { dirPath: backupDir });
+		await invoke("open_directory", {
+			dirPath: backupPath,
+		});
 	} catch (error) {
 		snackbar.error(
 			i18next.t("components.Snackbar.failedOpenDatabaseBackupFolder"),

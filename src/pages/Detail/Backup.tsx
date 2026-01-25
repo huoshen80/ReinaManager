@@ -271,12 +271,10 @@ export const Backup: React.FC = () => {
 
 		try {
 			// 获取备份文件完整路径
-			const savedataBackupPath = getSavedataBackupPath();
-			const backupFilePath = join(
-				savedataBackupPath,
-				`game_${backupToDelete.game_id}`,
-				backupToDelete.file,
+			const savedataBackupPath = await getSavedataBackupPath(
+				selectedGame?.id as number,
 			);
+			const backupFilePath = join(savedataBackupPath, backupToDelete.file);
 
 			// 删除备份文件
 			await deleteSavedataBackup(backupFilePath);
@@ -326,12 +324,10 @@ export const Backup: React.FC = () => {
 
 		try {
 			// 获取备份文件完整路径
-			const savedataBackupPath = getSavedataBackupPath();
-			const backupFilePath = join(
-				savedataBackupPath,
-				`game_${backupToRestore.game_id}`,
-				backupToRestore.file,
+			const savedataBackupPath = await getSavedataBackupPath(
+				selectedGame?.id as number,
 			);
+			const backupFilePath = join(savedataBackupPath, backupToRestore.file);
 
 			// 恢复备份
 			await restoreSavedataBackup(backupFilePath, saveDataPath);
