@@ -124,6 +124,40 @@
 			"stopFailed": "游戏停止失败:",
 			"syncLocalPath": "同步本地"
 		},
+		"PathSettingsModal": {
+			"close": "关闭",
+			"dbBackupPath": {
+				"note": "设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
+				"pathLabel": "备份保存路径",
+				"pathPlaceholder": "留空使用默认路径",
+				"selectBtn": "选择目录",
+				"title": "数据库备份路径"
+			},
+			"lePath": {
+				"note": "设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
+				"pathLabel": "LE转区软件路径",
+				"pathPlaceholder": "选择LE转区软件的可执行文件",
+				"selectBtn": "选择文件",
+				"title": "LE转区软件路径"
+			},
+			"magpiePath": {
+				"note": "设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
+				"pathLabel": "Magpie软件路径",
+				"pathPlaceholder": "选择Magpie软件的可执行文件",
+				"selectBtn": "选择文件",
+				"title": "Magpie软件路径"
+			},
+			"saveBtn": "保存",
+			"savePath": {
+				"note": "设置游戏存档的备份根目录路径，留空将使用默认路径",
+				"pathLabel": "备份根目录路径",
+				"pathPlaceholder": "留空使用默认路径",
+				"selectBtn": "选择目录",
+				"title": "游戏存档备份路径"
+			},
+			"saving": "保存中...",
+			"title": "路径设置"
+		},
 		"RightMenu": {
 			"Collection": {
 				"categoryMenu": "分类菜单",
@@ -202,7 +236,11 @@
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
 			"vndblink": "查看Vndb页面",
-			"ymgallink": "月幕Gal页面"
+			"ymgallink": "月幕Gal页面",
+			"lePathNotSet": "未设置LE转区软件路径，请先配置路径",
+			"lePathCheckFailed": "检查LE路径失败",
+			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
+			"magpiePathCheckFailed": "检查Magpie路径失败"
 		},
 		"Tray": {
 			"exit": "退出"
@@ -462,34 +500,12 @@
 				"restoreWarning": "恢复数据库将覆盖现有数据，请谨慎操作。导入后应用将自动重启。",
 				"title": "数据库备份与恢复"
 			},
-			"dbBackupPath": {
-				"note": "留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
-				"pathLabel": "备份保存路径",
-				"pathPlaceholder": "留空使用默认路径",
-				"saveBtn": "保存",
-				"saveError": "保存失败: {{error}}",
-				"saveSuccess": "备份路径已保存",
-				"selectBtn": "选择目录",
-				"selectError": "选择文件夹失败",
-				"title": "数据库备份路径"
-			},
 			"dev": {
 				"title": "实验性功能",
 				"tooltip": "以下功能为实验性功能，请谨慎使用"
 			},
 			"getToken": "获取令牌",
 			"language": "语言",
-			"lePath": {
-				"pathLabel": "LE转区软件路径",
-				"pathPlaceholder": "选择LE转区软件可执行文件",
-				"saveError": "保存失败: {{error}}",
-				"saveFailed": "保存失败",
-				"saveSuccess": "LE路径保存成功",
-				"saving": "保存中...",
-				"selectFile": "选择文件",
-				"selectFileError": "选择文件失败",
-				"title": "LE转区软件路径"
-			},
 			"logLevel": {
 				"changed": "日志级别已切换为 {{level}}",
 				"changeFailed": "切换日志级别失败",
@@ -500,21 +516,15 @@
 				"openFolderFailed": "打开文件夹失败",
 				"title": "日志设置"
 			},
-			"magpiePath": {
-				"pathLabel": "Magpie 软件路径",
-				"pathPlaceholder": "选择 Magpie 软件可执行文件",
-				"saveError": "保存失败: {{error}}",
-				"saveFailed": "保存失败",
-				"saveSuccess": "Magpie 路径保存成功",
-				"saving": "保存中...",
-				"selectFile": "选择文件",
-				"selectFileError": "选择文件失败",
-				"title": "Magpie 软件路径"
-			},
 			"nsfw": {
 				"coverReplace": "NSFW 封面替换",
 				"filter": "过滤 NSFW 内容",
 				"title": "NSFW 设置"
+			},
+			"pathSettings": {
+				"note": "配置游戏存档备份、LE转区软件、Magpie软件、数据库备份等路径",
+				"openModal": "打开路径设置",
+				"title": "路径设置"
 			},
 			"portableMode": {
 				"confirmDisableMessage": "关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
@@ -527,20 +537,6 @@
 			},
 			"restartError": "重启失败，请手动重启应用",
 			"saveBtn": "保存",
-			"savePath": {
-				"moveSuccess": "备份路径保存成功，备份文件夹已移动到新位置",
-				"moveWarning": "备份路径已保存，但移动备份文件夹时出现问题: {{message}}",
-				"movingBackups": "正在移动备份文件夹到新位置...",
-				"pathLabel": "备份根目录路径",
-				"pathPlaceholder": "选择游戏存档备份的根目录",
-				"saveError": "保存备份路径失败: {{error}}",
-				"saveFailed": "保存失败",
-				"saveSuccess": "备份路径保存成功",
-				"saving": "保存中...",
-				"selectFolder": "选择目录",
-				"selectFolderError": "选择文件夹失败",
-				"title": "游戏存档备份路径"
-			},
 			"skipCloseRemind": "不再提醒",
 			"spoilerLevel": {
 				"description": "选择剧透等级以获取合适的标签内容",

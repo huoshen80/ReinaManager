@@ -22,7 +22,6 @@ import BackupIcon from "@mui/icons-material/Backup";
 import ClearIcon from "@mui/icons-material/Clear";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import RestoreIcon from "@mui/icons-material/Restore";
-import SaveIcon from "@mui/icons-material/Save";
 import UpdateIcon from "@mui/icons-material/Update";
 import {
 	Accordion,
@@ -59,20 +58,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { toggleAutostart } from "@/components/AutoStart";
+import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/useScrollRestore";
 import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { LogLevel } from "@/types";
-import {
-	handleGetFolder,
-	moveBackupFolder,
-	openDatabaseBackupFolder,
-	openurl,
-	refreshDbBackupPath,
-	refreshSavedataBackupPath,
-} from "@/utils";
+import { openDatabaseBackupFolder, openurl } from "@/utils";
 import { backupDatabase, importDatabase } from "@/utils/database";
 
 /**
@@ -799,121 +792,6 @@ const DatabaseBackupSettings = () => {
 	);
 };
 
-const DbBackupPathSettings = () => {
-	const { t } = useTranslation();
-	const [dbBackupPath, setDbBackupPath] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
-	const [originalPath, setOriginalPath] = useState("");
-
-	// 加载当前设置的备份路径
-	useEffect(() => {
-		const loadDbBackupPath = async () => {
-			setIsLoading(true);
-			try {
-				const path = await settingsService.getDbBackupPath();
-				setDbBackupPath(path);
-				setOriginalPath(path);
-			} catch (error) {
-				console.error("加载数据库备份路径失败:", error);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-		loadDbBackupPath();
-	}, []);
-
-	const handleSelectFolder = async () => {
-		try {
-			const selectedPath = await handleGetFolder();
-			if (selectedPath) {
-				setDbBackupPath(selectedPath);
-			}
-		} catch (error) {
-			console.error("选择文件夹失败:", error);
-			snackbar.error(
-				t("pages.Settings.dbBackupPath.selectError", "选择文件夹失败"),
-			);
-		}
-	};
-
-	const handleSavePath = async () => {
-		setIsLoading(true);
-
-		try {
-			await settingsService.setDbBackupPath(dbBackupPath);
-			setOriginalPath(dbBackupPath);
-			// 刷新数据库备份路径缓存
-			try {
-				await refreshDbBackupPath();
-			} catch (refreshError) {
-				console.warn("刷新数据库备份路径缓存失败:", refreshError);
-			}
-			snackbar.success(
-				t("pages.Settings.dbBackupPath.saveSuccess", "备份路径已保存"),
-			);
-		} catch (error) {
-			console.error("保存备份路径失败:", error);
-			snackbar.error(t("pages.Settings.dbBackupPath.saveError", "保存失败"));
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	return (
-		<Box className="mb-6">
-			<InputLabel className="font-semibold mb-4">
-				{t("pages.Settings.dbBackupPath.title", "数据库备份路径")}
-			</InputLabel>
-
-			<Stack direction="row" spacing={2} alignItems="center" className="mb-2">
-				<TextField
-					label={t("pages.Settings.dbBackupPath.pathLabel", "备份保存路径")}
-					variant="outlined"
-					value={dbBackupPath}
-					onChange={(e) => setDbBackupPath(e.target.value)}
-					className="min-w-60 flex-grow"
-					placeholder={t(
-						"pages.Settings.dbBackupPath.pathPlaceholder",
-						"留空使用默认路径",
-					)}
-					disabled={isLoading || !isTauri()}
-				/>
-
-				<Button
-					variant="outlined"
-					onClick={handleSelectFolder}
-					disabled={isLoading || !isTauri()}
-					startIcon={<FolderOpenIcon />}
-					className="px-4 py-2"
-				>
-					{t("pages.Settings.dbBackupPath.selectBtn", "选择目录")}
-				</Button>
-
-				<Button
-					variant="contained"
-					color="primary"
-					onClick={handleSavePath}
-					disabled={isLoading || dbBackupPath === originalPath || !isTauri()}
-					startIcon={<SaveIcon />}
-					className="px-4 py-2"
-				>
-					{t("pages.Settings.dbBackupPath.saveBtn", "保存")}
-				</Button>
-			</Stack>
-
-			<Typography
-				variant="caption"
-				color="text.secondary"
-				className="block mt-1"
-			>
-				{t(
-					"pages.Settings.dbBackupPath.note",
-					"留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
-				)}
-			</Typography>
-		</Box>
-	);
-};
 
 const PortableModeSettings = () => {
 	const { t } = useTranslation();
@@ -1129,394 +1007,6 @@ const TimeTrackingModeSettings = () => {
 					/>
 				</RadioGroup>
 			</Box>
-		</Box>
-	);
-};
-
-const SavePathSettings = () => {
-	const { t } = useTranslation();
-	const [savePath, setSavePath] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
-	const [originalPath, setOriginalPath] = useState(""); // 存储原始路径
-
-	// 加载当前设置的备份路径
-	useEffect(() => {
-		const loadSavePath = async () => {
-			try {
-				const currentPath = await settingsService.getSaveRootPath();
-				setSavePath(currentPath);
-				setOriginalPath(currentPath); // 保存原始路径
-			} catch (error) {
-				console.error("加载备份路径失败:", error);
-			}
-		};
-		loadSavePath();
-	}, []);
-
-	const handleSelectFolder = async () => {
-		try {
-			const selectedPath = await handleGetFolder();
-			if (selectedPath) {
-				setSavePath(selectedPath);
-			}
-		} catch (error) {
-			console.error(error);
-			snackbar.error(
-				t("pages.Settings.savePath.selectFolderError", "选择文件夹失败"),
-			);
-		}
-	};
-
-	const handleSavePath = async () => {
-		setIsLoading(true);
-
-		try {
-			// 首先保存新路径到数据库
-			await settingsService.setSaveRootPath(savePath);
-			// 刷新存档备份路径缓存
-			try {
-				await refreshSavedataBackupPath();
-			} catch (refreshError) {
-				console.warn("刷新存档备份路径缓存失败:", refreshError);
-			}
-
-			// 如果路径发生了变化，需要移动备份文件夹
-			if (originalPath !== savePath || originalPath !== "") {
-				snackbar.warning(
-					t(
-						"pages.Settings.savePath.movingBackups",
-						"正在移动备份文件夹到新位置...",
-					),
-				);
-
-				const moveResult = await moveBackupFolder(originalPath, savePath);
-
-				if (moveResult.moved) {
-					snackbar.success(
-						t(
-							"pages.Settings.savePath.moveSuccess",
-							"备份路径保存成功，备份文件夹已移动到新位置",
-						),
-					);
-					setOriginalPath(savePath); // 更新原始路径
-				} else {
-					snackbar.warning(
-						t("pages.Settings.savePath.moveWarning", {
-							message: moveResult.message,
-						}),
-					);
-				}
-			} else {
-				snackbar.success(
-					t("pages.Settings.savePath.saveSuccess", "备份路径保存成功"),
-				);
-			}
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.savePath.saveFailed", "保存失败");
-			snackbar.error(
-				t("pages.Settings.savePath.saveError", { error: errorMessage }),
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	return (
-		<Box className="mb-6">
-			<InputLabel className="font-semibold mb-4">
-				{t("pages.Settings.savePath.title", "游戏存档备份路径")}
-			</InputLabel>
-
-			<Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-				<TextField
-					label={t("pages.Settings.savePath.pathLabel", "备份根目录路径")}
-					variant="outlined"
-					value={savePath}
-					onChange={(e) => setSavePath(e.target.value)}
-					className="min-w-60 flex-grow"
-					placeholder={t(
-						"pages.Settings.savePath.pathPlaceholder",
-						"选择游戏存档备份的根目录",
-					)}
-					disabled={isLoading}
-				/>
-
-				<Button
-					variant="outlined"
-					onClick={handleSelectFolder}
-					disabled={isLoading || !isTauri()}
-					startIcon={<FolderOpenIcon />}
-					className="px-4 py-2"
-				>
-					{t("pages.Settings.savePath.selectFolder", "选择目录")}
-				</Button>
-
-				<Button
-					variant="contained"
-					color="primary"
-					onClick={handleSavePath}
-					disabled={isLoading || !savePath.trim()}
-					startIcon={
-						isLoading ? (
-							<CircularProgress size={16} color="inherit" />
-						) : (
-							<SaveIcon />
-						)
-					}
-					className="px-6 py-2"
-				>
-					{isLoading
-						? t("pages.Settings.savePath.saving", "保存中...")
-						: t("pages.Settings.saveBtn")}
-				</Button>
-			</Stack>
-		</Box>
-	);
-};
-
-/**
- * LePathSettings 组件
- * LE转区软件路径设置
- */
-const LePathSettings = () => {
-	const { t } = useTranslation();
-	const [lePath, setLePath] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
-
-	// 加载当前设置的LE路径
-	useEffect(() => {
-		const loadLePath = async () => {
-			try {
-				const currentPath = await settingsService.getLePath();
-				setLePath(currentPath);
-			} catch (error) {
-				console.error("加载LE路径失败:", error);
-			}
-		};
-		if (isTauri()) {
-			loadLePath();
-		}
-	}, []);
-
-	const handleSelectFile = async () => {
-		try {
-			const { open } = await import("@tauri-apps/plugin-dialog");
-			const selectedPath = await open({
-				multiple: false,
-				directory: false,
-				filters: [
-					{
-						name: "Executable",
-						extensions: ["exe"],
-					},
-				],
-			});
-			if (selectedPath) {
-				setLePath(selectedPath);
-			}
-		} catch (error) {
-			console.error(error);
-			snackbar.error(
-				t("pages.Settings.lePath.selectFileError", "选择文件失败"),
-			);
-		}
-	};
-
-	const handleSavePath = async () => {
-		setIsLoading(true);
-
-		try {
-			await settingsService.setLePath(lePath);
-			snackbar.success(
-				t("pages.Settings.lePath.saveSuccess", "LE路径保存成功"),
-			);
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.lePath.saveFailed", "保存失败");
-			snackbar.error(
-				t("pages.Settings.lePath.saveError", { error: errorMessage }),
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	return (
-		<Box className="mb-6">
-			<InputLabel className="font-semibold mb-4">
-				{t("pages.Settings.lePath.title", "LE转区软件路径")}
-			</InputLabel>
-
-			<Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-				<TextField
-					label={t("pages.Settings.lePath.pathLabel", "LE转区软件路径")}
-					variant="outlined"
-					value={lePath}
-					onChange={(e) => setLePath(e.target.value)}
-					className="min-w-60 flex-grow"
-					placeholder={t(
-						"pages.Settings.lePath.pathPlaceholder",
-						"选择LE转区软件可执行文件",
-					)}
-					disabled={isLoading}
-				/>
-
-				<Button
-					variant="outlined"
-					onClick={handleSelectFile}
-					disabled={isLoading || !isTauri()}
-					startIcon={<FolderOpenIcon />}
-					className="px-4 py-2"
-				>
-					{t("pages.Settings.lePath.selectFile", "选择文件")}
-				</Button>
-
-				<Button
-					variant="contained"
-					color="primary"
-					onClick={handleSavePath}
-					disabled={isLoading}
-					startIcon={
-						isLoading ? (
-							<CircularProgress size={16} color="inherit" />
-						) : (
-							<SaveIcon />
-						)
-					}
-					className="px-6 py-2"
-				>
-					{isLoading
-						? t("pages.Settings.lePath.saving", "保存中...")
-						: t("pages.Settings.saveBtn")}
-				</Button>
-			</Stack>
-		</Box>
-	);
-};
-
-/**
- * MagpiePathSettings 组件
- * Magpie 软件路径设置
- */
-const MagpiePathSettings = () => {
-	const { t } = useTranslation();
-	const [magpiePath, setMagpiePath] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
-
-	// 加载当前设置的Magpie路径
-	useEffect(() => {
-		const loadMagpiePath = async () => {
-			try {
-				const currentPath = await settingsService.getMagpiePath();
-				setMagpiePath(currentPath);
-			} catch (error) {
-				console.error("加载Magpie路径失败:", error);
-			}
-		};
-		if (isTauri()) {
-			loadMagpiePath();
-		}
-	}, []);
-
-	const handleSelectFile = async () => {
-		try {
-			const { open } = await import("@tauri-apps/plugin-dialog");
-			const selectedPath = await open({
-				multiple: false,
-				directory: false,
-				filters: [
-					{
-						name: "Executable",
-						extensions: ["exe"],
-					},
-				],
-			});
-			if (selectedPath) {
-				setMagpiePath(selectedPath);
-			}
-		} catch (error) {
-			console.error(error);
-			snackbar.error(
-				t("pages.Settings.magpiePath.selectFileError", "选择文件失败"),
-			);
-		}
-	};
-
-	const handleSavePath = async () => {
-		setIsLoading(true);
-
-		try {
-			await settingsService.setMagpiePath(magpiePath);
-			snackbar.success(
-				t("pages.Settings.magpiePath.saveSuccess", "Magpie 路径保存成功"),
-			);
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.magpiePath.saveFailed", "保存失败");
-			snackbar.error(
-				t("pages.Settings.magpiePath.saveError", { error: errorMessage }),
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	return (
-		<Box className="mb-6">
-			<InputLabel className="font-semibold mb-4">
-				{t("pages.Settings.magpiePath.title", "Magpie 软件路径")}
-			</InputLabel>
-
-			<Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-				<TextField
-					label={t("pages.Settings.magpiePath.pathLabel", "Magpie 软件路径")}
-					variant="outlined"
-					value={magpiePath}
-					onChange={(e) => setMagpiePath(e.target.value)}
-					className="min-w-60 flex-grow"
-					placeholder={t(
-						"pages.Settings.magpiePath.pathPlaceholder",
-						"选择 Magpie 软件可执行文件",
-					)}
-					disabled={isLoading}
-				/>
-
-				<Button
-					variant="outlined"
-					onClick={handleSelectFile}
-					disabled={isLoading || !isTauri()}
-					startIcon={<FolderOpenIcon />}
-					className="px-4 py-2"
-				>
-					{t("pages.Settings.magpiePath.selectFile", "选择文件")}
-				</Button>
-
-				<Button
-					variant="contained"
-					color="primary"
-					onClick={handleSavePath}
-					disabled={isLoading}
-					startIcon={
-						isLoading ? (
-							<CircularProgress size={16} color="inherit" />
-						) : (
-							<SaveIcon />
-						)
-					}
-					className="px-6 py-2"
-				>
-					{isLoading
-						? t("pages.Settings.magpiePath.saving", "保存中...")
-						: t("pages.Settings.saveBtn")}
-				</Button>
-			</Stack>
 		</Box>
 	);
 };
@@ -1893,7 +1383,9 @@ const BatchUpdateSettings: React.FC = () => {
  * @returns {JSX.Element} 设置页面
  */
 export const Settings: React.FC = () => {
+	const { t } = useTranslation();
 	useScrollRestore("/settings");
+	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
 	return (
 		<PageContainer className="max-w-full">
 			<Box className="py-4">
@@ -1932,20 +1424,29 @@ export const Settings: React.FC = () => {
 				<PortableModeSettings />
 				<Divider sx={{ my: 3 }} />
 
-				{/* 备份路径设置 */}
-				<SavePathSettings />
-				<Divider sx={{ my: 3 }} />
-
-				{/* LE 转区软件路径设置 */}
-				<LePathSettings />
-				<Divider sx={{ my: 3 }} />
-
-				{/* Magpie 软件路径设置 */}
-				<MagpiePathSettings />
-				<Divider sx={{ my: 3 }} />
-
-				{/* 数据库备份路径设置 */}
-				<DbBackupPathSettings />
+				{/* 路径设置 */}
+				<Box className="mb-6">
+					<InputLabel className="font-semibold mb-4">
+						{t("pages.Settings.pathSettings.title", "路径设置")}
+					</InputLabel>
+					<Button
+						variant="outlined"
+						onClick={() => setPathSettingsModalOpen(true)}
+						className="px-4 py-2"
+					>
+						{t("pages.Settings.pathSettings.openModal", "打开路径设置")}
+					</Button>
+					<Typography
+						variant="caption"
+						color="text.secondary"
+						className="block mt-2"
+					>
+						{t(
+							"pages.Settings.pathSettings.note",
+							"配置游戏存档备份、LE转区软件、Magpie软件、数据库备份等路径",
+						)}
+					</Typography>
+				</Box>
 				<Divider sx={{ my: 3 }} />
 
 				{/* 数据库备份与恢复 */}
@@ -1963,6 +1464,13 @@ export const Settings: React.FC = () => {
 				{/* 关于 */}
 				<AboutSection />
 			</Box>
+
+			{/* 路径设置弹窗 */}
+			<PathSettingsModal
+				open={pathSettingsModalOpen}
+				onClose={() => setPathSettingsModalOpen(false)}
+				inSettingsPage={true}
+			/>
 		</PageContainer>
 	);
 };

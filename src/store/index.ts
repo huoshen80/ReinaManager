@@ -548,7 +548,7 @@ export const useStore = create<AppState>()(
 						// Web 环境下使用本地存储
 						const game = getGameByIdLocal(id);
 						if (game) {
-							set({ selectedGame: game as GameData });
+							set({ selectedGame: game });
 						} else {
 							console.warn(`Game with ID ${id} not found`);
 						}

@@ -124,6 +124,40 @@
 			"stopFailed": "ゲーム停止に失敗しました:",
 			"syncLocalPath": "ローカル同期"
 		},
+		"PathSettingsModal": {
+			"close": "__MISSING__",
+			"dbBackupPath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"lePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"magpiePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"saveBtn": "__MISSING__",
+			"savePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"saving": "__MISSING__",
+			"title": "__MISSING__"
+		},
 		"RightMenu": {
 			"Collection": {
 				"categoryMenu": "カテゴリメニュー",
@@ -202,7 +236,11 @@
 			"more": "その他",
 			"openGameFolder": "ゲームフォルダを開く",
 			"vndblink": "Vndbページを見る",
-			"ymgallink": "Ymgalページを見る"
+			"ymgallink": "Ymgalページを見る",
+			"lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
+			"lePathCheckFailed": "LEパスのチェックに失敗しました",
+			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
+			"magpiePathCheckFailed": "Magpieパスのチェックに失敗しました"
 		},
 		"Tray": {
 			"exit": "終了"
@@ -462,34 +500,12 @@
 				"restoreWarning": "データベースの復元は既存のデータを上書きします。ご注意ください。インポート後、アプリは自動的に再起動します。",
 				"title": "データベースバックアップと復元"
 			},
-			"dbBackupPath": {
-				"note": "空白のままでデフォルトパス（AppData/data/backups）を使用します。ポータブルモードの場合はプログラムディレクトリになります",
-				"pathLabel": "バックアップ保存パス",
-				"pathPlaceholder": "空白のままでデフォルトパスを使用",
-				"saveBtn": "保存",
-				"saveError": "保存に失敗しました",
-				"saveSuccess": "バックアップパスが保存されました",
-				"selectBtn": "ディレクトリを選択",
-				"selectError": "データベースバックアップパスの選択に失敗しました",
-				"title": "データベースバックアップパス"
-			},
 			"dev": {
 				"title": "実験性機能",
 				"tooltip": "以下の機能は実験的な機能です。慎重にお使いください"
 			},
 			"getToken": "トークンを取得",
 			"language": "言語",
-			"lePath": {
-				"pathLabel": "LE実行ファイルのパス",
-				"pathPlaceholder": "LE実行ファイルを選択",
-				"saveError": "LEパスの保存に失敗しました: {{error}}",
-				"saveFailed": "LEパスの保存に失敗しました",
-				"saveSuccess": "LEパスの保存が成功しました",
-				"saving": "保存中...",
-				"selectFile": "ファイルを選択",
-				"selectFileError": "LE実行ファイルの選択に失敗しました",
-				"title": "LE実行ファイルのパス"
-			},
 			"logLevel": {
 				"changed": "ログレベルが{{level}}に変更されました",
 				"changeFailed": "ログレベルの変更に失敗しました",
@@ -500,21 +516,15 @@
 				"openFolderFailed": "フォルダを開くのに失敗しました",
 				"title": "ログ設定"
 			},
-			"magpiePath": {
-				"pathLabel": "Magpie実行ファイルのパス",
-				"pathPlaceholder": "Magpie実行ファイルを選択",
-				"saveError": "Magpieパスの保存に失敗しました: {{error}}",
-				"saveFailed": "Magpieパスの保存に失敗しました",
-				"saveSuccess": "Magpieパスの保存が成功しました",
-				"saving": "保存中...",
-				"selectFile": "ファイルを選択",
-				"selectFileError": "Magpie実行ファイルの選択に失敗しました",
-				"title": "Magpie実行ファイルのパス"
-			},
 			"nsfw": {
 				"coverReplace": "NSFW表紙の置き換え",
 				"filter": "NSFWコンテンツのフィルタリング",
 				"title": "NSFWセット"
+			},
+			"pathSettings": {
+				"note": "__MISSING__",
+				"openModal": "__MISSING__",
+				"title": "__MISSING__"
 			},
 			"portableMode": {
 				"confirmDisableMessage": "ポータブルモードを無効にすると、データベースとバックアップがシステムアプリケーションデータディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
@@ -527,20 +537,6 @@
 			},
 			"restartError": "アプリの再起動に失敗しました",
 			"saveBtn": "保存",
-			"savePath": {
-				"moveSuccess": "バックアップパスの保存が成功し、バックアップフォルダが新しい場所に移動されました",
-				"moveWarning": "バックアップパスは保存されましたが、バックアップフォルダの移動に問題がありました: {{message}}",
-				"movingBackups": "バックアップフォルダを新しい場所に移動中...",
-				"pathLabel": "バックアップルートディレクトリパス",
-				"pathPlaceholder": "ゲームセーブバックアップのルートディレクトリを選択",
-				"saveError": "バックアップパスの保存に失敗しました: {{error}}",
-				"saveFailed": "保存に失敗しました",
-				"saveSuccess": "バックアップパスの保存が成功しました",
-				"saving": "保存中...",
-				"selectFolder": "ディレクトリを選択",
-				"selectFolderError": "フォルダの選択に失敗しました",
-				"title": "ゲームセーブバックアップパス"
-			},
 			"skipCloseRemind": "再度確認しない",
 			"spoilerLevel": {
 				"description": "ネタバレレベルを選択して、適切なタグコンテンツを取得する",

@@ -53,7 +53,10 @@ import AddModal from "@/components/AddModal";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
+import { PathSettingsModal } from "@/components/PathSettingsModal";
+import { snackbar } from "@/components/Snackbar";
 import SortModal from "@/components/SortModal";
+import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
 import { handleOpenFolder, openurl, toggleGameClearStatus } from "@/utils";
@@ -190,6 +193,7 @@ const MoreButton = () => {
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
+	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
 
 	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -240,6 +244,30 @@ const MoreButton = () => {
 	 */
 	const handleToggleLeLaunch = async (checked: boolean) => {
 		if (selectedGame?.id === undefined) return;
+
+		// 检查LE路径是否存在
+		try {
+			const lePath = await settingsService.getLePath();
+			if (!lePath || lePath.trim() === "") {
+				// 路径不存在，显示提示并打开路径设置弹窗
+				snackbar.warning(
+					t(
+						"components.Toolbar.lePathNotSet",
+						"未设置LE转区软件路径，请先配置路径",
+					),
+				);
+				setPathSettingsModalOpen(true);
+				return;
+			}
+		} catch (error) {
+			console.error("检查LE路径失败:", error);
+			snackbar.error(
+				t("components.Toolbar.lePathCheckFailed", "检查LE路径失败"),
+			);
+			setPathSettingsModalOpen(true);
+			return;
+		}
+
 		try {
 			await updateGame(selectedGame.id, { le_launch: checked ? 1 : 0 });
 			// 更新本地状态
@@ -254,6 +282,30 @@ const MoreButton = () => {
 	 */
 	const handleToggleMagpie = async (checked: boolean) => {
 		if (selectedGame?.id === undefined) return;
+
+		// 检查Magpie路径是否存在
+		try {
+			const magpiePath = await settingsService.getMagpiePath();
+			if (!magpiePath || magpiePath.trim() === "") {
+				// 路径不存在，显示提示并打开路径设置弹窗
+				snackbar.warning(
+					t(
+						"components.Toolbar.magpiePathNotSet",
+						"未设置Magpie软件路径，请先配置路径",
+					),
+				);
+				setPathSettingsModalOpen(true);
+				return;
+			}
+		} catch (error) {
+			console.error("检查Magpie路径失败:", error);
+			snackbar.error(
+				t("components.Toolbar.magpiePathCheckFailed", "检查Magpie路径失败"),
+			);
+			setPathSettingsModalOpen(true);
+			return;
+		}
+
 		try {
 			await updateGame(selectedGame.id, { magpie: checked ? 1 : 0 });
 			// 更新本地状态
@@ -358,6 +410,13 @@ const MoreButton = () => {
 					</ListItemText>
 				</MenuItem>
 			</Menu>
+
+			{/* 路径设置弹窗 */}
+			<PathSettingsModal
+				open={pathSettingsModalOpen}
+				onClose={() => setPathSettingsModalOpen(false)}
+				inSettingsPage={false}
+			/>
 		</>
 	);
 };

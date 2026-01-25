@@ -125,6 +125,40 @@
 			"stopFailed": "Failed to stop game:",
 			"syncLocalPath": "Sync Local"
 		},
+		"PathSettingsModal": {
+			"close": "__MISSING__",
+			"dbBackupPath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"lePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"magpiePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"saveBtn": "__MISSING__",
+			"savePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"saving": "__MISSING__",
+			"title": "__MISSING__"
+		},
 		"RightMenu": {
 			"Collection": {
 				"categoryMenu": "Category Menu",
@@ -203,7 +237,11 @@
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
 			"vndblink": "View Vndb Page",
-			"ymgallink": "View Ymgal Page"
+			"ymgallink": "View Ymgal Page",
+			"lePathNotSet": "LE region switching software path not set, please configure the path first",
+			"lePathCheckFailed": "Failed to check LE path",
+			"magpiePathNotSet": "Magpie software path not set, please configure the path first",
+			"magpiePathCheckFailed": "Failed to check Magpie path"
 		},
 		"Tray": {
 			"exit": "Exit"
@@ -463,34 +501,12 @@
 				"restoreWarning": "Restoring database will overwrite existing data, please use with caution. The application will restart automatically after import.",
 				"title": "Database Backup & Restore"
 			},
-			"dbBackupPath": {
-				"note": "Leave empty to use the default path (AppData/data/backups), or the program directory in portable mode",
-				"pathLabel": "Backup Save Path",
-				"pathPlaceholder": "Leave empty to use default path",
-				"saveBtn": "Save",
-				"saveError": "Save failed",
-				"saveSuccess": "Backup path saved",
-				"selectBtn": "Select Directory",
-				"selectError": "Failed to select database backup path",
-				"title": "Database Backup Path"
-			},
 			"dev": {
 				"title": "Experimental Features",
 				"tooltip": "The following features are experimental, please use with caution"
 			},
 			"getToken": "Get Token",
 			"language": "Language",
-			"lePath": {
-				"pathLabel": "LE Executable File Path",
-				"pathPlaceholder": "Select LE executable file",
-				"saveError": "Failed to save LE path: {{error}}",
-				"saveFailed": "Failed to save LE path",
-				"saveSuccess": "LE path saved successfully",
-				"saving": "Saving...",
-				"selectFile": "Select File",
-				"selectFileError": "Failed to select LE executable file",
-				"title": "LE Executable File Path"
-			},
 			"logLevel": {
 				"changed": "Log level changed to {{level}}",
 				"changeFailed": "Failed to change log level",
@@ -501,21 +517,15 @@
 				"openFolderFailed": "Failed to open folder",
 				"title": "Log Settings"
 			},
-			"magpiePath": {
-				"pathLabel": "Magpie Executable File Path",
-				"pathPlaceholder": "Select Magpie executable file",
-				"saveError": "Failed to save Magpie path: {{error}}",
-				"saveFailed": "Failed to save Magpie path",
-				"saveSuccess": "Magpie path saved successfully",
-				"saving": "Saving...",
-				"selectFile": "Select File",
-				"selectFileError": "Failed to select Magpie executable file",
-				"title": "Magpie Executable File Path"
-			},
 			"nsfw": {
 				"coverReplace": "NSFW cover replace",
 				"filter": "Filter NSFW content",
 				"title": "NSFW Settings"
+			},
+			"pathSettings": {
+				"note": "__MISSING__",
+				"openModal": "__MISSING__",
+				"title": "__MISSING__"
 			},
 			"portableMode": {
 				"confirmDisableMessage": "After disabling portable mode, the database and backups will be migrated to the system application data directory. The application will restart automatically after successful operation.",
@@ -528,20 +538,6 @@
 			},
 			"restartError": "Failed to restart application",
 			"saveBtn": "Save",
-			"savePath": {
-				"moveSuccess": "Backup path saved successfully, backup folder has been moved to new location",
-				"moveWarning": "Backup path saved, but there was an issue moving the backup folder: {{message}}",
-				"movingBackups": "Moving backup folder to new location...",
-				"pathLabel": "Backup Root Directory Path",
-				"pathPlaceholder": "Select the root directory for game save backups",
-				"saveError": "Failed to save backup path: {{error}}",
-				"saveFailed": "Save failed",
-				"saveSuccess": "Backup path saved successfully",
-				"saving": "Saving...",
-				"selectFolder": "Select Directory",
-				"selectFolderError": "Failed to select folder",
-				"title": "Game Save Backup Path"
-			},
 			"skipCloseRemind": "Don't remind again",
 			"spoilerLevel": {
 				"description": "Select spoiler level to get appropriate tag content",

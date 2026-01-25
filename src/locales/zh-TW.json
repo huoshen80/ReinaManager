@@ -124,6 +124,40 @@
 			"stopFailed": "遊戲停止失敗:",
 			"syncLocalPath": "同步本地"
 		},
+		"PathSettingsModal": {
+			"close": "__MISSING__",
+			"dbBackupPath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"lePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"magpiePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"saveBtn": "__MISSING__",
+			"savePath": {
+				"note": "__MISSING__",
+				"pathLabel": "__MISSING__",
+				"pathPlaceholder": "__MISSING__",
+				"selectBtn": "__MISSING__",
+				"title": "__MISSING__"
+			},
+			"saving": "__MISSING__",
+			"title": "__MISSING__"
+		},
 		"RightMenu": {
 			"Collection": {
 				"categoryMenu": "分類菜單",
@@ -202,7 +236,11 @@
 			"more": "更多",
 			"openGameFolder": "開啟遊戲目錄",
 			"vndblink": "查看Vndb頁面",
-			"ymgallink": "查看Ymgal頁面"
+			"ymgallink": "查看Ymgal頁面",
+			"lePathNotSet": "未設定LE轉區軟體路徑，請先配置路徑",
+			"lePathCheckFailed": "檢查LE路徑失敗",
+			"magpiePathNotSet": "未設定Magpie軟體路徑，請先配置路徑",
+			"magpiePathCheckFailed": "檢查Magpie路徑失敗"
 		},
 		"Tray": {
 			"exit": "退出"
@@ -462,34 +500,12 @@
 				"restoreWarning": "還原資料庫將覆蓋現有資料，請謹慎操作。匯入後應用程式將自動重新啟動。",
 				"title": "資料庫備份與還原"
 			},
-			"dbBackupPath": {
-				"note": "留空將使用預設路徑（AppData/data/backups），或攜帶式模式下的程式目錄",
-				"pathLabel": "資料庫備份儲存路徑",
-				"pathPlaceholder": "選擇資料庫備份儲存路徑",
-				"saveBtn": "儲存",
-				"saveError": "儲存資料庫備份路徑失敗",
-				"saveSuccess": "資料庫備份路徑已儲存",
-				"selectBtn": "選擇目錄",
-				"selectError": "選擇資料庫備份路徑失敗",
-				"title": "資料庫備份路徑設定"
-			},
 			"dev": {
 				"title": "實驗性功能",
 				"tooltip": "以下功能為實驗性功能，請謹慎使用"
 			},
 			"getToken": "獲取令牌",
 			"language": "語言",
-			"lePath": {
-				"pathLabel": "LE可執行文件路徑",
-				"pathPlaceholder": "選擇LE可執行文件",
-				"saveError": "LE路徑儲存失敗: {{error}}",
-				"saveFailed": "LE路徑儲存失敗",
-				"saveSuccess": "LE路徑儲存成功",
-				"saving": "儲存中...",
-				"selectFile": "選擇文件",
-				"selectFileError": "選擇LE可執行文件失敗",
-				"title": "LE可執行文件路徑"
-			},
 			"logLevel": {
 				"changed": "日誌級別已切換為 {{level}}",
 				"changeFailed": "切換日誌級別失敗",
@@ -500,21 +516,15 @@
 				"openFolderFailed": "開啟資料夾失敗",
 				"title": "日誌設置"
 			},
-			"magpiePath": {
-				"pathLabel": "Magpie可執行文件路徑",
-				"pathPlaceholder": "選擇Magpie可執行文件",
-				"saveError": "Magpie路徑儲存失敗: {{error}}",
-				"saveFailed": "Magpie路徑儲存失敗",
-				"saveSuccess": "Magpie路徑儲存成功",
-				"saving": "儲存中...",
-				"selectFile": "選擇文件",
-				"selectFileError": "選擇Magpie可執行文件失敗",
-				"title": "Magpie可執行文件路徑"
-			},
 			"nsfw": {
 				"coverReplace": "模糊NSFW替換",
 				"filter": "過濾NSFW内容",
 				"title": "NSFW設定"
+			},
+			"pathSettings": {
+				"note": "__MISSING__",
+				"openModal": "__MISSING__",
+				"title": "__MISSING__"
 			},
 			"portableMode": {
 				"confirmDisableMessage": "停用攜帶式模式後，應用程式將自動重新啟動。確定要繼續嗎？",
@@ -527,20 +537,6 @@
 			},
 			"restartError": "重啟應用程式失敗",
 			"saveBtn": "儲存",
-			"savePath": {
-				"moveSuccess": "備份路徑儲存成功，備份資料夾已移動到新位置",
-				"moveWarning": "備份路徑已儲存，但移動備份資料夾時出現問題: {{message}}",
-				"movingBackups": "正在移動備份資料夾到新位置...",
-				"pathLabel": "備份根目錄路徑",
-				"pathPlaceholder": "選擇遊戲存檔備份的根目錄",
-				"saveError": "儲存備份路徑失敗: {{error}}",
-				"saveFailed": "儲存失敗",
-				"saveSuccess": "備份路徑儲存成功",
-				"saving": "儲存中...",
-				"selectFolder": "選擇目錄",
-				"selectFolderError": "選擇資料夾失敗",
-				"title": "遊戲存檔備份路徑"
-			},
 			"skipCloseRemind": "不再提醒",
 			"spoilerLevel": {
 				"description": "選擇劇透等級以獲取適當的標籤內容",
