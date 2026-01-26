@@ -36,6 +36,7 @@ import { basename, dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
+import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
 import { useModal } from "@/components/Toolbar";
 import { useStore } from "@/store/";
@@ -61,6 +62,75 @@ interface DialogState {
 	select: {
 		open: boolean;
 		results: FullGameData[];
+	};
+}
+
+/**
+ * 从游戏数据构建 InsertGameParams
+ * @param gameData 游戏数据
+ * @param fallbackIdType 备用 id_type
+ * @param fallbackDate 备用 date
+ * @returns InsertGameParams 对象
+ */
+function buildInsertData(
+	gameData: FullGameData,
+	fallbackIdType?: string,
+	fallbackDate?: string,
+): InsertGameParams {
+	return {
+		bgm_id: gameData.bgm_id,
+		vndb_id: gameData.vndb_id,
+		ymgal_id: gameData.ymgal_id,
+		id_type: gameData.id_type || fallbackIdType || "mixed",
+		date: fallbackDate,
+		localpath: gameData.localpath ?? undefined,
+		autosave: gameData.autosave,
+		clear: gameData.clear,
+		bgm_data: gameData.bgm_data ?? undefined,
+		vndb_data: gameData.vndb_data ?? undefined,
+		ymgal_data: gameData.ymgal_data ?? undefined,
+		custom_data: gameData.custom_data ?? undefined,
+	};
+}
+
+/**
+ * 从 YMGal ID 获取完整数据并与现有数据整合
+ * @param ymgalId YMGal ID
+ * @param existingData 现有数据
+ * @param bgmToken BGM Token
+ * @returns 整合后的完整数据，如果获取失败则返回 null
+ */
+async function fetchYmgalAndMerge(
+	ymgalId: string | number,
+	existingData: FullGameData,
+	bgmToken?: string,
+): Promise<FullGameData | null> {
+	const results = await gameMetadataService.searchGames({
+		query: ymgalId.toString(),
+		source: "ymgal",
+		bgmToken,
+		isIdSearch: true,
+	});
+
+	if (results.length === 0) {
+		return null;
+	}
+
+	const ymgalData = results[0];
+	// 整合数据：使用已有的 BGM/VNDB 数据 + 新的 YMGal 完整数据
+	return {
+		id_type: "mixed",
+		bgm_id: existingData.bgm_id,
+		bgm_data: existingData.bgm_data ?? undefined,
+		vndb_id: existingData.vndb_id,
+		vndb_data: existingData.vndb_data ?? undefined,
+		ymgal_id: ymgalData.ymgal_id,
+		ymgal_data: ymgalData.ymgal_data,
+		date: existingData.date,
+		localpath: existingData.localpath,
+		autosave: existingData.autosave,
+		clear: existingData.clear,
+		custom_data: existingData.custom_data ?? undefined,
 	};
 }
 
@@ -147,6 +217,8 @@ const AddModal: React.FC = () => {
 			return games.some((game) => {
 				if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
 				if (gameData.vndb_id && game.vndb_id === gameData.vndb_id) return true;
+				if (gameData.ymgal_id && game.ymgal_id === gameData.ymgal_id)
+					return true;
 				return false;
 			});
 		},
@@ -181,48 +253,52 @@ const AddModal: React.FC = () => {
 	 * 处理确认弹窗的确认操作
 	 */
 	const handleConfirmAdd = useCallback(async () => {
-		if (!dialogState.confirm.data) return;
+		const finaldata = dialogState.confirm.data;
+		if (!finaldata) return;
 
-		// 如果是 ymgal 数据源且数据不完整（没有 summary 和 aliases），先获取完整数据
-		if (dialogState.confirm.data.id_type === "ymgal") {
+		// 检查是否需要重新获取完整数据
+		const needsCompleteData =
+			finaldata.id_type === "ymgal" ||
+			(finaldata.id_type === "mixed" &&
+				finaldata.ymgal_id &&
+				!isYmgalDataComplete(finaldata.ymgal_data));
+
+		if (needsCompleteData) {
 			try {
 				setLoading(true);
-				// 使用gameMetadataService获取完整的YMGal数据
-				const results = await gameMetadataService.searchGames({
-					query: dialogState.confirm.data.ymgal_id?.toString() || "",
-					source: "ymgal",
-					bgmToken,
-					defaults: {
-						localpath: dialogState.confirm.data.localpath ?? undefined,
-						autosave: dialogState.confirm.data.autosave,
-						clear: dialogState.confirm.data.clear,
-					},
-				});
+				let result: FullGameData | null = null;
 
-				if (results.length === 0) {
-					showError(t("components.AddModal.noDataSource"));
+				if (finaldata.id_type === "ymgal") {
+					// 纯 ymgal 类型：重新获取完整数据
+					const results = await gameMetadataService.searchGames({
+						query: finaldata.ymgal_id?.toString() || "",
+						source: "ymgal",
+						bgmToken,
+						defaults: {
+							localpath: finaldata.localpath ?? undefined,
+							autosave: finaldata.autosave,
+							clear: finaldata.clear,
+						},
+					});
+					result = results.length > 0 ? results[0] : null;
+				} else if (finaldata.id_type === "mixed" && finaldata.ymgal_id) {
+					// mixed 类型：只获取 YMGal 的完整数据，保留已有的 BGM/VNDB 数据
+					result = await fetchYmgalAndMerge(
+						finaldata.ymgal_id,
+						finaldata,
+						bgmToken,
+					);
+				}
+
+				if (!result) {
+					showError(t("components.AddModal.noResultsYmgal"));
 					return;
 				}
 
-				const result = results[0];
-
-				// 从 FullGameData 转换为 InsertGameParams（过滤 null 值）
-				const insertData: InsertGameParams = {
-					bgm_id: result.bgm_id,
-					vndb_id: result.vndb_id,
-					ymgal_id: result.ymgal_id,
-					id_type: result.id_type || "ymgal",
-					date: result.date,
-					localpath: result.localpath ?? undefined,
-					autosave: result.autosave,
-					clear: result.clear,
-					bgm_data: result.bgm_data ?? undefined,
-					vndb_data: result.vndb_data ?? undefined,
-					ymgal_data: result.ymgal_data ?? undefined,
-					custom_data: result.custom_data ?? undefined,
-				};
-
-				finalizeAddGame(insertData);
+				// 使用公共函数构建 InsertGameParams 并添加游戏
+				finalizeAddGame(
+					buildInsertData(result, finaldata.id_type, finaldata.date),
+				);
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error
@@ -232,9 +308,9 @@ const AddModal: React.FC = () => {
 			} finally {
 				setLoading(false);
 			}
-		} else if (dialogState.confirm.data.id_type) {
-			// 确保 id_type 存在后再调用
-			finalizeAddGame(dialogState.confirm.data as InsertGameParams);
+		} else if (finaldata.id_type) {
+			// 数据已完整，直接添加
+			finalizeAddGame(finaldata as InsertGameParams);
 		}
 	}, [finalizeAddGame, dialogState.confirm.data, showError, t, bgmToken]);
 
@@ -306,6 +382,7 @@ const AddModal: React.FC = () => {
 					? undefined
 					: (apiSource as "bgm" | "vndb" | "ymgal"),
 			bgmToken,
+			isIdSearch: isID,
 			defaults: {
 				localpath: path,
 				autosave: 0,
@@ -314,7 +391,26 @@ const AddModal: React.FC = () => {
 		});
 
 		if (searchResults.length === 0) {
-			throw new Error(t("components.AddModal.noDataSource"));
+			// 根据数据源和搜索类型抛出更具体的错误
+			if (apiSource === "mixed") {
+				throw new Error(t("components.AddModal.noResultsMixed"));
+			}
+			if (apiSource === "bgm") {
+				// 检查 BGM 数据源是否缺少 token
+				if (!bgmToken) {
+					throw new Error(t("components.AddModal.noBgmToken"));
+				}
+
+				throw new Error(t("components.AddModal.noResultsBgm"));
+			}
+			if (apiSource === "vndb") {
+				throw new Error(t("components.AddModal.noResultsVndb"));
+			}
+			if (apiSource === "ymgal") {
+				throw new Error(t("components.AddModal.noResultsYmgal"));
+			}
+			// 默认错误
+			throw new Error(t("components.AddModal.noResults"));
 		}
 
 		// 返回第一个结果作为主要数据，保留所有结果用于查看更多
@@ -386,11 +482,6 @@ const AddModal: React.FC = () => {
 			const { apiData, allResults, canViewMore } = await withAbort(
 				fetchFromDataSource(),
 			);
-
-			if (!apiData) {
-				showError(t("components.AddModal.noDataSource"));
-				return;
-			}
 
 			// 保存搜索结果并打开确认弹窗
 			// 现在apiData和allResults已经包含了defaults

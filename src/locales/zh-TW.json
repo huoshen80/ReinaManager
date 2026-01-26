@@ -14,6 +14,7 @@
 			"requestError": "請求錯誤"
 		},
 		"mixed": {
+			"noDataFromAnySource": "所有數據源均未獲取到數據",
 			"noParameterProvided": "必須提供 BGM ID、VNDB ID 或遊戲名稱"
 		},
 		"vndb": {
@@ -61,12 +62,18 @@
 			"developer": "開發商",
 			"enableCustomMode": "啟用自定義模式",
 			"gameExists": "遊戲已存在",
-			"gameIDTips": "遊戲ID（輸入BGM ID或VNDB ID）",
+			"gameIDTips": "遊戲ID（輸入BGM、VNDB 或 YMGal ID）",
 			"gameName": "遊戲名稱",
 			"idSearch": "啟用ID搜尋模式",
+			"noBgmData": "未找到 Bangumi 數據，請檢查 ID 是否正確",
+			"noBgmToken": "缺少 BGM_TOKEN，無法獲取數據",
 			"noDataSource": "無法獲取遊戲數據",
 			"noExecutableSelected": "未選擇可執行程序",
 			"noResults": "沒有找到結果",
+			"noResultsBgm": "未在 Bangumi 找到該遊戲，請嘗試其他名稱或檢查 ID",
+			"noResultsMixed": "所有數據源均未找到該遊戲",
+			"noResultsVndb": "未在 VNDB 找到該遊戲，請嘗試其他名稱或檢查 ID",
+			"noResultsYmgal": "未在 YMGal 找到該遊戲，請嘗試其他名稱或檢查 ID",
 			"processing": "處理中...",
 			"selectExecutable": "請選擇一個可執行程序",
 			"selectGame": "選擇遊戲",
@@ -125,38 +132,38 @@
 			"syncLocalPath": "同步本地"
 		},
 		"PathSettingsModal": {
-			"close": "__MISSING__",
+			"close": "關閉",
 			"dbBackupPath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "設置數據庫備份文件的保存路徑，留空將使用默認路徑（AppData/data/backups），或攜帶式模式下的程式目錄",
+				"pathLabel": "備份保存路徑",
+				"pathPlaceholder": "留空使用默認路徑",
+				"selectBtn": "選擇目錄",
+				"title": "數據庫備份路徑"
 			},
 			"lePath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "設置LE轉區軟體的可執行文件路徑，用於遊戲啟動時的轉區功能",
+				"pathLabel": "LE轉區軟體路徑",
+				"pathPlaceholder": "選擇LE轉區軟體的可執行文件",
+				"selectBtn": "選擇文件",
+				"title": "LE轉區軟體路徑"
 			},
 			"magpiePath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "設置Magpie軟體的可執行文件路徑，用於遊戲畫面的放大功能",
+				"pathLabel": "Magpie軟體路徑",
+				"pathPlaceholder": "選擇Magpie軟體的可執行文件",
+				"selectBtn": "選擇文件",
+				"title": "Magpie軟體路徑"
 			},
-			"saveBtn": "__MISSING__",
+			"saveBtn": "儲存",
 			"savePath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "設置遊戲存檔的備份根目錄路徑，留空將使用默認路徑",
+				"pathLabel": "備份根目錄路徑",
+				"pathPlaceholder": "留空使用默認路徑",
+				"selectBtn": "選擇目錄",
+				"title": "遊戲存檔備份路徑"
 			},
-			"saving": "__MISSING__",
-			"title": "__MISSING__"
+			"saving": "保存中...",
+			"title": "路徑設置"
 		},
 		"RightMenu": {
 			"Collection": {
@@ -522,9 +529,9 @@
 				"title": "NSFW設定"
 			},
 			"pathSettings": {
-				"note": "__MISSING__",
-				"openModal": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "配置遊戲存檔備份、LE轉區軟體、Magpie軟體、數據庫備份等路徑",
+				"openModal": "打開路徑設置",
+				"title": "路徑設置"
 			},
 			"portableMode": {
 				"confirmDisableMessage": "停用攜帶式模式後，應用程式將自動重新啟動。確定要繼續嗎？",

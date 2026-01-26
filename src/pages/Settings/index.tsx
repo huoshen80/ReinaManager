@@ -792,7 +792,6 @@ const DatabaseBackupSettings = () => {
 	);
 };
 
-
 const PortableModeSettings = () => {
 	const { t } = useTranslation();
 	const [portableMode, setPortableMode] = useState(false);

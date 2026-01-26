@@ -14,6 +14,7 @@
 			"requestError": "请求错误"
 		},
 		"mixed": {
+			"noDataFromAnySource": "所有数据源均未获取到数据",
 			"noParameterProvided": "必须提供 BGM ID、VNDB ID 或游戏名称"
 		},
 		"vndb": {
@@ -61,12 +62,18 @@
 			"developer": "开发商",
 			"enableCustomMode": "启用自定义模式",
 			"gameExists": "游戏已存在",
-			"gameIDTips": "游戏ID(输入BGM ID或VNDB ID)",
+			"gameIDTips": "游戏ID(输入BGM、VNDB 或 YMGal ID)",
 			"gameName": "游戏名称",
 			"idSearch": "启用ID搜索模式",
+			"noBgmData": "未找到 Bangumi 数据，请检查 ID 是否正确",
+			"noBgmToken": "缺少 BGM_TOKEN，无法获取数据",
 			"noDataSource": "无法获取游戏数据",
 			"noExecutableSelected": "未选择可执行程序",
 			"noResults": "没有找到结果",
+			"noResultsBgm": "未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",
+			"noResultsMixed": "所有数据源均未找到该游戏",
+			"noResultsVndb": "未在 VNDB 找到该游戏，请尝试其他名称或检查 ID",
+			"noResultsYmgal": "未在 YMGal 找到该游戏，请尝试其他名称或检查 ID",
 			"processing": "处理中...",
 			"selectExecutable": "请选择一个可执行程序",
 			"selectGame": "选择游戏",

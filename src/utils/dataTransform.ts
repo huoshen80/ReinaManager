@@ -201,6 +201,10 @@ function mergeMultipleDataSources(
 	const primarySource = bgm_data || vndb_data || ymgal_data;
 	if (primarySource) assignBasicFields(target, primarySource);
 
+	// 简介：YMGal 优先
+	target.summary =
+		ymgal_data?.summary || bgm_data?.summary || vndb_data?.summary;
+
 	// 开发商: VNDB 优先
 	target.developer =
 		vndb_data?.developer || bgm_data?.developer || ymgal_data?.developer;

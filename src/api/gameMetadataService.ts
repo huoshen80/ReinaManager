@@ -13,6 +13,38 @@ import { fetchYmById, fetchYmByName } from "@/api/ymgal";
 import type { FullGameData } from "@/types";
 
 /**
+ * 检查 YMGal 数据是否完整
+ * YMGal 数据完整需要包含 summary 和 aliases 字段
+ */
+export function isYmgalDataComplete(
+	ymgalData?: { summary?: string; aliases?: string[] } | null,
+): boolean {
+	return !!(ymgalData?.summary && ymgalData?.aliases);
+}
+
+/**
+ * 从多个数据源的结果中合并日期信息
+ * 优先级：BGM > VNDB > YMGal
+ * @param result fetchMixedData 的返回结果
+ * @returns 合并后的日期字符串或 undefined
+ */
+function mergeDateFromMixedResult(result: {
+	bgm_data?: FullGameData | null;
+	vndb_data?: FullGameData | null;
+	ymgal_data?: FullGameData | null;
+}): string | undefined {
+	// 合并日期信息，优先级：BGM > VNDB > YMGal
+	if (result.bgm_data?.bgm_data?.date) {
+		return result.bgm_data.bgm_data.date;
+	} else if (result.vndb_data?.vndb_data?.date) {
+		return result.vndb_data.vndb_data.date;
+	} else if (result.ymgal_data?.ymgal_data?.date) {
+		return result.ymgal_data.ymgal_data.date;
+	}
+	return undefined;
+}
+
+/**
  * 支持的数据源类型
  */
 export type DataSource = "bgm" | "vndb" | "ymgal";
@@ -26,6 +58,7 @@ export interface GameSearchParams {
 	source?: DataSource; // 数据源（可选，不指定则为mixed）
 	bgmToken?: string; // BGM API访问令牌
 	defaults?: Partial<FullGameData>; // UI相关默认值，会合并到返回的FullGameData中
+	isIdSearch?: boolean; // 是否为ID搜索（由用户通过isID开关控制）
 }
 
 /**
@@ -42,11 +75,10 @@ class GameMetadataService {
 	 * @returns 游戏数据数组
 	 */
 	async searchGames(params: GameSearchParams): Promise<FullGameData[]> {
-		const { query, source, bgmToken, defaults } = params;
+		const { query, source, bgmToken, defaults, isIdSearch } = params;
 
-		// 判断是ID搜索还是名称搜索
-		const isIdSearch = this.isIdQuery(query);
-
+		// 使用用户传入的 isIdSearch，若未传入则自动判断
+		const isId = isIdSearch ?? this.isIdQuery(query); // 自动判断预留
 		try {
 			if (source) {
 				// 单数据源搜索
@@ -55,11 +87,11 @@ class GameMetadataService {
 					source,
 					bgmToken,
 					defaults,
-					isIdSearch,
+					isId,
 				);
 			} else {
 				// Mixed搜索
-				return await this.searchMixed(query, bgmToken, defaults, isIdSearch);
+				return await this.searchMixed(query, bgmToken, defaults, isId);
 			}
 		} catch (error) {
 			console.error("Game search failed:", error);
@@ -76,8 +108,8 @@ class GameMetadataService {
 		return (
 			/^\d+$/.test(query) || // BGM ID (纯数字)
 			/^v\d+$/i.test(query) || // VNDB ID (v开头+数字)
-			/^ga\d+$/i.test(query)
-		); // YMGal ID (ga开头+数字)
+			/^ga\d+$/i.test(query) // YMGal ID (ga开头+数字)
+		);
 	}
 
 	/**
@@ -128,9 +160,9 @@ class GameMetadataService {
 
 	/**
 	 * 根据ID获取单个数据源的游戏
-	 * @private
+	 *
 	 */
-	private async getGameById(
+	async getGameById(
 		id: string,
 		source: DataSource,
 		bgmToken?: string,
@@ -171,9 +203,11 @@ class GameMetadataService {
 		try {
 			switch (source) {
 				case "bgm": {
-					if (!bgmToken) return { games: [], error: "BGM Token required" };
 					const bgmResult = await fetchBgmByName(name, bgmToken);
-					return { games: typeof bgmResult === "string" ? [] : bgmResult };
+					const fetchError = typeof bgmResult === "string";
+					if (fetchError && !bgmToken)
+						return { games: [], error: "BGM Token required" };
+					return { games: fetchError ? [] : bgmResult };
 				}
 				case "vndb": {
 					const vndbResult = await fetchVndbByName(name);
@@ -236,6 +270,12 @@ class GameMetadataService {
 				mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
 			}
 
+			// 合并日期信息
+			const mergedDate = mergeDateFromMixedResult(result);
+			if (mergedDate) {
+				mergedGame.date = mergedDate;
+			}
+
 			return mergedGame;
 		} catch (error) {
 			console.error("Get mixed game by ID failed:", error);
@@ -275,6 +315,11 @@ class GameMetadataService {
 				mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
 			}
 
+			// 合并日期信息
+			const mergedDate = mergeDateFromMixedResult(result);
+			if (mergedDate) {
+				mergedGame.date = mergedDate;
+			}
 			return mergedGame;
 		} catch (error) {
 			console.error("Get mixed game by name failed:", error);
@@ -336,16 +381,39 @@ class GameMetadataService {
 
 		try {
 			if (providedIds === 1) {
-				// 单个ID：使用现有的searchGames方法
-				const query = bgmId || vndbId || ymgalId || "";
-				const source = bgmId ? "bgm" : vndbId ? "vndb" : "ymgal";
-				const results = await this.searchGames({
-					query,
-					source,
-					bgmToken,
-					defaults,
+				// 单个ID：使用fetchMixedData的逻辑获取多个数据源的数据
+				const result = await fetchMixedData({
+					bgm_id: bgmId,
+					vndb_id: vndbId,
+					ymgal_id: ymgalId,
+					BGM_TOKEN: bgmToken,
 				});
-				return results.length > 0 ? results[0] : null;
+
+				// 合并为单个游戏对象
+				const mergedGame: FullGameData = {
+					id_type: "mixed",
+				};
+
+				if (result.bgm_data) {
+					mergedGame.bgm_id = result.bgm_data.bgm_id;
+					mergedGame.bgm_data = result.bgm_data.bgm_data;
+				}
+				if (result.vndb_data) {
+					mergedGame.vndb_id = result.vndb_data.vndb_id;
+					mergedGame.vndb_data = result.vndb_data.vndb_data;
+				}
+				if (result.ymgal_data) {
+					mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
+					mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
+				}
+
+				// 合并日期信息
+				const mergedDate = mergeDateFromMixedResult(result);
+				if (mergedDate) {
+					mergedGame.date = mergedDate;
+				}
+
+				return this.applyDefaults(mergedGame, defaults);
 			} else {
 				// 多个ID：并行获取所有数据源，然后合并
 				const promises: Promise<FullGameData | null>[] = [];
@@ -441,9 +509,9 @@ class GameMetadataService {
 		if (/^v\d+$/i.test(input)) {
 			result.vndbId = input;
 		}
-		// YMGal ID格式：ga + 数字
+		// YMGal ID格式：ga + 数字（去除ga前缀，只返回数字部分）
 		else if (/^ga\d+$/i.test(input)) {
-			result.ymgalId = input.toLowerCase();
+			result.ymgalId = input.replace(/^ga/i, "");
 		}
 		// BGM ID格式：纯数字
 		else if (/^\d+$/.test(input)) {

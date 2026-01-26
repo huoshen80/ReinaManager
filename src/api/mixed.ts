@@ -187,6 +187,14 @@ export async function fetchMixedData(options: {
 			promises.push(getYmgalDataSafely(searchName));
 
 			const [bgm, vndb, ymgal] = await Promise.all(promises);
+
+			// 检查三个数据源是否都为空
+			if (!bgm && !vndb && !ymgal) {
+				throw new Error(
+					i18n.t("api.mixed.noDataFromAnySource", "所有数据源均未获取到数据"),
+				);
+			}
+
 			return { bgm_data: bgm, vndb_data: vndb, ymgal_data: ymgal };
 		}
 

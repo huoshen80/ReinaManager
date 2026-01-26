@@ -142,7 +142,7 @@ export async function fetchBgmById(id: string, BGM_TOKEN: string) {
  */
 export async function fetchBgmByName(
 	name: string,
-	BGM_TOKEN: string,
+	BGM_TOKEN: string | undefined,
 	limit = 25,
 ): Promise<FullGameData[] | string> {
 	// 使用 Tauri HTTP 客户端，支持自定义 User-Agent

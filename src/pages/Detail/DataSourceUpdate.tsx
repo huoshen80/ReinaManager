@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
+import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { snackbar } from "@/components/Snackbar";
 import type { FullGameData, GameData } from "@/types";
 
@@ -25,7 +26,7 @@ interface DataSourceUpdateProps {
 
 /**
  * DataSourceUpdate 组件
- * 负责从外部数据源(BGM, VNDB, YMGal, Mixed)更新游戏信息
+ * 负责从外部数据源(BGM, VNDB, YMGal, Mixed)更新游戏信息 已知缺少重复游戏检测
  */
 export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	bgmToken,
@@ -71,20 +72,13 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 
 		if (idType === "bgm" && bgmId) {
 			// BGM 单一数据源
-			apiData = await gameMetadataService.getGameByIds({
-				bgmId,
-				bgmToken,
-			});
+			apiData = await gameMetadataService.getGameById(bgmId, idType, bgmToken);
 		} else if (idType === "vndb" && vndbId) {
 			// VNDB 单一数据源
-			apiData = await gameMetadataService.getGameByIds({
-				vndbId,
-			});
+			apiData = await gameMetadataService.getGameById(vndbId, idType);
 		} else if (idType === "ymgal" && ymgalId) {
 			// YMGal 单一数据源
-			apiData = await gameMetadataService.getGameByIds({
-				ymgalId,
-			});
+			apiData = await gameMetadataService.getGameById(ymgalId, idType);
 		} else if (idType === "mixed") {
 			// Mixed 混合数据源
 			if (!bgmId && !vndbId && !ymgalId) {
@@ -114,6 +108,20 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					"未获取到数据或数据源无效。",
 				),
 			);
+		}
+
+		// 检查 YMGal 数据是否完整，如果不完整则重新获取
+		if (apiData.ymgal_id && !isYmgalDataComplete(apiData.ymgal_data)) {
+			// 重新获取完整的 YMGal 数据
+			const completeYmgalData = await gameMetadataService.getGameByIds({
+				ymgalId: apiData.ymgal_id,
+			});
+
+			if (completeYmgalData?.ymgal_data) {
+				// 合并完整的数据
+				apiData.ymgal_data = completeYmgalData.ymgal_data;
+				apiData.date = completeYmgalData.date || apiData.date;
+			}
 		}
 
 		return apiData;
@@ -218,7 +226,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					(idType === "bgm" && !bgmId) ||
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||
-					(idType === "mixed" && !bgmId && !vndbId)
+					(idType === "mixed" && !bgmId && !vndbId && !ymgalId)
 				}
 				onClick={handleFetchAndPreview}
 				startIcon={

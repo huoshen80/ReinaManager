@@ -14,6 +14,7 @@
 			"requestError": "Request error"
 		},
 		"mixed": {
+			"noDataFromAnySource": "No data obtained from any data source",
 			"noParameterProvided": "Must provide BGM ID, VNDB ID or game name"
 		},
 		"vndb": {
@@ -61,12 +62,18 @@
 			"developer": "Developer",
 			"enableCustomMode": "Enable Custom Mode",
 			"gameExists": "Game already exists",
-			"gameIDTips": "Game ID (Enter BGM ID or VNDB ID)",
+			"gameIDTips": "Game ID (Enter BGM, VNDB or YMGal ID)",
 			"gameName": "Game Name",
 			"idSearch": "Enable ID Search Mode",
+			"noBgmData": "Bangumi data not found, please check if the ID is correct",
+			"noBgmToken": "BGM_TOKEN is missing, unable to fetch data",
 			"noDataSource": "Unable to fetch game data",
 			"noExecutableSelected": "No executable selected",
 			"noResults": "No results found",
+			"noResultsBgm": "Game not found on Bangumi, please try another name or check the ID",
+			"noResultsMixed": "Game not found on any data source",
+			"noResultsVndb": "Game not found on VNDB, please try another name or check the ID",
+			"noResultsYmgal": "Game not found on YMGal, please try another name or check the ID",
 			"processing": "Processing...",
 			"selectExecutable": "Please select an executable file",
 			"selectGame": "Select Game",
@@ -126,38 +133,38 @@
 			"syncLocalPath": "Sync Local"
 		},
 		"PathSettingsModal": {
-			"close": "__MISSING__",
+			"close": "Close",
 			"dbBackupPath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "Set the save path for database backup files. Leave empty to use the default path (AppData/data/backups), or the program directory in portable mode",
+				"pathLabel": "Backup Save Path",
+				"pathPlaceholder": "Leave empty to use default path",
+				"selectBtn": "Select Directory",
+				"title": "Database Backup Path"
 			},
 			"lePath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "Set the executable file path for LE region switching software, used for region switching when launching games",
+				"pathLabel": "LE Region Software Path",
+				"pathPlaceholder": "Select LE region software executable",
+				"selectBtn": "Select File",
+				"title": "LE Region Software Path"
 			},
 			"magpiePath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "Set the executable file path for Magpie software, used for game screen magnification",
+				"pathLabel": "Magpie Software Path",
+				"pathPlaceholder": "Select Magpie software executable",
+				"selectBtn": "Select File",
+				"title": "Magpie Software Path"
 			},
-			"saveBtn": "__MISSING__",
+			"saveBtn": "Save",
 			"savePath": {
-				"note": "__MISSING__",
-				"pathLabel": "__MISSING__",
-				"pathPlaceholder": "__MISSING__",
-				"selectBtn": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "Set the root directory path for game save backups. Leave empty to use the default path",
+				"pathLabel": "Backup Root Path",
+				"pathPlaceholder": "Leave empty to use default path",
+				"selectBtn": "Select Directory",
+				"title": "Game Save Backup Path"
 			},
-			"saving": "__MISSING__",
-			"title": "__MISSING__"
+			"saving": "Saving...",
+			"title": "Path Settings"
 		},
 		"RightMenu": {
 			"Collection": {
@@ -523,9 +530,9 @@
 				"title": "NSFW Settings"
 			},
 			"pathSettings": {
-				"note": "__MISSING__",
-				"openModal": "__MISSING__",
-				"title": "__MISSING__"
+				"note": "Configure paths for game save backups, LE region software, Magpie software, database backups, etc.",
+				"openModal": "Open Path Settings",
+				"title": "Path Settings"
 			},
 			"portableMode": {
 				"confirmDisableMessage": "After disabling portable mode, the database and backups will be migrated to the system application data directory. The application will restart automatically after successful operation.",
