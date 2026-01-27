@@ -119,11 +119,11 @@ Contributions are welcome! If you have suggestions for improvements, bug reports
 
 Thank you for all the contributions you have made to ReinaManager!
 
-## Donate
-If you find this project helpful and would like to support its development, you can consider donating. Your support is greatly appreciated!
-- [donate link](https://cdn.huoshen80.top/233.html)
+## Sponsor
+If you find this project helpful and would like to support its development, you can consider sponsoring. Your support is greatly appreciated!
+- [Sponsor link](https://cdn.huoshen80.top/233.html)
 
-### Data Sources
+## Data Sources
 
 - **[Bangumi](https://bangumi.tv/)** - Bangumi 番组计划
 

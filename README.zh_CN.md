@@ -120,7 +120,11 @@
 
 感谢你为 ReinaManager 做出的所有贡献！
 
-### 数据源
+## 赞助
+如果你觉得这个项目好用，并希望支持项目的开发，可以考虑赞助。非常感谢每个支持者！
+- [Sponsor link](https://cdn.huoshen80.top/233.html)
+
+## 数据源
 
 - **[Bangumi](https://bangumi.tv/)** - Bangumi 番组计划
 
@@ -129,10 +133,6 @@
 - **[Ymgal](https://www.ymgal.games/)** - 月幕Galgame
 
 特别感谢这些平台提供的公共 API 和数据！
-
-## Donate
-如果你觉得这个项目好用，并希望支持项目的开发，可以考虑捐赠。非常感谢每个支持者！
-- [donate link](https://cdn.huoshen80.top/233.html)
 
 ## 许可证
 
