@@ -79,6 +79,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          shared-key: "reina-manager-build"
 
       # 配置 Windows lld 链接器
       - name: Configure Rust linker (Windows lld)
