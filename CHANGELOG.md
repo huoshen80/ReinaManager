@@ -1,3 +1,76 @@
+## [0.14.0](https://github.com/huoshen80/ReinaManager/compare/v0.13.0...v0.14.0) (2026-01-27)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+
+* 修复 custom_data 显示中的一些错误以及删除/更改自定义图像的逻辑 [skip ci] ([777bd1f](https://github.com/huoshen80/ReinaManager/commit/777bd1f499e95901645fead3aabfb6f4f3dc46cb))
+* 修复通过 API 获取游戏数据的一些错误 ([9750268](https://github.com/huoshen80/ReinaManager/commit/975026818deb06f28ae7228696cdad0f31c3926e))
+
+### 新功能
+
+* 添加自定义字段：别名、开发商、发售日期、NSFW、简介和标签([f303660](https://github.com/huoshen80/ReinaManager/commit/f303660a7dd750385150559f5c4d033731911a85))
+* 添加 LE 和 Magpie 工具联动启动 ([db6cb7f](https://github.com/huoshen80/ReinaManager/commit/db6cb7f8d0a2828ee198c54c01e8467b3d4b46e3))
+* 添加 LE 和 Magpie 软件路径设置 ([1a20666](https://github.com/huoshen80/ReinaManager/commit/1a20666a10ba4dfff7d4ce5da4a0b6d28568fafd))
+* 添加 reina-path 来管理数据库相关的路径常量 ([183571d](https://github.com/huoshen80/ReinaManager/commit/183571d34573cbfd51a8641da115b15f965ccf4a))
+* 添加 YMGal 数据源并重构为单表 JSON 架构 ([cd4beda](https://github.com/huoshen80/ReinaManager/commit/cd4bedaaf6df3102790d59d3452d083eeb98e0b5))
+* 在游戏详情页面添加最大游戏存档备份数量设置 ([c917443](https://github.com/huoshen80/ReinaManager/commit/c917443b5de15ae1907a7ab15444aff16c906886))
+* 正式添加 YmGal 数据源 ([d8f2ffd](https://github.com/huoshen80/ReinaManager/commit/d8f2ffd23621fdc7fd61724babf6fa356118162b))
+
+### 性能改进
+
+* 优化 NSFW 游戏判断逻辑，优先使用数据源，其次使用标签判断 ([021802e](https://github.com/huoshen80/ReinaManager/commit/021802e4fdae9b8c2d6c4deadbd337850065a877))
+
+### 破坏性变更
+
+* 将数据库从多表关系重构为带有 JSON 列的单表结构（bgm_data、vndb_data、ymgal_data、custom_data）
+
+- 添加 YMGal API 集成
+- 为前端类型使用 DTO 模式（InsertGameParams、UpdateGameParams、FullGameData）
+- 支持三态更新逻辑（undefined/null/value）
+- 用 custom_data JSON 列替换 custom_name/custom_cover
+- 简化服务层 API 并移除嵌套结构
+- 更新所有 UI 组件以支持 YMGal 数据源
+
+</details>
+
+### Bug Fixes
+
+* some bugs in custom_data display and the logic for delete/change custom images [skip ci] ([777bd1f](https://github.com/huoshen80/ReinaManager/commit/777bd1f499e95901645fead3aabfb6f4f3dc46cb))
+* some bugs of get game data by api ([9750268](https://github.com/huoshen80/ReinaManager/commit/975026818deb06f28ae7228696cdad0f31c3926e))
+
+
+### Features
+
+* add custom fields for alias, developer, release date, NSFW, description, and tags ([f303660](https://github.com/huoshen80/ReinaManager/commit/f303660a7dd750385150559f5c4d033731911a85))
+* add LE and Magpie launch support ([db6cb7f](https://github.com/huoshen80/ReinaManager/commit/db6cb7f8d0a2828ee198c54c01e8467b3d4b46e3))
+* add LE and Magpie software path settings ([1a20666](https://github.com/huoshen80/ReinaManager/commit/1a20666a10ba4dfff7d4ce5da4a0b6d28568fafd))
+* add reina-path to manage db related path constant ([183571d](https://github.com/huoshen80/ReinaManager/commit/183571d34573cbfd51a8641da115b15f965ccf4a))
+* add YMGal data source and refactor to single-table JSON architecture ([cd4beda](https://github.com/huoshen80/ReinaManager/commit/cd4bedaaf6df3102790d59d3452d083eeb98e0b5))
+* added a max backup quantity setting to the game details page ([c917443](https://github.com/huoshen80/ReinaManager/commit/c917443b5de15ae1907a7ab15444aff16c906886))
+* officially add YmGal data source ([d8f2ffd](https://github.com/huoshen80/ReinaManager/commit/d8f2ffd23621fdc7fd61724babf6fa356118162b))
+
+
+### Performance Improvements
+
+* optimized NSFW game judgment logic, prioritizing data source, followed by tag judgment ([021802e](https://github.com/huoshen80/ReinaManager/commit/021802e4fdae9b8c2d6c4deadbd337850065a877))
+
+
+### BREAKING CHANGES
+
+* Refactor database from multi-table relations to single-table
+with JSON columns (bgm_data, vndb_data, ymgal_data, custom_data).
+
+- Add YMGal API integration
+- use DTO pattern for frontend type (InsertGameParams, UpdateGameParams, FullGameData)
+- Support three-state update logic (undefined/null/value)
+- Replace custom_name/custom_cover with custom_data JSON column
+- Simplify service layer API and remove nested structures
+- Update all UI components to easily support the YMGal data source
+
+
+
 ## [0.13.0](https://github.com/huoshen80/ReinaManager/compare/v0.12.0...v0.13.0) (2025-12-27)
 
 <details>
