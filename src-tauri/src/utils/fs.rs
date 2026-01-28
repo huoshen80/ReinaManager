@@ -162,12 +162,16 @@ impl PathManager {
         // 提取配置路径（直接从设置获取，无需额外计算）
         let le_path = settings.le_path.clone().unwrap_or_default();
         let magpie_path = settings.magpie_path.clone().unwrap_or_default();
+        let db_backup_path = settings.db_backup_path.clone().unwrap_or_default();
+        let save_root_path = settings.save_root_path.clone().unwrap_or_default();
 
         // 缓存所有路径
         {
             let mut cache = self.cache.lock().expect("路径管理器缓存锁已被污染");
             cache.le_path = Some(le_path);
             cache.magpie_path = Some(magpie_path);
+            cache.db_backup_path = Some(PathBuf::from(db_backup_path));
+            cache.savedata_backup_path = Some(PathBuf::from(save_root_path));
         }
 
         Ok(())

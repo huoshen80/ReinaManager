@@ -419,9 +419,8 @@ pub async fn set_save_root_path(
         .await
         .map_err(|e| format!("设置存档根路径失败: {}", e))?;
 
-    // 清除缓存，下次获取时会重新计算路径
     let path_manager = app.state::<PathManager>();
-    path_manager.clear_cache();
+    path_manager.preload_config_paths(&db).await?;
 
     Ok(())
 }
@@ -447,9 +446,8 @@ pub async fn set_db_backup_path(
         .await
         .map_err(|e| format!("设置数据库备份保存路径失败: {}", e))?;
 
-    // 清除缓存，下次获取时会重新计算路径
     let path_manager = app.state::<PathManager>();
-    path_manager.clear_cache();
+    path_manager.preload_config_paths(&db).await?;
 
     Ok(())
 }
@@ -514,7 +512,7 @@ pub async fn get_all_settings(db: State<'_, DatabaseConnection>) -> Result<user:
         .map_err(|e| format!("获取所有设置失败: {}", e))
 }
 
-/// 批量更新设置
+/// 批量更新设置 暂时无用
 #[tauri::command]
 pub async fn update_settings(
     app: AppHandle,
