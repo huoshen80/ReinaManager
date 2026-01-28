@@ -144,7 +144,7 @@ export const getSavedataBackupPath = async (
 ): Promise<string> => {
 	try {
 		const savedataBackupPath = await settingsService.getSaveRootPath();
-		const backupGameDir = join(savedataBackupPath, `game_${gameId}`);
+		const backupGameDir = join(savedataBackupPath, "backups", `game_${gameId}`);
 		const savedataBackupFinalDir = join(
 			getAppDataDirPath(),
 			"backups",
@@ -573,17 +573,11 @@ export async function createGameSavedataBackup(
  * @param gameId 游戏ID
  */
 export async function openGameBackupFolder(gameId: number): Promise<void> {
-	try {
-		const backupPath = await getSavedataBackupPath(gameId);
-		// 使用后端函数打开文件夹
-		await invoke("open_directory", {
-			dirPath: backupPath,
-		});
-	} catch (error) {
-		snackbar.error(i18next.t("components.Snackbar.failedOpenBackupFolder"));
-		console.error("打开备份文件夹失败:", error);
-		throw error;
-	}
+	const backupPath = await getSavedataBackupPath(gameId);
+	// 使用后端函数打开文件夹
+	await invoke("open_directory", {
+		dirPath: backupPath,
+	});
 }
 
 /**
@@ -596,15 +590,8 @@ export async function openGameSaveDataFolder(
 	if (!saveDataPath) {
 		throw new Error("存档路径不能为空");
 	}
-
-	try {
-		// 使用后端函数打开文件夹
-		await invoke("open_directory", { dirPath: saveDataPath });
-	} catch (error) {
-		snackbar.error(i18next.t("components.Snackbar.failedOpenSaveFolder"));
-		console.error("打开存档文件夹失败:", error);
-		throw error;
-	}
+	// 使用后端函数打开文件夹
+	await invoke("open_directory", { dirPath: saveDataPath });
 }
 
 /**

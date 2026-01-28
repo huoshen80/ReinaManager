@@ -225,12 +225,8 @@ export const Backup: React.FC = () => {
 		try {
 			await openGameBackupFolder(selectedGame.id);
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Backup.unknownError", "未知错误");
 			snackbar.error(
-				`${t("pages.Detail.Backup.openFolderFailed", "打开文件夹失败")}: ${errorMessage}`,
+				`${t("pages.Detail.Backup.openBackupFolderFailed", "打开备份文件夹失败")}: ${error}`,
 			);
 		}
 	};
@@ -247,12 +243,8 @@ export const Backup: React.FC = () => {
 		try {
 			await openGameSaveDataFolder(saveDataPath);
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Backup.unknownError", "未知错误");
 			snackbar.error(
-				`${t("pages.Detail.Backup.openFolderFailed", "打开文件夹失败")}: ${errorMessage}`,
+				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${error}`,
 			);
 		}
 	};

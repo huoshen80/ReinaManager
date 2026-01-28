@@ -65,9 +65,7 @@
 			"gameIDTips": "游戏ID(输入BGM、VNDB 或 YMGal ID)",
 			"gameName": "游戏名称",
 			"idSearch": "启用ID搜索模式",
-			"noBgmData": "未找到 Bangumi 数据，请检查 ID 是否正确",
 			"noBgmToken": "缺少 BGM_TOKEN，无法获取数据",
-			"noDataSource": "无法获取游戏数据",
 			"noExecutableSelected": "未选择可执行程序",
 			"noResults": "没有找到结果",
 			"noResultsBgm": "未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",
@@ -189,10 +187,8 @@
 			"search": "搜索"
 		},
 		"Snackbar": {
-			"failedOpenBackupFolder": "打开备份文件夹失败",
 			"failedOpenDatabaseBackupFolder": "打开数据库备份文件夹失败",
-			"failedOpenGameFolder": "打开游戏文件夹失败",
-			"failedOpenSaveFolder": "打开存档文件夹失败"
+			"failedOpenGameFolder": "打开游戏文件夹失败"
 		},
 		"SortModal": {
 			"addTime": "添加时间(默认)",
@@ -237,17 +233,17 @@
 			"deleteGame": "删除游戏",
 			"deleting": "删除中...",
 			"leLaunch": "LE转区启动",
+			"lePathCheckFailed": "检查LE路径失败",
+			"lePathNotSet": "未设置LE转区软件路径，请先配置路径",
+			"magpiePathCheckFailed": "检查Magpie路径失败",
+			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
 			"magpieZoom": "Magpie放大",
 			"markAsCompleted": "标记为已通关",
 			"markAsNotCompleted": "标记为未通关",
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
 			"vndblink": "查看Vndb页面",
-			"ymgallink": "月幕Gal页面",
-			"lePathNotSet": "未设置LE转区软件路径，请先配置路径",
-			"lePathCheckFailed": "检查LE路径失败",
-			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
-			"magpiePathCheckFailed": "检查Magpie路径失败"
+			"ymgallink": "月幕Gal页面"
 		},
 		"Tray": {
 			"exit": "退出"
@@ -351,8 +347,9 @@
 				"maxBackupsUpdateSuccess": "最大备份数量更新成功",
 				"noBackups": "暂无备份记录",
 				"openBackupFolder": "打开备份文件夹",
-				"openFolderFailed": "打开文件夹失败",
+				"openBackupFolderFailed": "打开备份文件夹失败",
 				"openSaveDataFolder": "打开存档文件夹",
+				"openSaveDataFolderFailed": "打开存档文件夹失败",
 				"pathRequired": "请先选择存档文件夹",
 				"pathUpdateFailed": "路径更新失败",
 				"pathUpdateSuccess": "存档路径更新成功",

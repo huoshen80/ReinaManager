@@ -65,9 +65,7 @@
 			"gameIDTips": "ゲームID（BGM、VNDB または YMGal IDを入力）",
 			"gameName": "ゲーム名",
 			"idSearch": "ID検索モードを有効化",
-			"noBgmData": "Bangumiデータが見つかりません、IDが正しいか確認してください",
 			"noBgmToken": "BGM_TOKENが設定されていません、データを取得できません",
-			"noDataSource": "ゲームデータを取得できません",
 			"noExecutableSelected": "実行ファイルが選択されていません",
 			"noResults": "結果が見つかりませんでした",
 			"noResultsBgm": "Bangumiでゲームが見つかりません、別の名前を試すかIDを確認してください",
@@ -189,10 +187,8 @@
 			"search": "検索"
 		},
 		"Snackbar": {
-			"failedOpenBackupFolder": "バックアップフォルダの開けに失敗しました",
 			"failedOpenDatabaseBackupFolder": "データベースバックアップフォルダの開けに失敗しました",
-			"failedOpenGameFolder": "ゲームフォルダの開けに失敗しました",
-			"failedOpenSaveFolder": "セーブデータフォルダの開けに失敗しました"
+			"failedOpenGameFolder": "ゲームフォルダの開けに失敗しました"
 		},
 		"SortModal": {
 			"addTime": "追加時間(デフォルト)",
@@ -237,17 +233,17 @@
 			"deleteGame": "ゲームを削除",
 			"deleting": "削除中...",
 			"leLaunch": "LE地域起動",
+			"lePathCheckFailed": "LEパスのチェックに失敗しました",
+			"lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
+			"magpiePathCheckFailed": "Magpieパスのチェックに失敗しました",
+			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
 			"magpieZoom": "Magpieズーム",
 			"markAsCompleted": "クリア済みにマーク",
 			"markAsNotCompleted": "未クリアにマーク",
 			"more": "その他",
 			"openGameFolder": "ゲームフォルダを開く",
 			"vndblink": "Vndbページを見る",
-			"ymgallink": "Ymgalページを見る",
-			"lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
-			"lePathCheckFailed": "LEパスのチェックに失敗しました",
-			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
-			"magpiePathCheckFailed": "Magpieパスのチェックに失敗しました"
+			"ymgallink": "Ymgalページを見る"
 		},
 		"Tray": {
 			"exit": "終了"
@@ -351,8 +347,9 @@
 				"maxBackupsUpdateSuccess": "最大バックアップ数の更新が成功しました",
 				"noBackups": "バックアップ記録がありません",
 				"openBackupFolder": "バックアップフォルダを開く",
-				"openFolderFailed": "フォルダを開くのに失敗しました",
+				"openBackupFolderFailed": "バックアップフォルダを開くのに失敗しました",
 				"openSaveDataFolder": "セーブデータフォルダを開く",
+				"openSaveDataFolderFailed": "セーブデータフォルダを開くのに失敗しました",
 				"pathRequired": "まずセーブデータフォルダを選択してください",
 				"pathUpdateFailed": "パスの更新に失敗しました",
 				"pathUpdateSuccess": "セーブパスが正常に更新されました",

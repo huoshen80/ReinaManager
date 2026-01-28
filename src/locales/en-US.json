@@ -65,9 +65,7 @@
 			"gameIDTips": "Game ID (Enter BGM, VNDB or YMGal ID)",
 			"gameName": "Game Name",
 			"idSearch": "Enable ID Search Mode",
-			"noBgmData": "Bangumi data not found, please check if the ID is correct",
 			"noBgmToken": "BGM_TOKEN is missing, unable to fetch data",
-			"noDataSource": "Unable to fetch game data",
 			"noExecutableSelected": "No executable selected",
 			"noResults": "No results found",
 			"noResultsBgm": "Game not found on Bangumi, please try another name or check the ID",
@@ -190,10 +188,8 @@
 			"search": "Search"
 		},
 		"Snackbar": {
-			"failedOpenBackupFolder": "Failed to open the backup folder",
 			"failedOpenDatabaseBackupFolder": "Failed to open the database backup folder",
-			"failedOpenGameFolder": "Failed to open the game folder",
-			"failedOpenSaveFolder": "Failed to open the save folder"
+			"failedOpenGameFolder": "Failed to open the game folder"
 		},
 		"SortModal": {
 			"addTime": "Add Time (Default)",
@@ -238,17 +234,17 @@
 			"deleteGame": "Delete Game",
 			"deleting": "Deleting...",
 			"leLaunch": "LE Region Launch",
+			"lePathCheckFailed": "Failed to check LE path",
+			"lePathNotSet": "LE region switching software path not set, please configure the path first",
+			"magpiePathCheckFailed": "Failed to check Magpie path",
+			"magpiePathNotSet": "Magpie software path not set, please configure the path first",
 			"magpieZoom": "Magpie Zoom",
 			"markAsCompleted": "Mark as Completed",
 			"markAsNotCompleted": "Mark as Not Completed",
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
 			"vndblink": "View Vndb Page",
-			"ymgallink": "View Ymgal Page",
-			"lePathNotSet": "LE region switching software path not set, please configure the path first",
-			"lePathCheckFailed": "Failed to check LE path",
-			"magpiePathNotSet": "Magpie software path not set, please configure the path first",
-			"magpiePathCheckFailed": "Failed to check Magpie path"
+			"ymgallink": "View Ymgal Page"
 		},
 		"Tray": {
 			"exit": "Exit"
@@ -352,8 +348,9 @@
 				"maxBackupsUpdateSuccess": "Maximum backups updated successfully",
 				"noBackups": "No backup records",
 				"openBackupFolder": "Open Backup Folder",
-				"openFolderFailed": "Failed to open folder",
+				"openBackupFolderFailed": "Failed to open backup folder",
 				"openSaveDataFolder": "Open Save Data Folder",
+				"openSaveDataFolderFailed": "Failed to open save data folder",
 				"pathRequired": "Please select a save data folder first",
 				"pathUpdateFailed": "Failed to update path",
 				"pathUpdateSuccess": "Save path updated successfully",
