@@ -1,7 +1,7 @@
 {
 	"name": "reinamanager",
 	"private": true,
-	"version": "0.14.0",
+	"version": "0.14.1",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -11,6 +11,7 @@
 		"typecheck": "tsgo -b --noEmit",
 		"format": "biome format --write .",
 		"lint": "biome check .",
+		"check": "pnpm run format && pnpm run lint && pnpm run typecheck",
 		"changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
 		"changelog:all": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
 		"changelog:unreleased": "conventional-changelog -p angular -u",

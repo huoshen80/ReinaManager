@@ -1,3 +1,31 @@
+## [0.14.1](https://github.com/huoshen80/ReinaManager/compare/v0.14.0...v0.14.1) (2026-01-28)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+
+* 修复在 LE 和 Magpie 开关上点击切换时的双重警告提示 ([8741ee0](https://github.com/huoshen80/ReinaManager/commit/8741ee0aa835aae6bfdaddc5fbc894af9e18a74f))
+* 修复设置存档备份路径后无法打开存档备份文件夹的问题，解决 [#34](https://github.com/huoshen80/ReinaManager/issues/34) ([c5b47d4](https://github.com/huoshen80/ReinaManager/commit/c5b47d44aabdc423b37e16991ee3abe086e59553))
+
+### 性能优化
+
+* 将存档备份路径和数据库备份路径添加到路径缓存预加载 ([825970b](https://github.com/huoshen80/ReinaManager/commit/825970b08d3d2bde151748b8ff4ea32338ca7b01))
+
+</details>
+
+### Bug Fixes
+
+* double warning alert when click the switch on the le and magpie switcher ([8741ee0](https://github.com/huoshen80/ReinaManager/commit/8741ee0aa835aae6bfdaddc5fbc894af9e18a74f))
+* faild to open the savedata backup folder when set a savedata backup path resolve [#34](https://github.com/huoshen80/ReinaManager/issues/34) ([c5b47d4](https://github.com/huoshen80/ReinaManager/commit/c5b47d44aabdc423b37e16991ee3abe086e59553))
+
+
+### Performance Improvements
+
+* add savedata backup path and db backup path to path cache preload ([825970b](https://github.com/huoshen80/ReinaManager/commit/825970b08d3d2bde151748b8ff4ea32338ca7b01))
+
+
+
 ## [0.14.0](https://github.com/huoshen80/ReinaManager/compare/v0.13.0...v0.14.0) (2026-01-27)
 
 <details>
