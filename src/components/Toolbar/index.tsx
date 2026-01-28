@@ -376,11 +376,7 @@ const MoreButton = () => {
 						<TurnRightIcon fontSize="small" />
 					</ListItemIcon>
 					<ListItemText>{t("components.Toolbar.leLaunch")}</ListItemText>
-					<Switch
-						checked={selectedGame?.le_launch === 1}
-						onChange={(e) => handleToggleLeLaunch(e.target.checked)}
-						size="small"
-					/>
+					<Switch checked={selectedGame?.le_launch === 1} size="small" />
 				</MenuItem>
 				<MenuItem
 					onClick={() => handleToggleMagpie(!(selectedGame?.magpie === 1))}
@@ -389,11 +385,7 @@ const MoreButton = () => {
 						<OpenInFullIcon fontSize="small" />
 					</ListItemIcon>
 					<ListItemText>{t("components.Toolbar.magpieZoom")}</ListItemText>
-					<Switch
-						checked={selectedGame?.magpie === 1}
-						onChange={(e) => handleToggleMagpie(e.target.checked)}
-						size="small"
-					/>
+					<Switch checked={selectedGame?.magpie === 1} size="small" />
 				</MenuItem>
 				<MenuItem onClick={handleToggleClearStatus}>
 					<ListItemIcon>
