@@ -45,6 +45,7 @@ import {
 	Skeleton,
 	Typography,
 } from "@mui/material";
+import { PageContainer } from "@toolpad/core/PageContainer";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -346,278 +347,285 @@ export const Home: React.FC = () => {
 	}, [allGames, i18n.language]);
 
 	return (
-		<Box className="p-6 flex flex-col gap-4">
-			<Typography variant="h4">{t("home.title", "主页")}</Typography>
+		<PageContainer title={t("home.title", "主页")}>
+			<Box className="flex flex-col gap-4">
+				{/* 数据统计卡片 */}
+				<Box className="grid grid-cols-12 gap-6">
+					{statsCards.map((card) => (
+						<Box
+							key={card.title}
+							className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-2"
+						>
+							<Card className="h-full shadow-md">
+								<CardContent className="flex flex-col items-center text-center">
+									{card.icon}
+									<Typography
+										title={String(card.value)}
+										variant="h6"
+										className="font-bold mb-1 w-full whitespace-nowrap overflow-hidden text-ellipsis"
+									>
+										{/* 异步数据显示 loading，同步数据直接显示 */}
+										{card.isAsync && playTimeStats.loading ? (
+											<Skeleton width={60} />
+										) : (
+											card.value
+										)}
+									</Typography>
+									<Typography variant="body2" color="text.secondary">
+										{card.title}
+									</Typography>
+								</CardContent>
+							</Card>
+						</Box>
+					))}
+				</Box>
 
-			{/* 数据统计卡片 */}
-			<Box className="grid grid-cols-12 gap-6">
-				{statsCards.map((card) => (
-					<Box
-						key={card.title}
-						className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-2"
-					>
-						<Card className="h-full shadow-md hover:shadow-lg transition-shadow">
-							<CardContent className="flex flex-col items-center text-center">
-								{card.icon}
-								<Typography
-									title={String(card.value)}
-									variant="h6"
-									className="font-bold mb-1 w-full whitespace-nowrap overflow-hidden text-ellipsis"
+				{/* 详细信息卡片 */}
+				<Box className="grid grid-cols-12 gap-6">
+					{/* 游戏仓库 */}
+					<Box className="col-span-12 md:col-span-6 lg:col-span-3">
+						<Card className="h-full shadow-md">
+							<CardContent>
+								<Box
+									component={Link}
+									to="/libraries"
+									className="flex items-center mb-3 text-inherit decoration-none transition-all hover:scale-105 cursor-pointer"
+									sx={{
+										"&:hover": { color: "primary.main" },
+									}}
 								>
-									{/* 异步数据显示 loading，同步数据直接显示 */}
-									{card.isAsync && playTimeStats.loading ? (
-										<Skeleton width={60} />
-									) : (
-										card.value
-									)}
-								</Typography>
-								<Typography variant="body2" color="text.secondary">
-									{card.title}
-								</Typography>
+									<RepositoryIcon className="mr-2 text-amber-500" />
+									<Typography variant="h6" className="font-bold">
+										{t("home.repository", "游戏仓库")}
+									</Typography>
+								</Box>
+								<Box className="grid grid-cols-1 gap-2 max-h-44vh overflow-y-auto py-5 px-3 pr-1">
+									{gamesList.map((category) => (
+										<Card
+											key={category.id}
+											variant="outlined"
+											component={Link}
+											to={`/libraries/${category.id}`}
+											sx={{
+												p: 1,
+												textAlign: "center",
+												cursor: "pointer",
+												textDecoration: "none",
+												boxShadow: 0,
+												transition: "all 0.2s ease-in-out",
+												borderColor: "rgba(219, 219, 219, 0.67)",
+												"&:hover": {
+													transform: "translateY(-2px)",
+													boxShadow: 0,
+													borderColor: "primary.main",
+												},
+											}}
+										>
+											<Typography variant="body2">{category.title}</Typography>
+										</Card>
+									))}
+								</Box>
 							</CardContent>
 						</Card>
 					</Box>
-				))}
-			</Box>
 
-			{/* 详细信息卡片 */}
-			<Box className="grid grid-cols-12 gap-6">
-				{/* 游戏仓库 */}
-				<Box className="col-span-12 md:col-span-6 lg:col-span-3">
-					<Card className="h-full shadow-md">
-						<CardContent>
-							<Box
-								component={Link}
-								to="/libraries"
-								className="flex items-center mb-3 text-inherit decoration-none hover:scale-105 hover:shadow-lg cursor-pointer"
-							>
-								<RepositoryIcon className="mr-2 text-amber-500" />
-								<Typography variant="h6" className="font-bold">
-									{t("home.repository", "游戏仓库")}
-								</Typography>
-							</Box>
-							<Box className="grid grid-cols-1 gap-2 max-h-44vh overflow-y-auto pr-1">
-								{gamesList.map((category) => (
-									<Card
-										key={category.id}
-										variant="outlined"
-										component={Link}
-										to={`/libraries/${category.id}`}
-										sx={{
-											p: 1,
-											textAlign: "center",
-											cursor: "pointer",
-											textDecoration: "none",
-											"&:hover": {
-												transform: "translateY(-2px)",
-												boxShadow: 2,
-											},
-										}}
-									>
-										<Typography variant="body2">{category.title}</Typography>
-									</Card>
-								))}
-							</Box>
-						</CardContent>
-					</Card>
-				</Box>
-
-				{/* 动态 */}
-				<Box className="col-span-12 md:col-span-6 lg:col-span-3">
-					<Card className="h-full shadow-md">
-						<CardContent>
-							<Box className="flex items-center mb-3">
-								<ActivityIcon className="mr-2 text-purple-500" />
-								<Typography variant="h6" className="font-bold">
-									{t("home.activityTitle", "动态")}
-								</Typography>
-							</Box>
-							{activityData.loading ? (
-								<Box className="max-h-44vh overflow-y-auto pr-1">
-									{[1, 2, 3, 4].map((index) => (
-										<Box key={index} className="flex items-center mb-3">
-											<Skeleton
-												variant="rounded"
-												width={40}
-												height={40}
-												className="mr-3"
-											/>
-											<Box className="flex-1">
-												<Skeleton width="80%" height={20} />
-												<Skeleton width="60%" height={16} />
-											</Box>
-										</Box>
-									))}
+					{/* 动态 */}
+					<Box className="col-span-12 md:col-span-6 lg:col-span-3">
+						<Card className="h-full shadow-md">
+							<CardContent>
+								<Box className="flex items-center mb-3">
+									<ActivityIcon className="mr-2 text-purple-500" />
+									<Typography variant="h6" className="font-bold">
+										{t("home.activityTitle", "动态")}
+									</Typography>
 								</Box>
-							) : (
-								<List className="max-h-44vh overflow-y-auto pr-1">
-									{activityData.activities.map((activity, idx) => (
-										<React.Fragment key={activity.id}>
-											<ListItem
-												className="px-0 text-inherit"
-												component={Link}
-												to={`/libraries/${activity.gameId}`}
-											>
-												<ListItemAvatar>
-													<Avatar variant="rounded" src={activity.imageUrl} />
-												</ListItemAvatar>
-												<Box>
-													<Typography variant="body1">
-														{activity.type === "add"
-															? t("home.activity.added", {
-																	title: activity.gameTitle,
-																})
-															: t("home.activity.played", {
-																	title: activity.gameTitle,
-																})}
-													</Typography>
-
-													<Typography variant="body2" color="text.secondary">
-														{activity.type === "add"
-															? t("home.activity.addedAt", {
-																	time: formatRelativeTime(activity.time),
-																})
-															: t("home.activity.playedAtTime", {
-																	time: formatRelativeTime(activity.time),
-																})}
-													</Typography>
-
-													{activity.type === "play" &&
-														activity.duration !== undefined && (
-															<Typography
-																variant="body2"
-																color="text.secondary"
-															>
-																{t("home.activity.duration", {
-																	duration: formatPlayTime(activity.duration),
-																})}
-															</Typography>
-														)}
+								{activityData.loading ? (
+									<Box className="max-h-44vh overflow-y-auto pr-1">
+										{[1, 2, 3, 4].map((index) => (
+											<Box key={index} className="flex items-center mb-3">
+												<Skeleton
+													variant="rounded"
+													width={40}
+													height={40}
+													className="mr-3"
+												/>
+												<Box className="flex-1">
+													<Skeleton width="80%" height={20} />
+													<Skeleton width="60%" height={16} />
 												</Box>
-											</ListItem>
-											{idx !== activityData.activities.length - 1 && (
-												<Divider />
-											)}
-										</React.Fragment>
-									))}
-								</List>
-							)}
-						</CardContent>
-					</Card>
-				</Box>
-
-				{/* 最近游玩 */}
-				<Box className="col-span-12 md:col-span-6 lg:col-span-3">
-					<Card className="h-full shadow-md">
-						<CardContent>
-							<Box className="flex items-center mb-3">
-								<RecentlyPlayedIcon className="mr-2 text-blue-500" />
-								<Typography variant="h6" className="font-bold">
-									{t("home.recentlyPlayed", "最近游玩")}
-								</Typography>
-							</Box>
-							{activityData.loading ? (
-								<Box className="max-h-44vh overflow-y-auto pr-1">
-									{[1, 2, 3, 4].map((index) => (
-										<Box key={index} className="flex items-center mb-3">
-											<Skeleton
-												variant="rounded"
-												width={40}
-												height={40}
-												className="mr-3"
-											/>
-											<Box className="flex-1">
-												<Skeleton width="80%" height={20} />
-												<Skeleton width="60%" height={16} />
 											</Box>
-										</Box>
-									))}
-								</Box>
-							) : (
-								<List className="max-h-44vh overflow-y-auto pr-1">
-									{activityData.sessions.map((session, idx) => (
-										<React.Fragment key={session.session_id}>
-											<ListItem
-												className="px-0 text-inherit"
-												component={Link}
-												to={`/libraries/${session.game_id}`}
-											>
-												<ListItemAvatar>
-													<Avatar variant="rounded" src={session.imageUrl} />
-												</ListItemAvatar>
-												<ListItemText
-													primary={session.gameTitle}
-													secondary={t("home.lastPlayed", {
-														time: formatRelativeTime(session.end_time),
-													})}
-												/>
-											</ListItem>
-											{idx !== activityData.sessions.length - 1 && <Divider />}
-										</React.Fragment>
-									))}
-								</List>
-							)}
-						</CardContent>
-					</Card>
-				</Box>
+										))}
+									</Box>
+								) : (
+									<List className="max-h-44vh overflow-y-auto pr-1">
+										{activityData.activities.map((activity, idx) => (
+											<React.Fragment key={activity.id}>
+												<ListItem
+													className="px-0 text-inherit hover:text-[var(--mui-palette-primary-main)] transition-colors"
+													component={Link}
+													to={`/libraries/${activity.gameId}`}
+												>
+													<ListItemAvatar>
+														<Avatar variant="rounded" src={activity.imageUrl} />
+													</ListItemAvatar>
+													<Box>
+														<Typography variant="body1">
+															{activity.type === "add"
+																? t("home.activity.added", {
+																	title: activity.gameTitle,
+																})
+																: t("home.activity.played", {
+																	title: activity.gameTitle,
+																})}
+														</Typography>
 
-				{/* 最近添加 */}
-				<Box className="col-span-12 md:col-span-6 lg:col-span-3">
-					<Card className="h-full shadow-md">
-						<CardContent>
-							<Box className="flex items-center mb-3">
-								<RecentlyAddedIcon className="mr-2 text-green-500" />
-								<Typography variant="h6" className="font-bold">
-									{t("home.recentlyAdded", "最近添加")}
-								</Typography>
-							</Box>
-							{activityData.loading ? (
-								<Box className="max-h-44vh overflow-y-auto pr-1">
-									{[1, 2, 3, 4].map((index) => (
-										<Box key={index} className="flex items-center mb-3">
-											<Skeleton
-												variant="rounded"
-												width={40}
-												height={40}
-												className="mr-3"
-											/>
-											<Box className="flex-1">
-												<Skeleton width="80%" height={20} />
-												<Skeleton width="60%" height={16} />
-											</Box>
-										</Box>
-									))}
+														<Typography variant="body2" color="text.secondary">
+															{activity.type === "add"
+																? t("home.activity.addedAt", {
+																	time: formatRelativeTime(activity.time),
+																})
+																: t("home.activity.playedAtTime", {
+																	time: formatRelativeTime(activity.time),
+																})}
+														</Typography>
+
+														{activity.type === "play" &&
+															activity.duration !== undefined && (
+																<Typography
+																	variant="body2"
+																	color="text.secondary"
+																>
+																	{t("home.activity.duration", {
+																		duration: formatPlayTime(activity.duration),
+																	})}
+																</Typography>
+															)}
+													</Box>
+												</ListItem>
+												{idx !== activityData.activities.length - 1 && (
+													<Divider />
+												)}
+											</React.Fragment>
+										))}
+									</List>
+								)}
+							</CardContent>
+						</Card>
+					</Box>
+
+					{/* 最近游玩 */}
+					<Box className="col-span-12 md:col-span-6 lg:col-span-3">
+						<Card className="h-full shadow-md">
+							<CardContent>
+								<Box className="flex items-center mb-3">
+									<RecentlyPlayedIcon className="mr-2 text-blue-500" />
+									<Typography variant="h6" className="font-bold">
+										{t("home.recentlyPlayed", "最近游玩")}
+									</Typography>
 								</Box>
-							) : (
-								<List className="max-h-44vh overflow-y-auto pr-1">
-									{activityData.added.map((game, idx) => (
-										<React.Fragment key={game.id}>
-											<ListItem
-												className="px-0 text-inherit"
-												component={Link}
-												to={`/libraries/${game.id}`}
-											>
-												<ListItemAvatar>
-													<Avatar variant="rounded" src={game.imageUrl} />
-												</ListItemAvatar>
-												<ListItemText
-													primary={game.title}
-													secondary={t("home.addedAt", {
-														time: game.time
-															? formatRelativeTime(game.time)
-															: "",
-													})}
+								{activityData.loading ? (
+									<Box className="max-h-44vh overflow-y-auto pr-1">
+										{[1, 2, 3, 4].map((index) => (
+											<Box key={index} className="flex items-center mb-3">
+												<Skeleton
+													variant="rounded"
+													width={40}
+													height={40}
+													className="mr-3"
 												/>
-											</ListItem>
-											{idx !== activityData.added.length - 1 && <Divider />}
-										</React.Fragment>
-									))}
-								</List>
-							)}
-						</CardContent>
-					</Card>
+												<Box className="flex-1">
+													<Skeleton width="80%" height={20} />
+													<Skeleton width="60%" height={16} />
+												</Box>
+											</Box>
+										))}
+									</Box>
+								) : (
+									<List className="max-h-44vh overflow-y-auto pr-1">
+										{activityData.sessions.map((session, idx) => (
+											<React.Fragment key={session.session_id}>
+												<ListItem
+													className="px-0 text-inherit hover:text-[var(--mui-palette-primary-main)] transition-colors"
+													component={Link}
+													to={`/libraries/${session.game_id}`}
+												>
+													<ListItemAvatar>
+														<Avatar variant="rounded" src={session.imageUrl} />
+													</ListItemAvatar>
+													<ListItemText
+														primary={session.gameTitle}
+														secondary={t("home.lastPlayed", {
+															time: formatRelativeTime(session.end_time),
+														})}
+													/>
+												</ListItem>
+												{idx !== activityData.sessions.length - 1 && <Divider />}
+											</React.Fragment>
+										))}
+									</List>
+								)}
+							</CardContent>
+						</Card>
+					</Box>
+
+					{/* 最近添加 */}
+					<Box className="col-span-12 md:col-span-6 lg:col-span-3">
+						<Card className="h-full shadow-md">
+							<CardContent>
+								<Box className="flex items-center mb-3">
+									<RecentlyAddedIcon className="mr-2 text-green-500" />
+									<Typography variant="h6" className="font-bold">
+										{t("home.recentlyAdded", "最近添加")}
+									</Typography>
+								</Box>
+								{activityData.loading ? (
+									<Box className="max-h-44vh overflow-y-auto pr-1">
+										{[1, 2, 3, 4].map((index) => (
+											<Box key={index} className="flex items-center mb-3">
+												<Skeleton
+													variant="rounded"
+													width={40}
+													height={40}
+													className="mr-3"
+												/>
+												<Box className="flex-1">
+													<Skeleton width="80%" height={20} />
+													<Skeleton width="60%" height={16} />
+												</Box>
+											</Box>
+										))}
+									</Box>
+								) : (
+									<List className="max-h-44vh overflow-y-auto pr-1">
+										{activityData.added.map((game, idx) => (
+											<React.Fragment key={game.id}>
+												<ListItem
+													className="px-0 text-inherit hover:text-[var(--mui-palette-primary-main)] transition-colors"
+													component={Link}
+													to={`/libraries/${game.id}`}
+												>
+													<ListItemAvatar>
+														<Avatar variant="rounded" src={game.imageUrl} />
+													</ListItemAvatar>
+													<ListItemText
+														primary={game.title}
+														secondary={t("home.addedAt", {
+															time: game.time
+																? formatRelativeTime(game.time)
+																: "",
+														})}
+													/>
+												</ListItem>
+												{idx !== activityData.added.length - 1 && <Divider />}
+											</React.Fragment>
+										))}
+									</List>
+								)}
+							</CardContent>
+						</Card>
+					</Box>
 				</Box>
 			</Box>
-		</Box>
+		</PageContainer>
 	);
 };

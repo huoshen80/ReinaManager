@@ -325,7 +325,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 							}
 						>
 							<div className="flex items-center space-x-2 mb-2">
-								<span className="text-[#1976d2] flex-shrink-0 flex items-center">
+								<span className="text-[var(--mui-palette-primary-main)] flex-shrink-0 flex items-center">
 									{item.icon}
 								</span>
 								<Typography
@@ -432,7 +432,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 						series={[
 							{
 								dataKey: "playtime",
-								color: "#1976d2",
+								color: "var(--mui-palette-primary-main)",
 								showMark: chartConfig.showMark,
 								area: chartConfig.showArea,
 							},

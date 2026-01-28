@@ -13,6 +13,8 @@ import Box from "@mui/material/Box";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
+import { PageContainer } from "@toolpad/core/PageContainer";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Cards from "@/components/Cards";
@@ -403,7 +405,7 @@ export const Collection: React.FC = () => {
 	const allGroups = [...defaultGroups, ...customGroups];
 
 	return (
-		<Box sx={{ p: 3 }}>
+		<PageContainer>
 			{/* 面包屑导航或标题 */}
 			{showLevel === "groups" ? (
 				<Typography variant="h4" sx={{ mb: 3 }}>
@@ -470,119 +472,144 @@ export const Collection: React.FC = () => {
 			)}
 
 			{/* 主内容区域 */}
-			{showLevel === "groups" && (
-				<Box
-					sx={{
-						display: "grid",
-						gridTemplateColumns: {
-							xs: "repeat(1, 1fr)",
-							sm: "repeat(2, 1fr)",
-							md: "repeat(3, 1fr)",
-							lg: "repeat(4, 1fr)",
-						},
-						gap: 2,
-					}}
-				>
-					{allGroups.map((group) => {
-						const isDefault = group.id.startsWith("default_");
-						return (
-							<EntityCard
-								key={group.id}
-								entity={{
-									id: group.id,
-									name: group.name,
-									count: groupGameCounts.get(group.id) || 0,
+			<AnimatePresence mode="wait">
+				{showLevel === "groups" && (
+					<motion.div
+						key="groups"
+						initial={{ opacity: 0, y: 15 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -15 }}
+						transition={{ duration: 0.25 }}
+					>
+						<Box
+							sx={{
+								display: "grid",
+								gridTemplateColumns: {
+									xs: "repeat(1, 1fr)",
+									sm: "repeat(2, 1fr)",
+									md: "repeat(3, 1fr)",
+									lg: "repeat(4, 1fr)",
+								},
+								gap: 2,
+							}}
+						>
+							{allGroups.map((group) => {
+								const isDefault = group.id.startsWith("default_");
+								return (
+									<EntityCard
+										key={group.id}
+										entity={{
+											id: group.id,
+											name: group.name,
+											count: groupGameCounts.get(group.id) || 0,
+										}}
+										onClick={() => handleGroupClick(group.id)}
+										onDelete={
+											isDefault ? undefined : (id) => handleDeleteGroup(id as string)
+										}
+										onContextMenu={(e, id, name) => {
+											if (!isDefault) handleGroupContextMenu(e, id as string, name);
+										}}
+										showDelete={!isDefault}
+										deleteTitle={t("pages.Collection.deleteGroupTitle")}
+										deleteMessage={t("pages.Collection.deleteGroupMessage", {
+											name: group.name,
+										})}
+										countLabel={t("pages.Collection.gamesCount")}
+									/>
+								);
+							})}
+						</Box>
+					</motion.div>
+				)}
+
+				{showLevel === "categories" && (
+					<motion.div
+						key="categories"
+						initial={{ opacity: 0, y: 15 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -15 }}
+						transition={{ duration: 0.25 }}
+					>
+						{categories.length === 0 ? (
+							<Box
+								sx={{
+									display: "flex",
+									justifyContent: "center",
+									alignItems: "center",
+									minHeight: "400px",
 								}}
-								onClick={() => handleGroupClick(group.id)}
-								onDelete={
-									isDefault
-										? undefined
-										: (id) => handleDeleteGroup(id as string)
-								}
-								onContextMenu={(e, id, name) => {
-									if (!isDefault) handleGroupContextMenu(e, id as string, name);
+							>
+								<Typography variant="h6" color="text.secondary">
+									{t("pages.Collection.noCategoriesHint")}
+								</Typography>
+							</Box>
+						) : (
+							<Box
+								sx={{
+									display: "grid",
+									gridTemplateColumns: {
+										xs: "repeat(1, 1fr)",
+										sm: "repeat(2, 1fr)",
+										md: "repeat(3, 1fr)",
+										lg: "repeat(4, 1fr)",
+									},
+									gap: 2,
 								}}
-								showDelete={!isDefault}
-								deleteTitle={t("pages.Collection.deleteGroupTitle")}
-								deleteMessage={t("pages.Collection.deleteGroupMessage", {
-									name: group.name,
+							>
+								{categories.map((category) => {
+									const isVirtual = virtualCategories.isVirtual(category.id);
+									return (
+										<EntityCard
+											key={category.id}
+											entity={{
+												id: category.id,
+												name: category.name,
+												count: category.game_count,
+											}}
+											onClick={() => handleCategoryClick(category)}
+											onDelete={
+												isVirtual
+													? undefined
+													: (id) => handleDeleteCategory(id as number)
+											}
+											onContextMenu={(e, id, name) => {
+												if (!isVirtual)
+													handleCategoryContextMenu(e, id as number, name);
+											}}
+											showDelete={!isVirtual}
+											deleteTitle={t("pages.Collection.deleteCategoryTitle")}
+											deleteMessage={t("pages.Collection.deleteCategoryMessage", {
+												name: category.name,
+											})}
+											countLabel={t("pages.Collection.gamesCount")}
+										/>
+									);
 								})}
-								countLabel={t("pages.Collection.gamesCount")}
-							/>
-						);
-					})}
-				</Box>
-			)}
+							</Box>
+						)}
+					</motion.div>
+				)}
 
-			{showLevel === "categories" &&
-				(categories.length === 0 ? (
-					<Box
-						sx={{
-							display: "flex",
-							justifyContent: "center",
-							alignItems: "center",
-							minHeight: "400px",
-						}}
+				{showLevel === "games" && (
+					<motion.div
+						key="games"
+						initial={{ opacity: 0, y: 15 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -15 }}
+						transition={{ duration: 0.25 }}
 					>
-						<Typography variant="h6" color="text.secondary">
-							{t("pages.Collection.noCategoriesHint")}
-						</Typography>
-					</Box>
-				) : (
-					<Box
-						sx={{
-							display: "grid",
-							gridTemplateColumns: {
-								xs: "repeat(1, 1fr)",
-								sm: "repeat(2, 1fr)",
-								md: "repeat(3, 1fr)",
-								lg: "repeat(4, 1fr)",
-							},
-							gap: 2,
-						}}
-					>
-						{categories.map((category) => {
-							const isVirtual = virtualCategories.isVirtual(category.id);
-							return (
-								<EntityCard
-									key={category.id}
-									entity={{
-										id: category.id,
-										name: category.name,
-										count: category.game_count,
-									}}
-									onClick={() => handleCategoryClick(category)}
-									onDelete={
-										isVirtual
-											? undefined
-											: (id) => handleDeleteCategory(id as number)
-									}
-									onContextMenu={(e, id, name) => {
-										if (!isVirtual)
-											handleCategoryContextMenu(e, id as number, name);
-									}}
-									showDelete={!isVirtual}
-									deleteTitle={t("pages.Collection.deleteCategoryTitle")}
-									deleteMessage={t("pages.Collection.deleteCategoryMessage", {
-										name: category.name,
-									})}
-									countLabel={t("pages.Collection.gamesCount")}
-								/>
-							);
-						})}
-					</Box>
-				))}
-
-			{showLevel === "games" && (
-				<Cards
-					gamesData={categoryGames}
-					categoryId={
-						selectedCategoryId !== null && selectedCategoryId > 0
-							? selectedCategoryId
-							: undefined
-					}
-				/>
-			)}
+						<Cards
+							gamesData={categoryGames}
+							categoryId={
+								selectedCategoryId !== null && selectedCategoryId > 0
+									? selectedCategoryId
+									: undefined
+							}
+						/>
+					</motion.div>
+				)}
+			</AnimatePresence>
 
 			{/* 统一的右键菜单 */}
 			<CollectionRightMenu
@@ -630,6 +657,6 @@ export const Collection: React.FC = () => {
 						categoryName={selectedItem.name}
 					/>
 				)}
-		</Box>
+		</PageContainer>
 	);
 };

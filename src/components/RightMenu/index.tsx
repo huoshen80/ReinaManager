@@ -24,6 +24,7 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import {
 	Divider,
 	ListItemIcon,
@@ -48,8 +49,10 @@ import { BaseRightMenu } from "./BaseRightMenu";
 interface RightMenuProps {
 	isopen: boolean;
 	anchorPosition?: { top: number; left: number };
-	setAnchorEl: (value: null) => void;
 	id: number | null | undefined;
+	setAnchorEl: (value: null | HTMLElement) => void;
+	/** 触发编辑时间的回调 */
+	onEditTime?: (id: number) => void;
 }
 
 /**
@@ -64,6 +67,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	anchorPosition,
 	setAnchorEl,
 	id,
+	onEditTime,
 }) => {
 	const { getGameById, deleteGame, isLocalGame, updateGameClearStatusInStore } =
 		useStore();
@@ -203,6 +207,21 @@ const RightMenu: React.FC<RightMenuProps> = ({
 						<ListItemText primary={t("components.RightMenu.enterDetails")} />
 					</MenuItem>
 				</LinkWithScrollSave>
+
+				{/* 编辑游玩时间 */}
+				<MenuItem
+					onClick={() => {
+						if (id && onEditTime) onEditTime(id);
+						setAnchorEl(null);
+					}}
+				>
+					<ListItemIcon>
+						<AccessTimeIcon />
+					</ListItemIcon>
+					<ListItemText
+						primary={t("components.RightMenu.editPlayTime", "编辑时间")}
+					/>
+				</MenuItem>
 
 				{/* 删除游戏 */}
 				<MenuItem onClick={() => setOpenAlert(true)}>

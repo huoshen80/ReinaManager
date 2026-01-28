@@ -28,11 +28,10 @@ import {
 	DashboardSidebarPageItem,
 	type SidebarFooterProps,
 } from "@toolpad/core/DashboardLayout";
-import { PageContainer } from "@toolpad/core/PageContainer";
+import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useMemo } from "react";
-import KeepAlive from "react-activation";
 import { useTranslation } from "react-i18next";
-import { Outlet, useLocation } from "react-router-dom";
+import { useLocation, useOutlet } from "react-router-dom";
 import { SearchBox } from "@/components/SearchBox";
 import { Toolbars } from "@/components/Toolbar";
 import { LinkWithScrollSave } from "../LinkWithScrollSave";
@@ -81,7 +80,7 @@ const CustomAppTitle = ({ isLibraries }: CustomAppTitleProps) => {
 				onDragStart={(event) => event.preventDefault()}
 			/>
 			<Typography variant="h6">ReinaManager</Typography>
-			<Chip size="small" label="BETA" color="info" />
+			<Chip size="small" label="BETA" color="primary" />
 			{isLibraries && <SearchBox />}
 		</Stack>
 	);
@@ -98,6 +97,7 @@ export const Layout: React.FC = () => {
 	const { i18n } = useTranslation();
 	const isja_JP = i18n.language === "ja-JP";
 	const path = useLocation().pathname;
+	const outlet = useOutlet();
 	const isLibraries = path === "/libraries";
 	const AppTitle = useMemo(() => {
 		return () => <CustomAppTitle isLibraries={isLibraries} />;
@@ -128,19 +128,18 @@ export const Layout: React.FC = () => {
 			defaultSidebarCollapsed={true}
 			renderPageItem={handleRenderPageItem}
 		>
-			{isLibraries ? (
-				<PageContainer sx={{ maxWidth: "100% !important" }}>
-					<KeepAlive
-						name="libraries"
-						cacheKey="libraries"
-						saveScrollPosition={false}
-					>
-						<Outlet />
-					</KeepAlive>
-				</PageContainer>
-			) : (
-				<Outlet />
-			)}
+			<AnimatePresence mode="wait">
+				<motion.div
+					key={path}
+					initial={{ opacity: 0, y: 15 }}
+					animate={{ opacity: 1, y: 0 }}
+					exit={{ opacity: 0, y: -15 }}
+					transition={{ duration: 0.25, ease: "easeInOut" }}
+					style={{ width: "100%", height: "100%" }}
+				>
+					{outlet}
+				</motion.div>
+			</AnimatePresence>
 		</DashboardLayout>
 	);
 };
