@@ -71,6 +71,22 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -80,7 +96,6 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           key: ${{ matrix.rust_target }}
-          shared-key: "reina-manager-build"
 
       # 配置 Windows lld 链接器
       - name: Configure Rust linker (Windows lld)
