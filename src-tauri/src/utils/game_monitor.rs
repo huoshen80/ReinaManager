@@ -6,23 +6,26 @@
 // ============================================================================
 // 外部依赖导入
 // ============================================================================
-
-use log::{debug, error, info, warn};
-use parking_lot::RwLock;
+use log::{debug, error, info};
 use serde_json::json;
-use std::{
-    collections::HashSet,
-    path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, OnceLock,
-    },
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
 
-use sysinfo::{ProcessesToUpdate, System};
+#[cfg(target_os = "windows")]
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::SystemTime;
+use std::time::{Duration, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::time::{interval, MissedTickBehavior};
+#[cfg(target_os = "windows")]
+use {
+    std::collections::HashSet, std::path::Path, parking_lot::RwLock,
+    sysinfo::ProcessesToUpdate,
+    sysinfo::System,
+    std::sync::OnceLock,
+    log::warn,
+};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::{
@@ -52,6 +55,7 @@ const MONITOR_CHECK_INTERVAL_SECS: u64 = 1;
 // ============================================================================
 
 /// 活跃的监控会话信息
+#[cfg(target_os = "windows")]
 pub struct ActiveSession {
     /// 停止信号，用于通知监控线程停止
     pub stop_signal: Arc<AtomicBool>,
@@ -63,6 +67,7 @@ pub struct ActiveSession {
 ///
 /// 用于在 Hook 线程和主监控循环之间共享信息
 /// 使用 parking_lot::RwLock 替代 std::sync::Mutex 以避免死锁
+#[cfg(target_os = "windows")]
 #[derive(Debug)]
 struct MonitorState {
     /// 当前是否有游戏窗口在前台
@@ -70,7 +75,7 @@ struct MonitorState {
     /// 当前活跃的游戏进程 PID
     best_pid: u32,
 }
-
+#[cfg(target_os = "windows")]
 impl MonitorState {
     /// 创建新的监控状态实例
     fn new(initial_pid: u32) -> Self {
@@ -84,16 +89,17 @@ impl MonitorState {
 /// Hook 线程守卫，确保线程在任何退出情况下都能正确停止
 ///
 /// 使用 RAII 模式，在析构时自动发送停止信号
+#[cfg(target_os = "windows")]
 struct HookGuard {
     stop_signal: Arc<AtomicBool>,
 }
-
+#[cfg(target_os = "windows")]
 impl HookGuard {
     fn new(stop_signal: Arc<AtomicBool>) -> Self {
         Self { stop_signal }
     }
 }
-
+#[cfg(target_os = "windows")]
 impl Drop for HookGuard {
     fn drop(&mut self) {
         // 无论函数如何退出（正常返回、?, panic 等），都会触发停止信号
@@ -107,19 +113,21 @@ impl Drop for HookGuard {
 // ============================================================================
 
 /// 全局会话存储（使用 parking_lot::RwLock 保护 HashMap）
+#[cfg(target_os = "windows")]
 static ACTIVE_SESSIONS: OnceLock<RwLock<std::collections::HashMap<u32, ActiveSession>>> =
     OnceLock::new();
 
 /// 获取全局会话存储的引用
+#[cfg(target_os = "windows")]
 fn get_sessions() -> &'static RwLock<std::collections::HashMap<u32, ActiveSession>> {
     ACTIVE_SESSIONS.get_or_init(|| RwLock::new(std::collections::HashMap::new()))
 }
-
 /// 注册新的监控会话
+#[cfg(target_os = "windows")]
 fn register_session(game_id: u32, session: ActiveSession) {
     get_sessions().write().insert(game_id, session);
 }
-
+#[cfg(target_os = "windows")]
 /// 移除监控会话
 fn unregister_session(game_id: u32) {
     get_sessions().write().remove(&game_id);
@@ -129,15 +137,6 @@ fn unregister_session(game_id: u32) {
 // 公共 API
 // ============================================================================
 
-/// 获取指定游戏的候选 PID 列表
-#[allow(dead_code)]
-pub fn get_game_candidate_pids(game_id: u32) -> Option<HashSet<u32>> {
-    let sessions = get_sessions().read();
-    sessions
-        .get(&game_id)
-        .map(|s| s.candidate_pids.read().clone())
-}
-
 /// 停止指定游戏的监控并终止所有相关进程
 ///
 /// # Arguments
@@ -145,7 +144,8 @@ pub fn get_game_candidate_pids(game_id: u32) -> Option<HashSet<u32>> {
 ///
 /// # Returns
 /// 成功返回终止的进程数量，失败返回错误信息
-pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
+#[cfg(target_os = "windows")]
+pub async fn stop_game_session(game_id: u32) -> Result<u32, String> {
     // 获取会话信息
     let sessions = get_sessions().read();
     let session = sessions
@@ -184,6 +184,40 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
     Ok(terminated_count)
 }
 
+#[cfg(target_os = "linux")]
+pub async fn stop_game_session(_game_id: u32) -> Result<u32, String> {
+    stop_game_unit(_game_id).await.map(|_| 1)
+}
+#[cfg(target_os = "linux")]
+async fn stop_game_unit(game_id: u32) -> Result<(), String> {
+    // 1. 连接到 Session Bus (对应 --user)
+    let proxy = get_manager_proxy().await.map_err(|e| {
+        format!(
+            "无法连接到 D-Bus Session Bus 以停止游戏 {} 的 systemd scope: {}",
+            game_id, e
+        )
+    })?;
+
+    // 2. 构造单元名称
+    let unit_name = format!("reina_game_{}.scope", game_id);
+
+    // 3. 调用停止方法
+    match proxy
+        .stop_unit(unit_name.clone(), "replace".to_string())
+        .await
+    {
+        Ok(job_path) => {
+            debug!("停止请求已发送: {}, Job: {:?}", unit_name, job_path);
+        }
+        Err(e) => {
+            error!("停止单元失败: {:?}", e);
+            return Err(e)
+                .map_err(|e| format!("停止游戏 {} 的 systemd scope 失败: {}", game_id, e));
+        }
+    }
+
+    Ok(())
+}
 /// 启动指定游戏进程的监控
 ///
 /// 这是模块的主入口函数，由外部调用以开始监控一个游戏进程。
@@ -191,8 +225,9 @@ pub fn stop_game_session(game_id: u32) -> Result<u32, String> {
 /// # Arguments
 /// * `app_handle` - Tauri 应用句柄，用于发送事件到前端
 /// * `game_id` - 游戏的唯一标识符
-/// * `process_id` - 要开始监控的游戏进程的初始 PID
-/// * `executable_path` - 游戏主可执行文件的完整路径，用于在进程重启或切换后重新查找
+/// * `process_id` - 要开始监控的游戏进程的初始 PID (仅 Windows)
+/// * `executable_path` - 游戏主可执行文件的完整路径，用于在进程重启或切换后重新查找 (仅 Windows)
+/// * `systemd_unit_name` - Linux 平台下的 systemd user scope 名称 (仅 Linux)
 ///
 /// # 工作流程
 /// 1. 创建 System 实例用于进程查询
@@ -202,22 +237,40 @@ pub async fn monitor_game<R: Runtime>(
     app_handle: AppHandle<R>,
     game_id: u32,
     process_id: u32,
-    executable_path: String,
+    #[cfg(target_os = "windows")] executable_path: String,
+    #[cfg(target_os = "linux")] systemd_scope: String,
 ) {
     let app_handle_clone = app_handle.clone();
-    let mut sys = System::new();
 
+    #[cfg(target_os = "windows")]
+    {
+        let mut sys = System::new();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = run_game_monitor(
+                app_handle_clone,
+                game_id,
+                process_id,
+                executable_path,
+                &mut sys,
+            )
+            .await
+            {
+                error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
+            }
+        });
+    }
+    #[cfg(target_os = "linux")]
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_game_monitor(
-            app_handle_clone,
-            game_id,
-            process_id,
-            executable_path,
-            &mut sys,
-        )
-        .await
+        // 将 System 实例的可变引用传递给实际的监控循环
+
+        use tauri::Manager;
+        if let Err(e) =
+            run_game_monitor(app_handle_clone.app_handle(), game_id, &systemd_scope).await
         {
             error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
+            if let Err(e) = finalize_session(&app_handle, game_id, process_id, get_timestamp(), 0) {
+                error!("无法完成游戏会话结束: {}", e);
+            }
         }
     });
 }
@@ -250,12 +303,13 @@ pub async fn monitor_game<R: Runtime>(
 /// 5. 主循环每秒检查状态并累计时间
 /// 6. 进程失活时触发重新扫描
 /// 7. 会话结束时发送结束事件
+#[cfg(target_os = "windows")]
 async fn run_game_monitor<R: Runtime>(
     app_handle: AppHandle<R>,
     game_id: u32,
     initial_pid: u32,
     executable_path: String,
-    sys: &mut System,
+    #[allow(unused_variables)] sys: &mut System,
 ) -> Result<(), String> {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();
@@ -265,9 +319,8 @@ async fn run_game_monitor<R: Runtime>(
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // 初始扫描：获取所有候选 PID
-    let candidate_pids_vec = get_all_candidate_pids(&executable_path, sys);
-    let mut candidate_pids_set: HashSet<u32> = candidate_pids_vec.into_iter().collect();
-
+    let candidate_pids = get_all_candidate_pids(&executable_path, sys);
+    let mut candidate_pids_set: HashSet<u32> = candidate_pids.into_iter().collect();
     // 如果初始 PID 不在候选列表中，手动添加（容错）
     if !candidate_pids_set.contains(&initial_pid) && is_process_running(initial_pid) {
         candidate_pids_set.insert(initial_pid);
@@ -640,18 +693,6 @@ fn start_foreground_hook<R: Runtime + 'static>(
     });
 }
 
-#[cfg(not(target_os = "windows"))]
-fn start_foreground_hook<R: Runtime + 'static>(
-    _state: Arc<RwLock<MonitorState>>,
-    _candidate_pids: Arc<RwLock<HashSet<u32>>>,
-    _game_directory: String,
-    _app_handle: AppHandle<R>,
-    _game_id: u32,
-    _stop_signal: Arc<AtomicBool>,
-) {
-    warn!("start_foreground_hook 在非 Windows 平台被调用，将被忽略");
-}
-
 // ============================================================================
 // 进程管理 - 进程查询与检测
 // ============================================================================
@@ -666,6 +707,7 @@ fn start_foreground_hook<R: Runtime + 'static>(
 ///
 /// # Returns
 /// 返回所有候选 PID 的列表，如果没有找到则返回空列表
+#[cfg(target_os = "windows")]
 fn get_all_candidate_pids(executable_path: &str, sys: &mut System) -> Vec<u32> {
     let manager_pid = std::process::id();
 
@@ -690,7 +732,14 @@ fn get_all_candidate_pids(executable_path: &str, sys: &mut System) -> Vec<u32> {
     candidate_pids
 }
 
-/// 根据可执行文件的完整路径查找所有正在运行的进程 PID 列表
+/// 根据可执行文件所在目录获取该目录及子目录下所有正在运行的进程 PID 列表。
+///
+/// 此函数会刷新进程信息，然后扫描所有进程，找出可执行文件路径在目标目录或其子目录中的进程。
+// has_window_for_pid 函数已移除，其功能已整合到 select_best_from_candidates 中
+// 这样可以避免多次调用 EnumWindows（O(N*M) -> O(M)），提升性能
+/// 根据可执行文件所在目录获取该目录及子目录下所有正在运行的进程 PID 列表。
+///
+/// 此函数会刷新进程信息，然后扫描所有进程，找出可执行文件路径在目标目录或其子目录中的进程。
 ///
 /// # Arguments
 /// * `executable_path` - 要查找的可执行文件的完整路径
@@ -698,6 +747,7 @@ fn get_all_candidate_pids(executable_path: &str, sys: &mut System) -> Vec<u32> {
 ///
 /// # Returns
 /// 返回目录下所有正在运行的进程 PID 列表
+#[cfg(target_os = "windows")]
 fn get_process_id_by_path(executable_path: &str, sys: &mut System) -> Vec<u32> {
     let pids = get_processes_in_directory(executable_path, sys);
     debug!("找到进程目录下的进程 PID 列表: {:?}", pids);
@@ -712,6 +762,7 @@ fn get_process_id_by_path(executable_path: &str, sys: &mut System) -> Vec<u32> {
 ///
 /// # Returns
 /// 返回该目录及子目录下所有正在运行进程的 PID 列表。如果无法获取目录信息，返回空列表
+#[cfg(target_os = "windows")]
 fn get_processes_in_directory(executable_path: &str, sys: &mut System) -> Vec<u32> {
     // 只更新进程列表，不更新磁盘、网络等其他信息，提高性能
     sys.refresh_processes(ProcessesToUpdate::All, true);
@@ -798,12 +849,6 @@ pub fn is_process_running(pid: u32) -> bool {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn is_process_running(_pid: u32) -> bool {
-    warn!("is_process_running 在非 Windows 平台被调用");
-    false
-}
-
 /// 强制终止指定 PID 的进程（Windows 平台）
 ///
 /// # Arguments
@@ -826,11 +871,6 @@ pub fn terminate_process(pid: u32) -> Result<(), String> {
 
         result.map_err(|e| format!("终止进程 {} 失败: {}", pid, e))
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn terminate_process(_pid: u32) -> Result<(), String> {
-    Err("terminate_process 仅支持 Windows 平台".to_string())
 }
 
 /// 获取进程的可执行文件路径（Windows 平台）
@@ -885,11 +925,6 @@ fn get_process_executable_path(pid: u32) -> Option<std::path::PathBuf> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-fn get_process_executable_path(_pid: u32) -> Option<std::path::PathBuf> {
-    None
-}
-
 // ============================================================================
 // 工具函数
 // ============================================================================
@@ -906,4 +941,438 @@ fn get_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("系统时间错误: 时间回溯")
         .as_secs()
+}
+
+#[cfg(target_os = "linux")]
+static SESSION_CONN: tokio::sync::OnceCell<zbus::Connection> = tokio::sync::OnceCell::const_new();
+#[cfg(target_os = "linux")]
+static MANAGER_PROXY: tokio::sync::OnceCell<zbus_systemd::systemd1::ManagerProxy<'static>> =
+    tokio::sync::OnceCell::const_new();
+#[cfg(target_os = "linux")]
+pub async fn get_connection() -> Result<&'static zbus::Connection, zbus::Error> {
+    SESSION_CONN
+        .get_or_try_init(|| async { zbus::Connection::session().await })
+        .await
+}
+#[cfg(target_os = "linux")]
+pub async fn get_manager_proxy(
+) -> Result<&'static zbus_systemd::systemd1::ManagerProxy<'static>, zbus::Error> {
+    MANAGER_PROXY
+        .get_or_try_init(|| async {
+            let connection = get_connection().await?;
+            zbus_systemd::systemd1::ManagerProxy::new(connection).await
+        })
+        .await
+}
+/// 根据 systemd user scope 名称查找所有正在运行的进程 PID 列表 (仅 Linux)。
+#[cfg(target_os = "linux")]
+async fn get_process_id_by_scope(systemd_scope: &str) -> Option<Vec<u32>> {
+    let manager = match get_manager_proxy().await {
+        Ok(m) => m,
+        Err(e) => {
+            debug!("无法连接到 systemd 管理器: {}", e);
+            return None;
+        }
+    };
+    let ps = match manager.get_unit_processes(systemd_scope.to_owned()).await {
+        Ok(p) => p,
+        Err(e) => {
+            debug!(
+                "无法获取 systemd scope '{}' 的进程列表: {}",
+                systemd_scope, e
+            );
+            return None;
+        }
+    };
+    #[cfg(debug_assertions)]
+    {
+        debug!(
+            "找到 systemd scope '{}' 下的进程 PID 列表: {:?}",
+            systemd_scope, ps
+        );
+    }
+
+    ps.into_iter().map(|p| p.1).collect::<Vec<u32>>().into()
+}
+/// 获取游戏进程 pidss
+#[cfg(target_os = "linux")]
+async fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
+    let manager_pid = std::process::id();
+
+    // Linux 下通过 systemd scope 查找进程
+    let available_pids: Vec<u32> = get_process_id_by_scope(systemd_scope)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|&pid| pid != manager_pid) // 过滤掉管理器自身
+        .collect();
+
+    if available_pids.is_empty() {
+        debug!("未通过 systemd scope '{}' 找到匹配的进程", systemd_scope);
+    } else {
+        debug!(
+            "找到 {} 个候选进程: {:?}",
+            available_pids.len(),
+            available_pids
+        );
+    }
+
+    available_pids
+}
+
+#[cfg(target_os = "linux")]
+#[allow(unused)]
+fn is_process_running(pid: u32) -> bool {
+    use std::fs::exists;
+    // 在 Linux 上，可以通过检查 /proc/<pid> 目录是否存在来判断进程是否运行
+    let proc_path = format!("/proc/{}", pid);
+    exists(&proc_path).unwrap_or(false)
+}
+/// 检查指定的 systemd user scope 是否处于活动状态（仅 Linux）。
+///# Arguments
+/// * `systemd_scope` - systemd user scope 的名称。
+/// # Returns
+/// 如果 scope 处于活动状态，返回 true；否则返回 false。
+#[cfg(target_os = "linux")]
+async fn is_game_running(systemd_scope: &str) -> bool {
+    match get_manager_proxy().await {
+        Ok(manager) => match manager.get_unit(systemd_scope.to_owned()).await {
+            Ok(u) => {
+                if let Ok(connection) = get_connection().await {
+                    match zbus_systemd::systemd1::UnitProxy::new(connection, u).await {
+                        Ok(unit) => match unit.active_state().await {
+                            Ok(state) => {
+                                debug!(
+                                    "systemd scope '{}' 的 active_state: {}",
+                                    systemd_scope, state
+                                );
+                                state == "active"
+                            }
+                            Err(e) => {
+                                error!(
+                                    "无法获取 systemd scope '{}' 的 active_state: {}",
+                                    systemd_scope, e
+                                );
+                                false
+                            }
+                        },
+                        Err(e) => {
+                            error!("无法创建 systemd Unit 代理: {}", e);
+                            false
+                        }
+                    }
+                } else {
+                    error!("无法连接到 systemd 管理器");
+                    false
+                }
+            }
+            Err(e) => {
+                error!("无法获取 systemd unit '{}': {}", systemd_scope, e);
+                false
+            }
+        },
+        Err(e) => {
+            error!("无法连接到 systemd 管理器: {}", e);
+            false
+        }
+    }
+}
+#[cfg(target_os = "linux")]
+fn select_best_from_candidates(candidate_pids: &[u32]) -> Option<u32> {
+    if let Some(p) = check_any_foreground(candidate_pids) {
+        info!("从候选列表中找到聚焦进程 PID: {}", p);
+        Some(p)
+    } else if let Some(p) = check_any_has_window(candidate_pids) {
+        info!("从候选列表中找到有窗口的进程 PID: {}", p);
+        Some(p)
+    } else if !candidate_pids.is_empty() {
+        let first_pid = candidate_pids[0];
+        info!("使用候选列表中的第一个进程 PID: {}", first_pid);
+        Some(first_pid)
+    } else {
+        None
+    }
+}
+/// TODO: 未来可考虑集成 x11 或 wayland 合成器特定功能实现。
+#[cfg(target_os = "linux")]
+fn check_any_has_window(_candidate_pids: &[u32]) -> Option<u32> {
+    check_any_has_window_x11(_candidate_pids)
+}
+/// TODO: 未来可考虑集成其他 wayland 合成器特定功能实现。
+#[cfg(target_os = "linux")]
+fn check_any_foreground(_candidate_pids: &[u32]) -> Option<u32> {
+    check_any_foreground_x11(_candidate_pids)
+}
+
+#[cfg(target_os = "linux")]
+fn check_any_foreground_x11(candidate_pids: &[u32]) -> Option<u32> {
+    // 1. 连接到 X Server
+    let (conn, screen_num) = xcb::Connection::connect(None).ok()?;
+    let setup = conn.get_setup();
+    // 获取当前屏幕的根窗口 (Root Window)
+    let screen = setup.roots().nth(screen_num as usize)?;
+    let root_window = screen.root();
+
+    // 2. 获取 Atom 标识符
+    // 我们需要 "_NET_ACTIVE_WINDOW" 来找当前活动窗口
+    // 我们需要 "_NET_WM_PID" 来找窗口对应的 PID
+    let cookie_active = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_ACTIVE_WINDOW",
+    });
+    let cookie_pid = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_WM_PID",
+    });
+
+    let atom_active_window = conn.wait_for_reply(cookie_active).ok()?.atom();
+    let atom_net_wm_pid = conn.wait_for_reply(cookie_pid).ok()?.atom();
+
+    // 3. 获取当前活动窗口的 ID
+    // 向 Root Window 请求 _NET_ACTIVE_WINDOW 属性
+    let active_win_cookie = conn.send_request(&xcb::x::GetProperty {
+        delete: false,
+        window: root_window,
+        property: atom_active_window,
+        long_offset: 0,
+        long_length: 1, // 我们只需要读 1 个值
+        r#type: xcb::x::ATOM_WINDOW,
+    });
+
+    let active_win_reply = conn.wait_for_reply(active_win_cookie).ok()?;
+
+    // 如果没有值，说明没有活动窗口或不支持 EWMH
+    if active_win_reply.value::<xcb::x::Window>().is_empty() {
+        return None;
+    }
+
+    // 提取 Window ID
+    let active_window = active_win_reply
+        .value::<xcb::x::Window>()
+        .first()
+        .copied()?;
+
+    // 4. 获取该窗口的 PID
+    // 向活动窗口请求 _NET_WM_PID 属性
+    let pid_cookie = conn.send_request(&xcb::x::GetProperty {
+        delete: false,
+        window: active_window,
+        property: atom_net_wm_pid,
+        r#type: xcb::x::ATOM_CARDINAL, // PID 通常是 Cardinal 类型
+        long_offset: 0,
+        long_length: 1,
+    });
+
+    let pid_reply = conn.wait_for_reply(pid_cookie).ok()?;
+
+    if pid_reply.value::<xcb::x::Window>().is_empty() {
+        return None;
+    }
+
+    // 提取 PID
+    let active_pid = pid_reply.value::<u32>().first().copied()?;
+
+    // 5. 检查是否匹配
+    if candidate_pids.contains(&active_pid) {
+        Some(active_pid)
+    } else {
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn check_any_has_window_x11(candidate_pids: &[u32]) -> Option<u32> {
+    // 1. 连接到 X Server
+    let (conn, screen_num) = xcb::Connection::connect(None).ok()?;
+    let setup = conn.get_setup();
+    let screen = setup.roots().nth(screen_num as usize)?;
+    let root_window = screen.root();
+
+    // 2. 获取需要的 Atom 标识符
+    let cookie_client_list = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_CLIENT_LIST",
+    });
+    let cookie_pid = conn.send_request(&xcb::x::InternAtom {
+        only_if_exists: true,
+        name: b"_NET_WM_PID",
+    });
+
+    let atom_client_list = conn.wait_for_reply(cookie_client_list).ok()?.atom();
+    let atom_net_wm_pid = conn.wait_for_reply(cookie_pid).ok()?.atom();
+
+    // 检查 atom 是否有效
+    if atom_client_list == xcb::x::ATOM_NONE || atom_net_wm_pid == xcb::x::ATOM_NONE {
+        return None;
+    }
+
+    // 3. 获取所有客户端窗口列表
+    let client_list_cookie = conn.send_request(&xcb::x::GetProperty {
+        delete: false,
+        window: root_window,
+        property: atom_client_list,
+        r#type: xcb::x::ATOM_WINDOW,
+        long_offset: 0,
+        long_length: 1024, // 足够容纳大量窗口
+    });
+
+    let client_list_reply = conn.wait_for_reply(client_list_cookie).ok()?;
+    let windows = client_list_reply.value::<xcb::x::Window>();
+
+    if windows.is_empty() {
+        return None;
+    }
+
+    // 4. 遍历所有窗口，检查其 PID 是否在候选列表中
+    for &window in windows {
+        let pid_cookie = conn.send_request(&xcb::x::GetProperty {
+            delete: false,
+            window,
+            property: atom_net_wm_pid,
+            r#type: xcb::x::ATOM_CARDINAL,
+            long_offset: 0,
+            long_length: 1,
+        });
+
+        if let Ok(pid_reply) = conn.wait_for_reply(pid_cookie) {
+            if let Some(&pid) = pid_reply.value::<u32>().first() {
+                if candidate_pids.contains(&pid) {
+                    return Some(pid);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(target_os = "linux")]
+async fn run_game_monitor(
+    app_handle: &AppHandle<impl Runtime>,
+    game_id: u32,
+    systemd_scope: &str,
+) -> Result<(), String> {
+    // Linux 版本的监控逻辑实现
+    // {
+    let mut accumulated_seconds = 0u64;
+    let start_time = get_timestamp();
+    tokio::time::sleep(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS * 3)).await;
+
+    // 初始扫描：获取所有候选 PID
+    let candidate_pids = get_all_candidate_pids(systemd_scope).await;
+
+    // 从候选中选择最佳 PID 作为主监控对象
+    let mut best_pid = match select_best_from_candidates(&candidate_pids) {
+        Some(p) => p,
+        None => {
+            return Err("未找到任何候选进程进行监控".to_string());
+        }
+    };
+
+    info!(
+        "开始监控游戏: ID={}, 最佳 PID={}, 候选进程组={:?}",
+        game_id, best_pid, candidate_pids
+    );
+
+    // 通知前端会话开始
+    app_handle
+        .emit(
+            "game-session-started",
+            json!({ "gameId": game_id, "processId": best_pid, "startTime": start_time }),
+        )
+        .map_err(|e| format!("无法发送 game-session-started 事件: {}", e))?;
+    let mut consecutive_failures = 0u32;
+
+    // 等待 3 秒让游戏进程充分启动（例如 Launcher -> Game 的切换）
+    info!("等待 9 秒以便游戏进程充分启动...");
+    tokio::time::sleep(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS * 9)).await;
+
+    // 等待后重新扫描，获取最新的进程状态
+    let mut candidate_pids = get_all_candidate_pids(systemd_scope).await;
+    if let Some(new_best) = select_best_from_candidates(&candidate_pids) {
+        if new_best != best_pid {
+            info!(
+                "等待期间发现更优进程，切换 PID: {} -> {}",
+                best_pid, new_best
+            );
+            best_pid = new_best;
+        }
+    }
+
+    // 创建精确的 1 秒间隔定时器
+    let mut tick_interval = interval(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS));
+    tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+    loop {
+        tick_interval.tick().await;
+
+        #[cfg(target_os = "linux")]
+        let game_running = is_game_running(systemd_scope).await;
+        if !game_running {
+            consecutive_failures += 1;
+            debug!(
+                "最佳进程 {} 检查失败次数: {}/{}",
+                best_pid, consecutive_failures, MAX_CONSECUTIVE_FAILURES
+            );
+
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
+                info!("游戏scope {} 已失活，结束监控会话", systemd_scope);
+                break;
+            }
+        } else {
+            // 最佳 PID 仍在运行，重置失败计数
+            consecutive_failures = 0;
+
+            // 2. 清理候选列表中已失活的 PID（轻量级维护）
+
+            // 3. 前台判定：检查候选列表中是否有任何进程在前台
+            //    这是关键优化点 - 即使最佳 PID 不在前台，其他候选 PID 在前台也算数
+            if let Some(foreground_pid) = check_any_foreground(&candidate_pids) {
+                accumulated_seconds += 1;
+
+                // 如果前台进程不是当前的最佳 PID，考虑切换
+                if foreground_pid != best_pid {
+                    debug!(
+                        "前台进程 {} 不是最佳 PID {}，考虑调整",
+                        foreground_pid, best_pid
+                    );
+                    best_pid = foreground_pid;
+                }
+
+                // 发送时间更新
+                if accumulated_seconds > 0
+                    && accumulated_seconds.is_multiple_of(TIME_UPDATE_INTERVAL_SECS)
+                {
+                    let minutes = accumulated_seconds / 60;
+                    // debug!(
+                    //     "发送时间更新事件: {} 分钟 ({} 秒)",
+                    //     minutes, accumulated_seconds
+                    // );
+                    app_handle
+                        .emit(
+                            "game-time-update",
+                            json!({
+                                "gameId": game_id,
+                                "totalMinutes": minutes,
+                                "totalSeconds": accumulated_seconds,
+                                "startTime": start_time,
+                                "currentTime": get_timestamp(),
+                                "processId": best_pid
+                            }),
+                        )
+                        .map_err(|e| format!("无法发送 game-time-update 事件: {}", e))?;
+                }
+            } else {
+                candidate_pids = get_all_candidate_pids(systemd_scope).await;
+            }
+        }
+    }
+
+    finalize_session(
+        app_handle,
+        game_id,
+        best_pid,
+        start_time,
+        accumulated_seconds,
+    )
 }
