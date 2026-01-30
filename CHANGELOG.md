@@ -1,3 +1,20 @@
+## [0.14.2](https://github.com/huoshen80/ReinaManager/compare/v0.14.1...v0.14.2) (2026-01-30)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+
+* **fs:** 补全了备份存档路径丢失的 "backups" 目录 ([bbe5b53](https://github.com/huoshen80/ReinaManager/commit/bbe5b538072f8df20743447654ebd1079979b2b4))
+
+</details>
+
+### Bug Fixes
+
+* **fs:** add missing "backups" to the savedata backups path ([bbe5b53](https://github.com/huoshen80/ReinaManager/commit/bbe5b538072f8df20743447654ebd1079979b2b4))
+
+
+
 ## [0.14.1](https://github.com/huoshen80/ReinaManager/compare/v0.14.0...v0.14.1) (2026-01-28)
 
 <details>
