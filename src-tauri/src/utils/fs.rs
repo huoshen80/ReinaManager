@@ -135,7 +135,7 @@ impl PathManager {
             PathBuf::from(custom).join("backups")
         } else {
             // 使用默认路径（根据便携模式判断）
-            self.get_default_savedata_backup_path(app)?
+            get_base_data_dir(app)?.join("backups")
         };
 
         // 缓存路径
@@ -148,32 +148,55 @@ impl PathManager {
     }
 
     /// 预加载所有配置路径到缓存
+    /// 【修改】新增 app 参数，用于在配置为空时计算默认路径
     pub async fn preload_config_paths(
         &self,
+        app: &AppHandle, // <--- 新增参数
         db: &DatabaseConnection,
     ) -> Result<(), String> {
         use crate::database::repository::settings_repository::SettingsRepository;
 
-        // 一次性获取所有设置，减少数据库查询次数
         let settings = SettingsRepository::get_all_settings(db)
             .await
             .map_err(|e| format!("获取设置失败: {}", e))?;
 
-        // 提取配置路径（直接从设置获取，无需额外计算）
-        let le_path = settings.le_path.clone().unwrap_or_default();
-        let magpie_path = settings.magpie_path.clone().unwrap_or_default();
-        let db_backup_path = settings.db_backup_path.clone().unwrap_or_default();
-        let save_root_path = settings.save_root_path.clone().unwrap_or_default();
+        // ------------------ 临时修复逻辑开始 ------------------
+
+        // 辅助闭包：清洗数据，将 None 和 "" 统一视为 None
+        let clean_str = |s: Option<String>| s.filter(|x| !x.trim().is_empty());
+
+        // 1. 处理 LE 和 Magpie (保持原样或存为空字符串)
+        // 注意：由于你的 get_le_path 实现中 None 代表"未加载"，
+        // 所以这里即使没值也必须存一个 Some("")，否则会报错"未加载"。
+        // 这一步维持现状，前端负责判断空字符串。
+        let le_path = settings.le_path.unwrap_or_default();
+        let magpie_path = settings.magpie_path.unwrap_or_default();
+
+        // 2. 处理 DB 备份路径 (系统关键路径，必须有值)
+        // 如果数据库没值(或为空)，直接计算出默认路径存入缓存
+        let db_backup_path = match clean_str(settings.db_backup_path) {
+            Some(custom) => PathBuf::from(custom),
+            None => self.get_default_db_backup_path(app)?, // <--- 这里的逻辑现在和 get_db_backup_path 一致了
+        };
+
+        // 3. 处理存档根目录 (系统关键路径，必须有值)
+        let savedata_backup_path = match clean_str(settings.save_root_path) {
+            Some(custom) => PathBuf::from(custom).join("backups"),
+            None => get_base_data_dir(app)?.join("backups"), // <--- 对齐默认逻辑
+        };
+
+        // ------------------ 临时修复逻辑结束 ------------------
 
         // 缓存所有路径
         {
             let mut cache = self.cache.lock().expect("路径管理器缓存锁已被污染");
             cache.le_path = Some(le_path);
             cache.magpie_path = Some(magpie_path);
-            cache.db_backup_path = Some(PathBuf::from(db_backup_path));
-            cache.savedata_backup_path = Some(PathBuf::from(save_root_path));
+            cache.db_backup_path = Some(db_backup_path); 
+            cache.savedata_backup_path = Some(savedata_backup_path);
         }
 
+        log::info!("路径配置预加载完成（已处理默认回退逻辑）");
         Ok(())
     }
 
@@ -243,11 +266,6 @@ impl PathManager {
         Ok(get_base_data_dir(app)?
             .join(DB_DATA_DIR)
             .join(DB_BACKUP_SUBDIR))
-    }
-
-    /// 获取默认的存档备份路径
-    fn get_default_savedata_backup_path(&self, app: &AppHandle) -> Result<PathBuf, String> {
-        Ok(get_base_data_dir(app)?.join("backups"))
     }
 }
 

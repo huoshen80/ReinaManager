@@ -420,7 +420,7 @@ pub async fn set_save_root_path(
         .map_err(|e| format!("设置存档根路径失败: {}", e))?;
 
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
+    path_manager.preload_config_paths(&app, &db).await?;
 
     Ok(())
 }
@@ -447,7 +447,7 @@ pub async fn set_db_backup_path(
         .map_err(|e| format!("设置数据库备份保存路径失败: {}", e))?;
 
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
+    path_manager.preload_config_paths(&app, &db).await?;
 
     Ok(())
 }
@@ -473,7 +473,7 @@ pub async fn set_le_path(
 
     // 路径修改后刷新缓存
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
+    path_manager.preload_config_paths(&app, &db).await?;
 
     Ok(())
 }
@@ -499,7 +499,7 @@ pub async fn set_magpie_path(
 
     // 路径修改后刷新缓存
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
+    path_manager.preload_config_paths(&app, &db).await?;
 
     Ok(())
 }
