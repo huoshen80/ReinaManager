@@ -95,7 +95,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-          key: ${{ matrix.rust_target }}
+          shared-key: ${{ matrix.rust_target }}
 
       # 配置 Windows lld 链接器
       - name: Configure Rust linker (Windows lld)
