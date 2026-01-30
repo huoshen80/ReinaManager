@@ -18,11 +18,16 @@
  */
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import BackupIcon from "@mui/icons-material/Backup";
 import ClearIcon from "@mui/icons-material/Clear";
+import ColorLensIcon from "@mui/icons-material/ColorLens";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import LightModeIcon from "@mui/icons-material/LightMode";
 import RestoreIcon from "@mui/icons-material/Restore";
 import UpdateIcon from "@mui/icons-material/Update";
+import SettingsSystemDaydreamIcon from "@mui/icons-material/SettingsSystemDaydream";
 import {
 	Accordion,
 	AccordionDetails,
@@ -37,6 +42,8 @@ import {
 	Radio,
 	RadioGroup,
 	Switch,
+	ToggleButton,
+	ToggleButtonGroup,
 	Tooltip,
 	Typography,
 } from "@mui/material";
@@ -115,6 +122,127 @@ const LanguageSelect = () => {
 				<MenuItem value="en-US">English(en-US)</MenuItem>
 				<MenuItem value="ja-JP">日本語(ja-JP)</MenuItem>
 			</Select>
+		</Box>
+	);
+};
+
+const AppearanceSettings = () => {
+	const { t } = useTranslation();
+	const {
+		themeMode,
+		setThemeMode,
+		themeColor,
+		setThemeColor,
+		themeStyle,
+		setThemeStyle,
+	} = useStore();
+
+	const presetColors = [
+		"#F48FB1", // Sakura Pink
+		"#90CAF9", // Sky Blue
+		"#A5D6A7", // Mint Green
+		"#CE93D8", // Lavender
+		"#FFCC80", // Amber
+	];
+
+	return (
+		<Box className="mb-8">
+			<InputLabel className="font-semibold mb-4">
+				{t("pages.Settings.appearance", "外观设置")}
+			</InputLabel>
+
+			<Stack spacing={4}>
+				<Box>
+					<InputLabel className="mb-2 text-sm">
+						{t("pages.Settings.themeMode", "主题模式")}
+					</InputLabel>
+					<ToggleButtonGroup
+						value={themeMode}
+						exclusive
+						onChange={(_, newMode) => newMode && setThemeMode(newMode)}
+						size="small"
+						color="primary"
+					>
+						<ToggleButton value="light">
+							<LightModeIcon sx={{ mr: 1 }} />
+							{t("pages.Settings.light", "明亮")}
+						</ToggleButton>
+						<ToggleButton value="dark">
+							<DarkModeIcon sx={{ mr: 1 }} />
+							{t("pages.Settings.dark", "暗黑")}
+						</ToggleButton>
+						<ToggleButton value="system">
+							<SettingsSystemDaydreamIcon sx={{ mr: 1 }} />
+							{t("pages.Settings.system", "跟随系统")}
+						</ToggleButton>
+					</ToggleButtonGroup>
+				</Box>
+
+				<Box>
+					<InputLabel className="mb-2 text-sm">
+						{t("pages.Settings.themeStyle", "主题风格")}
+					</InputLabel>
+					<ToggleButtonGroup
+						value={themeStyle}
+						exclusive
+						onChange={(_, newStyle) => newStyle && setThemeStyle(newStyle)}
+						size="small"
+						color="primary"
+					>
+						<ToggleButton value="default">
+							<AutoAwesomeIcon sx={{ mr: 1 }} />
+							{t("pages.Settings.defaultTheme", "默认")}
+						</ToggleButton>
+						<ToggleButton value="custom">
+							<ColorLensIcon sx={{ mr: 1 }} />
+							{t("pages.Settings.customTheme", "自定义")}
+						</ToggleButton>
+					</ToggleButtonGroup>
+				</Box>
+
+				<Box>
+					<InputLabel className="mb-2 text-sm">
+						{t("pages.Settings.themeColor", "主题色")}
+					</InputLabel>
+					<Stack direction="row" spacing={1.5} alignItems="center">
+						{presetColors.map((color) => (
+							<Tooltip title={color} key={color}>
+								<Box
+									onClick={() => setThemeColor(color)}
+									sx={{
+										width: 32,
+										height: 32,
+										borderRadius: "50%",
+										bgcolor: color,
+										cursor: "pointer",
+										border:
+											themeColor.toLowerCase() === color.toLowerCase()
+												? "3px solid"
+												: "1px solid rgba(0,0,0,0.1)",
+										borderColor:
+											themeColor.toLowerCase() === color.toLowerCase()
+												? "text.primary"
+												: "rgba(0,0,0,0.1)",
+										boxShadow: 2,
+										transition: "all 0.2s",
+										"&:hover": { transform: "scale(1.1)" },
+									}}
+								/>
+							</Tooltip>
+						))}
+						<Tooltip title={t("pages.Settings.customColor", "自定义颜色")}>
+							<div className="relative w-8 h-8 rounded-full overflow-hidden cursor-pointer shadow-md border border-black/10 hover:scale-110 transition-transform">
+								<input
+									type="color"
+									value={themeColor}
+									onChange={(e) => setThemeColor(e.target.value)}
+									className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 m-0 border-0 cursor-pointer"
+								/>
+							</div>
+						</Tooltip>
+					</Stack>
+				</Box>
+			</Stack>
 		</Box>
 	);
 };
@@ -664,9 +792,9 @@ const DatabaseBackupSettings = () => {
 				error instanceof Error
 					? error.message
 					: t(
-							"pages.Settings.databaseBackup.openFolderFailed",
-							"打开文件夹失败",
-						);
+						"pages.Settings.databaseBackup.openFolderFailed",
+						"打开文件夹失败",
+					);
 			snackbar.error(
 				t("pages.Settings.databaseBackup.openFolderError", {
 					error: errorMessage,
@@ -871,7 +999,7 @@ const PortableModeSettings = () => {
 			// 使用多行显示错误信息
 			snackbar.error(
 				errorMessage ||
-					t("pages.Settings.portableMode.toggleError", "切换失败"),
+				t("pages.Settings.portableMode.toggleError", "切换失败"),
 			);
 		} finally {
 			setIsLoading(false);
@@ -922,13 +1050,13 @@ const PortableModeSettings = () => {
 				message={
 					pendingValue
 						? t(
-								"pages.Settings.portableMode.confirmEnableMessage",
-								"启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
-							)
+							"pages.Settings.portableMode.confirmEnableMessage",
+							"启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
+						)
 						: t(
-								"pages.Settings.portableMode.confirmDisableMessage",
-								"关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
-							)
+							"pages.Settings.portableMode.confirmDisableMessage",
+							"关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
+						)
 				}
 				onConfirm={handleConfirmToggle}
 				confirmText={t("common.confirm", "确认")}
@@ -1346,9 +1474,9 @@ const BatchUpdateSettings: React.FC = () => {
 						{isUpdatingVndb
 							? t("pages.Settings.batchUpdate.updating", "更新中...")
 							: t(
-									"pages.Settings.batchUpdate.updateVndb",
-									"批量更新 VNDB 数据",
-								)}
+								"pages.Settings.batchUpdate.updateVndb",
+								"批量更新 VNDB 数据",
+							)}
 					</Button>
 				</Stack>
 
@@ -1358,9 +1486,9 @@ const BatchUpdateSettings: React.FC = () => {
 						variant="body2"
 						color={
 							updateStatus.includes("失败") ||
-							updateStatus.includes("fail") ||
-							updateStatus.includes("错误") ||
-							updateStatus.includes("error")
+								updateStatus.includes("fail") ||
+								updateStatus.includes("错误") ||
+								updateStatus.includes("error")
 								? "error"
 								: "primary"
 						}
@@ -1394,6 +1522,9 @@ export const Settings: React.FC = () => {
 
 				{/* 语言设置 */}
 				<LanguageSelect />
+				<Divider sx={{ my: 3 }} />
+
+				<AppearanceSettings />
 				<Divider sx={{ my: 3 }} />
 
 				<VndbDataSettings />

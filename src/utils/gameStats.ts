@@ -348,7 +348,7 @@ export function initGameTimeTracking(
 	onTimeUpdate?: TimeUpdateCallback,
 	onSessionEnd?: SessionEndCallback,
 ): () => void {
-	if (!isTauri()) return () => {};
+	if (!isTauri()) return () => { };
 
 	// 游戏会话开始
 	const unlistenStart = listen<{
@@ -483,4 +483,74 @@ export function initGameTimeTracking(
 		unlistenUpdate.then((fn) => fn());
 		unlistenEnd.then((fn) => fn());
 	};
+}
+
+/**
+ * 手动更新游戏游玩时间
+ * @param gameId 游戏ID
+ * @param minutes 新的总游玩时间（分钟）
+ */
+export async function updateGamePlayTime(
+	gameId: number,
+	minutes: number,
+): Promise<void> {
+	try {
+		const stats = await getGameStatistics(gameId);
+		if (!stats) return;
+
+		// 计算差值
+		const currentTotal = stats.total_time || 0;
+		const diff = minutes - currentTotal;
+
+		if (diff === 0) return;
+
+		// 更新总时间
+		const newTotalTime = minutes;
+
+		// 更新每日统计（加到今天）
+		const today = getLocalDateString();
+		let dailyStats = stats.daily_stats || [];
+
+		// 解析如果 daily_stats 是字符串 (其实 getGameStatistics 已经解析过了，但为了保险)
+		if (typeof dailyStats === "string") {
+			try {
+				dailyStats = JSON.parse(dailyStats);
+			} catch (e) {
+				dailyStats = [];
+			}
+		}
+		if (!Array.isArray(dailyStats)) dailyStats = [];
+
+		const todayIndex = dailyStats.findIndex((item) => item.date === today);
+
+		if (todayIndex >= 0) {
+			let newTodayTime = (dailyStats[todayIndex].playtime || 0) + diff;
+			if (newTodayTime < 0) newTodayTime = 0; // 防止负数
+			dailyStats[todayIndex].playtime = newTodayTime;
+		} else {
+			// 如果今天没有记录，且通过增加时间，则添加
+			const newTodayTime = diff > 0 ? diff : 0;
+			if (newTodayTime > 0) {
+				dailyStats.push({ date: today, playtime: newTodayTime });
+			}
+		}
+
+		// 排序
+		dailyStats.sort((a, b) => b.date.localeCompare(a.date));
+
+		// 更新后端
+		await statsService.updateGameStatistics(
+			gameId,
+			newTotalTime,
+			stats.session_count || 0,
+			stats.last_played || null,
+			dailyStats,
+		);
+
+		// 清除缓存
+		// invalidateStatsCache();
+	} catch (error) {
+		console.error("更新游戏时间失败:", error);
+		throw error;
+	}
 }

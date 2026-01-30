@@ -76,6 +76,14 @@ export interface AppState {
 	logLevel: LogLevel;
 	setLogLevel: (level: LogLevel) => void;
 
+	// 主题设置
+	themeMode: "light" | "dark" | "system";
+	setThemeMode: (mode: "light" | "dark" | "system") => void;
+	themeColor: string;
+	setThemeColor: (color: string) => void;
+	themeStyle: "default" | "custom";
+	setThemeStyle: (style: "default" | "custom") => void;
+
 	// 排序选项
 	sortOption: string;
 	sortOrder: "asc" | "desc";
@@ -251,6 +259,14 @@ export const useStore = create<AppState>()(
 			// 日志级别（运行时，不持久化）
 			logLevel: "error",
 			setLogLevel: (level: LogLevel) => set({ logLevel: level }),
+
+			// 主题设置
+			themeMode: "light",
+			setThemeMode: (mode: "light" | "dark" | "system") => set({ themeMode: mode }),
+			themeColor: "#F48FB1",
+			setThemeColor: (color: string) => set({ themeColor: color }),
+			themeStyle: "custom",
+			setThemeStyle: (style: "default" | "custom") => set({ themeStyle: style }),
 
 			// 排序选项默认值
 			sortOption: "addtime",
@@ -1313,6 +1329,10 @@ export const useStore = create<AppState>()(
 				sortOrder: state.sortOrder,
 				// 筛选偏好
 				gameFilterType: state.gameFilterType,
+				// 外观设置
+				themeMode: state.themeMode,
+				themeColor: state.themeColor,
+				themeStyle: state.themeStyle,
 				// 关闭应用相关
 				skipCloseRemind: state.skipCloseRemind,
 				defaultCloseAction: state.defaultCloseAction,

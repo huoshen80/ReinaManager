@@ -1,8 +1,17 @@
-import { Box, Card, CardContent, Stack, Typography } from "@mui/material";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import {
+	Box,
+	Button,
+	Card,
+	CardContent,
+	Stack,
+	Typography,
+} from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { ViewGameBox } from "@/components/AlertBox";
+import { EditPlayTimeDialog } from "@/components/EditPlayTimeDialog";
 import { snackbar } from "@/components/Snackbar";
 import { useStore } from "@/store";
 import type { FullGameData, UpdateGameParams } from "@/types";
@@ -24,6 +33,7 @@ export const Edit: React.FC = () => {
 	// UI 状态
 	const [gameData, setGameData] = useState<FullGameData | null>(null);
 	const [openViewBox, setOpenViewBox] = useState(false);
+	const [editTimeOpen, setEditTimeOpen] = useState(false);
 
 	// 确认更新游戏数据（从数据源）
 	const handleConfirmGameUpdate = () => {
@@ -123,15 +133,31 @@ export const Edit: React.FC = () => {
 				{/* 第二部分：游戏资料编辑 */}
 				<Card>
 					<CardContent>
-						<Typography variant="h6" gutterBottom>
-							{t("pages.Detail.Edit.gameInfoEdit", "游戏资料编辑")}
-						</Typography>
+						<Box className="flex justify-between items-center mb-4">
+							<Typography variant="h6">
+								{t("pages.Detail.Edit.gameInfoEdit", "游戏资料编辑")}
+							</Typography>
+							<Button
+								variant="outlined"
+								startIcon={<AccessTimeIcon />}
+								onClick={() => setEditTimeOpen(true)}
+								size="small"
+							>
+								{t("components.RightMenu.editPlayTime", "编辑时间")}
+							</Button>
+						</Box>
 						<GameInfoEdit
 							selectedGame={selectedGame}
 							onSave={handleGameInfoSave}
 						/>
 					</CardContent>
 				</Card>
+
+				<EditPlayTimeDialog
+					open={editTimeOpen}
+					onClose={() => setEditTimeOpen(false)}
+					gameId={id}
+				/>
 			</Stack>
 		</Box>
 	);
