@@ -28,8 +28,9 @@ import {
 	getGameCover,
 	getGameDisplayName,
 	getGameNsfwStatus,
-	handleDirectory,
+	handleExeFile,
 } from "@/utils";
+
 import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
 import i18n from "@/utils/i18n";
 
@@ -316,7 +317,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 处理选择可执行文件路径
 	const handleSelectLocalPath = async () => {
 		try {
-			const selectedPath = await handleDirectory();
+			const selectedPath = await handleExeFile();
 			if (selectedPath) {
 				setLocalPath(selectedPath);
 			}
