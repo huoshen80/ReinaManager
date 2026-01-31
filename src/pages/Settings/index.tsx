@@ -61,7 +61,7 @@ import { toggleAutostart } from "@/components/AutoStart";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
-import { useScrollRestore } from "@/hooks/useScrollRestore";
+import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { LogLevel } from "@/types";

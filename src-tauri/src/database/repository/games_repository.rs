@@ -382,15 +382,4 @@ impl GamesRepository {
     ) -> Result<DeleteResult, DbErr> {
         Savedata::delete_by_id(backup_id).exec(db).await
     }
-
-    /// 批量删除指定游戏的所有备份记录
-    pub async fn delete_all_savedata_by_game(
-        db: &DatabaseConnection,
-        game_id: i32,
-    ) -> Result<DeleteResult, DbErr> {
-        Savedata::delete_many()
-            .filter(savedata::Column::GameId.eq(game_id))
-            .exec(db)
-            .await
-    }
 }

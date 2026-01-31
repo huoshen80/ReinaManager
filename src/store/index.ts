@@ -25,7 +25,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import i18next from "i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getVirtualCategoryGames } from "@/hooks/useVirtualCollections";
+import { getVirtualCategoryGames } from "@/hooks/common/useVirtualCollections";
 import { collectionService, gameService, settingsService } from "@/services";
 import type {
 	Category,

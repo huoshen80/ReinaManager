@@ -19,7 +19,7 @@ import { basename } from "pathe";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
-import { useImagePreview } from "@/hooks/useImagePreview";
+import { useImagePreview } from "@/hooks/common/useImagePreview";
 import type { CustomData, GameData, UpdateGameParams } from "@/types";
 import {
 	getArrayDiff,

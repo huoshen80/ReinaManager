@@ -18,7 +18,7 @@ import { Search as SearchIcon } from "@mui/icons-material";
 import { Autocomplete, Box, TextField } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
 import { useStore } from "@/store";
 import { getSearchSuggestions } from "@/utils/enhancedSearch";
 

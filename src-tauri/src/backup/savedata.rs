@@ -115,22 +115,75 @@ pub async fn restore_savedata_backup(
     Ok(())
 }
 
-/// 删除备份文件
+/// 删除单个备份记录（文件 + 数据库）
+///
+/// 通用函数：即使文件删除失败，也会继续删除数据库记录
 ///
 /// # Arguments
+/// * `db` - 数据库连接
 /// * `backup_file_path` - 备份文件完整路径
+/// * `backup_id` - 数据库记录 ID
+///
+/// # Returns
+/// * `Option<String>` - 如果有错误返回错误信息，否则返回 None
+async fn delete_backup_record(
+    db: &DatabaseConnection,
+    backup_file_path: &Path,
+    backup_id: i32,
+) -> Option<String> {
+    let mut errors: Vec<String> = Vec::new();
+    // 删除备份文件（如果存在），失败时收集错误
+
+    if let Err(e) = fs::remove_file(backup_file_path) {
+        errors.push(format!("删除备份文件失败 {:?}: {}", backup_file_path, e));
+    }
+
+    // 无论文件删除是否成功，都继续删除数据库记录
+    if let Err(e) = GamesRepository::delete_savedata_record(db, backup_id).await {
+        errors.push(format!("删除数据库记录失败 (ID: {}): {}", backup_id, e));
+    }
+
+    if errors.is_empty() {
+        None
+    } else {
+        Some(errors.join("; "))
+    }
+}
+
+/// 删除备份文件和数据库记录
+///
+/// 二合一功能：同时删除备份文件和对应的数据库记录
+/// 即使文件删除失败，也会删除数据库记录，最后返回所有错误
+///
+/// # Arguments
+/// * `app` - Tauri应用句柄
+/// * `db` - 数据库连接
+/// * `backup_id` - 备份记录ID
 ///
 /// # Returns
 /// * `Result<(), String>` - 成功或错误消息
 #[tauri::command]
-pub async fn delete_savedata_backup(backup_file_path: String) -> Result<(), String> {
-    let backup_path = Path::new(&backup_file_path);
+pub async fn delete_savedata_backup(
+    app: AppHandle,
+    db: State<'_, DatabaseConnection>,
+    path_manager: State<'_, PathManager>,
+    backup_id: i32,
+) -> Result<(), String> {
+    // 先从数据库获取备份记录
+    let record = GamesRepository::get_savedata_record_by_id(&db, backup_id)
+        .await
+        .map_err(|e| format!("获取备份记录失败: {}", e))?
+        .ok_or_else(|| "备份记录不存在".to_string())?;
 
-    if !backup_path.exists() {
-        return Err("备份文件不存在".to_string());
+    // 使用统一的路径管理器获取备份目录
+    let backup_root = path_manager.get_savedata_backup_path(&app, &db).await?;
+    let game_backup_dir = backup_root.join(format!("game_{}", record.game_id));
+    let backup_path = game_backup_dir.join(&record.file);
+
+    // 使用通用函数删除备份记录
+    if let Some(error) = delete_backup_record(&db, &backup_path, backup_id).await {
+        return Err(error);
     }
-
-    fs::remove_file(backup_path).map_err(|e| format!("删除备份文件失败: {}", e))?;
 
     Ok(())
 }
@@ -208,20 +261,25 @@ async fn cleanup_old_backups(
     let to_delete_count = records.len() - (max_backups - 1);
     let records_to_delete = &records[..to_delete_count];
 
-    // 删除文件和数据库记录
+    // 收集错误信息，不中断循环
+    let mut errors: Vec<String> = Vec::new();
+
+    // 使用通用函数删除文件和数据库记录
     for record in records_to_delete {
         let backup_file_path = backup_dir.join(&record.file);
 
-        // 删除文件（如果存在）
-        if backup_file_path.exists() {
-            fs::remove_file(&backup_file_path)
-                .map_err(|e| format!("删除备份文件失败 {:?}: {}", backup_file_path, e))?;
+        if let Some(error) = delete_backup_record(db, &backup_file_path, record.id).await {
+            errors.push(error);
         }
+    }
 
-        // 从数据库删除记录
-        GamesRepository::delete_savedata_record(db, record.id)
-            .await
-            .map_err(|e| format!("删除数据库记录失败 (ID: {}): {}", record.id, e))?;
+    // 有错误时记录日志，但不终止备份流程
+    if !errors.is_empty() {
+        log::warn!(
+            "清理旧备份时遇到 {} 个错误:\n{}",
+            errors.len(),
+            errors.join("\n")
+        );
     }
 
     Ok(())

@@ -68,9 +68,6 @@ pub fn run() {
             save_savedata_record,
             get_savedata_count,
             get_savedata_records,
-            get_savedata_record_by_id,
-            delete_savedata_record,
-            delete_all_savedata_by_game,
             // 游戏统计相关 commands
             record_game_session,
             get_game_sessions,
@@ -145,7 +142,11 @@ pub fn run() {
 
                         // 预加载配置路径到路径管理器
                         if let Some(path_manager) = app_handle.try_state::<PathManager>() {
-                            if let Err(e) = path_manager.inner().preload_config_paths(&app_handle, &conn).await {
+                            if let Err(e) = path_manager
+                                .inner()
+                                .preload_config_paths(&app_handle, &conn)
+                                .await
+                            {
                                 log::warn!("预加载配置路径失败: {}", e);
                             } else {
                                 log::info!("配置路径预加载完成");

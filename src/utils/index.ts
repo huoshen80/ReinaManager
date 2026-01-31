@@ -459,80 +459,6 @@ export const toggleGameClearStatus = async (
 	}
 };
 
-// ==================== 备份相关 API 调用 ====================
-
-export interface BackupInfo {
-	folder_name: string;
-	backup_time: number;
-	file_size: number;
-	backup_path: string;
-}
-
-/**
- * 创建游戏存档备份
- *
- * 备份目录将根据以下优先级确定（由后端处理）：
- * 1. 用户设置的自定义存档路径/backups
- * 2. 便携模式：程序目录/backups
- * 3. 非便携模式：AppData/backups
- *
- * @param gameId 游戏ID
- * @param sourcePath 存档文件夹路径
- * @returns 备份信息
- */
-export async function createSavedataBackup(
-	gameId: number,
-	sourcePath: string,
-): Promise<BackupInfo> {
-	try {
-		const result = await invoke<BackupInfo>("create_savedata_backup", {
-			gameId,
-			sourcePath,
-		});
-		return result;
-	} catch (error) {
-		console.error("创建备份失败:", error);
-		throw error;
-	}
-}
-
-/**
- * 删除备份文件
- * @param backupFilePath 备份文件完整路径
- */
-export async function deleteSavedataBackup(
-	backupFilePath: string,
-): Promise<void> {
-	try {
-		await invoke("delete_savedata_backup", {
-			backupFilePath,
-		});
-	} catch (error) {
-		console.error("删除备份文件失败:", error);
-		throw error;
-	}
-}
-
-/**
- * 恢复存档备份
- * @param backupFilePath 备份文件完整路径
- * @param targetPath 目标恢复路径
- */
-export async function restoreSavedataBackup(
-	backupFilePath: string,
-	targetPath: string,
-): Promise<void> {
-	try {
-		await invoke("restore_savedata_backup", {
-			backupFilePath,
-			targetPath,
-		});
-	} catch (error) {
-		console.error("恢复备份失败:", error);
-		throw error;
-	}
-}
-
 /**
  * 通用的创建游戏存档备份函数
  * @param gameId 游戏ID
@@ -551,7 +477,7 @@ export async function createGameSavedataBackup(
 
 	try {
 		// 创建备份（备份路径由后端根据配置自动确定）
-		const backupInfo = await createSavedataBackup(gameId, saveDataPath);
+		const backupInfo = await savedataService.createBackup(gameId, saveDataPath);
 
 		// 保存备份信息到数据库
 		await savedataService.saveSavedataRecord(

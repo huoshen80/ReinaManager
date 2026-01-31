@@ -202,41 +202,6 @@ pub async fn get_savedata_records(
         .map_err(|e| format!("获取备份记录失败: {}", e))
 }
 
-/// 根据 ID 获取备份记录
-#[tauri::command]
-pub async fn get_savedata_record_by_id(
-    db: State<'_, DatabaseConnection>,
-    backup_id: i32,
-) -> Result<Option<savedata::Model>, String> {
-    GamesRepository::get_savedata_record_by_id(&db, backup_id)
-        .await
-        .map_err(|e| format!("获取备份记录失败: {}", e))
-}
-
-/// 删除备份记录
-#[tauri::command]
-pub async fn delete_savedata_record(
-    db: State<'_, DatabaseConnection>,
-    backup_id: i32,
-) -> Result<u64, String> {
-    GamesRepository::delete_savedata_record(&db, backup_id)
-        .await
-        .map(|result| result.rows_affected)
-        .map_err(|e| format!("删除备份记录失败: {}", e))
-}
-
-/// 批量删除指定游戏的所有备份记录
-#[tauri::command]
-pub async fn delete_all_savedata_by_game(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-) -> Result<u64, String> {
-    GamesRepository::delete_all_savedata_by_game(&db, game_id)
-        .await
-        .map(|result| result.rows_affected)
-        .map_err(|e| format!("删除所有备份记录失败: {}", e))
-}
-
 // ==================== 游戏统计相关 ====================
 
 /// 记录游戏会话
@@ -465,7 +430,7 @@ pub async fn get_le_path(db: State<'_, DatabaseConnection>) -> Result<String, St
 pub async fn set_le_path(
     db: State<'_, DatabaseConnection>,
     app: AppHandle,
-    path: String
+    path: String,
 ) -> Result<(), String> {
     SettingsRepository::set_le_path(&db, path)
         .await

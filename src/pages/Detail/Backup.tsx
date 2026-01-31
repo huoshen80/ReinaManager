@@ -22,22 +22,22 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
-import { join } from "pathe";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
-import { savedataService } from "@/services";
+import {
+	useCreateBackup,
+	useDeleteBackup,
+	useRestoreBackup,
+	useSaveDataBackups,
+} from "@/hooks/queries/useSavedata";
 import { useStore } from "@/store";
 import type { SavedataRecord, UpdateGameParams } from "@/types";
 import {
-	createGameSavedataBackup,
-	deleteSavedataBackup,
-	getSavedataBackupPath,
 	handleGetFolder,
 	openGameBackupFolder,
 	openGameSaveDataFolder,
-	restoreSavedataBackup,
 } from "@/utils";
 /**
  * Backup 组件
@@ -50,67 +50,34 @@ export const Backup: React.FC = () => {
 	const { selectedGame, updateGame } = useStore();
 	const { t } = useTranslation();
 
+	// React Query hooks
+	const { data: backupList = [] } = useSaveDataBackups(selectedGame?.id);
+	const createBackupMutation = useCreateBackup();
+	const deleteBackupMutation = useDeleteBackup();
+	const restoreBackupMutation = useRestoreBackup();
+
 	// 状态管理
 	const [saveDataPath, setSaveDataPath] = useState<string>("");
-	const [backupList, setBackupList] = useState<SavedataRecord[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [backupToDelete, setBackupToDelete] = useState<SavedataRecord | null>(
 		null,
 	);
-	const [isDeleting, setIsDeleting] = useState(false);
 	const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(false);
 	const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
-	const [isRestoring, setIsRestoring] = useState(false);
-	const [restoringBackupId, setRestoringBackupId] = useState<number | null>(
-		null,
-	);
 	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 	const [backupToRestore, setBackupToRestore] = useState<SavedataRecord | null>(
 		null,
 	);
 	const [maxBackups, setMaxBackups] = useState<number>(20);
 
-	// 加载备份列表函数（用 useCallback 包裹以便放入依赖数组）
-	const loadBackupList = useCallback(async () => {
-		if (!selectedGame?.id) return;
-
-		try {
-			const records = await savedataService.getSavedataRecords(selectedGame.id);
-			setBackupList(records);
-		} catch (error) {
-			console.error("加载备份列表失败:", error);
-			snackbar.error(
-				t("pages.Detail.Backup.loadBackupsFailed", "加载备份列表失败"),
-			);
-		}
-	}, [selectedGame?.id, t]);
-
-	// 初始化组件，加载备份列表
-	useEffect(() => {
-		loadBackupList();
-	}, [loadBackupList]);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: 仅在 selectedGame.autosave 变化时更新
+	// 从 selectedGame 同步设置状态
 	useEffect(() => {
 		if (selectedGame) {
 			setAutoSaveEnabled(selectedGame.autosave === 1);
-		}
-	}, [selectedGame?.autosave]);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: 仅在 selectedGame.savepath 变化时更新
-	useEffect(() => {
-		if (selectedGame) {
 			setSaveDataPath(selectedGame.savepath || "");
-		}
-	}, [selectedGame?.savepath]);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: 仅在 selectedGame.maxbackups 变化时更新
-	useEffect(() => {
-		if (selectedGame) {
 			setMaxBackups(selectedGame.maxbackups ?? 20);
 		}
-	}, [selectedGame?.maxbackups]);
+	}, [selectedGame]);
 
 	// 统一的设置更新逻辑
 	const handleSettingUpdate = async (
@@ -129,11 +96,7 @@ export const Backup: React.FC = () => {
 			// 移除本地状态同步，由 useEffect 负责
 			// 这样可以避免重复的状态更新和备份列表刷新
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Backup.unknownError", "未知错误");
-			snackbar.error(`${failureMessage}: ${errorMessage}`);
+			snackbar.error(`${failureMessage}: ${error}`);
 
 			// 如果设置失败，由于没有调用 updateGame，useEffect 不会被触发
 			// selectedGame 保持原值，所以不需要手动恢复状态
@@ -199,23 +162,10 @@ export const Backup: React.FC = () => {
 			return;
 		}
 
-		setIsLoading(true);
-
-		try {
-			await createGameSavedataBackup(selectedGame.id, saveDataPath);
-			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
-			loadBackupList();
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Backup.unknownError", "未知错误");
-			snackbar.error(
-				`${t("pages.Detail.Backup.backupFailed", "备份失败")}: ${errorMessage}`,
-			);
-		} finally {
-			setIsLoading(false);
-		}
+		await createBackupMutation.mutateAsync({
+			gameId: selectedGame.id,
+			savePath: saveDataPath,
+		});
 	};
 
 	// 打开备份文件夹
@@ -257,41 +207,19 @@ export const Backup: React.FC = () => {
 
 	// 删除备份
 	const handleDeleteBackup = async () => {
-		if (!backupToDelete) return;
-
-		setIsDeleting(true);
-
-		try {
-			// 获取备份文件完整路径
-			const savedataBackupPath = await getSavedataBackupPath(
-				selectedGame?.id as number,
-			);
-			const backupFilePath = join(savedataBackupPath, backupToDelete.file);
-
-			// 删除备份文件
-			await deleteSavedataBackup(backupFilePath);
-
-			// 从数据库删除记录
-			await savedataService.deleteSavedataRecord(backupToDelete.id);
-
-			snackbar.success(t("pages.Detail.Backup.deleteSuccess", "备份删除成功"));
-			loadBackupList();
-
-			// 关闭对话框并清空选中的备份
-			setDeleteDialogOpen(false);
-			setBackupToDelete(null);
-		} catch (error) {
-			await savedataService.deleteSavedataRecord(backupToDelete.id);
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Backup.unknownError", "未知错误");
-			snackbar.error(
-				`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${errorMessage}`,
-			);
-		} finally {
-			setIsDeleting(false);
-		}
+		if (!backupToDelete || !selectedGame?.id) return;
+		deleteBackupMutation.mutate(
+			{
+				gameId: selectedGame.id,
+				backup: backupToDelete,
+			},
+			{
+				onSettled: () => {
+					setDeleteDialogOpen(false);
+					setBackupToDelete(null);
+				},
+			},
+		);
 	};
 
 	// 打开恢复确认对话框
@@ -308,36 +236,14 @@ export const Backup: React.FC = () => {
 
 	// 确认恢复备份
 	const handleConfirmRestore = async () => {
-		if (!backupToRestore || !saveDataPath) return;
-
-		setIsRestoring(true);
-		setRestoringBackupId(backupToRestore.id);
+		if (!backupToRestore || !saveDataPath || !selectedGame?.id) return;
+		await restoreBackupMutation.mutateAsync({
+			gameId: selectedGame.id,
+			backup: backupToRestore,
+			savePath: saveDataPath,
+		});
 		setRestoreDialogOpen(false);
-
-		try {
-			// 获取备份文件完整路径
-			const savedataBackupPath = await getSavedataBackupPath(
-				selectedGame?.id as number,
-			);
-			const backupFilePath = join(savedataBackupPath, backupToRestore.file);
-
-			// 恢复备份
-			await restoreSavedataBackup(backupFilePath, saveDataPath);
-
-			snackbar.success(t("pages.Detail.Backup.restoreSuccess", "存档恢复成功"));
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Backup.unknownError", "未知错误");
-			snackbar.error(
-				`${t("pages.Detail.Backup.restoreFailed", "恢复失败")}: ${errorMessage}`,
-			);
-		} finally {
-			setIsRestoring(false);
-			setRestoringBackupId(null);
-			setBackupToRestore(null);
-		}
+		setBackupToRestore(null);
 	};
 
 	// 格式化文件大小
@@ -447,7 +353,11 @@ export const Backup: React.FC = () => {
 									fullWidth
 									value={saveDataPath}
 									onChange={(e) => setSaveDataPath(e.target.value)}
-									disabled={isLoading || isUpdatingSettings || !selectedGame}
+									disabled={
+										createBackupMutation.isPending ||
+										isUpdatingSettings ||
+										!selectedGame
+									}
 									placeholder={t(
 										"pages.Detail.Backup.selectSaveDataFolder",
 										"选择存档文件夹",
@@ -456,7 +366,11 @@ export const Backup: React.FC = () => {
 								<Button
 									variant="outlined"
 									onClick={handleSelectSaveDataPath}
-									disabled={isLoading || isUpdatingSettings || !selectedGame}
+									disabled={
+										createBackupMutation.isPending ||
+										isUpdatingSettings ||
+										!selectedGame
+									}
 									sx={{ minWidth: "40px", px: 1 }}
 								>
 									<FolderOpenIcon />
@@ -465,7 +379,7 @@ export const Backup: React.FC = () => {
 									variant="outlined"
 									onClick={handleUpdateSaveDataPath}
 									disabled={
-										isLoading ||
+										createBackupMutation.isPending ||
 										isUpdatingSettings ||
 										!selectedGame ||
 										!saveDataPath
@@ -503,16 +417,20 @@ export const Backup: React.FC = () => {
 								size="large"
 								fullWidth
 								onClick={handleCreateBackup}
-								disabled={isLoading || !saveDataPath || !selectedGame?.savepath}
+								disabled={
+									createBackupMutation.isPending ||
+									!saveDataPath ||
+									!selectedGame?.savepath
+								}
 								startIcon={
-									isLoading ? (
+									createBackupMutation.isPending ? (
 										<CircularProgress size={20} color="inherit" />
 									) : (
 										<BackupIcon />
 									)
 								}
 							>
-								{isLoading
+								{createBackupMutation.isPending
 									? t("pages.Detail.Backup.creating", "正在创建备份...")
 									: t("pages.Detail.Backup.createBackup", "创建备份")}
 							</Button>
@@ -603,15 +521,17 @@ export const Backup: React.FC = () => {
 														edge="end"
 														onClick={() => handleRestoreClick(backup)}
 														disabled={
-															isLoading ||
-															isRestoring ||
+															createBackupMutation.isPending ||
+															restoreBackupMutation.isPending ||
 															!saveDataPath ||
 															!selectedGame?.savepath
 														}
 														color="primary"
 														sx={{ mr: 1 }}
 													>
-														{isRestoring && restoringBackupId === backup.id ? (
+														{restoreBackupMutation.isPending &&
+														restoreBackupMutation.variables?.backup.id ===
+															backup.id ? (
 															<CircularProgress size={24} />
 														) : (
 															<RestoreIcon />
@@ -622,10 +542,18 @@ export const Backup: React.FC = () => {
 											<IconButton
 												edge="end"
 												onClick={() => handleDeleteClick(backup)}
-												disabled={isLoading || isRestoring}
+												disabled={
+													createBackupMutation.isPending ||
+													restoreBackupMutation.isPending ||
+													deleteBackupMutation.isPending
+												}
 												color="error"
 											>
-												<DeleteIcon />
+												{deleteBackupMutation.isPending ? (
+													<CircularProgress size={24} color="error" />
+												) : (
+													<DeleteIcon />
+												)}
 											</IconButton>
 										</ListItemSecondaryAction>
 									</ListItem>
@@ -641,7 +569,7 @@ export const Backup: React.FC = () => {
 				open={deleteDialogOpen}
 				setOpen={setDeleteDialogOpen}
 				onConfirm={handleDeleteBackup}
-				isLoading={isDeleting}
+				isLoading={deleteBackupMutation.isPending}
 				title={t("components.AlertBox.deleteBackupTitle", "删除备份")}
 				message={
 					backupToDelete
@@ -655,7 +583,7 @@ export const Backup: React.FC = () => {
 				open={restoreDialogOpen}
 				setOpen={setRestoreDialogOpen}
 				onConfirm={handleConfirmRestore}
-				isLoading={isRestoring}
+				isLoading={restoreBackupMutation.isPending}
 				title={t("pages.Detail.Backup.restoreBackupTitle", "恢复存档")}
 				message={
 					backupToRestore
