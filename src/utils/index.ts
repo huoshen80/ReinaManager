@@ -416,17 +416,18 @@ export const getGameCover = (game: GameData): string => {
 };
 
 /**
- * 切换游戏通关状态的通用函数
+ * 更新游戏状态的通用函数
  * @param gameId 游戏ID
- * @param getGameById 获取游戏数据的函数
- * @param onSuccess 成功回调函数，返回新的通关状态
+ * @param newStatus 新的游戏状态 (PlayStatus 枚举值 1-5)
+ * @param onSuccess 成功回调函数，返回新的游戏状态
  * @param updateGamesInStore 可选：更新store中games数组的函数
  * @returns Promise<void>
  */
-export const toggleGameClearStatus = async (
+export const updateGamePlayStatus = async (
 	gameId: number,
-	onSuccess?: (newStatus: 1 | 0, gameData: GameData) => void,
-	updateGamesInStore?: (gameId: number, newClearStatus: 1 | 0) => void,
+	newStatus: number,
+	onSuccess?: (newStatus: number, gameData: GameData) => void,
+	updateGamesInStore?: (gameId: number, newStatus: number) => void,
 ): Promise<void> => {
 	try {
 		const fullgame = await gameService.getGameById(gameId);
@@ -436,25 +437,24 @@ export const toggleGameClearStatus = async (
 		}
 		const game = getDisplayGameData(fullgame);
 
-		const newClearStatus = game.clear === 1 ? 0 : 1;
 		await gameService.updateGame(gameId, {
-			clear: newClearStatus as 1 | 0,
+			clear: newStatus,
 		});
 
 		// 更新store中的games数组
 		if (updateGamesInStore) {
-			updateGamesInStore(gameId, newClearStatus as 1 | 0);
+			updateGamesInStore(gameId, newStatus);
 		}
 
 		// 调用成功回调
 		if (onSuccess) {
-			onSuccess(newClearStatus as 1 | 0, {
+			onSuccess(newStatus, {
 				...game,
-				clear: newClearStatus as 1 | 0,
+				clear: newStatus,
 			});
 		}
 	} catch (error) {
-		console.error("更新游戏通关状态失败:", error);
+		console.error("更新游戏状态失败:", error);
 		throw error;
 	}
 };

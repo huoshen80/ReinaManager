@@ -1,3 +1,4 @@
+import { PlayStatus } from "@/types/collection";
 import type { FullGameData, GameData } from "@/types/index";
 import { enhancedSearch } from "./enhancedSearch";
 import { getGameDisplayName } from "./index";
@@ -224,7 +225,8 @@ export function searchGamesLocal(
 		// 根据类型进行预筛选
 		let baseGames = games;
 		if (type === "clear") {
-			baseGames = games.filter((game) => game.clear === 1);
+			// "clear" 现在表示"玩过"状态 (PlayStatus.PLAYED = 3)
+			baseGames = games.filter((game) => game.clear === PlayStatus.PLAYED);
 		}
 		// type === 'online' 或 'all' 不需要额外筛选，因为浏览器环境中所有游戏都是在线的
 
@@ -252,7 +254,10 @@ export function searchGamesLocal(
 		});
 
 		if (type === "clear") {
-			filteredGames = filteredGames.filter((game) => game.clear === 1);
+			// "clear" 现在表示"玩过"状态 (PlayStatus.PLAYED = 3)
+			filteredGames = filteredGames.filter(
+				(game) => game.clear === PlayStatus.PLAYED,
+			);
 		}
 
 		return filteredGames;
@@ -268,7 +273,8 @@ export function filterGamesByTypeLocal(
 	// - 'all': 返回所有游戏
 	// - 'local': 在浏览器中无本地游戏，返回空数组
 	// - 'online': 浏览器中所有游戏都是在线的，返回所有游戏
-	// - 'clear': 返回已通关的游戏
+	// - 'clear': 返回已玩过的游戏 (PlayStatus.PLAYED)
+	// - 'noclear': 返回未玩过的游戏 (非 PlayStatus.PLAYED)
 
 	const games = getGames(sortOption, sortOrder);
 
@@ -277,10 +283,12 @@ export function filterGamesByTypeLocal(
 	}
 
 	if (type === "noclear") {
-		return games.filter((game) => game.clear === 0);
+		// "noclear" 表示非"玩过"状态
+		return games.filter((game) => game.clear !== PlayStatus.PLAYED);
 	}
 	if (type === "clear") {
-		return games.filter((game) => game.clear === 1);
+		// "clear" 表示"玩过"状态 (PlayStatus.PLAYED = 3)
+		return games.filter((game) => game.clear === PlayStatus.PLAYED);
 	}
 	// 浏览器环境中没有本地游戏
 	return [];

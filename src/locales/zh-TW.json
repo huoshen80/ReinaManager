@@ -1,4 +1,8 @@
 {
+	"errors": {
+		"gameNotFound": "遊戲數據未找到",
+		"updatePlayStatusFailed": "更新遊戲狀態失敗"
+	},
 	"api": {
 		"bgm": {
 			"fetchByIdFailed": "根據ID獲取BGM數據失敗",
@@ -175,11 +179,10 @@
 				"renameGroup": "重命名分組",
 				"renameGroupTitle": "重命名分組"
 			},
+			"changePlayStatus": "修改遊戲狀態",
 			"deleteGame": "刪除遊戲",
 			"enterDetails": "進入詳情頁",
 			"label": "右鍵選單",
-			"markAsCompleted": "標記為已通關",
-			"markAsNotCompleted": "標記為未通關",
 			"openGameFolder": "開啟遊戲目錄",
 			"startGame": "啟動遊戲"
 		},
@@ -238,8 +241,7 @@
 			"magpiePathCheckFailed": "檢查Magpie路徑失敗",
 			"magpiePathNotSet": "未設定Magpie軟體路徑，請先配置路徑",
 			"magpieZoom": "Magpie放大",
-			"markAsCompleted": "標記為已通關",
-			"markAsNotCompleted": "標記為未通關",
+			"changePlayStatus": "修改遊戲狀態",
 			"more": "更多",
 			"openGameFolder": "開啟遊戲目錄",
 			"vndblink": "查看Vndb頁面",

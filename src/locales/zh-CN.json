@@ -1,4 +1,8 @@
 {
+	"errors": {
+		"gameNotFound": "游戏数据未找到",
+		"updatePlayStatusFailed": "更新游戏状态失败"
+	},
 	"api": {
 		"bgm": {
 			"fetchByIdFailed": "BGM数据获取失败，请检查ID或网络连接",
@@ -175,11 +179,10 @@
 				"renameGroup": "重命名分组",
 				"renameGroupTitle": "重命名分组"
 			},
+			"changePlayStatus": "修改游戏状态",
 			"deleteGame": "删除游戏",
 			"enterDetails": "进入详情页",
 			"label": "右键菜单",
-			"markAsCompleted": "标记为已通关",
-			"markAsNotCompleted": "标记为未通关",
 			"openGameFolder": "打开游戏目录",
 			"startGame": "启动游戏"
 		},
@@ -238,8 +241,7 @@
 			"magpiePathCheckFailed": "检查Magpie路径失败",
 			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
 			"magpieZoom": "Magpie放大",
-			"markAsCompleted": "标记为已通关",
-			"markAsNotCompleted": "标记为未通关",
+			"changePlayStatus": "修改游戏状态",
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
 			"vndblink": "查看Vndb页面",

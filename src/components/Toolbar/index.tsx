@@ -31,8 +31,6 @@
 
 import CallMadeIcon from "@mui/icons-material/CallMade";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
@@ -54,12 +52,15 @@ import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
+import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { snackbar } from "@/components/Snackbar";
 import SortModal from "@/components/SortModal";
+import { useUpdatePlayStatus } from "@/hooks/queries/usePlayStatus";
 import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
-import { handleOpenFolder, openurl, toggleGameClearStatus } from "@/utils";
+import type { PlayStatus } from "@/types/collection";
+import { handleOpenFolder, openurl } from "@/utils";
 import { CollectionToolbar } from "./Collection";
 
 /**
@@ -184,16 +185,14 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
  * @returns {JSX.Element}
  */
 const MoreButton = () => {
-	const {
-		selectedGame,
-		setSelectedGame,
-		updateGameClearStatusInStore,
-		updateGame,
-	} = useStore();
+	const { selectedGame, setSelectedGame, updateGame } = useStore();
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
 	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
+
+	// 使用 react-query mutation 更新游戏状态
+	const { mutate: updatePlayStatus } = useUpdatePlayStatus();
 
 	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -218,25 +217,11 @@ const MoreButton = () => {
 	};
 
 	/**
-	 * 切换通关状态
+	 * 更新游戏状态
 	 */
-	const handleToggleClearStatus = async () => {
+	const handlePlayStatusChange = (newStatus: PlayStatus) => {
 		if (selectedGame?.id === undefined) return;
-		try {
-			await toggleGameClearStatus(
-				selectedGame.id,
-				(_, updatedGame) => {
-					// 更新store中的游戏数据
-					setSelectedGame(updatedGame);
-				},
-				(gameId, newStatus) => {
-					// 在详情页时跳过全局刷新，避免影响编辑页面状态
-					updateGameClearStatusInStore(gameId, newStatus, true); // skipRefresh = true
-				},
-			);
-		} catch (error) {
-			console.error("更新游戏通关状态失败:", error);
-		}
+		updatePlayStatus({ gameId: selectedGame.id, newStatus });
 	};
 
 	/**
@@ -330,6 +315,7 @@ const MoreButton = () => {
 				anchorEl={anchorEl}
 				open={open}
 				onClose={handleClose}
+				transitionDuration={0}
 			>
 				<MenuItem
 					disabled={!selectedGame || !selectedGame.bgm_id}
@@ -387,20 +373,15 @@ const MoreButton = () => {
 					<ListItemText>{t("components.Toolbar.magpieZoom")}</ListItemText>
 					<Switch checked={selectedGame?.magpie === 1} size="small" />
 				</MenuItem>
-				<MenuItem onClick={handleToggleClearStatus}>
-					<ListItemIcon>
-						{selectedGame?.clear === 1 ? (
-							<EmojiEventsIcon fontSize="small" className="text-yellow-500" />
-						) : (
-							<EmojiEventsOutlinedIcon fontSize="small" />
-						)}
-					</ListItemIcon>
-					<ListItemText>
-						{selectedGame?.clear === 1
-							? t("components.Toolbar.markAsNotCompleted")
-							: t("components.Toolbar.markAsCompleted")}
-					</ListItemText>
-				</MenuItem>
+
+				{/* 游戏状态切换 - 二级菜单 */}
+				<PlayStatusSubmenu
+					currentStatus={selectedGame?.clear}
+					onStatusChange={handlePlayStatusChange}
+					i18nPrefix="components.Toolbar"
+					iconSize="small"
+					expandDirection="left"
+				/>
 			</Menu>
 
 			{/* 路径设置弹窗 */}

@@ -1,4 +1,8 @@
 {
+	"errors": {
+		"gameNotFound": "Game data not found",
+		"updatePlayStatusFailed": "Failed to update play status"
+	},
 	"api": {
 		"bgm": {
 			"fetchByIdFailed": "Failed to fetch BGM data by ID",
@@ -176,11 +180,10 @@
 				"renameGroup": "Rename Group",
 				"renameGroupTitle": "Rename Group"
 			},
+			"changePlayStatus": "Change Play Status",
 			"deleteGame": "Delete Game",
 			"enterDetails": "Game Details",
 			"label": "Context Menu",
-			"markAsCompleted": "Mark as Completed",
-			"markAsNotCompleted": "Mark as Not Completed",
 			"openGameFolder": "Open Game Folder",
 			"startGame": "Start Game"
 		},
@@ -239,8 +242,7 @@
 			"magpiePathCheckFailed": "Failed to check Magpie path",
 			"magpiePathNotSet": "Magpie software path not set, please configure the path first",
 			"magpieZoom": "Magpie Zoom",
-			"markAsCompleted": "Mark as Completed",
-			"markAsNotCompleted": "Mark as Not Completed",
+			"changePlayStatus": "Change Play Status",
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
 			"vndblink": "View Vndb Page",

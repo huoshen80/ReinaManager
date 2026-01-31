@@ -1,4 +1,8 @@
 {
+	"errors": {
+		"gameNotFound": "ゲームデータが見つかりません",
+		"updatePlayStatusFailed": "プレイ状態の更新に失敗しました"
+	},
 	"api": {
 		"bgm": {
 			"fetchByIdFailed": "IDによるBGMデータの取得に失敗しました",
@@ -175,11 +179,10 @@
 				"renameGroup": "グループの名前を変更",
 				"renameGroupTitle": "グループの名前を変更"
 			},
+			"changePlayStatus": "プレイ状態を変更",
 			"deleteGame": "ゲームを削除",
 			"enterDetails": "詳細ページへ",
 			"label": "右クリックメニュー",
-			"markAsCompleted": "クリア済みにマーク",
-			"markAsNotCompleted": "未クリアにマーク",
 			"openGameFolder": "ゲームフォルダを開く",
 			"startGame": "ゲームを起動"
 		},
@@ -238,8 +241,7 @@
 			"magpiePathCheckFailed": "Magpieパスのチェックに失敗しました",
 			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
 			"magpieZoom": "Magpieズーム",
-			"markAsCompleted": "クリア済みにマーク",
-			"markAsNotCompleted": "未クリアにマーク",
+			"changePlayStatus": "プレイ状態を変更",
 			"more": "その他",
 			"openGameFolder": "ゲームフォルダを開く",
 			"vndblink": "Vndbページを見る",

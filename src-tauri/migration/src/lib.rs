@@ -6,6 +6,7 @@ mod m20250928_000002_split_games_table;
 mod m20250930_000003_add_collections;
 mod m20251229_000004_hybrid_single_table;
 mod m20260104_000005_add_le_magpie_fields;
+mod m20260131_000006_migrate_clear_to_play_status;
 
 pub struct Migrator;
 
@@ -18,6 +19,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250930_000003_add_collections::Migration),
             Box::new(m20251229_000004_hybrid_single_table::Migration),
             Box::new(m20260104_000005_add_le_magpie_fields::Migration),
+            Box::new(m20260131_000006_migrate_clear_to_play_status::Migration),
         ]
     }
 }

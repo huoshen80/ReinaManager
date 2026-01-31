@@ -164,10 +164,10 @@ export interface AppState {
 	// 前端名称排序
 	sortGamesByName: (games: GameData[], order: "asc" | "desc") => GameData[];
 
-	// 更新游戏通关状态
-	updateGameClearStatusInStore: (
+	// 更新游戏状态 (PlayStatus 1-5)
+	updateGamePlayStatusInStore: (
 		gameId: number,
-		newClearStatus: 1 | 0,
+		newStatus: number,
 		skipRefresh?: boolean,
 	) => void;
 
@@ -790,22 +790,22 @@ export const useStore = create<AppState>()(
 				return game.localpath.trim() !== "";
 			},
 
-			// 更新games数组中特定游戏的通关状态
-			updateGameClearStatusInStore: async (
+			// 更新games数组中特定游戏的状态 (PlayStatus 1-5)
+			updateGamePlayStatusInStore: async (
 				gameId: number,
-				newClearStatus: 1 | 0,
+				newStatus: number,
 				skipRefresh?: boolean,
 			) => {
 				const { games, allGames } = get();
 
 				// 更新当前显示的游戏列表
 				const updatedGames = games.map((game) =>
-					game.id === gameId ? { ...game, clear: newClearStatus } : game,
+					game.id === gameId ? { ...game, clear: newStatus } : game,
 				);
 
 				// 更新完整的游戏列表
 				const updatedAllGames = allGames.map((game) =>
-					game.id === gameId ? { ...game, clear: newClearStatus } : game,
+					game.id === gameId ? { ...game, clear: newStatus } : game,
 				);
 
 				set({ games: updatedGames, allGames: updatedAllGames });

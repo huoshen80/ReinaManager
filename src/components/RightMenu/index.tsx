@@ -20,8 +20,6 @@
 
 import ArticleIcon from "@mui/icons-material/Article";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import {
@@ -35,12 +33,15 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
+import { useUpdatePlayStatusWithRefresh } from "@/hooks/queries/usePlayStatus";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
-import { handleOpenFolder, toggleGameClearStatus } from "@/utils";
+import type { PlayStatus } from "@/types/collection";
+import { handleOpenFolder } from "@/utils";
 import { LinkWithScrollSave } from "../LinkWithScrollSave";
 import { BaseRightMenu } from "./BaseRightMenu";
+import { PlayStatusSubmenu } from "./PlayStatusSubmenu";
 
 /**
  * RightMenu 组件属性类型
@@ -65,18 +66,20 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	setAnchorEl,
 	id,
 }) => {
-	const { getGameById, deleteGame, isLocalGame, updateGameClearStatusInStore } =
-		useStore();
+	const { getGameById, deleteGame, isLocalGame } = useStore();
 	const { launchGame, isGameRunning } = useGamePlayStore();
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [gameData, setGameData] = useState<GameData | null>(null);
 	const { t } = useTranslation();
 
+	// 使用 react-query mutation 更新游戏状态
+	const { mutate: updatePlayStatus } = useUpdatePlayStatusWithRefresh();
+
 	// 检查该游戏是否正在运行
 	const isThisGameRunning = isGameRunning(id === null ? undefined : id);
 
-	// 获取游戏数据以显示通关状态
+	// 获取游戏数据以显示游戏状态
 	useEffect(() => {
 		const fetchGameData = async () => {
 			if (id !== null && id !== undefined) {
@@ -141,24 +144,20 @@ const RightMenu: React.FC<RightMenuProps> = ({
 		}
 	};
 
-	const handleSwitchClearStatus = async () => {
+	/**
+	 * 更新游戏状态
+	 */
+	const handlePlayStatusChange = (newStatus: PlayStatus) => {
 		if (id === null || id === undefined) return;
-		try {
-			await toggleGameClearStatus(
-				id,
-				(_, updatedGame) => {
-					// 更新本地状态
+		updatePlayStatus(
+			{ gameId: id, newStatus },
+			{
+				onSuccess: (updatedGame) => {
+					// 更新本地状态，不关闭菜单
 					setGameData(updatedGame);
 				},
-				(gameId, newStatus) => {
-					// 在库列表页面，需要保持全局刷新以更新筛选视图
-					updateGameClearStatusInStore(gameId, newStatus, false); // skipRefresh = false
-				},
-			);
-			setAnchorEl(null);
-		} catch (error) {
-			console.error("更新游戏通关状态失败:", error);
-		}
+			},
+		);
 	};
 
 	return (
@@ -230,23 +229,11 @@ const RightMenu: React.FC<RightMenuProps> = ({
 					<ListItemText primary={t("components.RightMenu.openGameFolder")} />
 				</MenuItem>
 
-				{/* 通关状态切换 */}
-				<MenuItem onClick={handleSwitchClearStatus}>
-					<ListItemIcon>
-						{gameData?.clear === 1 ? (
-							<EmojiEventsIcon className="text-yellow-500" />
-						) : (
-							<EmojiEventsOutlinedIcon />
-						)}
-					</ListItemIcon>
-					<ListItemText
-						primary={
-							gameData?.clear === 1
-								? t("components.RightMenu.markAsNotCompleted")
-								: t("components.RightMenu.markAsCompleted")
-						}
-					/>
-				</MenuItem>
+				{/* 游戏状态切换 - 二级菜单 */}
+				<PlayStatusSubmenu
+					currentStatus={gameData?.clear}
+					onStatusChange={handlePlayStatusChange}
+				/>
 			</MenuList>
 		</BaseRightMenu>
 	);
