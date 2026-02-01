@@ -1,3 +1,4 @@
+use crate::database::dto::UpdateSettingsData;
 use crate::entity::prelude::*;
 use crate::entity::user;
 use sea_orm::*;
@@ -48,7 +49,8 @@ impl SettingsRepository {
             .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
 
         let mut active: user::ActiveModel = user.into();
-        active.bgm_token = Set(Some(token));
+        // 清洗空字符串为 NULL
+        active.bgm_token = Set(Some(token).filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -76,7 +78,8 @@ impl SettingsRepository {
             .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
 
         let mut active: user::ActiveModel = user.into();
-        active.save_root_path = Set(Some(path));
+        // 清洗空字符串为 NULL
+        active.save_root_path = Set(Some(path).filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -104,7 +107,8 @@ impl SettingsRepository {
             .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
 
         let mut active: user::ActiveModel = user.into();
-        active.db_backup_path = Set(Some(path));
+        // 清洗空字符串为 NULL
+        active.db_backup_path = Set(Some(path).filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -132,7 +136,8 @@ impl SettingsRepository {
             .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
 
         let mut active: user::ActiveModel = user.into();
-        active.le_path = Set(Some(path));
+        // 清洗空字符串为 NULL
+        active.le_path = Set(Some(path).filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -160,7 +165,8 @@ impl SettingsRepository {
             .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
 
         let mut active: user::ActiveModel = user.into();
-        active.magpie_path = Set(Some(path));
+        // 清洗空字符串为 NULL
+        active.magpie_path = Set(Some(path).filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -177,12 +183,9 @@ impl SettingsRepository {
     }
 
     /// 批量更新设置
-    pub async fn update_settings(
-        db: &DatabaseConnection,
-        bgm_token: Option<String>,
-        save_root_path: Option<String>,
-        db_backup_path: Option<String>,
-    ) -> Result<(), DbErr> {
+    pub async fn update_settings(db: &DatabaseConnection, data: UpdateSettingsData) -> Result<(), DbErr> {
+        let data = data.cleaned(); // 清洗空字符串
+
         Self::ensure_user_exists(db).await?;
 
         let user = User::find_by_id(1)
@@ -192,16 +195,24 @@ impl SettingsRepository {
 
         let mut active: user::ActiveModel = user.into();
 
-        if let Some(token) = bgm_token {
+        if let Some(token) = data.bgm_token {
             active.bgm_token = Set(Some(token));
         }
 
-        if let Some(path) = save_root_path {
+        if let Some(path) = data.save_root_path {
             active.save_root_path = Set(Some(path));
         }
 
-        if let Some(path) = db_backup_path {
+        if let Some(path) = data.db_backup_path {
             active.db_backup_path = Set(Some(path));
+        }
+
+        if let Some(path) = data.le_path {
+            active.le_path = Set(Some(path));
+        }
+
+        if let Some(path) = data.magpie_path {
+            active.magpie_path = Set(Some(path));
         }
 
         active.update(db).await?;

@@ -19,6 +19,118 @@ where
     Ok(Some(Option::deserialize(deserializer)?))
 }
 
+/// 清洗空字符串为 None
+///
+/// 将 Option<String> 中的空字符串或仅包含空白字符的字符串转换为 None，
+/// 使其符合 Rust 的 Option 语义：Some 代表有值，None 代表无值。
+fn clean_option_string(s: Option<String>) -> Option<String> {
+    s.filter(|v| !v.trim().is_empty())
+}
+
+/// 清洗 Option<Option<String>> 中的空字符串
+///
+/// 用于 UpdateGameData，将内层的 Some("") 转换为 None，
+/// 保持外层的 Some 表示"用户提供了这个字段"。
+fn clean_double_option_string(s: Option<Option<String>>) -> Option<Option<String>> {
+    s.map(|inner| inner.filter(|v| !v.trim().is_empty()))
+}
+
+/// 清洗 InsertGameData 中的空字符串
+impl InsertGameData {
+    /// 返回清洗后的数据，将空字符串转换为 None
+    pub fn cleaned(mut self) -> Self {
+        self.bgm_id = clean_option_string(self.bgm_id);
+        self.vndb_id = clean_option_string(self.vndb_id);
+        self.ymgal_id = clean_option_string(self.ymgal_id);
+        self.date = clean_option_string(self.date);
+        self.localpath = clean_option_string(self.localpath);
+        self.savepath = clean_option_string(self.savepath);
+        self
+    }
+}
+
+/// 清洗 UpdateGameData 中的空字符串
+impl UpdateGameData {
+    /// 返回清洗后的数据，将空字符串转换为 None
+    pub fn cleaned(mut self) -> Self {
+        self.bgm_id = clean_double_option_string(self.bgm_id);
+        self.vndb_id = clean_double_option_string(self.vndb_id);
+        self.ymgal_id = clean_double_option_string(self.ymgal_id);
+        self.date = clean_double_option_string(self.date);
+        self.localpath = clean_double_option_string(self.localpath);
+        self.savepath = clean_double_option_string(self.savepath);
+        self
+    }
+}
+
+// ==================== 合集相关 DTO ====================
+
+/// 用于插入合集的数据结构
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InsertCollectionData {
+    pub name: String,
+    pub parent_id: Option<i32>,
+    pub sort_order: i32,
+    pub icon: Option<String>,
+}
+
+/// 用于更新合集的数据结构
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UpdateCollectionData {
+    pub name: Option<String>,
+    pub parent_id: Option<Option<i32>>,
+    pub sort_order: Option<i32>,
+    pub icon: Option<Option<String>>,
+}
+
+/// 清洗 InsertCollectionData 中的空字符串
+impl InsertCollectionData {
+    /// 返回清洗后的数据，将空字符串转换为 None
+    pub fn cleaned(mut self) -> Self {
+        self.name = self.name.trim().to_string();
+        self.icon = self.icon.filter(|s| !s.trim().is_empty());
+        self
+    }
+}
+
+/// 清洗 UpdateCollectionData 中的空字符串
+impl UpdateCollectionData {
+    /// 返回清洗后的数据，将空字符串转换为 None
+    pub fn cleaned(mut self) -> Self {
+        if let Some(name) = self.name {
+            self.name = Some(name.trim().to_string());
+        }
+        self.icon = self.icon.map(|inner| inner.filter(|s| !s.trim().is_empty()));
+        self
+    }
+}
+
+// ==================== 设置相关 DTO ====================
+
+/// 用于更新设置的数据结构
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct UpdateSettingsData {
+    pub bgm_token: Option<String>,
+    pub save_root_path: Option<String>,
+    pub db_backup_path: Option<String>,
+    pub le_path: Option<String>,
+    pub magpie_path: Option<String>,
+}
+
+/// 清洗 UpdateSettingsData 中的空字符串
+impl UpdateSettingsData {
+    /// 返回清洗后的数据，将空字符串转换为 None
+    pub fn cleaned(mut self) -> Self {
+        self.bgm_token = self.bgm_token.filter(|s| !s.trim().is_empty());
+        self.save_root_path = self.save_root_path.filter(|s| !s.trim().is_empty());
+        self.db_backup_path = self.db_backup_path.filter(|s| !s.trim().is_empty());
+        self.le_path = self.le_path.filter(|s| !s.trim().is_empty());
+        self.magpie_path = self.magpie_path.filter(|s| !s.trim().is_empty());
+        self
+    }
+}
+
 /// 用于插入游戏的数据结构（单表架构）
 ///
 /// 包含所有需要插入的字段，元数据通过 JSON 结构体传入

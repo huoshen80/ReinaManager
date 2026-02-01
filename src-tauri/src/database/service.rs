@@ -2,7 +2,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
-use crate::database::dto::{InsertGameData, UpdateGameData};
+use crate::database::dto::{InsertGameData, UpdateGameData, InsertCollectionData, UpdateCollectionData, UpdateSettingsData};
 use crate::database::repository::{
     collections_repository::{CategoryWithCount, CollectionsRepository, GroupWithCategories},
     game_stats_repository::{DailyStats, GameStatsRepository},
@@ -488,7 +488,15 @@ pub async fn update_settings(
 ) -> Result<(), String> {
     use crate::utils::fs::PathManager;
 
-    SettingsRepository::update_settings(&db, bgm_token, save_root_path, db_backup_path)
+    let data = UpdateSettingsData {
+        bgm_token,
+        save_root_path,
+        db_backup_path,
+        ..Default::default()
+    }
+    .cleaned(); // 清洗空字符串
+
+    SettingsRepository::update_settings(&db, data)
         .await
         .map_err(|e| format!("更新设置失败: {}", e))?;
 
@@ -595,7 +603,15 @@ pub async fn create_collection(
     sort_order: i32,
     icon: Option<String>,
 ) -> Result<crate::entity::collections::Model, String> {
-    CollectionsRepository::create(&db, name, parent_id, sort_order, icon)
+    let data = InsertCollectionData {
+        name,
+        parent_id,
+        sort_order,
+        icon,
+    }
+    .cleaned(); // 清洗空字符串
+
+    CollectionsRepository::create(&db, data)
         .await
         .map_err(|e| format!("创建合集失败: {}", e))
 }
@@ -652,7 +668,15 @@ pub async fn update_collection(
     sort_order: Option<i32>,
     icon: Option<Option<String>>,
 ) -> Result<crate::entity::collections::Model, String> {
-    CollectionsRepository::update(&db, id, name, parent_id, sort_order, icon)
+    let data = UpdateCollectionData {
+        name,
+        parent_id,
+        sort_order,
+        icon,
+    }
+    .cleaned(); // 清洗空字符串
+
+    CollectionsRepository::update(&db, id, data)
         .await
         .map_err(|e| format!("更新合集失败: {}", e))
 }

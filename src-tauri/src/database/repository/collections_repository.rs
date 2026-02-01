@@ -1,3 +1,4 @@
+use crate::database::dto::{InsertCollectionData, UpdateCollectionData};
 use crate::entity::prelude::*;
 use crate::entity::{collections, game_collection_link};
 use sea_orm::*;
@@ -32,19 +33,16 @@ impl CollectionsRepository {
     /// 创建合集
     pub async fn create(
         db: &DatabaseConnection,
-        name: String,
-        parent_id: Option<i32>,
-        sort_order: i32,
-        icon: Option<String>,
+        data: InsertCollectionData,
     ) -> Result<collections::Model, DbErr> {
         let now = chrono::Utc::now().timestamp() as i32;
 
         let collection = collections::ActiveModel {
             id: NotSet,
-            name: Set(name),
-            parent_id: Set(parent_id),
-            sort_order: Set(sort_order),
-            icon: Set(icon),
+            name: Set(data.name),
+            parent_id: Set(data.parent_id),
+            sort_order: Set(data.sort_order),
+            icon: Set(data.icon),
             created_at: Set(Some(now)),
             updated_at: Set(Some(now)),
         };
@@ -95,10 +93,7 @@ impl CollectionsRepository {
     pub async fn update(
         db: &DatabaseConnection,
         id: i32,
-        name: Option<String>,
-        parent_id: Option<Option<i32>>,
-        sort_order: Option<i32>,
-        icon: Option<Option<String>>,
+        data: UpdateCollectionData,
     ) -> Result<collections::Model, DbErr> {
         let existing = Collections::find_by_id(id)
             .one(db)
@@ -107,16 +102,16 @@ impl CollectionsRepository {
 
         let mut active: collections::ActiveModel = existing.into();
 
-        if let Some(n) = name {
+        if let Some(n) = data.name {
             active.name = Set(n);
         }
-        if let Some(p) = parent_id {
+        if let Some(p) = data.parent_id {
             active.parent_id = Set(p);
         }
-        if let Some(s) = sort_order {
+        if let Some(s) = data.sort_order {
             active.sort_order = Set(s);
         }
-        if let Some(i) = icon {
+        if let Some(i) = data.icon {
             active.icon = Set(i);
         }
 

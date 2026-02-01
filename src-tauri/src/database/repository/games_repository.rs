@@ -49,6 +49,8 @@ impl GamesRepository {
     ///
     /// 所有元数据通过 JSON 列直接存储，无需多表事务
     pub async fn insert(db: &DatabaseConnection, game: InsertGameData) -> Result<i32, DbErr> {
+        let game = game.cleaned(); // 清洗空字符串为 NULL
+
         let now = chrono::Utc::now().timestamp() as i32;
 
         let game_active = games::ActiveModel {
@@ -85,6 +87,7 @@ impl GamesRepository {
         game_id: i32,
         updates: UpdateGameData,
     ) -> Result<games::Model, DbErr> {
+        let updates = updates.cleaned(); // 清洗空字符串为 NULL
         let now = chrono::Utc::now().timestamp() as i32;
 
         let game_active = games::ActiveModel {
@@ -128,6 +131,8 @@ impl GamesRepository {
         let mut count = 0u64;
 
         for (game_id, update) in updates {
+            let update = update.cleaned(); // 清洗空字符串为 NULL
+
             let game_active = games::ActiveModel {
                 id: Set(game_id),
                 bgm_id: update.bgm_id.map_or(NotSet, Set),
@@ -255,16 +260,8 @@ impl GamesRepository {
 
         query = match game_type {
             GameType::All => query,
-            GameType::Local => query.filter(
-                games::Column::Localpath
-                    .is_not_null()
-                    .and(games::Column::Localpath.ne("")),
-            ),
-            GameType::Online => query.filter(
-                games::Column::Localpath
-                    .is_null()
-                    .or(games::Column::Localpath.eq("")),
-            ),
+            GameType::Local => query.filter(games::Column::Localpath.is_not_null()),
+            GameType::Online => query.filter(games::Column::Localpath.is_null()),
             GameType::NoClear => query.filter(games::Column::Clear.eq(0)),
             GameType::Clear => query.filter(games::Column::Clear.eq(1)),
         };
