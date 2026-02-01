@@ -20,7 +20,7 @@ import {
 	MenuItem,
 	Paper,
 } from "@mui/material";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	ALL_PLAY_STATUSES,
@@ -66,6 +66,64 @@ interface PlayStatusSubmenuProps {
 }
 
 /**
+ * 计算最佳展开方向
+ * 根据父菜单位置和视口大小，自动选择：左上、左下、右上、右下
+ * 优先考虑传入的 preferredDirection 作为首选方向
+ */
+const getBestExpandDirection = (
+	itemRect: DOMRect,
+	submenuWidth: number,
+	submenuHeight: number,
+	preferredDirection?: "left" | "right",
+): "left-up" | "left-down" | "right-up" | "right-down" => {
+	const viewportWidth = window.innerWidth;
+	const viewportHeight = window.innerHeight;
+
+	// 检查右侧空间
+	const rightSpace = viewportWidth - itemRect.right;
+	const canExpandRight = rightSpace >= submenuWidth;
+
+	// 检查左侧空间
+	const leftSpace = itemRect.left;
+	const canExpandLeft = leftSpace >= submenuWidth;
+
+	// 检查上方空间
+	const topSpace = itemRect.top;
+	const canExpandUp = topSpace >= submenuHeight;
+
+	// 检查下方空间
+	const bottomSpace = viewportHeight - itemRect.bottom;
+	const canExpandDown = bottomSpace >= submenuHeight;
+
+	// 如果设置了首选方向，优先尝试该方向
+	if (preferredDirection === "left" && canExpandLeft) {
+		return canExpandDown ? "left-down" : "left-up";
+	}
+	if (preferredDirection === "right" && canExpandRight) {
+		return canExpandDown ? "right-down" : "right-up";
+	}
+
+	// 优先保证水平方向
+	if (canExpandRight) {
+		return canExpandDown ? "right-down" : "right-up";
+	}
+	if (canExpandLeft) {
+		return canExpandDown ? "left-down" : "left-up";
+	}
+
+	// 如果水平方向空间不足，尝试垂直方向
+	if (canExpandDown) {
+		return canExpandRight ? "right-down" : "left-down";
+	}
+	if (canExpandUp) {
+		return canExpandRight ? "right-up" : "left-up";
+	}
+
+	// 默认向右下展开
+	return "right-down";
+};
+
+/**
  * 游戏状态二级菜单组件
  * hover 时展开二级菜单显示所有状态选项
  * 可同时用于 RightMenu 和 Toolbar
@@ -105,20 +163,7 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 		clearCloseTimer();
 		closeTimerRef.current = setTimeout(() => {
 			setSubmenuOpen(false);
-		}, 100);
-	};
-
-	// 鼠标进入子菜单时取消关闭
-	const handleSubmenuMouseEnter = () => {
-		clearCloseTimer();
-	};
-
-	// 鼠标离开子菜单时关闭
-	const handleSubmenuMouseLeave = () => {
-		clearCloseTimer();
-		closeTimerRef.current = setTimeout(() => {
-			setSubmenuOpen(false);
-		}, 100);
+		}, 200);
 	};
 
 	// 点击状态选项
@@ -129,38 +174,100 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 
 	const isPlayed = isPlayedStatus(currentStatus);
 
-	// 计算二级菜单位置
-	const getSubmenuStyle = (): React.CSSProperties => {
-		if (!menuItemRef.current) return {};
+	// 二级菜单位置信息
+	const submenuWidth = 120; // 最小宽度
+	const submenuHeight = 180; // 估算高度（约5个选项）
 
-		const itemRect = menuItemRef.current.getBoundingClientRect();
-		const submenuWidth = 120; // 最小宽度
+	// 使用 state 存储计算出的位置信息
+	const [positionInfo, setPositionInfo] = useState<{
+		direction: "left-up" | "left-down" | "right-up" | "right-down";
+		left: number;
+		top: number;
+	}>({
+		direction: "right-down",
+		left: 0,
+		top: 0,
+	});
 
-		let left: number;
-		if (expandDirection === "left") {
-			// 向左展开：子菜单右边缘对齐主菜单左边缘
-			left = itemRect.left - submenuWidth;
-		} else {
-			// 向右展开：子菜单左边缘对齐主菜单右边缘
-			left = itemRect.right;
+	// 当二级菜单打开时，重新计算位置
+	useEffect(() => {
+		if (!submenuOpen || !menuItemRef.current) {
+			return;
 		}
 
-		// 确保不超出视口左侧
-		if (left < 0) {
-			left = 0;
-		}
+		const updatePosition = () => {
+			const itemRect = menuItemRef.current?.getBoundingClientRect();
+			if (!itemRect) return;
 
-		// 确保不超出视口右侧
-		if (left + submenuWidth > window.innerWidth) {
-			left = window.innerWidth - submenuWidth;
-		}
+			const dir = getBestExpandDirection(
+				itemRect,
+				submenuWidth,
+				submenuHeight,
+				expandDirection,
+			);
 
-		return {
-			position: "fixed",
-			top: itemRect.top,
-			left,
-			zIndex: 9999,
+			let l: number;
+			let t: number;
+
+			switch (dir) {
+				case "right-up":
+					l = itemRect.right;
+					t = itemRect.bottom - submenuHeight;
+					break;
+				case "right-down":
+					l = itemRect.right;
+					t = itemRect.top;
+					break;
+				case "left-up":
+					l = itemRect.left - submenuWidth;
+					t = itemRect.bottom - submenuHeight;
+					break;
+				default:
+					l = itemRect.left - submenuWidth;
+					t = itemRect.top;
+					break;
+			}
+
+			// 确保不超出视口左侧
+			if (l < 0) {
+				l = 0;
+			}
+
+			// 确保不超出视口右侧
+			if (l + submenuWidth > window.innerWidth) {
+				l = window.innerWidth - submenuWidth;
+			}
+
+			// 确保不超出视口顶部
+			if (t < 0) {
+				t = 0;
+			}
+
+			// 确保不超出视口底部
+			if (t + submenuHeight > window.innerHeight) {
+				t = window.innerHeight - submenuHeight;
+			}
+
+			setPositionInfo({ direction: dir, left: l, top: t });
 		};
+
+		// 延迟执行，确保 DOM 已经渲染完成
+		const timeoutId = setTimeout(updatePosition, 0);
+
+		return () => {
+			clearTimeout(timeoutId);
+		};
+	}, [submenuOpen, expandDirection]);
+
+	// 根据展开方向获取箭头图标
+	const getArrowIcon = () => {
+		switch (positionInfo.direction) {
+			case "left-up":
+			case "left-down":
+				return <ChevronLeftIcon fontSize="small" sx={{ ml: 1 }} />;
+			default:
+				return <ChevronRightIcon fontSize="small" sx={{ ml: 1 }} />;
+		}
 	};
 
 	return (
@@ -179,11 +286,7 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 					)}
 				</ListItemIcon>
 				<ListItemText primary={t(`${i18nPrefix}.changePlayStatus`)} />
-				{expandDirection === "left" ? (
-					<ChevronLeftIcon fontSize="small" sx={{ ml: 1 }} />
-				) : (
-					<ChevronRightIcon fontSize="small" sx={{ ml: 1 }} />
-				)}
+				{getArrowIcon()}
 			</MenuItem>
 
 			{/* 二级菜单 - 使用自定义 div + Paper 避免 MUI Menu 的焦点问题 */}
@@ -191,11 +294,11 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 				role="menu"
 				ref={submenuRef}
 				style={{
-					...getSubmenuStyle(),
+					position: "fixed",
+					top: positionInfo.top,
+					left: positionInfo.left,
 					display: submenuOpen ? "block" : "none",
 				}}
-				onMouseEnter={handleSubmenuMouseEnter}
-				onMouseLeave={handleSubmenuMouseLeave}
 			>
 				<Paper
 					elevation={8}
