@@ -88,6 +88,7 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           shared-key: ${{ matrix.rust_target }}
+          save-if: false
 
       # 配置 Windows lld 链接器
       - name: Configure Rust linker (Windows lld)

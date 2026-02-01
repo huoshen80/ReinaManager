@@ -1,4 +1,47 @@
-## [0.15.0](https://github.com/huoshen80/ReinaManager/compare/v0.14.2...v0.15.0) (2026-02-01)
+## [0.15.1](https://github.com/huoshen80/ReinaManager/compare/v0.14.2...v0.15.1) (2026-02-01)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+
+* 旧的游戏状态映射引起的显示和逻辑问题 ([5d6cbe2](https://github.com/huoshen80/ReinaManager/commit/5d6cbe2a232af74346a992fcc39ba89c5278e81c))
+* 游戏状态切换二级菜单在展开时超出视口范围 ([218600c](https://github.com/huoshen80/ReinaManager/commit/218600cadf914db0db66c63097a3eea6ca6c72c7))
+
+
+### 新功能
+
+* 为新添加的游戏分配默认游戏状态 ([1d07d90](https://github.com/huoshen80/ReinaManager/commit/1d07d9051f630d54e394cdff50519019b2e78e0b))
+* 实现游戏状态切换功能，并为其修改添加二级菜单 ([c73c597](https://github.com/huoshen80/ReinaManager/commit/c73c597e90a58a6ce93d5689c9dcd5ff5d6eeefc))
+
+
+### 性能改进
+
+* 添加迁移以清理数据库中的空字符串，并更新 DTO 以进行字符串清理 ([718ed54](https://github.com/huoshen80/ReinaManager/commit/718ed54355765cbacde5c5e9ae08feee65b89350))
+
+</details>
+
+### Bug Fixes
+
+* display and logic issues caused by old game status mapping ([5d6cbe2](https://github.com/huoshen80/ReinaManager/commit/5d6cbe2a232af74346a992fcc39ba89c5278e81c))
+* the submenu for switch game status extends beyond the viewport when expanded ([218600c](https://github.com/huoshen80/ReinaManager/commit/218600cadf914db0db66c63097a3eea6ca6c72c7))
+
+
+### Features
+
+* assign a default game status to newly added games ([1d07d90](https://github.com/huoshen80/ReinaManager/commit/1d07d9051f630d54e394cdff50519019b2e78e0b))
+* implement switch games status feature with submenu for its updates ([c73c597](https://github.com/huoshen80/ReinaManager/commit/c73c597e90a58a6ce93d5689c9dcd5ff5d6eeefc))
+
+
+### Performance Improvements
+
+* add migration to clean empty strings in db and update DTOs for string sanitization ([718ed54](https://github.com/huoshen80/ReinaManager/commit/718ed54355765cbacde5c5e9ae08feee65b89350))
+
+
+
+## ~~[0.15.0](https://github.com/huoshen80/ReinaManager/compare/v0.14.2...v0.15.0)(2026-02-01)~~ 
+
+### *This is a deprecated version; the relevant content has been merged into version v0.15.1*
 
 <details>
 <summary>查看中文版本</summary>
