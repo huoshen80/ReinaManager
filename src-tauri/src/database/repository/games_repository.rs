@@ -262,8 +262,9 @@ impl GamesRepository {
             GameType::All => query,
             GameType::Local => query.filter(games::Column::Localpath.is_not_null()),
             GameType::Online => query.filter(games::Column::Localpath.is_null()),
-            GameType::NoClear => query.filter(games::Column::Clear.eq(0)),
-            GameType::Clear => query.filter(games::Column::Clear.eq(1)),
+            // clear 字段已迁移到 1-5 枚举：1=WISH, 2=PLAYING, 3=PLAYED, 4=ON_HOLD, 5=DROPPED
+            GameType::NoClear => query.filter(games::Column::Clear.ne(3)),
+            GameType::Clear => query.filter(games::Column::Clear.eq(3)),
         };
         query
     }

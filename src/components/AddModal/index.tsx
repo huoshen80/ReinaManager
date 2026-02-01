@@ -85,7 +85,6 @@ function buildInsertData(
 		date: fallbackDate,
 		localpath: gameData.localpath ?? undefined,
 		autosave: gameData.autosave,
-		clear: gameData.clear,
 		bgm_data: gameData.bgm_data ?? undefined,
 		vndb_data: gameData.vndb_data ?? undefined,
 		ymgal_data: gameData.ymgal_data ?? undefined,
@@ -129,7 +128,6 @@ async function fetchYmgalAndMerge(
 		date: existingData.date,
 		localpath: existingData.localpath,
 		autosave: existingData.autosave,
-		clear: existingData.clear,
 		custom_data: existingData.custom_data ?? undefined,
 	};
 }
@@ -277,7 +275,6 @@ const AddModal: React.FC = () => {
 						defaults: {
 							localpath: finaldata.localpath ?? undefined,
 							autosave: finaldata.autosave,
-							clear: finaldata.clear,
 						},
 					});
 					result = results.length > 0 ? results[0] : null;
@@ -386,7 +383,6 @@ const AddModal: React.FC = () => {
 			defaults: {
 				localpath: path,
 				autosave: 0,
-				clear: 0,
 			},
 		});
 
@@ -453,7 +449,6 @@ const AddModal: React.FC = () => {
 			const defaultdata = {
 				localpath: path,
 				autosave: 0,
-				clear: 0,
 			};
 
 			// 场景1: 自定义模式

@@ -124,9 +124,7 @@ export function usePlayStatusCategories(allGames: GameData[]): Category[] {
 				allGames,
 				{
 					extractKeys: (game) => {
-						const clearValue = game.clear || 0;
-						if (clearValue === 0) return PlayStatus.WISH;
-						if (clearValue === 1) return PlayStatus.PLAYED;
+						const clearValue = game.clear ?? PlayStatus.WISH;
 						return clearValue as PlayStatus;
 					},
 					generateId: (status) => -status,
@@ -182,9 +180,7 @@ export function getVirtualCategoryGames(
 			allGames,
 			{
 				matchGame: (game) => {
-					const clearValue = game.clear || 0;
-					if (clearValue === 0) return targetStatus === PlayStatus.WISH;
-					if (clearValue === 1) return targetStatus === PlayStatus.PLAYED;
+					const clearValue = game.clear ?? PlayStatus.WISH;
 					return clearValue === targetStatus;
 				},
 			},

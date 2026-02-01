@@ -51,6 +51,7 @@ import { Link } from "react-router-dom";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
+import { PlayStatus } from "@/types/collection";
 import {
 	formatPlayTime,
 	formatRelativeTime,
@@ -246,7 +247,7 @@ export const Home: React.FC = () => {
 		[gamesList],
 	);
 	const completedGamesCount = useMemo(
-		() => allGames.filter((game) => game.clear === 1).length,
+		() => allGames.filter((game) => game.clear === PlayStatus.PLAYED).length,
 		[allGames],
 	);
 
