@@ -3,7 +3,7 @@ members = ["reina-path", "migration"]
 
 [package]
 name = "ReinaManager"
-version = "0.14.2"
+version = "0.15.0"
 description = "A lightweight visual novel manager"
 authors = ["huoshen80"]
 license = "GNU AFFERO GENERAL PUBLIC LICENSE"
@@ -31,7 +31,7 @@ tauri = { version = "~2.9.5", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-autostart = "~2.5.0"
 tauri-plugin-dialog = "~2.4.0"
 tauri-plugin-fs = "~2.4.2"
-tauri-plugin-http = "=2.5.4"
+tauri-plugin-http = "~2.5.4"
 tauri-plugin-log = "~2.7.0"
 tauri-plugin-shell = "~2.3.1"
 tauri-plugin-single-instance = "~2.3.2"
