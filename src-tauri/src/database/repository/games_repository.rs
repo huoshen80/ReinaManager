@@ -64,7 +64,7 @@ impl GamesRepository {
             savepath: NotSet,
             autosave: NotSet,
             maxbackups: NotSet,
-            clear: NotSet,
+            clear: Set(Some(1)),// 数据库迁移默认值麻烦，临时设定默认值为 1
             le_launch: NotSet,
             magpie: NotSet,
             vndb_data: Set(game.vndb_data),

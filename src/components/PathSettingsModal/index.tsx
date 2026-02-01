@@ -35,7 +35,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { settingsService } from "@/services";
-import { handleGetFolder, moveBackupFolder } from "@/utils";
+import { getAppDataDirPath, handleGetFolder, moveBackupFolder } from "@/utils";
 
 /**
  * 路径设置弹窗组件属性
@@ -160,8 +160,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	 * 保存游戏存档备份路径
 	 */
 	const handleSaveSavePath = async () => {
-		if (!savePath.trim()) return;
-
 		try {
 			setSavePathLoading(true);
 			await settingsService.setSaveRootPath(savePath);
@@ -169,7 +167,10 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 			// 如果路径发生了变化，需要移动备份文件夹
 			if (savePathOriginal !== savePath || savePathOriginal !== "") {
 				try {
-					const moveResult = await moveBackupFolder(savePathOriginal, savePath);
+					const moveResult = await moveBackupFolder(
+						savePathOriginal,
+						savePath === "" ? getAppDataDirPath() : savePath,
+					);
 					if (moveResult) {
 						setSavePathOriginal(savePath);
 					}
