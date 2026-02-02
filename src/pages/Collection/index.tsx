@@ -403,71 +403,79 @@ export const Collection: React.FC = () => {
 	const allGroups = [...defaultGroups, ...customGroups];
 
 	return (
-		<Box sx={{ p: 3 }}>
+		<Box sx={{ p: 3,pt:0 }}>
 			{/* 面包屑导航或标题 */}
-			{showLevel === "groups" ? (
-				<Typography variant="h4" sx={{ mb: 3 }}>
-					{t("pages.Collection.breadcrumb.group")}
-				</Typography>
-			) : showLevel === "categories" ? (
-				<Breadcrumbs
-					separator={<NavigateNextIcon fontSize="small" />}
-					aria-label="breadcrumb"
-					sx={{ mb: 3 }}
-				>
-					<Link
-						underline="hover"
-						sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}
-						color="inherit"
-						onClick={() => handleBreadcrumbClick("root")}
-					>
-						<HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+			<Box
+				className="sticky top-0 z-10 pt-3"
+				sx={{ backgroundColor: "background.paper", borderColor: "divider" }}
+			>
+				{showLevel === "groups" ? (
+					<Typography variant="h4" className="mb-3">
 						{t("pages.Collection.breadcrumb.group")}
-					</Link>
-					<Typography
-						sx={{ display: "flex", alignItems: "center" }}
-						color="text.primary"
-					>
-						<FolderIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-						{currentGroupName}
 					</Typography>
-				</Breadcrumbs>
-			) : (
-				<Breadcrumbs
-					separator={<NavigateNextIcon fontSize="small" />}
-					aria-label="breadcrumb"
-					sx={{ mb: 3 }}
-				>
-					<Link
-						underline="hover"
-						sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}
-						color="inherit"
-						onClick={() => handleBreadcrumbClick("root")}
+				) : showLevel === "categories" ? (
+					<Breadcrumbs
+						separator={<NavigateNextIcon fontSize="small" />}
+						aria-label="breadcrumb"
 					>
-						<HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-						{t("pages.Collection.breadcrumb.group")}
-					</Link>
-					<Link
-						underline="hover"
-						sx={{
-							display: "flex",
-							alignItems: "center",
-							cursor: "pointer",
-						}}
-						color="inherit"
-						onClick={() => handleBreadcrumbClick("group")}
+						<Link
+							underline="hover"
+							className="flex items-center cursor-pointer"
+							sx={{
+								color: "inherit",
+								"&:hover": { color: "primary.dark" },
+							}}
+							onClick={() => handleBreadcrumbClick("root")}
+						>
+							<HomeIcon className="mr-1" sx={{ fontSize: "inherit" }} />
+							{t("pages.Collection.breadcrumb.group")}
+						</Link>
+						<Typography
+							className="flex items-center font-600"
+							sx={{ color: "text.primary" }}
+						>
+							<FolderIcon className="mr-1" sx={{ fontSize: "inherit" }} />
+							{currentGroupName}
+						</Typography>
+					</Breadcrumbs>
+				) : (
+					<Breadcrumbs
+						separator={<NavigateNextIcon fontSize="small" />}
+						aria-label="breadcrumb"
 					>
-						<FolderIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-						{currentGroupName}
-					</Link>
-					<Typography
-						sx={{ display: "flex", alignItems: "center" }}
-						color="text.primary"
-					>
-						{currentCategoryName}
-					</Typography>
-				</Breadcrumbs>
-			)}
+						<Link
+							underline="hover"
+							className="flex items-center cursor-pointer"
+							sx={{
+								color: "inherit",
+								"&:hover": { color: "primary.dark" },
+							}}
+							onClick={() => handleBreadcrumbClick("root")}
+						>
+							<HomeIcon className="mr-1" sx={{ fontSize: "inherit" }} />
+							{t("pages.Collection.breadcrumb.group")}
+						</Link>
+						<Link
+							underline="hover"
+							className="flex items-center cursor-pointer"
+							sx={{
+								color: "inherit",
+								"&:hover": { color: "primary.dark" },
+							}}
+							onClick={() => handleBreadcrumbClick("group")}
+						>
+							<FolderIcon className="mr-1" sx={{ fontSize: "inherit" }} />
+							{currentGroupName}
+						</Link>
+						<Typography
+							className="flex items-center font-600"
+							sx={{ color: "text.primary" }}
+						>
+							{currentCategoryName}
+						</Typography>
+					</Breadcrumbs>
+				)}
+			</Box>
 
 			{/* 主内容区域 */}
 			{showLevel === "groups" && (
