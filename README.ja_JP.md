@@ -33,6 +33,8 @@
 
 - Zustand
 
+- TanStack Query
+
 - Sqlite
 
 - Rust
@@ -128,7 +130,7 @@ ReinaManager へのすべての貢献に感謝します！
 
 - **[Bangumi](https://bangumi.tv/)** - Bangumi 番組計画
 
-- **[VNDB](https://vndb.org/)** - ビジュアルノベルデータベース
+- **[VNDB](https://vndb.org/)** - the visual novel database
 
 - **[Ymgal](https://www.ymgal.games/)** - 月幕Galgame
 

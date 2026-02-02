@@ -33,6 +33,8 @@
 
 - Zustand
 
+- TanStack Query
+
 - Sqlite
 
 - Rust

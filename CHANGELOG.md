@@ -1,3 +1,20 @@
+## [0.15.2](https://github.com/huoshen80/ReinaManager/compare/v0.15.1...v0.15.2) (2026-02-02)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 新功能
+
+* 冻结收藏页面顶部的导航栏 ([ced5fe2](https://github.com/huoshen80/ReinaManager/commit/ced5fe272c7efba2275f6bce8226874a4b0163cc))
+
+</details>
+
+### Features
+
+* freeze the navigation bar at the top of the collection page ([ced5fe2](https://github.com/huoshen80/ReinaManager/commit/ced5fe272c7efba2275f6bce8226874a4b0163cc))
+
+
+
 ## [0.15.1](https://github.com/huoshen80/ReinaManager/compare/v0.14.2...v0.15.1) (2026-02-01)
 
 <details>

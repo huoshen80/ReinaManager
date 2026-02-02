@@ -33,6 +33,8 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 - Zustand
 
+- TanStack Query
+
 - Sqlite
 
 - Rust
@@ -127,7 +129,7 @@ If you find this project helpful and would like to support its development, you 
 
 - **[Bangumi](https://bangumi.tv/)** - Bangumi 番组计划
 
-- **[VNDB](https://vndb.org/)** - 视觉小说数据库
+- **[VNDB](https://vndb.org/)** - the visual novel database
 
 - **[Ymgal](https://www.ymgal.games/)** - 月幕Galgame
 
