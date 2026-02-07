@@ -406,11 +406,11 @@ export const Collection: React.FC = () => {
 		<Box sx={{ p: 3, pt: 0 }}>
 			{/* 面包屑导航或标题 */}
 			<Box
-				className="sticky top-0 z-10 pt-3"
+				className="sticky top-0 z-10 pt-4 mb-2"
 				sx={{ backgroundColor: "background.paper", borderColor: "divider" }}
 			>
 				{showLevel === "groups" ? (
-					<Typography variant="h4" className="mb-3">
+					<Typography variant="h4">
 						{t("pages.Collection.breadcrumb.group")}
 					</Typography>
 				) : showLevel === "categories" ? (

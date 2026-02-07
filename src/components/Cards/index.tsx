@@ -37,7 +37,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import RightMenu from "@/components/RightMenu";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
@@ -422,6 +422,8 @@ SortableCardItem.displayName = "SortableCardItem";
 const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const { i18n } = useTranslation();
 	const navigate = useNavigate();
+	const path = useLocation().pathname;
+	const isLibraries = path === "/libraries";
 
 	// Store 状态
 	const selectedGameId = useStore((s) => s.selectedGameId);
@@ -540,7 +542,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	// 卡片列表
 	const cardList = (
-		<div className="flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4 pt-0">
+		<div className={`flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4 ${isLibraries ? "pt-0" : ""}`}>
 			<RightMenu
 				id={menuPosition?.cardId}
 				isopen={Boolean(menuPosition)}
