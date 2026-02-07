@@ -195,7 +195,9 @@
 		},
 		"Snackbar": {
 			"failedOpenDatabaseBackupFolder": "打开数据库备份文件夹失败",
-			"failedOpenGameFolder": "打开游戏文件夹失败"
+			"failedOpenGameFolder": "打开游戏文件夹失败",
+			"gameAddedSuccess": "游戏添加成功",
+			"viewDetails": "查看详情"
 		},
 		"SortModal": {
 			"addTime": "添加时间(默认)",

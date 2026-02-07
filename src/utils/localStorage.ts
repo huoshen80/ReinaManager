@@ -127,7 +127,7 @@ function setGames(games: GameData[]): void {
 }
 
 // 插入一条游戏数据
-export function insertGame(fullgame: FullGameData): void {
+export function insertGame(fullgame: FullGameData): number {
 	const games = getGames();
 
 	// 如果游戏没有ID，分配一个新ID
@@ -137,6 +137,7 @@ export function insertGame(fullgame: FullGameData): void {
 
 	// games.push(fullgame);纯前端摆烂~
 	setGames(games);
+	return fullgame.id;
 }
 
 // 删除一条游戏数据

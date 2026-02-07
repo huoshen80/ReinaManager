@@ -1,3 +1,4 @@
+import type { OptionsObject } from "notistack";
 import { useSnackbar } from "notistack";
 import type React from "react";
 
@@ -10,16 +11,16 @@ export const SnackbarUtilsConfigurator: React.FC = () => {
 
 // 全局调用
 export const snackbar = {
-	success(msg: string) {
-		snackbarRef?.enqueueSnackbar(msg, { variant: "success" });
+	success(msg: string, options?: OptionsObject) {
+		snackbarRef?.enqueueSnackbar(msg, { variant: "success", ...options });
 	},
-	error(msg: string) {
-		snackbarRef?.enqueueSnackbar(msg, { variant: "error" });
+	error(msg: string, options?: OptionsObject) {
+		snackbarRef?.enqueueSnackbar(msg, { variant: "error", ...options });
 	},
-	warning(msg: string) {
-		snackbarRef?.enqueueSnackbar(msg, { variant: "warning" });
+	warning(msg: string, options?: OptionsObject) {
+		snackbarRef?.enqueueSnackbar(msg, { variant: "warning", ...options });
 	},
-	info(msg: string) {
-		snackbarRef?.enqueueSnackbar(msg, { variant: "info" });
+	info(msg: string, options?: OptionsObject) {
+		snackbarRef?.enqueueSnackbar(msg, { variant: "info", ...options });
 	},
 };

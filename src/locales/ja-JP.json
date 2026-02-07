@@ -195,7 +195,9 @@
 		},
 		"Snackbar": {
 			"failedOpenDatabaseBackupFolder": "データベースバックアップフォルダの開けに失敗しました",
-			"failedOpenGameFolder": "ゲームフォルダの開けに失敗しました"
+			"failedOpenGameFolder": "ゲームフォルダの開けに失敗しました",
+			"gameAddedSuccess": "ゲームが正常に追加されました",
+			"viewDetails": "詳細を表示"
 		},
 		"SortModal": {
 			"addTime": "追加時間(デフォルト)",

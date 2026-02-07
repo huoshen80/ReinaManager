@@ -37,9 +37,11 @@ import { isTauri } from "@tauri-apps/api/core";
 import { basename, dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { gameMetadataService } from "@/api";
 import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
+import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
@@ -159,6 +161,7 @@ function extractFolderName(path: string): string {
  */
 const AddModal: React.FC = () => {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const {
 		bgmToken,
 		games,
@@ -254,7 +257,7 @@ const AddModal: React.FC = () => {
 	);
 
 	const finalizeAddGame = useCallback(
-		(gameData: InsertGameParams) => {
+		async (gameData: InsertGameParams) => {
 			const insertData: InsertGameParams = {
 				...gameData,
 				localpath: addModalPath,
@@ -265,9 +268,24 @@ const AddModal: React.FC = () => {
 				return;
 			}
 
-			addGame(insertData);
+			const gameId = await addGame(insertData);
 			resetState();
 			closeAddModal();
+
+			// 显示带跳转按钮的成功提示
+			if (gameId) {
+				snackbar.success(t("components.Snackbar.gameAddedSuccess"), {
+					action: (
+						<Button
+							color="inherit"
+							size="small"
+							onClick={() => navigate(`/libraries/${gameId}`)}
+						>
+							{t("components.Snackbar.viewDetails")}
+						</Button>
+					),
+				});
+			}
 		},
 		[
 			addGame,
@@ -277,6 +295,7 @@ const AddModal: React.FC = () => {
 			resetState,
 			showError,
 			t,
+			navigate,
 		],
 	);
 

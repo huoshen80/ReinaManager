@@ -96,7 +96,7 @@ export interface AppState {
 		resetSearch?: boolean,
 	) => Promise<void>;
 	fetchGame: (id: number) => Promise<void>;
-	addGame: (gameParams: InsertGameParams) => Promise<void>;
+	addGame: (gameParams: InsertGameParams) => Promise<number | null>;
 	deleteGame: (gameId: number) => Promise<void>;
 	getGameById: (gameId: number) => Promise<GameData>;
 	updateGame: (id: number, gameUpdates: UpdateGameParams) => Promise<void>;
@@ -581,22 +581,25 @@ export const useStore = create<AppState>()(
 			},
 
 			// 使用通用函数简化 addGame
-			addGame: async (gameParams: InsertGameParams) => {
+			addGame: async (gameParams: InsertGameParams): Promise<number | null> => {
 				try {
+					let insertedGameId: number | null = null;
 					if (isTauri()) {
 						// 确保 id_type 有值
 						const gameToInsert = {
 							...gameParams,
 							id_type: gameParams.id_type || "custom",
 						};
-						await gameService.insertGame(gameToInsert);
+						insertedGameId = await gameService.insertGame(gameToInsert);
 					} else {
-						insertGameLocal(gameParams);
+						insertedGameId = insertGameLocal(gameParams);
 					}
 					// 使用通用刷新函数
 					await get().refreshGameData();
+					return insertedGameId;
 				} catch (error) {
 					console.error("Error adding game:", error);
+					return null;
 				}
 			},
 

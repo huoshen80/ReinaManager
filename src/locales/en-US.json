@@ -196,7 +196,9 @@
 		},
 		"Snackbar": {
 			"failedOpenDatabaseBackupFolder": "Failed to open the database backup folder",
-			"failedOpenGameFolder": "Failed to open the game folder"
+			"failedOpenGameFolder": "Failed to open the game folder",
+			"gameAddedSuccess": "Game added successfully",
+			"viewDetails": "View Details"
 		},
 		"SortModal": {
 			"addTime": "Add Time (Default)",
