@@ -403,7 +403,7 @@ export const Collection: React.FC = () => {
 	const allGroups = [...defaultGroups, ...customGroups];
 
 	return (
-		<Box sx={{ p: 3,pt:0 }}>
+		<Box sx={{ p: 3, pt: 0 }}>
 			{/* 面包屑导航或标题 */}
 			<Box
 				className="sticky top-0 z-10 pt-3"

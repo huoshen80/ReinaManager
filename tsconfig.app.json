@@ -22,7 +22,8 @@
 		"paths": {
 			"@/*": ["./src/*"],
 			"@pkg": ["./package.json"]
-		}
+		},
+		"types": ["node", "vite/client"]
 	},
 	"include": ["src"]
 }
