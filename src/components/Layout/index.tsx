@@ -35,6 +35,7 @@ import { useTranslation } from "react-i18next";
 import { Outlet, useLocation } from "react-router-dom";
 import { SearchBox } from "@/components/SearchBox";
 import { Toolbars } from "@/components/Toolbar";
+import AddModal from "../AddModal";
 import { LinkWithScrollSave } from "../LinkWithScrollSave";
 
 /**
@@ -128,6 +129,7 @@ export const Layout: React.FC = () => {
 			defaultSidebarCollapsed={true}
 			renderPageItem={handleRenderPageItem}
 		>
+			<AddModal />
 			{isLibraries ? (
 				<PageContainer sx={{ maxWidth: "100% !important" }}>
 					<KeepAlive

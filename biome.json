@@ -1,12 +1,12 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false,
+		"ignoreUnknown": true,
 		"includes": [
 			"**",
 			"!node_modules",
@@ -31,21 +31,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
-			"a11y": {
-				"useKeyWithClickEvents": {
-					"level": "off",
-					"options": {}
-				}
-			},
-			"correctness": {
-				"useUniqueElementIds": {
-					"level": "off",
-					"options": {
-						"excludedComponents": ["FormattedMessage"]
-					}
-				}
-			}
+			"recommended": true
 		}
 	},
 	"javascript": {

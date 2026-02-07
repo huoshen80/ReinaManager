@@ -19,14 +19,17 @@
 				"minWidth": 1024,
 				"minHeight": 596,
 				"resizable": true,
-				"fullscreen": false
+				"fullscreen": false,
+				"dragDropEnabled": true
 			}
 		],
 		"security": {
 			"csp": null,
 			"assetProtocol": {
 				"enable": true,
-				"scope": ["**"]
+				"scope": [
+					"**"
+				]
 			}
 		}
 	},
@@ -46,7 +49,12 @@
 		"windows": {
 			"nsis": {
 				"installerIcon": "icons/icon.ico",
-				"languages": ["English", "SimpChinese", "TradChinese", "Japanese"],
+				"languages": [
+					"English",
+					"SimpChinese",
+					"TradChinese",
+					"Japanese"
+				],
 				"displayLanguageSelector": true
 			}
 		}

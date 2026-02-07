@@ -29,6 +29,7 @@
  * - @tauri-apps/api/core
  */
 
+import AddIcon from "@mui/icons-material/Add";
 import CallMadeIcon from "@mui/icons-material/CallMade";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -47,7 +48,6 @@ import { ThemeSwitcher } from "@toolpad/core/DashboardLayout";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
-import AddModal from "@/components/AddModal";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
@@ -405,7 +405,8 @@ export const Buttongroup = ({
 	isCollection,
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
-	const { getGameById, isLocalGame, allGames } = useStore();
+	const { t } = useTranslation();
+	const { getGameById, isLocalGame, allGames, openAddModal } = useStore();
 
 	/**
 	 * 判断当前游戏是否可用（本地且 Tauri 环境）
@@ -437,7 +438,9 @@ export const Buttongroup = ({
 			{isLibraries && (
 				<>
 					<LaunchModal />
-					<AddModal />
+					<Button onClick={() => openAddModal("")} startIcon={<AddIcon />}>
+						{t("components.AddModal.addGame")}
+					</Button>
 					<SortModal />
 					<FilterModal />
 					<ThemeSwitcher />

@@ -19,10 +19,11 @@
  * - react-i18next
  */
 
-import AddIcon from "@mui/icons-material/Add";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import FileOpenIcon from "@mui/icons-material/FileOpen";
 import { FormControlLabel, Radio, RadioGroup } from "@mui/material";
 import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -31,6 +32,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { isTauri } from "@tauri-apps/api/core";
 import { basename, dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -38,7 +40,7 @@ import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
 import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
-import { useModal } from "@/components/Toolbar";
+import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
 import { handleDirectory } from "@/utils";
@@ -157,15 +159,25 @@ function extractFolderName(path: string): string {
  */
 const AddModal: React.FC = () => {
 	const { t } = useTranslation();
-	const { bgmToken, games, apiSource, setApiSource, addGame } = useStore();
-	const { isopen, handleOpen, handleClose } = useModal();
+	const {
+		bgmToken,
+		games,
+		apiSource,
+		setApiSource,
+		addGame,
+		addModalOpen,
+		addModalPath,
+		openAddModal,
+		closeAddModal,
+		setAddModalPath,
+	} = useStore();
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [path, setPath] = useState("");
 	const [customMode, setCustomMode] = useState(false);
 	// 保留 ID 搜索状态
 	const [isID, setisID] = useState(false);
+	const previousFocus = useRef<HTMLElement | null>(null);
 
 	// 弹窗状态（合并相关状态）
 	const [dialogState, setDialogState] = useState<DialogState>({
@@ -183,6 +195,13 @@ const AddModal: React.FC = () => {
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
 
+	const { isDragging } = useTauriDragDrop({
+		onValidPath: (selectedPath) => {
+			if (loading) return;
+			openAddModal(selectedPath);
+		},
+	});
+
 	const showError = useCallback((message: string) => {
 		setError(message);
 		setTimeout(() => setError(""), ERROR_DISPLAY_DURATION_MS);
@@ -192,23 +211,34 @@ const AddModal: React.FC = () => {
 	 * 当路径变化时，自动提取文件夹名作为游戏名。
 	 */
 	useEffect(() => {
-		if (path) {
-			setFormText(extractFolderName(path));
+		if (addModalPath) {
+			setFormText(extractFolderName(addModalPath));
 		}
-	}, [path]);
+	}, [addModalPath]);
+
+	useEffect(() => {
+		if (addModalOpen) {
+			previousFocus.current = document.activeElement as HTMLElement;
+			return;
+		}
+
+		if (previousFocus.current) {
+			previousFocus.current.focus();
+		}
+	}, [addModalOpen]);
 
 	/**
 	 * 重置所有状态
 	 */
 	const resetState = useCallback(() => {
 		setFormText("");
-		setPath("");
+		setAddModalPath("");
 		setError("");
 		setDialogState({
 			confirm: { open: false, data: null, showViewMore: false },
 			select: { open: false, results: [] },
 		});
-	}, []);
+	}, [setAddModalPath]);
 
 	const checkGameExists = useCallback(
 		(gameData: InsertGameParams): boolean => {
@@ -227,7 +257,7 @@ const AddModal: React.FC = () => {
 		(gameData: InsertGameParams) => {
 			const insertData: InsertGameParams = {
 				...gameData,
-				localpath: path,
+				localpath: addModalPath,
 			};
 
 			if (checkGameExists(insertData)) {
@@ -237,9 +267,17 @@ const AddModal: React.FC = () => {
 
 			addGame(insertData);
 			resetState();
-			handleClose();
+			closeAddModal();
 		},
-		[addGame, checkGameExists, handleClose, path, resetState, showError, t],
+		[
+			addGame,
+			checkGameExists,
+			closeAddModal,
+			addModalPath,
+			resetState,
+			showError,
+			t,
+		],
 	);
 
 	/**
@@ -328,8 +366,8 @@ const AddModal: React.FC = () => {
 		abortControllerRef.current = null;
 		setLoading(false);
 		resetState();
-		handleClose();
-	}, [handleClose, resetState]);
+		closeAddModal();
+	}, [closeAddModal, resetState]);
 
 	/**
 	 * 处理"查看更多"按钮点击
@@ -381,7 +419,7 @@ const AddModal: React.FC = () => {
 			bgmToken,
 			isIdSearch: isID,
 			defaults: {
-				localpath: path,
+				localpath: addModalPath,
 				autosave: 0,
 			},
 		});
@@ -447,13 +485,13 @@ const AddModal: React.FC = () => {
 			setLoading(true);
 
 			const defaultdata = {
-				localpath: path,
+				localpath: addModalPath,
 				autosave: 0,
 			};
 
 			// 场景1: 自定义模式
 			if (customMode) {
-				if (!path) {
+				if (!addModalPath) {
 					showError(t("components.AddModal.noExecutableSelected"));
 					return;
 				}
@@ -468,8 +506,8 @@ const AddModal: React.FC = () => {
 
 				addGame(customGameData);
 				setFormText("");
-				setPath("");
-				handleClose();
+				setAddModalPath("");
+				closeAddModal();
 				return;
 			}
 
@@ -511,16 +549,24 @@ const AddModal: React.FC = () => {
 
 	return (
 		<>
-			{/* 添加游戏按钮，点击后弹窗打开 */}
-			<Button onClick={handleOpen} startIcon={<AddIcon />}>
-				{t("components.AddModal.addGame")}
-			</Button>
+			{/* 拖拽遮罩层 */}
+			{isDragging && (
+				<Box className="fixed inset-0 z-[9999] bg-[rgba(25,118,210,0.15)] backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none">
+					<CloudUploadIcon className="text-[80px] text-[#1976d2] mb-2 opacity-90" />
+					<Typography
+						variant="h5"
+						className="text-2xl font-semibold text-[#1976d2] text-center opacity-90"
+					>
+						{t("components.AddModal.dragDropHere")}
+					</Typography>
+				</Box>
+			)}
 			<Dialog
-				open={isopen}
+				open={addModalOpen}
 				onClose={(_, reason) => {
 					// 加载时防止关闭弹窗
 					if (reason !== "backdropClick" && !loading) {
-						handleClose();
+						closeAddModal();
 					}
 				}}
 				closeAfterTransition={false}
@@ -536,7 +582,7 @@ const AddModal: React.FC = () => {
 						variant="contained"
 						onClick={async () => {
 							const result = await handleDirectory();
-							if (result) setPath(result);
+							if (result) setAddModalPath(result);
 						}}
 						startIcon={<FileOpenIcon />}
 						disabled={!isTauri()}
@@ -547,8 +593,8 @@ const AddModal: React.FC = () => {
 						<input
 							className="w-md"
 							type="text"
-							value={path}
-							placeholder={t("components.AddModal.selectExecutable")}
+							value={addModalPath}
+							placeholder={t("components.AddModal.dragHint")}
 							readOnly
 						/>
 					</p>

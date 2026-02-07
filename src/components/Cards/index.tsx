@@ -542,7 +542,9 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	// 卡片列表
 	const cardList = (
-		<div className={`flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4 ${isLibraries ? "pt-0" : ""}`}>
+		<div
+			className={`flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4 ${isLibraries ? "pt-0" : ""}`}
+		>
 			<RightMenu
 				id={menuPosition?.cardId}
 				isopen={Boolean(menuPosition)}

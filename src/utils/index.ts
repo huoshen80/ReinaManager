@@ -2,9 +2,10 @@ import { path } from "@tauri-apps/api";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { resourceDir } from "@tauri-apps/api/path";
 import { open as openDirectory } from "@tauri-apps/plugin-dialog";
+import { readDir, stat } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-shell";
 import i18next, { t } from "i18next";
-import { join } from "pathe";
+import { extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
 import { fetchVNDBByIds } from "@/api/vndb";
 import { snackbar } from "@/components/Snackbar";
@@ -331,10 +332,11 @@ export function formatPlayTime(minutes: number): string {
 	return i18next.t("utils.formatPlayTime.hours", { count: hours });
 }
 
-export const handleDirectory = async () => {
+export const handleDirectory = async (droppedPath?: string) => {
 	const path = await openDirectory({
 		multiple: false,
 		directory: false,
+		defaultPath: droppedPath,
 		filters: [
 			{
 				name: t("utils.handleDirectory.executable"),
@@ -348,6 +350,92 @@ export const handleDirectory = async () => {
 	});
 	if (path === null) return null;
 	return path;
+};
+
+/**
+ * 判断文件是否为可执行文件
+ * @param filePath 文件路径
+ * @returns 是否为可执行文件
+ */
+export const isExecutableFile = (filePath: string): boolean => {
+	const ext = extname(filePath).toLowerCase();
+	return [".exe", ".bat", ".cmd"].includes(ext);
+};
+
+/**
+ * 获取目录下所有可执行文件（非递归）
+ * @param dirPath 目录路径
+ * @returns 可执行文件路径数组
+ */
+export const getExecutablesInDirectory = async (
+	dirPath: string,
+): Promise<string[]> => {
+	try {
+		const entries = await readDir(dirPath);
+		const executables: string[] = [];
+
+		for (const entry of entries) {
+			// 只处理文件，不递归子目录
+			if (!entry.isDirectory && entry.name) {
+				const fullPath = join(dirPath, entry.name);
+				if (isExecutableFile(entry.name)) {
+					executables.push(fullPath);
+				}
+			}
+		}
+
+		return executables;
+	} catch (error) {
+		console.error("读取目录失败:", error);
+		return [];
+	}
+};
+
+/**
+ * 处理拖拽的文件或文件夹路径
+ * @param droppedPath 拖拽的路径
+ * @returns 选中的可执行文件路径，如果失败返回 null
+ */
+export const handleDroppedPath = async (
+	droppedPath: string,
+): Promise<string | null> => {
+	try {
+		// 检查路径类型
+		const fileInfo = await stat(droppedPath);
+
+		if (fileInfo.isDirectory) {
+			// 拖入的是文件夹，读取其中的可执行文件
+			const executables = await getExecutablesInDirectory(droppedPath);
+
+			if (executables.length === 0) {
+				// 没有可执行文件
+				snackbar.error(t("components.AddModal.emptyFolder"));
+				return null;
+			}
+
+			if (executables.length === 1) {
+				// 只有一个可执行文件，直接使用
+				return executables[0];
+			}
+
+			// 多个可执行文件，弹出系统对话框让用户选择
+			snackbar.info(t("components.AddModal.selectFromFolder"));
+			const selected = await handleDirectory(droppedPath);
+
+			return selected;
+		}
+		// 拖入的是文件
+		if (isExecutableFile(droppedPath)) {
+			return droppedPath;
+		}
+		// 不是可执行文件
+		snackbar.error(t("components.AddModal.invalidFile"));
+		return null;
+	} catch (error) {
+		console.error("处理拖拽路径失败:", error);
+		snackbar.error(t("components.AddModal.invalidFile"));
+		return null;
+	}
 };
 
 export const handleGetFolder = async (defaultPath?: string) => {

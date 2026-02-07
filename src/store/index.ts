@@ -71,6 +71,8 @@ export interface AppState {
 	// UI 状态
 	selectedGameId: number | null;
 	selectedGame: GameData | null;
+	addModalOpen: boolean;
+	addModalPath: string;
 
 	// 日志级别（运行时，不持久化）
 	logLevel: LogLevel;
@@ -106,6 +108,9 @@ export interface AppState {
 	// UI 操作方法
 	setSelectedGameId: (id: number | null | undefined) => void;
 	setSelectedGame: (game: GameData | null) => void;
+	openAddModal: (path?: string) => void;
+	closeAddModal: () => void;
+	setAddModalPath: (path: string) => void;
 
 	// 初始化
 	initialize: () => Promise<void>;
@@ -243,6 +248,8 @@ export const useStore = create<AppState>()(
 			// UI 状态
 			selectedGameId: null,
 			selectedGame: null,
+			addModalOpen: false,
+			addModalPath: "",
 
 			searchKeyword: "",
 
@@ -268,6 +275,19 @@ export const useStore = create<AppState>()(
 			apiSource: "vndb",
 			setApiSource: (source: "bgm" | "vndb" | "ymgal" | "mixed") => {
 				set({ apiSource: source });
+			},
+
+			openAddModal: (path?: string) => {
+				const nextPath = path ?? get().addModalPath;
+				const { addModalOpen, addModalPath } = get();
+				if (addModalOpen && addModalPath === nextPath) return;
+				set({ addModalOpen: true, addModalPath: nextPath });
+			},
+			closeAddModal: () => {
+				set({ addModalOpen: false });
+			},
+			setAddModalPath: (path: string) => {
+				set({ addModalPath: path });
 			},
 
 			// NSFW相关

@@ -272,8 +272,8 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 
 	return (
 		<Box
-			component="li"
-			sx={{ position: "relative", listStyle: "none" }}
+			component="div"
+			sx={{ position: "relative" }}
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}
 		>
