@@ -14,7 +14,7 @@
 * 调整收藏页面导航栏与下方内容的间距 ([17d2aa9](https://github.com/huoshen80/ReinaManager/commit/17d2aa9bf6a015a5bd8702d036fb101e7166476f))
 
 
-<details>
+</details>
 
 ### Bug Fixes
 
@@ -30,59 +30,6 @@
 ### Performance Improvements
 
 * adjust the spacing between the nav bar and the content below on the collection page ([17d2aa9](https://github.com/huoshen80/ReinaManager/commit/17d2aa9bf6a015a5bd8702d036fb101e7166476f))
-
-
-
-## [0.16.0](https://github.com/huoshen80/ReinaManager/compare/v0.15.2...v0.16.0) (2026-02-07)
-
-<details>
-<summary>查看中文版本</summary>
-
-### Bug 修复
-* 修复游戏详情页简介不换行的问题 ([018e08f](https://github.com/huoshen80/ReinaManager/commit/018e08fbafdc26730dc705349a829c293b8f9ce8))
-
-### 新功能
-* 添加全局拖拽添加游戏功能 ([6297314](https://github.com/huoshen80/ReinaManager/commit/6297314c8631b2619972abd1f12ee9f6e385c05b))
-* 增强游戏添加功能，添加成功后有成功提示并提供跳转详情页的按钮 ([90a28cd](https://github.com/huoshen80/ReinaManager/commit/90a28cd5052dd7faef3d20dd875ee494940d0b6e))
-
-### 性能改进
-* 调整收藏页面导航栏与下方内容的间距 ([17d2aa9](https://github.com/huoshen80/ReinaManager/commit/17d2aa9bf6a015a5bd8702d036fb101e7166476f))
-
-
-<details>
-
-### Bug Fixes
-
-* the issue of the game details page summary not wrapping ([018e08f](https://github.com/huoshen80/ReinaManager/commit/018e08fbafdc26730dc705349a829c293b8f9ce8))
-
-
-### Features
-
-* add global drag-and-drop game adding feature ([6297314](https://github.com/huoshen80/ReinaManager/commit/6297314c8631b2619972abd1f12ee9f6e385c05b))
-* enhance game addition with success snackbar and navigation option ([90a28cd](https://github.com/huoshen80/ReinaManager/commit/90a28cd5052dd7faef3d20dd875ee494940d0b6e))
-
-
-### Performance Improvements
-
-* adjust the spacing between the nav bar and the content below on the collection page ([17d2aa9](https://github.com/huoshen80/ReinaManager/commit/17d2aa9bf6a015a5bd8702d036fb101e7166476f))
-
-
-
-## [0.16.0](https://github.com/huoshen80/ReinaManager/compare/v0.15.2...v0.16.0) (2026-02-07)
-
-
-
-
-### Features
-
-* add global drag-and-drop game adding feature ([6297314](https://github.com/huoshen80/ReinaManager/commit/6297314c8631b2619972abd1f12ee9f6e385c05b))
-* enhance game addition with success snackbar and navigation option ([90a28cd](https://github.com/huoshen80/ReinaManager/commit/90a28cd5052dd7faef3d20dd875ee494940d0b6e))
-
-
-### Performance Improvements
-
-* adjust the spacing between the nav bar and the content below on the collection page ([17d2aa9](https://github.com/huoshen80/ReinaManager/commit/17d2aa9bf6a015a5bd8702d036fb101e7166476f))
-
 
 
 ## [0.15.2](https://github.com/huoshen80/ReinaManager/compare/v0.15.1...v0.15.2) (2026-02-02)
