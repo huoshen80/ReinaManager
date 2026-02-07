@@ -1,3 +1,19 @@
+## [0.16.1](https://github.com/huoshen80/ReinaManager/compare/v0.16.0...v0.16.1) (2026-02-07)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 性能改进
+* 优化全局游戏添加模块 ([14c2a24](https://github.com/huoshen80/ReinaManager/commit/14c2a24bd45fecc29e24a3faaff5c8ef50e5c255))
+
+</details>
+
+### Performance Improvements
+
+* optimize global game addmodal ([14c2a24](https://github.com/huoshen80/ReinaManager/commit/14c2a24bd45fecc29e24a3faaff5c8ef50e5c255))
+
+
+
 ## [0.16.0](https://github.com/huoshen80/ReinaManager/compare/v0.15.2...v0.16.0) (2026-02-07)
 
 <details>
