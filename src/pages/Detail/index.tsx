@@ -380,7 +380,10 @@ export const Detail: React.FC = () => {
 								<Typography variant="h6" fontWeight="bold" component="div">
 									{t("pages.Detail.introduction")}
 								</Typography>
-								<Typography className="mt-1" component="div">
+								<Typography
+									className="mt-1 whitespace-pre-line"
+									component="div"
+								>
 									{selectedGame.summary}
 								</Typography>
 							</Box>
