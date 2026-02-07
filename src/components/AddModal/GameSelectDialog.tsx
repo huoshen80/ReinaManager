@@ -17,7 +17,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
-import type { FullGameData } from "@/types";
+import type { BgmData, FullGameData, VndbData, YmgalData } from "@/types";
 
 interface GameSelectDialogProps {
 	open: boolean;
@@ -26,15 +26,16 @@ interface GameSelectDialogProps {
 	onSelect: (index: number) => void;
 	loading?: boolean;
 	title?: string;
-	dataSource: "bgm" | "vndb" | "ymgal";
+	apiSource: "bgm" | "vndb" | "ymgal";
 }
 
 /**
  * 从 FullGameData 中提取显示信息
+ * 由于条件渲染，传入的 results 只包含单一数据源的数据
  */
 function extractDisplayInfo(
 	item: FullGameData,
-	dataSource: "bgm" | "vndb" | "ymgal",
+	apiSource: "bgm" | "vndb" | "ymgal",
 ): {
 	id: string;
 	name: string;
@@ -42,25 +43,35 @@ function extractDisplayInfo(
 	image: string | null;
 	developer: string | null;
 	date: string | null;
+	sourceLabel: string;
 } {
-	const data =
-		dataSource === "bgm"
-			? item.bgm_data
-			: dataSource === "vndb"
-				? item.vndb_data
-				: item.ymgal_data;
+	// 根据数据源直接提取对应的数据
+	let data: BgmData | VndbData | YmgalData | null | undefined;
+	let id: string;
+	let sourceLabel: string;
+
+	if (apiSource === "bgm") {
+		data = item.bgm_data;
+		id = item.bgm_id || "";
+		sourceLabel = `BGM: ${id}`;
+	} else if (apiSource === "vndb") {
+		data = item.vndb_data;
+		id = item.vndb_id || "";
+		sourceLabel = `VNDB: ${id}`;
+	} else {
+		data = item.ymgal_data;
+		id = item.ymgal_id || "";
+		sourceLabel = `YMGal: ${id}`;
+	}
+
 	return {
-		id:
-			dataSource === "bgm"
-				? item.bgm_id || ""
-				: dataSource === "vndb"
-					? item.vndb_id || ""
-					: item.ymgal_id || "",
+		id,
 		name: data?.name || "",
 		name_cn: data?.name_cn || null,
 		image: data?.image || null,
 		developer: data?.developer || null,
 		date: item.date || null,
+		sourceLabel,
 	};
 }
 
@@ -74,7 +85,7 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 	onSelect,
 	loading = false,
 	title,
-	dataSource,
+	apiSource,
 }) => {
 	const { t } = useTranslation();
 
@@ -101,7 +112,7 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 				) : (
 					<List className="max-h-[400px] overflow-auto">
 						{results.map((item, index) => {
-							const displayInfo = extractDisplayInfo(item, dataSource);
+							const displayInfo = extractDisplayInfo(item, apiSource);
 							return (
 								<ListItemButton
 									key={displayInfo.id}
@@ -172,11 +183,7 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 														color="primary"
 														component="span"
 													>
-														{dataSource === "bgm"
-															? `BGM: ${displayInfo.id}`
-															: dataSource === "vndb"
-																? `VNDB: ${displayInfo.id}`
-																: `YMGal: ${displayInfo.id}`}
+														{displayInfo.sourceLabel}
 													</Typography>
 												</Box>
 											</Box>

@@ -119,31 +119,33 @@ export const Layout: React.FC = () => {
 	}, []);
 
 	return (
-		<DashboardLayout
-			slots={{
-				appTitle: AppTitle,
-				toolbarActions: Toolbars,
-				sidebarFooter: SidebarFooter,
-			}}
-			sidebarExpandedWidth={isja_JP ? 250 : 220}
-			defaultSidebarCollapsed={true}
-			renderPageItem={handleRenderPageItem}
-		>
+		<>
 			<AddModal />
-			{isLibraries ? (
-				<PageContainer sx={{ maxWidth: "100% !important" }}>
-					<KeepAlive
-						name="libraries"
-						cacheKey="libraries"
-						saveScrollPosition={false}
-					>
-						<Outlet />
-					</KeepAlive>
-				</PageContainer>
-			) : (
-				<Outlet />
-			)}
-		</DashboardLayout>
+			<DashboardLayout
+				slots={{
+					appTitle: AppTitle,
+					toolbarActions: Toolbars,
+					sidebarFooter: SidebarFooter,
+				}}
+				sidebarExpandedWidth={isja_JP ? 250 : 220}
+				defaultSidebarCollapsed={true}
+				renderPageItem={handleRenderPageItem}
+			>
+				{isLibraries ? (
+					<PageContainer sx={{ maxWidth: "100% !important" }}>
+						<KeepAlive
+							name="libraries"
+							cacheKey="libraries"
+							saveScrollPosition={false}
+						>
+							<Outlet />
+						</KeepAlive>
+					</PageContainer>
+				) : (
+					<Outlet />
+				)}
+			</DashboardLayout>
+		</>
 	);
 };
 export default Layout;

@@ -88,7 +88,6 @@ function buildInsertData(
 		id_type: gameData.id_type || fallbackIdType || "mixed",
 		date: fallbackDate,
 		localpath: gameData.localpath ?? undefined,
-		autosave: gameData.autosave,
 		bgm_data: gameData.bgm_data ?? undefined,
 		vndb_data: gameData.vndb_data ?? undefined,
 		ymgal_data: gameData.ymgal_data ?? undefined,
@@ -131,7 +130,6 @@ async function fetchYmgalAndMerge(
 		ymgal_data: ymgalData.ymgal_data,
 		date: existingData.date,
 		localpath: existingData.localpath,
-		autosave: existingData.autosave,
 		custom_data: existingData.custom_data ?? undefined,
 	};
 }
@@ -162,18 +160,17 @@ function extractFolderName(path: string): string {
 const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const {
-		bgmToken,
-		games,
-		apiSource,
-		setApiSource,
-		addGame,
-		addModalOpen,
-		addModalPath,
-		openAddModal,
-		closeAddModal,
-		setAddModalPath,
-	} = useStore();
+
+	const bgmToken = useStore((state) => state.bgmToken);
+	const apiSource = useStore((state) => state.apiSource);
+	const setApiSource = useStore((state) => state.setApiSource);
+	const addGame = useStore((state) => state.addGame);
+	const addModalOpen = useStore((state) => state.addModalOpen);
+	const addModalPath = useStore((state) => state.addModalPath);
+	const openAddModal = useStore((state) => state.openAddModal);
+	const closeAddModal = useStore((state) => state.closeAddModal);
+	const setAddModalPath = useStore((state) => state.setAddModalPath);
+
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -241,20 +238,16 @@ const AddModal: React.FC = () => {
 			confirm: { open: false, data: null, showViewMore: false },
 			select: { open: false, results: [] },
 		});
-	}, [setAddModalPath]);
+		closeAddModal();
+	}, [setAddModalPath, closeAddModal]);
 
-	const checkGameExists = useCallback(
-		(gameData: InsertGameParams): boolean => {
-			return games.some((game) => {
-				if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
-				if (gameData.vndb_id && game.vndb_id === gameData.vndb_id) return true;
-				if (gameData.ymgal_id && game.ymgal_id === gameData.ymgal_id)
-					return true;
-				return false;
-			});
-		},
-		[games],
-	);
+	const checkGameExists = useCallback((gameData: InsertGameParams): boolean => {
+		const currentGames = useStore.getState().games;
+		return currentGames.some((game) => {
+			if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
+			return false;
+		});
+	}, []);
 
 	const finalizeAddGame = useCallback(
 		async (gameData: InsertGameParams) => {
@@ -268,9 +261,8 @@ const AddModal: React.FC = () => {
 				return;
 			}
 
-			const gameId = await addGame(insertData);
+			const gameId = await addGame(gameData);
 			resetState();
-			closeAddModal();
 
 			// 显示带跳转按钮的成功提示
 			if (gameId) {
@@ -290,12 +282,11 @@ const AddModal: React.FC = () => {
 		[
 			addGame,
 			checkGameExists,
-			closeAddModal,
 			addModalPath,
-			resetState,
-			showError,
 			t,
+			showError,
 			navigate,
+			resetState,
 		],
 	);
 
@@ -331,7 +322,6 @@ const AddModal: React.FC = () => {
 						bgmToken,
 						defaults: {
 							localpath: finaldata.localpath ?? undefined,
-							autosave: finaldata.autosave,
 						},
 					});
 					result = results.length > 0 ? results[0] : null;
@@ -385,8 +375,7 @@ const AddModal: React.FC = () => {
 		abortControllerRef.current = null;
 		setLoading(false);
 		resetState();
-		closeAddModal();
-	}, [closeAddModal, resetState]);
+	}, [resetState]);
 
 	/**
 	 * 处理"查看更多"按钮点击
@@ -431,15 +420,11 @@ const AddModal: React.FC = () => {
 		// 统一使用gameMetadataService.searchGames
 		const searchResults = await gameMetadataService.searchGames({
 			query: formText,
-			source:
-				apiSource === "mixed"
-					? undefined
-					: (apiSource as "bgm" | "vndb" | "ymgal"),
+			source: apiSource === "mixed" ? undefined : apiSource,
 			bgmToken,
 			isIdSearch: isID,
 			defaults: {
 				localpath: addModalPath,
-				autosave: 0,
 			},
 		});
 
@@ -505,28 +490,21 @@ const AddModal: React.FC = () => {
 
 			const defaultdata = {
 				localpath: addModalPath,
-				autosave: 0,
 			};
-
 			// 场景1: 自定义模式
 			if (customMode) {
 				if (!addModalPath) {
 					showError(t("components.AddModal.noExecutableSelected"));
 					return;
 				}
-
 				const customGameData: InsertGameParams = {
 					...defaultdata,
-					id_type: "custom",
+					id_type: "custom", // 标记为自定义
 					custom_data: {
 						name: formText,
 					},
 				};
-
-				addGame(customGameData);
-				setFormText("");
-				setAddModalPath("");
-				closeAddModal();
+				await finalizeAddGame(customGameData);
 				return;
 			}
 
@@ -541,7 +519,8 @@ const AddModal: React.FC = () => {
 				confirm: {
 					open: true,
 					data: apiData,
-					showViewMore: canViewMore,
+					// 安全锁：防止 UI 出现点击无效的按钮
+					showViewMore: apiSource === "mixed" ? false : canViewMore,
 				},
 				select: {
 					open: false,
@@ -710,41 +689,38 @@ const AddModal: React.FC = () => {
 			</Dialog>
 
 			{/* 确认游戏信息弹窗 */}
-			<ViewGameBox
-				fullgame={dialogState.confirm.data}
-				open={dialogState.confirm.open}
-				setOpen={(open) => {
-					if (!open) handleConfirmCancel();
-				}}
-				onConfirm={handleConfirmAdd}
-				showExtraButton={dialogState.confirm.showViewMore}
-				extraButtonText={t("components.AddModal.viewMore", "查看更多")}
-				extraButtonColor="primary"
-				extraButtonVariant="outlined"
-				onExtraButtonClick={handleViewMore}
-				isLoading={loading}
-			/>
-
+			{dialogState.confirm.open && (
+				<ViewGameBox
+					fullgame={dialogState.confirm.data}
+					open={dialogState.confirm.open}
+					setOpen={(open) => {
+						if (!open) handleConfirmCancel();
+					}}
+					onConfirm={handleConfirmAdd}
+					showExtraButton={dialogState.confirm.showViewMore}
+					extraButtonText={t("components.AddModal.viewMore", "查看更多")}
+					extraButtonColor="primary"
+					extraButtonVariant="outlined"
+					onExtraButtonClick={handleViewMore}
+					isLoading={loading}
+				/>
+			)}
 			{/* 游戏列表选择弹窗 */}
-			<GameSelectDialog
-				open={dialogState.select.open}
-				onClose={() =>
-					setDialogState((prev) => ({
-						...prev,
-						select: { ...prev.select, open: false },
-					}))
-				}
-				results={dialogState.select.results}
-				onSelect={handleSelectGame}
-				dataSource={
-					apiSource === "vndb"
-						? "vndb"
-						: apiSource === "ymgal"
-							? "ymgal"
-							: "bgm"
-				}
-				title={t("components.AddModal.selectGame", "选择游戏")}
-			/>
+			{dialogState.select.open && apiSource !== "mixed" && (
+				<GameSelectDialog
+					open={dialogState.select.open}
+					onClose={() =>
+						setDialogState((prev) => ({
+							...prev,
+							select: { ...prev.select, open: false },
+						}))
+					}
+					results={dialogState.select.results}
+					onSelect={handleSelectGame}
+					title={t("components.AddModal.selectGame", "选择游戏")}
+					apiSource={apiSource}
+				/>
+			)}
 		</>
 	);
 };
