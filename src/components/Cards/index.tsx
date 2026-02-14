@@ -45,7 +45,7 @@ import type { GameData } from "@/types";
 import {
 	getGameCover,
 	getGameDisplayName,
-	isNsfwGame,
+	getGameNsfwStatus,
 	saveScrollPosition,
 } from "@/utils";
 
@@ -319,7 +319,7 @@ export const CardItem = memo(
 			ref,
 		) => {
 			const nsfwCoverReplace = useStore((s) => s.nsfwCoverReplace);
-			const isNsfw = isNsfwGame(card.tags || []);
+			const isNsfw = getGameNsfwStatus(card);
 
 			const { isLongPressing, handlers } = useCardInteraction({
 				onClick,

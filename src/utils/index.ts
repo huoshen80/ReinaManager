@@ -675,7 +675,7 @@ export async function moveBackupFolder(
  * 根据tags判断是否为NSFW
  * @param tags
  */
-export function isNsfwGame(tags: string[]): boolean {
+const isNsfwGame = (tags: string[]): boolean => {
 	if (tags.length === 0) return false;
 
 	if (tags.some((tag) => tag.includes("R18") || tag === "拔作")) {
@@ -687,15 +687,15 @@ export function isNsfwGame(tags: string[]): boolean {
 	// biome-ignore lint/suspicious/noControlCharactersInRegex: 允许 ASCII 范围检查
 	const isAllEnglish = tags.every((tag) => /^[\x00-\x7F]+$/.test(tag));
 	return isAllEnglish && !tags.includes("No Sexual Content");
-}
+};
 
 /**
  * 统一判断单个游戏是否为 NSFW
  * 策略：优先读取 game.nsfw 字段，如果为 null/undefined 则回退到标签判断
  */
-export function getGameNsfwStatus(game: GameData): boolean {
+export const getGameNsfwStatus = (game: GameData): boolean => {
 	return game.nsfw ?? isNsfwGame(game.tags || []);
-}
+};
 
 /**
  * 应用 NSFW 过滤器
