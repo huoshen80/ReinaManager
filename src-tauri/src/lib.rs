@@ -24,10 +24,11 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let window = app.get_webview_window("main").expect("no main window");
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
         }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -119,6 +120,13 @@ pub fn run() {
             get_categories_with_count,
         ])
         .setup(|app| {
+            // 仅在调试模式下自动打开开发者工具
+            #[cfg(debug_assertions)]
+            {
+                // "main" 是他在 tauri.conf.json 中定义的窗口 label
+                let window = app.get_webview_window("main").unwrap();
+                window.open_devtools();
+            }
             // 初始化路径管理器
             let path_manager = PathManager::new();
             app.manage(path_manager);

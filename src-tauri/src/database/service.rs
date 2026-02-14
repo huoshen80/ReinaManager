@@ -2,7 +2,9 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
-use crate::database::dto::{InsertGameData, UpdateGameData, InsertCollectionData, UpdateCollectionData, UpdateSettingsData};
+use crate::database::dto::{
+    InsertCollectionData, InsertGameData, UpdateCollectionData, UpdateGameData, UpdateSettingsData,
+};
 use crate::database::repository::{
     collections_repository::{CategoryWithCount, CollectionsRepository, GroupWithCategories},
     game_stats_repository::{DailyStats, GameStatsRepository},
