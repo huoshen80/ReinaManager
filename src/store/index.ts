@@ -43,6 +43,7 @@ import {
 	getGameDisplayName,
 } from "@/utils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
+import { sortByIdOrder } from "@/utils/sort";
 import {
 	deleteGame as deleteGameLocal,
 	filterGamesByTypeLocal,
@@ -60,42 +61,7 @@ const applyLibraryDragOrder = (
 	orderIds: number[],
 	sortOrder: "asc" | "desc",
 ): GameData[] => {
-	if (games.length <= 1) return games;
-
-	const sourceIndexMap = new Map<number, number>();
-	games.forEach((game, index) => {
-		if (game.id != null) sourceIndexMap.set(game.id, index);
-	});
-
-	const orderIndexMap = new Map<number, number>();
-	orderIds.forEach((id, index) => {
-		orderIndexMap.set(id, index);
-	});
-
-	const ordered = [...games].sort((a, b) => {
-		const aIndex =
-			a.id != null
-				? (orderIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER)
-				: Number.MAX_SAFE_INTEGER;
-		const bIndex =
-			b.id != null
-				? (orderIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
-				: Number.MAX_SAFE_INTEGER;
-
-		if (aIndex !== bIndex) return aIndex - bIndex;
-
-		const fallbackA =
-			a.id != null
-				? (sourceIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER)
-				: Number.MAX_SAFE_INTEGER;
-		const fallbackB =
-			b.id != null
-				? (sourceIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
-				: Number.MAX_SAFE_INTEGER;
-		return fallbackA - fallbackB;
-	});
-
-	return sortOrder === "desc" ? ordered.reverse() : ordered;
+	return sortByIdOrder(games, orderIds, sortOrder);
 };
 
 /**
