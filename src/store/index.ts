@@ -55,6 +55,49 @@ import {
 } from "@/utils/localStorage";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
+const applyLibraryDragOrder = (
+	games: GameData[],
+	orderIds: number[],
+	sortOrder: "asc" | "desc",
+): GameData[] => {
+	if (games.length <= 1) return games;
+
+	const sourceIndexMap = new Map<number, number>();
+	games.forEach((game, index) => {
+		if (game.id != null) sourceIndexMap.set(game.id, index);
+	});
+
+	const orderIndexMap = new Map<number, number>();
+	orderIds.forEach((id, index) => {
+		orderIndexMap.set(id, index);
+	});
+
+	const ordered = [...games].sort((a, b) => {
+		const aIndex =
+			a.id != null
+				? (orderIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		const bIndex =
+			b.id != null
+				? (orderIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+
+		if (aIndex !== bIndex) return aIndex - bIndex;
+
+		const fallbackA =
+			a.id != null
+				? (sourceIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		const fallbackB =
+			b.id != null
+				? (sourceIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		return fallbackA - fallbackB;
+	});
+
+	return sortOrder === "desc" ? ordered.reverse() : ordered;
+};
+
 /**
  * AppState 全局状态类型定义
  */
@@ -81,6 +124,8 @@ export interface AppState {
 	// 排序选项
 	sortOption: string;
 	sortOrder: "asc" | "desc";
+	libraryDragOrder: number[];
+	setLibraryDragOrder: (gameIds: number[]) => void;
 
 	// 关闭应用时的提醒设置，skip=不再提醒，行为为 'hide' 或 'close'
 	skipCloseRemind: boolean;
@@ -262,6 +307,10 @@ export const useStore = create<AppState>()(
 			// 排序选项默认值
 			sortOption: "addtime",
 			sortOrder: "asc",
+			libraryDragOrder: [],
+			setLibraryDragOrder: (gameIds: number[]) => {
+				set({ libraryDragOrder: gameIds });
+			},
 
 			// 关闭应用时的提醒设置，skip=不再提醒，行为为 'hide' 或 'close'
 			skipCloseRemind: false,
@@ -386,9 +435,10 @@ export const useStore = create<AppState>()(
 
 					if (isTauri()) {
 						// 名称排序在前端处理，后端按添加时间获取
-						const backendSortOption =
-							option === "namesort" ? "addtime" : option;
-						const backendSortOrder = option === "namesort" ? "asc" : order;
+						const isFrontendSort =
+							option === "namesort" || option === "dragsort";
+						const backendSortOption = isFrontendSort ? "addtime" : option;
+						const backendSortOrder = isFrontendSort ? "asc" : order;
 
 						// 优化：如果 gameFilterType 是 "all"，只请求一次
 						if (gameFilterType === "all") {
@@ -423,6 +473,14 @@ export const useStore = create<AppState>()(
 							} else {
 								data = displayData;
 							}
+
+							if (option === "dragsort") {
+								data = applyLibraryDragOrder(
+									data,
+									get().libraryDragOrder,
+									order,
+								);
+							}
 						} else {
 							// 需要两次请求：一次获取筛选数据，一次获取全部
 							const fullGames = await gameService.getAllGames(
@@ -448,6 +506,14 @@ export const useStore = create<AppState>()(
 								data = baseData;
 							}
 
+							if (option === "dragsort") {
+								data = applyLibraryDragOrder(
+									data,
+									get().libraryDragOrder,
+									order,
+								);
+							}
+
 							// 第二次请求获取全部游戏
 							const allFullGames = await gameService.getAllGames();
 							allData = getDisplayGameDataList(allFullGames, i18next.language);
@@ -471,6 +537,10 @@ export const useStore = create<AppState>()(
 							data = applyNsfwFilter(data, nsfwFilter);
 						} else {
 							data = baseData;
+						}
+
+						if (option === "dragsort") {
+							data = applyLibraryDragOrder(data, get().libraryDragOrder, order);
 						}
 
 						allData = getGamesLocal("addtime", "asc");
@@ -500,9 +570,10 @@ export const useStore = create<AppState>()(
 
 					if (isTauri()) {
 						// 名称排序在前端处理，后端按添加时间获取
-						const backendSortOption =
-							option === "namesort" ? "addtime" : option;
-						const backendSortOrder = option === "namesort" ? "asc" : order;
+						const isFrontendSort =
+							option === "namesort" || option === "dragsort";
+						const backendSortOption = isFrontendSort ? "addtime" : option;
+						const backendSortOrder = isFrontendSort ? "asc" : order;
 
 						// 只调用一次，获取所有游戏
 						const fullGames = await gameService.getAllGames(
@@ -523,11 +594,18 @@ export const useStore = create<AppState>()(
 								? get().sortGamesByName(displayData, order)
 								: displayData;
 
+						if (option === "dragsort") {
+							data = applyLibraryDragOrder(data, get().libraryDragOrder, order);
+						}
+
 						// allData 直接复用，不需要第二次请求
 						allData = displayData;
 					} else {
 						data = getGamesLocal(option, order);
 						allData = getGamesLocal("addtime", "asc");
+						if (option === "dragsort") {
+							data = applyLibraryDragOrder(data, get().libraryDragOrder, order);
+						}
 					}
 
 					// 应用nsfw筛选
@@ -611,6 +689,9 @@ export const useStore = create<AppState>()(
 					} else {
 						deleteGameLocal(gameId);
 					}
+					set((state) => ({
+						libraryDragOrder: state.libraryDragOrder.filter((id) => id !== gameId),
+					}));
 					// 使用通用刷新函数
 					await get().refreshGameData();
 					get().setSelectedGameId(null);
@@ -1334,6 +1415,7 @@ export const useStore = create<AppState>()(
 				// 排序偏好
 				sortOption: state.sortOption,
 				sortOrder: state.sortOrder,
+				libraryDragOrder: state.libraryDragOrder,
 				// 筛选偏好
 				gameFilterType: state.gameFilterType,
 				// 关闭应用相关

@@ -5,7 +5,7 @@ import { open as openDirectory } from "@tauri-apps/plugin-dialog";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-shell";
 import i18next, { t } from "i18next";
-import { extname, join } from "pathe";
+import { basename, extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
 import { fetchVNDBByIds } from "@/api/vndb";
 import { snackbar } from "@/components/Snackbar";
@@ -332,7 +332,9 @@ export function formatPlayTime(minutes: number): string {
 	return i18next.t("utils.formatPlayTime.hours", { count: hours });
 }
 
-export const handleDirectory = async (droppedPath?: string) => {
+export const handleDirectory = async (
+	droppedPath?: string,
+): Promise<string | null> => {
 	const path = await openDirectory({
 		multiple: false,
 		directory: false,
@@ -348,8 +350,61 @@ export const handleDirectory = async (droppedPath?: string) => {
 			},
 		],
 	});
-	if (path === null) return null;
-	return path;
+	return normalizeDialogSelection(path)[0] ?? null;
+};
+
+const normalizeDialogSelection = (
+	selection: string | string[] | null,
+): string[] => {
+	if (!selection) return [];
+	return Array.isArray(selection) ? selection : [selection];
+};
+
+export interface LaunchSelection {
+	executablePath: string;
+	sourcePath: string;
+	sourceType: "file" | "folder";
+	label: string;
+}
+
+export const handleDirectoryMultiple = async (
+	droppedPath?: string,
+): Promise<string[]> => {
+	const selection = await openDirectory({
+		multiple: true,
+		directory: false,
+		defaultPath: droppedPath,
+		filters: [
+			{
+				name: t("utils.handleDirectory.executable"),
+				extensions: ["exe", "bat", "cmd"],
+			},
+			{
+				name: t("utils.handleDirectory.allFiles"),
+				extensions: ["*"],
+			},
+		],
+	});
+
+	return normalizeDialogSelection(selection);
+};
+
+export const handleFolderMultiple = async (
+	defaultPath?: string,
+): Promise<string[]> => {
+	const selection = await openDirectory({
+		multiple: true,
+		directory: true,
+		defaultPath,
+		filters: [
+			{
+				name: "文件夹",
+				extensions: ["*"],
+			},
+		],
+	});
+
+	return normalizeDialogSelection(selection);
 };
 
 /**
@@ -391,6 +446,65 @@ export const getExecutablesInDirectory = async (
 	}
 };
 
+const makeLaunchSelection = (
+	executablePath: string,
+	sourcePath: string,
+	sourceType: "file" | "folder",
+): LaunchSelection => ({
+	executablePath,
+	sourcePath,
+	sourceType,
+	label: basename(sourcePath),
+});
+
+const resolvePathToLaunchSelections = async (
+	inputPath: string,
+): Promise<LaunchSelection[]> => {
+	// 检查路径类型
+	const fileInfo = await stat(inputPath);
+
+	if (fileInfo.isDirectory) {
+		const executables = await getExecutablesInDirectory(inputPath);
+
+		if (executables.length === 0) {
+			snackbar.error(t("components.AddModal.emptyFolder"));
+			return [];
+		}
+
+		if (executables.length === 1) {
+			return [makeLaunchSelection(executables[0], inputPath, "folder")];
+		}
+
+		// 多个可执行文件，弹出系统对话框让用户选择
+		snackbar.info(t("components.AddModal.selectFromFolder"));
+		const selected = await handleDirectory(inputPath);
+		if (!selected) return [];
+		return [makeLaunchSelection(selected, inputPath, "folder")];
+	}
+
+	if (isExecutableFile(inputPath)) {
+		return [makeLaunchSelection(inputPath, inputPath, "file")];
+	}
+
+	snackbar.error(t("components.AddModal.invalidFile"));
+	return [];
+};
+
+const dedupeLaunchSelections = (
+	selections: LaunchSelection[],
+): LaunchSelection[] => {
+	const seen = new Set<string>();
+	const result: LaunchSelection[] = [];
+
+	for (const selection of selections) {
+		if (seen.has(selection.executablePath)) continue;
+		seen.add(selection.executablePath);
+		result.push(selection);
+	}
+
+	return result;
+};
+
 /**
  * 处理拖拽的文件或文件夹路径
  * @param droppedPath 拖拽的路径
@@ -400,41 +514,28 @@ export const handleDroppedPath = async (
 	droppedPath: string,
 ): Promise<string | null> => {
 	try {
-		// 检查路径类型
-		const fileInfo = await stat(droppedPath);
-
-		if (fileInfo.isDirectory) {
-			// 拖入的是文件夹，读取其中的可执行文件
-			const executables = await getExecutablesInDirectory(droppedPath);
-
-			if (executables.length === 0) {
-				// 没有可执行文件
-				snackbar.error(t("components.AddModal.emptyFolder"));
-				return null;
-			}
-
-			if (executables.length === 1) {
-				// 只有一个可执行文件，直接使用
-				return executables[0];
-			}
-
-			// 多个可执行文件，弹出系统对话框让用户选择
-			snackbar.info(t("components.AddModal.selectFromFolder"));
-			const selected = await handleDirectory(droppedPath);
-
-			return selected;
-		}
-		// 拖入的是文件
-		if (isExecutableFile(droppedPath)) {
-			return droppedPath;
-		}
-		// 不是可执行文件
-		snackbar.error(t("components.AddModal.invalidFile"));
-		return null;
+		const selections = await resolvePathToLaunchSelections(droppedPath);
+		return selections[0]?.executablePath || null;
 	} catch (error) {
 		console.error("处理拖拽路径失败:", error);
 		snackbar.error(t("components.AddModal.invalidFile"));
 		return null;
+	}
+};
+
+export const handleDroppedPaths = async (
+	droppedPaths: string[],
+): Promise<LaunchSelection[]> => {
+	try {
+		const allSelections = await Promise.all(
+			droppedPaths.map((inputPath) => resolvePathToLaunchSelections(inputPath)),
+		);
+
+		return dedupeLaunchSelections(allSelections.flat());
+	} catch (error) {
+		console.error("批量处理拖拽路径失败:", error);
+		snackbar.error(t("components.AddModal.invalidFile"));
+		return [];
 	}
 };
 

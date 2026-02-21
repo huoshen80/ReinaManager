@@ -20,7 +20,12 @@
  */
 
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import FileOpenIcon from "@mui/icons-material/FileOpen";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import SortByAlphaIcon from "@mui/icons-material/SortByAlpha";
 import { FormControlLabel, Radio, RadioGroup } from "@mui/material";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -30,8 +35,10 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { isTauri } from "@tauri-apps/api/core";
 import { basename, dirname } from "pathe";
@@ -45,7 +52,12 @@ import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
-import { handleDirectory } from "@/utils";
+import {
+	handleDirectoryMultiple,
+	handleDroppedPaths,
+	handleFolderMultiple,
+} from "@/utils";
+import type { LaunchSelection } from "@/utils";
 import GameSelectDialog from "./GameSelectDialog";
 
 /**
@@ -166,8 +178,8 @@ const AddModal: React.FC = () => {
 	const setApiSource = useStore((state) => state.setApiSource);
 	const addGame = useStore((state) => state.addGame);
 	const addModalOpen = useStore((state) => state.addModalOpen);
-	const addModalPath = useStore((state) => state.addModalPath);
 	const openAddModal = useStore((state) => state.openAddModal);
+	const addModalPath = useStore((state) => state.addModalPath);
 	const closeAddModal = useStore((state) => state.closeAddModal);
 	const setAddModalPath = useStore((state) => state.setAddModalPath);
 
@@ -177,6 +189,7 @@ const AddModal: React.FC = () => {
 	const [customMode, setCustomMode] = useState(false);
 	// 保留 ID 搜索状态
 	const [isID, setisID] = useState(false);
+	const [selectedItems, setSelectedItems] = useState<LaunchSelection[]>([]);
 	const previousFocus = useRef<HTMLElement | null>(null);
 
 	// 弹窗状态（合并相关状态）
@@ -195,10 +208,51 @@ const AddModal: React.FC = () => {
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
 
+	const appendSelectedItems = useCallback((items: LaunchSelection[]) => {
+		if (items.length === 0) return;
+
+		setSelectedItems((prev) => {
+			const map = new Map(prev.map((item) => [item.executablePath, item]));
+			for (const item of items) {
+				map.set(item.executablePath, item);
+			}
+			return Array.from(map.values());
+		});
+	}, []);
+
+	const updateSelectedItemLabel = useCallback((path: string, label: string) => {
+		setSelectedItems((prev) =>
+			prev.map((item) =>
+				item.executablePath === path ? { ...item, label } : item,
+			),
+		);
+	}, []);
+
+	const removeSelectedItem = useCallback((path: string) => {
+		setSelectedItems((prev) =>
+			prev.filter((item) => item.executablePath !== path),
+		);
+	}, []);
+
+	const clearSelectedItems = useCallback(() => {
+		setSelectedItems([]);
+		setAddModalPath("");
+		setFormText("");
+	}, [setAddModalPath]);
+
+	const sortSelectedItems = useCallback(() => {
+		setSelectedItems((prev) =>
+			[...prev].sort((a, b) =>
+				a.label.localeCompare(b.label, "zh-CN", { numeric: true }),
+			),
+		);
+	}, []);
+
 	const { isDragging } = useTauriDragDrop({
-		onValidPath: (selectedPath) => {
-			if (loading) return;
-			openAddModal(selectedPath);
+		onValidPaths: (items) => {
+			if (loading || items.length === 0) return;
+			openAddModal(items[0].executablePath);
+			appendSelectedItems(items);
 		},
 	});
 
@@ -210,11 +264,32 @@ const AddModal: React.FC = () => {
 	/**
 	 * 当路径变化时，自动提取文件夹名作为游戏名。
 	 */
+	const primaryPath = selectedItems[0]?.executablePath ?? "";
+	const isBatchMode = selectedItems.length > 1;
+
 	useEffect(() => {
-		if (addModalPath) {
-			setFormText(extractFolderName(addModalPath));
+		if (!addModalPath) return;
+		if (selectedItems.some((item) => item.executablePath === addModalPath))
+			return;
+
+		let cancelled = false;
+		handleDroppedPaths([addModalPath]).then((items) => {
+			if (cancelled || items.length === 0) return;
+			appendSelectedItems(items);
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [addModalPath, selectedItems, appendSelectedItems]);
+
+	useEffect(() => {
+		setAddModalPath(primaryPath);
+		if (primaryPath) {
+			const primaryItem = selectedItems[0];
+			setFormText(primaryItem?.label || extractFolderName(primaryPath));
 		}
-	}, [addModalPath]);
+	}, [primaryPath, selectedItems, setAddModalPath]);
 
 	useEffect(() => {
 		if (addModalOpen) {
@@ -233,6 +308,7 @@ const AddModal: React.FC = () => {
 	const resetState = useCallback(() => {
 		setFormText("");
 		setAddModalPath("");
+		setSelectedItems([]);
 		setError("");
 		setDialogState({
 			confirm: { open: false, data: null, showViewMore: false },
@@ -245,15 +321,17 @@ const AddModal: React.FC = () => {
 		const currentGames = useStore.getState().games;
 		return currentGames.some((game) => {
 			if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
+			if (gameData.localpath && game.localpath === gameData.localpath)
+				return true;
 			return false;
 		});
 	}, []);
 
 	const finalizeAddGame = useCallback(
-		async (gameData: InsertGameParams) => {
+		async (gameData: InsertGameParams, localpath?: string) => {
 			const insertData: InsertGameParams = {
 				...gameData,
-				localpath: addModalPath,
+				localpath: localpath ?? gameData.localpath ?? primaryPath,
 			};
 
 			if (checkGameExists(insertData)) {
@@ -261,7 +339,7 @@ const AddModal: React.FC = () => {
 				return;
 			}
 
-			const gameId = await addGame(gameData);
+			const gameId = await addGame(insertData);
 			resetState();
 
 			// 显示带跳转按钮的成功提示
@@ -279,15 +357,7 @@ const AddModal: React.FC = () => {
 				});
 			}
 		},
-		[
-			addGame,
-			checkGameExists,
-			addModalPath,
-			t,
-			showError,
-			navigate,
-			resetState,
-		],
+		[addGame, checkGameExists, primaryPath, t, showError, navigate, resetState],
 	);
 
 	/**
@@ -424,7 +494,7 @@ const AddModal: React.FC = () => {
 			bgmToken,
 			isIdSearch: isID,
 			defaults: {
-				localpath: addModalPath,
+				localpath: primaryPath,
 			},
 		});
 
@@ -459,6 +529,147 @@ const AddModal: React.FC = () => {
 		};
 	};
 
+	const handleBatchImport = useCallback(async (): Promise<void> => {
+		const currentGames = useStore.getState().games;
+		const existingPaths = new Set(
+			currentGames.map((game) => game.localpath).filter(Boolean),
+		);
+		const existingBgmIds = new Set(
+			currentGames.map((game) => game.bgm_id).filter(Boolean),
+		);
+
+		let successCount = 0;
+		let skippedCount = 0;
+		let failedCount = 0;
+		const remainItems: LaunchSelection[] = [];
+
+		for (const item of selectedItems) {
+			if (existingPaths.has(item.executablePath)) {
+				skippedCount++;
+				remainItems.push(item);
+				continue;
+			}
+
+			try {
+				const itemName =
+					item.label.trim() || extractFolderName(item.executablePath);
+				let insertData: InsertGameParams;
+
+				if (customMode) {
+					insertData = {
+						id_type: "custom",
+						localpath: item.executablePath,
+						custom_data: { name: itemName },
+					};
+				} else {
+					const searchResults = await gameMetadataService.searchGames({
+						query: itemName,
+						source: apiSource === "mixed" ? undefined : apiSource,
+						bgmToken,
+						isIdSearch: isID,
+						defaults: {
+							localpath: item.executablePath,
+						},
+					});
+
+					if (searchResults.length === 0) {
+						failedCount++;
+						remainItems.push(item);
+						continue;
+					}
+
+					let finalData = searchResults[0];
+					const needsCompleteData =
+						finalData.id_type === "ymgal" ||
+						(finalData.id_type === "mixed" &&
+							finalData.ymgal_id &&
+							!isYmgalDataComplete(finalData.ymgal_data));
+
+					if (needsCompleteData) {
+						if (finalData.id_type === "ymgal") {
+							const ymgalResults = await gameMetadataService.searchGames({
+								query: finalData.ymgal_id?.toString() || "",
+								source: "ymgal",
+								bgmToken,
+								isIdSearch: true,
+								defaults: {
+									localpath: item.executablePath,
+								},
+							});
+							if (ymgalResults.length === 0) {
+								failedCount++;
+								remainItems.push(item);
+								continue;
+							}
+							finalData = ymgalResults[0];
+						} else if (finalData.ymgal_id) {
+							const mergedData = await fetchYmgalAndMerge(
+								finalData.ymgal_id,
+								finalData,
+								bgmToken,
+							);
+							if (!mergedData) {
+								failedCount++;
+								remainItems.push(item);
+								continue;
+							}
+							finalData = mergedData;
+						}
+					}
+
+					insertData = buildInsertData(
+						finalData,
+						finalData.id_type,
+						finalData.date,
+					);
+					insertData.localpath = item.executablePath;
+				}
+
+				if (insertData.bgm_id && existingBgmIds.has(insertData.bgm_id)) {
+					skippedCount++;
+					remainItems.push(item);
+					continue;
+				}
+
+				const gameId = await addGame(insertData);
+				if (gameId) {
+					successCount++;
+					existingPaths.add(item.executablePath);
+					if (insertData.bgm_id) existingBgmIds.add(insertData.bgm_id);
+				} else {
+					failedCount++;
+					remainItems.push(item);
+				}
+			} catch (error) {
+				console.error("批量导入单项失败:", error);
+				failedCount++;
+				remainItems.push(item);
+			}
+		}
+
+		if (remainItems.length > 0) {
+			setSelectedItems(remainItems);
+			snackbar.info(
+				`批量导入完成：成功 ${successCount} 个，跳过 ${skippedCount} 个，失败 ${failedCount} 个。跳过/失败项已保留，可修改名称后重试或切换自定义模式导入。`,
+			);
+			return;
+		}
+
+		resetState();
+		snackbar.success(
+			`批量导入完成：成功 ${successCount} 个，跳过 ${skippedCount} 个，失败 ${failedCount} 个`,
+		);
+	}, [
+		selectedItems,
+		addGame,
+		resetState,
+		customMode,
+		apiSource,
+		bgmToken,
+		isID,
+		setSelectedItems,
+	]);
+
 	/**
 	 * 提交表单，处理添加游戏的逻辑。
 	 * - 自定义模式下直接添加本地游戏。
@@ -488,12 +699,17 @@ const AddModal: React.FC = () => {
 		try {
 			setLoading(true);
 
+			if (isBatchMode) {
+				await withAbort(handleBatchImport());
+				return;
+			}
+
 			const defaultdata = {
-				localpath: addModalPath,
+				localpath: primaryPath,
 			};
 			// 场景1: 自定义模式
 			if (customMode) {
-				if (!addModalPath) {
+				if (!primaryPath) {
 					showError(t("components.AddModal.noExecutableSelected"));
 					return;
 				}
@@ -501,7 +717,7 @@ const AddModal: React.FC = () => {
 					...defaultdata,
 					id_type: "custom", // 标记为自定义
 					custom_data: {
-						name: formText,
+						name: formText.trim(),
 					},
 				};
 				await finalizeAddGame(customGameData);
@@ -545,6 +761,24 @@ const AddModal: React.FC = () => {
 		}
 	};
 
+	const handlePickExecutables = async () => {
+		const pickedPaths = await handleDirectoryMultiple(primaryPath || undefined);
+		if (pickedPaths.length === 0) return;
+		const items = await handleDroppedPaths(pickedPaths);
+		if (items.length === 0) return;
+		openAddModal(items[0].executablePath);
+		appendSelectedItems(items);
+	};
+
+	const handlePickFolders = async () => {
+		const pickedFolders = await handleFolderMultiple(primaryPath || undefined);
+		if (pickedFolders.length === 0) return;
+		const items = await handleDroppedPaths(pickedFolders);
+		if (items.length === 0) return;
+		openAddModal(items[0].executablePath);
+		appendSelectedItems(items);
+	};
+
 	return (
 		<>
 			{/* 拖拽遮罩层 */}
@@ -574,28 +808,113 @@ const AddModal: React.FC = () => {
 				{error && <Alert severity="error">{error}</Alert>}
 				<DialogTitle>{t("components.AddModal.addGame")}</DialogTitle>
 				<DialogContent>
-					{/* 选择本地可执行文件 */}
-					<Button
-						className="w-md"
-						variant="contained"
-						onClick={async () => {
-							const result = await handleDirectory();
-							if (result) setAddModalPath(result);
-						}}
-						startIcon={<FileOpenIcon />}
-						disabled={!isTauri()}
+					{/* 选择本地可执行文件/文件夹 */}
+					<Box className="w-md flex gap-2">
+						<Button
+							className="flex-1"
+							variant="contained"
+							onClick={handlePickExecutables}
+							startIcon={<FileOpenIcon />}
+							disabled={!isTauri() || loading}
+						>
+							{t("components.AddModal.selectLauncher")}
+						</Button>
+						<Button
+							className="flex-1"
+							variant="outlined"
+							onClick={handlePickFolders}
+							startIcon={<FolderOutlinedIcon />}
+							disabled={!isTauri() || loading}
+						>
+							选择文件夹
+						</Button>
+					</Box>
+					<Box
+						className="w-md mt-2 border-2 border-[#ef4444] rounded p-2 min-h-[88px] max-h-[180px] overflow-y-auto"
+						role="list"
+						aria-label="selected-launchers"
 					>
-						{t("components.AddModal.selectLauncher")}
-					</Button>
-					<p>
-						<input
-							className="w-md"
-							type="text"
-							value={addModalPath}
-							placeholder={t("components.AddModal.dragHint")}
-							readOnly
-						/>
-					</p>
+						<Box className="flex items-center justify-between mb-2">
+							<Typography variant="caption" color="text.secondary">
+								已选择 {selectedItems.length} 项
+							</Typography>
+							<Box className="flex items-center gap-1">
+								<Tooltip title="按名称排序">
+									<span>
+										<IconButton
+											size="small"
+											onClick={sortSelectedItems}
+											disabled={selectedItems.length < 2 || loading}
+										>
+											<SortByAlphaIcon fontSize="small" />
+										</IconButton>
+									</span>
+								</Tooltip>
+								<Tooltip title="清空">
+									<span>
+										<IconButton
+											size="small"
+											onClick={clearSelectedItems}
+											disabled={selectedItems.length === 0 || loading}
+										>
+											<ClearAllIcon fontSize="small" />
+										</IconButton>
+									</span>
+								</Tooltip>
+							</Box>
+						</Box>
+						{selectedItems.length === 0 ? (
+							<Typography variant="body2" color="text.secondary">
+								{t("components.AddModal.dragHint")}
+							</Typography>
+						) : (
+							<Box className="flex flex-wrap gap-3">
+								{selectedItems.map((item) => (
+									<Box
+										key={item.executablePath}
+										className="relative w-[132px] flex flex-col items-center justify-start text-center"
+										role="listitem"
+									>
+										<Tooltip title="移除">
+											<IconButton
+												size="small"
+												className="!absolute -top-1 -right-1"
+												onClick={() => removeSelectedItem(item.executablePath)}
+												disabled={loading}
+											>
+												<DeleteOutlineIcon fontSize="inherit" />
+											</IconButton>
+										</Tooltip>
+										{item.sourceType === "folder" ? (
+											<FolderOutlinedIcon color="primary" />
+										) : (
+											<DescriptionOutlinedIcon color="action" />
+										)}
+										<TextField
+											size="small"
+											variant="standard"
+											value={item.label}
+											onChange={(event) =>
+												updateSelectedItemLabel(
+													item.executablePath,
+													event.target.value,
+												)
+											}
+											slotProps={{
+												input: {
+													style: {
+														fontSize: 12,
+														textAlign: "center",
+													},
+												},
+											}}
+											className="w-full mt-1"
+										/>
+									</Box>
+								))}
+							</Box>
+						)}
+					</Box>
 					{/* 自定义模式和 API 来源切换 */}
 					<div>
 						<Switch
@@ -667,6 +986,12 @@ const AddModal: React.FC = () => {
 						autoComplete="off"
 						value={formText}
 						onChange={(event) => setFormText(event.target.value)}
+						disabled={isBatchMode}
+						helperText={
+							isBatchMode
+								? "批量模式下请直接修改上方每个图标下的名称"
+								: undefined
+						}
 					/>
 				</DialogContent>
 				<DialogActions>
@@ -678,7 +1003,7 @@ const AddModal: React.FC = () => {
 					<Button
 						variant="contained"
 						onClick={handleSubmit}
-						disabled={formText === "" || loading}
+						disabled={loading || (!isBatchMode && formText === "")}
 						startIcon={loading ? <CircularProgress size={20} /> : null}
 					>
 						{loading

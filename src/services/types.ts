@@ -14,6 +14,7 @@ export type GameType = "all" | "local" | "online" | "noclear" | "clear";
 export type SortOption =
 	| string
 	| "addtime"
+	| "dragsort"
 	| "datetime"
 	| "lastplayed"
 	| "bgmrank"

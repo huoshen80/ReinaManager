@@ -1,12 +1,4 @@
-/**
- * @file Cards 卡片列表组件
- * @description 游戏卡片网格列表，支持拖拽排序、右键菜单、点击/双击/长按交互
- * @module src/components/Cards/index
- * @author ReinaManager
- * @copyright AGPL-3.0
- */
-
-import {
+﻿import {
 	closestCenter,
 	DndContext,
 	type DragEndEvent,
@@ -49,58 +41,31 @@ import {
 	saveScrollPosition,
 } from "@/utils";
 
-// ============================================================================
-// 类型定义
-// ============================================================================
-
-/** CardItem 组件的 Props */
 interface CardItemProps extends React.HTMLAttributes<HTMLDivElement> {
-	/** 游戏数据 */
 	card: GameData;
-	/** 是否为当前选中的卡片 */
 	isActive: boolean;
-	/** 是否为拖拽时的浮层预览 */
 	isOverlay?: boolean;
-	/** 右键菜单事件 */
 	onContextMenu: (e: React.MouseEvent) => void;
-	/** 点击事件 */
 	onClick: () => void;
-	/** 双击事件 */
 	onDoubleClick: () => void;
-	/** 长按事件 */
 	onLongPress: () => void;
-	/** 显示名称 */
 	displayName: string;
-	/** 是否启用延迟点击（用于区分单击和双击） */
 	useDelayedClick: boolean;
 }
 
-/** SortableCardItem 组件的 Props（不包含 style 和 ref） */
 type SortableCardItemProps = Omit<CardItemProps, "style" | "ref">;
 
-/** Cards 组件的 Props */
 interface CardsProps {
-	/** 外部传入的游戏数据（可选，用于分类页面） */
 	gamesData?: GameData[];
-	/** 分类 ID（可选，用于启用拖拽排序） */
 	categoryId?: number;
 }
 
-/** 右键菜单位置状态 */
 interface MenuPosition {
 	mouseX: number;
 	mouseY: number;
 	cardId: number | null;
 }
 
-// ============================================================================
-// 自定义 Hooks
-// ============================================================================
-
-/**
- * 卡片交互 Hook - 处理点击、双击、长按逻辑
- * 使用 useRef 管理计时器，避免不必要的重渲染
- */
 function useCardInteraction(options: {
 	onClick: () => void;
 	onDoubleClick: () => void;
@@ -108,14 +73,11 @@ function useCardInteraction(options: {
 	useDelayedClick: boolean;
 }) {
 	const { onClick, onDoubleClick, onLongPress, useDelayedClick } = options;
-
-	// 使用 ref 管理计时器，避免 state 更新导致重渲染
 	const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const hasLongPressedRef = useRef(false);
 	const [isLongPressing, setIsLongPressing] = useState(false);
 
-	// 清理计时器
 	const clearClickTimeout = useCallback(() => {
 		if (clickTimeoutRef.current) {
 			clearTimeout(clickTimeoutRef.current);
@@ -130,7 +92,6 @@ function useCardInteraction(options: {
 		}
 	}, []);
 
-	// 点击处理
 	const handleClick = useCallback(() => {
 		if (hasLongPressedRef.current) {
 			hasLongPressedRef.current = false;
@@ -143,24 +104,20 @@ function useCardInteraction(options: {
 				onClick();
 				clickTimeoutRef.current = null;
 			}, 200);
-		} else {
-			onClick();
+			return;
 		}
+
+		onClick();
 	}, [onClick, useDelayedClick, clearClickTimeout]);
 
-	// 双击处理
 	const handleDoubleClick = useCallback(() => {
-		if (useDelayedClick) {
-			clearClickTimeout();
-		}
+		if (useDelayedClick) clearClickTimeout();
 		onDoubleClick();
 	}, [onDoubleClick, useDelayedClick, clearClickTimeout]);
 
-	// 鼠标按下 - 开始长按计时
 	const handleMouseDown = useCallback(() => {
 		hasLongPressedRef.current = false;
 		clearLongPressTimeout();
-
 		longPressTimeoutRef.current = setTimeout(() => {
 			setIsLongPressing(true);
 			hasLongPressedRef.current = true;
@@ -168,24 +125,19 @@ function useCardInteraction(options: {
 		}, 800);
 	}, [onLongPress, clearLongPressTimeout]);
 
-	// 鼠标抬起 - 结束长按
 	const handleMouseUp = useCallback(() => {
 		clearLongPressTimeout();
 		setIsLongPressing(false);
-
-		// 延迟重置，避免触发点击事件
 		setTimeout(() => {
 			hasLongPressedRef.current = false;
 		}, 50);
 	}, [clearLongPressTimeout]);
 
-	// 鼠标离开 - 取消长按
 	const handleMouseLeave = useCallback(() => {
 		clearLongPressTimeout();
 		setIsLongPressing(false);
 	}, [clearLongPressTimeout]);
 
-	// 组件卸载时清理计时器
 	useEffect(() => {
 		return () => {
 			clearClickTimeout();
@@ -205,32 +157,65 @@ function useCardInteraction(options: {
 	};
 }
 
-/**
- * 拖拽排序 Hook - 管理拖拽相关状态和逻辑
- */
+function sortByDragOrder(
+	games: GameData[],
+	orderIds: number[],
+	sortOrder: "asc" | "desc",
+): GameData[] {
+	if (games.length <= 1) return games;
+
+	const sourceIndexMap = new Map<number, number>();
+	games.forEach((game, index) => {
+		if (game.id != null) sourceIndexMap.set(game.id, index);
+	});
+
+	const orderIndexMap = new Map<number, number>();
+	orderIds.forEach((id, index) => {
+		orderIndexMap.set(id, index);
+	});
+
+	const ordered = [...games].sort((a, b) => {
+		const aIndex =
+			a.id != null
+				? (orderIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		const bIndex =
+			b.id != null
+				? (orderIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+
+		if (aIndex !== bIndex) return aIndex - bIndex;
+
+		const fallbackA =
+			a.id != null
+				? (sourceIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		const fallbackB =
+			b.id != null
+				? (sourceIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		return fallbackA - fallbackB;
+	});
+
+	return sortOrder === "desc" ? ordered.reverse() : ordered;
+}
+
 function useDragSort(options: {
 	sourceGames: GameData[];
-	categoryId?: number;
 	enabled: boolean;
+	onReorder?: (games: GameData[]) => Promise<void> | void;
 }) {
-	const { sourceGames, categoryId, enabled } = options;
-
+	const { sourceGames, enabled, onReorder } = options;
 	const [games, setGames] = useState(sourceGames);
 	const [activeId, setActiveId] = useState<number | null>(null);
 	const isDraggingRef = useRef(false);
 
-	// 同步外部数据到本地状态（仅在非拖拽状态下）
 	useEffect(() => {
-		if (!isDraggingRef.current) {
-			setGames(sourceGames);
-		}
+		if (!isDraggingRef.current) setGames(sourceGames);
 	}, [sourceGames]);
 
-	// 传感器配置
 	const sensors = useSensors(
-		useSensor(MouseSensor, {
-			activationConstraint: { distance: 10 },
-		}),
+		useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
 		useSensor(TouchSensor, {
 			activationConstraint: { delay: 250, tolerance: 5 },
 		}),
@@ -250,7 +235,7 @@ function useDragSort(options: {
 			const { active, over } = event;
 			setActiveId(null);
 
-			if (!over || active.id === over.id || !categoryId) {
+			if (!enabled || !over || active.id === over.id) {
 				isDraggingRef.current = false;
 				return;
 			}
@@ -259,48 +244,29 @@ function useDragSort(options: {
 			const newIndex = games.findIndex((g) => g.id === over.id);
 
 			if (oldIndex !== -1 && newIndex !== -1) {
+				const previousGames = games;
 				const newGames = arrayMove(games, oldIndex, newIndex);
 				setGames(newGames);
-
 				try {
-					const gameIds = newGames.map((g) => g.id as number);
-					await useStore.getState().updateCategoryGames(gameIds, categoryId);
+					await onReorder?.(newGames);
 				} catch (error) {
 					console.error("排序更新失败:", error);
-					setGames(games); // 回滚
+					setGames(previousGames);
 				}
 			}
 
-			// 延迟重置拖拽状态
 			setTimeout(() => {
 				isDraggingRef.current = false;
 			}, 100);
 		},
-		[games, categoryId],
+		[enabled, games, onReorder],
 	);
 
-	const activeGame = useMemo(
-		() => games.find((g) => g.id === activeId),
-		[activeId, games],
-	);
+	const activeGame = useMemo(() => games.find((g) => g.id === activeId), [activeId, games]);
 
-	return {
-		games,
-		activeId,
-		activeGame,
-		sensors,
-		handleDragStart,
-		handleDragEnd,
-	};
+	return { games, activeGame, sensors, handleDragStart, handleDragEnd };
 }
 
-// ============================================================================
-// 子组件
-// ============================================================================
-
-/**
- * CardItem - 游戏卡片组件
- */
 export const CardItem = memo(
 	forwardRef<HTMLDivElement, CardItemProps>(
 		(
@@ -320,14 +286,12 @@ export const CardItem = memo(
 		) => {
 			const nsfwCoverReplace = useStore((s) => s.nsfwCoverReplace);
 			const isNsfw = getGameNsfwStatus(card);
-
 			const { isLongPressing, handlers } = useCardInteraction({
 				onClick,
 				onDoubleClick,
 				onLongPress,
 				useDelayedClick,
 			});
-
 			const coverImage =
 				nsfwCoverReplace && isNsfw ? "/images/NR18.png" : getGameCover(card);
 
@@ -341,9 +305,9 @@ export const CardItem = memo(
 					<CardActionArea
 						{...handlers}
 						className={`
-							duration-100 
-							hover:shadow-lg hover:scale-105 
-							active:shadow-sm active:scale-95 
+							duration-100
+							hover:shadow-lg hover:scale-105
+							active:shadow-sm active:scale-95
 							${isLongPressing ? "ring-2 ring-blue-500 shadow-lg" : ""}
 							${isOverlay ? "shadow-lg scale-105" : ""}
 						`}
@@ -359,9 +323,7 @@ export const CardItem = memo(
 						<div
 							className={`flex items-center justify-center h-8 px-1 w-full ${isActive ? "!font-bold text-blue-500" : ""}`}
 						>
-							<span className="text-base truncate max-w-full">
-								{displayName}
-							</span>
+							<span className="text-base truncate max-w-full">{displayName}</span>
 						</div>
 					</CardActionArea>
 				</Card>
@@ -372,21 +334,11 @@ export const CardItem = memo(
 
 CardItem.displayName = "CardItem";
 
-/**
- * SortableCardItem - 可排序的卡片包装组件
- */
 const SortableCardItem = memo((props: SortableCardItemProps) => {
 	const { card, ...restProps } = props;
 	const cardId = card.id ?? 0;
-
-	const {
-		attributes,
-		listeners,
-		setNodeRef,
-		transform,
-		transition,
-		isDragging,
-	} = useSortable({ id: cardId });
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: cardId });
 
 	const style = useMemo(
 		() => ({
@@ -412,72 +364,88 @@ const SortableCardItem = memo((props: SortableCardItemProps) => {
 
 SortableCardItem.displayName = "SortableCardItem";
 
-// ============================================================================
-// 主组件
-// ============================================================================
-
-/**
- * Cards - 游戏卡片网格列表
- */
 const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const { i18n } = useTranslation();
 	const navigate = useNavigate();
 	const path = useLocation().pathname;
 	const isLibraries = path === "/libraries";
 
-	// Store 状态
 	const selectedGameId = useStore((s) => s.selectedGameId);
 	const setSelectedGameId = useStore((s) => s.setSelectedGameId);
 	const cardClickMode = useStore((s) => s.cardClickMode);
 	const doubleClickLaunch = useStore((s) => s.doubleClickLaunch);
 	const longPressLaunch = useStore((s) => s.longPressLaunch);
 	const gamesFromStore = useStore((s) => s.games);
+	const sortOption = useStore((s) => s.sortOption);
+	const sortOrder = useStore((s) => s.sortOrder);
+	const libraryDragOrder = useStore((s) => s.libraryDragOrder);
+	const setLibraryDragOrder = useStore((s) => s.setLibraryDragOrder);
 	const { launchGame } = useGamePlayStore();
 
-	// 右键菜单状态
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-
-	// 数据源
 	const sourceGames = gamesData ?? gamesFromStore;
 
-	// 判断是否启用拖拽排序
-	const isSortable =
+	const isCategorySortable =
 		!!categoryId && categoryId > 0 && !longPressLaunch && !!gamesData;
+	const isLibraryDragSort =
+		isLibraries && !gamesData && !longPressLaunch && sortOption === "dragsort";
+	const isSortable = isCategorySortable || isLibraryDragSort;
 
-	// 拖拽排序 Hook
-	const { games, activeGame, sensors, handleDragStart, handleDragEnd } =
-		useDragSort({
-			sourceGames,
-			categoryId,
-			enabled: isSortable,
-		});
+	const sortedSourceGames = useMemo(() => {
+		if (!isLibraryDragSort) return sourceGames;
+		return sortByDragOrder(sourceGames, libraryDragOrder, sortOrder);
+	}, [isLibraryDragSort, sourceGames, libraryDragOrder, sortOrder]);
 
-	// 卡片事件处理器
+	const onReorder = useCallback(
+		async (newGames: GameData[]) => {
+			if (isCategorySortable && categoryId) {
+				const gameIds = newGames
+					.map((g) => g.id)
+					.filter((id): id is number => id != null);
+				await useStore.getState().updateCategoryGames(gameIds, categoryId);
+				return;
+			}
+
+			if (isLibraryDragSort) {
+				const gameIds = newGames
+					.map((g) => g.id)
+					.filter((id): id is number => id != null);
+				setLibraryDragOrder(gameIds);
+			}
+		},
+		[categoryId, isCategorySortable, isLibraryDragSort, setLibraryDragOrder],
+	);
+
+	const { games, activeGame, sensors, handleDragStart, handleDragEnd } = useDragSort({
+		sourceGames: sortedSourceGames,
+		enabled: isSortable,
+		onReorder,
+	});
+
 	const handleCardClick = useCallback(
-		(cardId: number, _card: GameData) => {
+		(cardId: number) => {
 			if (cardClickMode === "navigate") {
 				setSelectedGameId(cardId);
 				saveScrollPosition(window.location.pathname);
 				navigate(`/libraries/${cardId}`);
-			} else {
-				setSelectedGameId(cardId);
+				return;
 			}
+			setSelectedGameId(cardId);
 		},
 		[cardClickMode, navigate, setSelectedGameId],
 	);
 
 	const handleCardDoubleClick = useCallback(
 		async (cardId: number, card: GameData) => {
-			if (doubleClickLaunch && card.localpath) {
-				setSelectedGameId(cardId);
-				try {
-					await launchGame(card.localpath, cardId, {
-						le_launch: card.le_launch === 1,
-						magpie: card.magpie === 1,
-					});
-				} catch (error) {
-					console.error("启动游戏失败:", error);
-				}
+			if (!doubleClickLaunch || !card.localpath) return;
+			setSelectedGameId(cardId);
+			try {
+				await launchGame(card.localpath, cardId, {
+					le_launch: card.le_launch === 1,
+					magpie: card.magpie === 1,
+				});
+			} catch (error) {
+				console.error("启动游戏失败:", error);
 			}
 		},
 		[doubleClickLaunch, launchGame, setSelectedGameId],
@@ -485,16 +453,15 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	const handleCardLongPress = useCallback(
 		async (cardId: number, card: GameData) => {
-			if (longPressLaunch && card.localpath) {
-				setSelectedGameId(cardId);
-				try {
-					await launchGame(card.localpath, cardId, {
-						le_launch: card.le_launch === 1,
-						magpie: card.magpie === 1,
-					});
-				} catch (error) {
-					console.error("长按启动游戏失败:", error);
-				}
+			if (!longPressLaunch || !card.localpath) return;
+			setSelectedGameId(cardId);
+			try {
+				await launchGame(card.localpath, cardId, {
+					le_launch: card.le_launch === 1,
+					magpie: card.magpie === 1,
+				});
+			} catch (error) {
+				console.error("长按启动游戏失败:", error);
 			}
 		},
 		[longPressLaunch, launchGame, setSelectedGameId],
@@ -502,11 +469,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	const handleContextMenu = useCallback(
 		(event: React.MouseEvent, cardId: number) => {
-			setMenuPosition({
-				mouseX: event.clientX,
-				mouseY: event.clientY,
-				cardId,
-			});
+			setMenuPosition({ mouseX: event.clientX, mouseY: event.clientY, cardId });
 			setSelectedGameId(cardId);
 		},
 		[setSelectedGameId],
@@ -514,7 +477,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	const closeMenu = useCallback(() => setMenuPosition(null), []);
 
-	// 渲染单个卡片的 props 生成器
 	const getCardProps = useCallback(
 		(card: GameData): SortableCardItemProps => ({
 			card,
@@ -523,7 +485,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			useDelayedClick: cardClickMode === "navigate" && doubleClickLaunch,
 			onContextMenu: (e: React.MouseEvent) =>
 				card.id != null && handleContextMenu(e, card.id),
-			onClick: () => card.id != null && handleCardClick(card.id, card),
+			onClick: () => card.id != null && handleCardClick(card.id),
 			onDoubleClick: () =>
 				card.id != null && handleCardDoubleClick(card.id, card),
 			onLongPress: () => card.id != null && handleCardLongPress(card.id, card),
@@ -540,7 +502,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		],
 	);
 
-	// 卡片列表
 	const cardList = (
 		<div
 			className={`flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4 ${isLibraries ? "pt-0" : ""}`}
@@ -558,52 +519,49 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				}}
 			/>
 
-			{games.map((card) => {
+			{games.map((card, index) => {
 				const props = getCardProps(card);
-				return isSortable ? (
-					<SortableCardItem key={card.id} {...props} />
-				) : (
-					<CardItem key={card.id} {...props} />
-				);
+				const key = card.id ?? `game-${index}`;
+				if (isSortable && card.id != null) {
+					return <SortableCardItem key={key} {...props} />;
+				}
+				return <CardItem key={key} {...props} />;
 			})}
 		</div>
 	);
 
-	// 拖拽模式渲染
-	if (isSortable) {
-		return (
-			<DndContext
-				sensors={sensors}
-				collisionDetection={closestCenter}
-				onDragStart={handleDragStart}
-				onDragEnd={handleDragEnd}
-			>
-				<SortableContext
-					items={games.map((g) => g.id as number)}
-					strategy={rectSortingStrategy}
-				>
-					{cardList}
-				</SortableContext>
-				<DragOverlay>
-					{activeGame && (
-						<CardItem
-							card={activeGame}
-							isActive
-							isOverlay
-							displayName={getGameDisplayName(activeGame, i18n.language)}
-							useDelayedClick={false}
-							onContextMenu={() => {}}
-							onClick={() => {}}
-							onDoubleClick={() => {}}
-							onLongPress={() => {}}
-						/>
-					)}
-				</DragOverlay>
-			</DndContext>
-		);
-	}
+	if (!isSortable) return cardList;
 
-	return cardList;
+	return (
+		<DndContext
+			sensors={sensors}
+			collisionDetection={closestCenter}
+			onDragStart={handleDragStart}
+			onDragEnd={handleDragEnd}
+		>
+			<SortableContext
+				items={games.map((g) => g.id).filter((id): id is number => id != null)}
+				strategy={rectSortingStrategy}
+			>
+				{cardList}
+			</SortableContext>
+			<DragOverlay>
+				{activeGame && (
+					<CardItem
+						card={activeGame}
+						isActive
+						isOverlay
+						displayName={getGameDisplayName(activeGame, i18n.language)}
+						useDelayedClick={false}
+						onContextMenu={() => {}}
+						onClick={() => {}}
+						onDoubleClick={() => {}}
+						onLongPress={() => {}}
+					/>
+				)}
+			</DragOverlay>
+		</DndContext>
+	);
 };
 
 export default Cards;

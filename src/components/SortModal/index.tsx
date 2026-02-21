@@ -131,6 +131,9 @@ const SortOption: React.FC<SortOptionProps> = ({ value, onChange }) => {
 	return (
 		<Select value={value} onChange={handleChange}>
 			<MenuItem value="addtime">{t("components.SortModal.addTime")}</MenuItem>
+			<MenuItem value="dragsort">
+				{t("components.SortModal.dragSort", "拖拽排序")}
+			</MenuItem>
 			<MenuItem value="namesort">
 				{t("components.SortModal.nameSort", "名称排序")}
 			</MenuItem>
