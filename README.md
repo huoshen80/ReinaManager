@@ -46,6 +46,8 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 - 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from VNDB, Bangumi and YmGal APIs
 - 🔍 **Powerful Search** - Smart search game from titles, aliases, custom names, and other metadata
 - 📚 **Collection Management** - Organize games with hierarchical groups and categories for better library management, support drag and drop sorting
+- 📈 **Library Drag Sort** - Add `Drag Sort` in library sorting options and reorder game cards directly by dragging
+- 🗂️ **Batch Import** - Add games in batch by selecting or dragging multiple files/folders, with per-item name preview and editable labels
 - 🎮 **Play Time Tracking** - Automatic gameplay session recording with detailed play time statistics and history
 - 🎨 **Customization** - Set custom metadata for games such as covers, names, tags, etc., to create a personalized game library
 - 🔄 **Batch Operations** - Bulk update game metadata from APIs 
@@ -60,7 +62,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 - [x] More custom data fields for games
 - [ ] Beautify individual pages
 - [ ] Sync game status with Bangumi and VNDB
-- [ ] Bulk import games from folders
+- [x] Bulk import games from folders
 - [x] Better game adding module
 - [x] Game savedata restore, and maximum backup count setting
 - [x] Ymgal data source support
