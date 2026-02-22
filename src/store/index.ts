@@ -272,7 +272,7 @@ export const useStore = create<AppState>()(
 				set({ defaultCloseAction: action }),
 
 			// 数据来源选择
-			apiSource: "vndb",
+			apiSource: "mixed",
 			setApiSource: (source: "bgm" | "vndb" | "ymgal" | "mixed") => {
 				set({ apiSource: source });
 			},
@@ -316,7 +316,7 @@ export const useStore = create<AppState>()(
 			},
 
 			// 双击启动游戏功能
-			doubleClickLaunch: false,
+			doubleClickLaunch: true,
 			setDoubleClickLaunch: (enabled: boolean) => {
 				set({ doubleClickLaunch: enabled });
 			},
