@@ -74,13 +74,7 @@
 
 该迁移工具可帮助您无缝转移游戏库、游玩时间记录和其他数据到 ReinaManager。
 
-## 展示
-
-##### 前端展示
-- 网页版本：[https://reina.huoshen80.top](https://reina.huoshen80.top)
-- 网页版功能尚未完全实现，但您可以查看界面和部分功能。
-
-##### 桌面应用展示
+## 截图
 
 ![主页](screenshots/home.png)
 ![游戏库](screenshots/library.png)

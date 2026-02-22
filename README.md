@@ -74,12 +74,7 @@ Currently supports:
 
 The migrator helps you seamlessly transfer your game library, play time records, and other data from supported managers to ReinaManager.
 
-## Demo
-##### Frontend Demo
-- Try the web version: [https://reina.huoshen80.top](https://reina.huoshen80.top)
-- The web version is not fully functional yet, but you can view the UI and some features.
-
-##### Desktop App Demo
+## Screenshots
 
 ![Home](screenshots/home.png)
 ![Library](screenshots/library.png)

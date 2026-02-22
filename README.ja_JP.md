@@ -74,13 +74,7 @@
 
 この移行ツールは、ゲームライブラリ、プレイ時間記録、その他のデータをサポートされている管理ツールから ReinaManager にシームレスに転送するのに役立ちます。
 
-## デモバージョン
-
-##### フロントエンドデモ
-- Web版を試す: [https://reina.huoshen80.top](https://reina.huoshen80.top)
-- Web版はまだ完全に機能していませんが、UIといくつかの機能を確認できます。
-
-##### デスクトップアプリデモ
+## スクリーンショット
 
 ![ホーム](screenshots/home.png)
 ![ライブラリ](screenshots/library.png)
