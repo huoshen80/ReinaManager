@@ -33,7 +33,6 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
-import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
@@ -283,7 +282,7 @@ export const LaunchModal = () => {
 	}
 
 	// 如果不是本地游戏，显示"同步本地"按钮
-	if (isTauri() && selectedGameId && !isLocalGame(selectedGameId)) {
+	if (selectedGameId && !isLocalGame(selectedGameId)) {
 		return (
 			<>
 				<Button

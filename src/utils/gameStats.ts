@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { gameService, statsService } from "@/services";
 import type { DailyStats } from "@/services/types";
@@ -234,10 +233,6 @@ export async function getGameStatistics(
 export async function getAllGameStatistics(): Promise<
 	Map<number, GameStatistics>
 > {
-	if (!isTauri()) {
-		return new Map();
-	}
-
 	try {
 		const statsList = await statsService.getAllGameStatistics();
 		const statsMap = new Map<number, GameStatistics>();
@@ -277,10 +272,6 @@ export async function getRecentSessionsForAllGames(
 	gameIds: number[],
 	limit = 10,
 ): Promise<Map<number, GameSession[]>> {
-	if (!isTauri()) {
-		return new Map();
-	}
-
 	if (gameIds.length === 0) {
 		return new Map();
 	}
@@ -348,8 +339,6 @@ export function initGameTimeTracking(
 	onTimeUpdate?: TimeUpdateCallback,
 	onSessionEnd?: SessionEndCallback,
 ): () => void {
-	if (!isTauri()) return () => {};
-
 	// 游戏会话开始
 	const unlistenStart = listen<{
 		gameId: number;

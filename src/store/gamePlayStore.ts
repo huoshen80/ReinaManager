@@ -18,7 +18,6 @@
  * - @/utils
  */
 
-import { isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { useStore } from "@/store";
 import type { GameSession, GameStatistics, GameTimeStats } from "@/types";
@@ -197,10 +196,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 		launchOptions?: GameLaunchOptions,
 		args?: string[],
 	): Promise<LaunchGameResult> => {
-		if (!isTauri()) {
-			return { success: false, message: "游戏启动功能仅在桌面应用中可用" };
-		}
-
 		try {
 			if (get().isGameRunning(gameId)) {
 				return { success: false, message: "该游戏已在运行中" };
@@ -295,14 +290,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	 * @param gameId 游戏ID
 	 */
 	stopGame: async (gameId: number): Promise<StopGameResult> => {
-		if (!isTauri()) {
-			return {
-				success: false,
-				message: "游戏停止功能仅在桌面应用中可用",
-				terminated_count: 0,
-			};
-		}
-
 		try {
 			if (!get().isGameRunning(gameId)) {
 				return {
@@ -354,8 +341,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 		forceRefresh = false,
 	): Promise<GameTimeStats | null> => {
 		try {
-			if (!isTauri()) return null;
-
 			// 如果不强制刷新且已有缓存，则使用缓存
 			const cached = get().gameTimeStats[gameId];
 			if (!forceRefresh && cached) return cached;
@@ -391,8 +376,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 		limit = 5,
 	): Promise<GameSession[] | null> => {
 		try {
-			if (!isTauri()) return null;
-
 			// 获取新数据
 			const sessions = await getGameSessions(gameId, limit);
 
@@ -416,7 +399,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	 * 设置事件监听，自动管理运行状态与实时时长
 	 */
 	initTimeTracking: () => {
-		if (!isTauri() || get().isTrackingInitialized) return;
+		if (get().isTrackingInitialized) return;
 
 		try {
 			// 设置事件监听

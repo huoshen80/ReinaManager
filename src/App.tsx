@@ -1,6 +1,5 @@
 import "./App.css";
 import "@/utils/i18n";
-import { isTauri } from "@tauri-apps/api/core";
 import type { Navigation } from "@toolpad/core/AppProvider";
 import { ReactRouterAppProvider } from "@toolpad/core/react-router";
 import { SnackbarProvider } from "notistack";
@@ -41,7 +40,7 @@ const App: React.FC = () => {
 		>
 			<SnackbarUtilsConfigurator />
 			<ReactRouterAppProvider navigation={NAVIGATION}>
-				{isTauri() && <WindowsHandler />}
+				<WindowsHandler />
 				<AliveScope>
 					<Outlet />
 				</AliveScope>

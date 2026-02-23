@@ -51,9 +51,10 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import pkg from "@pkg";
 import { path } from "@tauri-apps/api";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { isEnabled } from "@tauri-apps/plugin-autostart";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { open as openurl } from "@tauri-apps/plugin-shell";
 import { PageContainer } from "@toolpad/core/PageContainer";
 import { join } from "pathe";
 import { useEffect, useState } from "react";
@@ -67,7 +68,7 @@ import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { LogLevel } from "@/types";
-import { openDatabaseBackupFolder, openurl } from "@/utils";
+import { openDatabaseBackupFolder } from "@/utils";
 import { backupDatabase, importDatabase } from "@/utils/database";
 
 /**
@@ -307,9 +308,7 @@ const LogLevelSettings = () => {
 				console.error("获取日志级别失败:", error);
 			}
 		};
-		if (isTauri()) {
-			fetchLogLevel();
-		}
+		fetchLogLevel();
 	}, [setLogLevelStore]);
 
 	const handleChange = async (event: SelectChangeEvent) => {
@@ -384,7 +383,6 @@ const LogLevelSettings = () => {
 						onClick={handleOpenLogFolder}
 						startIcon={<FolderOpenIcon />}
 						className="px-6 py-2"
-						disabled={!isTauri()}
 					>
 						{t("pages.Settings.logLevel.openFolder", "打开日志文件夹")}
 					</Button>
@@ -725,7 +723,7 @@ const DatabaseBackupSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleBackupDatabase}
-					disabled={isBackingUp || !isTauri()}
+					disabled={isBackingUp}
 					startIcon={
 						isBackingUp ? (
 							<CircularProgress size={16} color="inherit" />
@@ -746,7 +744,6 @@ const DatabaseBackupSettings = () => {
 					onClick={handleOpenBackupFolder}
 					startIcon={<FolderOpenIcon />}
 					className="px-6 py-2"
-					disabled={!isTauri()}
 				>
 					{t("pages.Settings.databaseBackup.openFolder", "打开备份文件夹")}
 				</Button>
@@ -755,7 +752,7 @@ const DatabaseBackupSettings = () => {
 					variant="outlined"
 					color="warning"
 					onClick={handleImportDatabase}
-					disabled={isImporting || !isTauri()}
+					disabled={isImporting}
 					startIcon={
 						isImporting ? (
 							<CircularProgress size={16} color="inherit" />
@@ -893,7 +890,7 @@ const PortableModeSettings = () => {
 							<Switch
 								checked={portableMode}
 								onChange={handleTogglePortableMode}
-								disabled={isLoading || !isTauri()}
+								disabled={isLoading}
 								color="primary"
 							/>
 						}
@@ -1335,7 +1332,7 @@ const BatchUpdateSettings: React.FC = () => {
 						variant="contained"
 						color="info"
 						onClick={handleBatchUpdateBgm}
-						disabled={isUpdating || !isTauri()}
+						disabled={isUpdating}
 						startIcon={
 							isUpdatingBgm ? (
 								<CircularProgress size={16} color="inherit" />
@@ -1354,7 +1351,7 @@ const BatchUpdateSettings: React.FC = () => {
 						variant="contained"
 						color="primary"
 						onClick={handleBatchUpdateVndb}
-						disabled={isUpdating || !isTauri()}
+						disabled={isUpdating}
 						startIcon={
 							isUpdatingVndb ? (
 								<CircularProgress size={16} color="inherit" />

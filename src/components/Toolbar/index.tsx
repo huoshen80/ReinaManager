@@ -43,7 +43,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
-import { isTauri } from "@tauri-apps/api/core";
+import { open as openurl } from "@tauri-apps/plugin-shell";
 import { ThemeSwitcher } from "@toolpad/core/DashboardLayout";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,7 +60,7 @@ import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
 import type { PlayStatus } from "@/types/collection";
-import { handleOpenFolder, openurl } from "@/utils";
+import { handleOpenFolder } from "@/utils";
 import { CollectionToolbar } from "./Collection";
 
 /**
@@ -416,11 +416,7 @@ export const Buttongroup = ({
 	const canUse = () => {
 		// 使用 allGames.length 确保订阅生效
 		return (
-			allGames.length >= 0 &&
-			id !== undefined &&
-			id !== null &&
-			isTauri() &&
-			isLocalGame(id)
+			allGames.length >= 0 && id !== undefined && id !== null && isLocalGame(id)
 		);
 	};
 

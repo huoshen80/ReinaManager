@@ -4,7 +4,6 @@
  * 核心策略：收到路径后立即清空 State，切断重渲染导致的二次触发。
  */
 
-import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 // 假设 handleDroppedPath 是你的业务逻辑（包含弹窗）
@@ -30,7 +29,7 @@ export const useTauriDragDrop = ({
 
 	// Effect 1: 监听器 (保持不变)
 	useEffect(() => {
-		if (!isTauri() || !enabled) return;
+		if (!enabled) return;
 
 		let isMounted = true;
 		let unlistenEnter: () => void;

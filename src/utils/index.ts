@@ -1,9 +1,8 @@
 import { path } from "@tauri-apps/api";
-import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { resourceDir } from "@tauri-apps/api/path";
 import { open as openDirectory } from "@tauri-apps/plugin-dialog";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
-import { open } from "@tauri-apps/plugin-shell";
 import i18next, { t } from "i18next";
 import { extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
@@ -174,14 +173,6 @@ export const getLocalDateString = (timestamp?: number): string => {
 	const date = timestamp ? new Date(timestamp * 1000) : new Date();
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
-
-export async function openurl(url: string) {
-	if (isTauri()) {
-		await open(url);
-	} else {
-		window.open(url, "_blank");
-	}
-}
 
 export const handleOpenFolder = async ({
 	id,

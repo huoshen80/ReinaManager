@@ -33,7 +33,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { isTauri } from "@tauri-apps/api/core";
 import { basename, dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -583,7 +582,6 @@ const AddModal: React.FC = () => {
 							if (result) setAddModalPath(result);
 						}}
 						startIcon={<FileOpenIcon />}
-						disabled={!isTauri()}
 					>
 						{t("components.AddModal.selectLauncher")}
 					</Button>

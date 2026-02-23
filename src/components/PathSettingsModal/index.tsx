@@ -31,7 +31,6 @@ import InputLabel from "@mui/material/InputLabel";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { settingsService } from "@/services";
@@ -275,12 +274,12 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 										"components.PathSettingsModal.savePath.pathPlaceholder",
 										"留空使用默认路径",
 									)}
-									disabled={savePathLoading || !isTauri()}
+									disabled={savePathLoading}
 								/>
 								<Button
 									variant="outlined"
 									onClick={() => handleSelectFolder(setSavePath)}
-									disabled={savePathLoading || !isTauri()}
+									disabled={savePathLoading}
 									startIcon={<FolderOpenIcon />}
 									className="px-4 py-2"
 								>
@@ -293,11 +292,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									variant="contained"
 									color="primary"
 									onClick={handleSaveSavePath}
-									disabled={
-										savePathLoading ||
-										savePath === savePathOriginal ||
-										!isTauri()
-									}
+									disabled={savePathLoading || savePath === savePathOriginal}
 									startIcon={<SaveIcon />}
 									className="px-4 py-2"
 								>
@@ -343,12 +338,12 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									"components.PathSettingsModal.lePath.pathPlaceholder",
 									"选择LE转区软件的可执行文件",
 								)}
-								disabled={lePathLoading || !isTauri()}
+								disabled={lePathLoading}
 							/>
 							<Button
 								variant="outlined"
 								onClick={() => handleSelectFile(setLePath, ["exe"])}
-								disabled={lePathLoading || !isTauri()}
+								disabled={lePathLoading}
 								startIcon={<FolderOpenIcon />}
 								className="px-4 py-2"
 							>
@@ -358,9 +353,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								variant="contained"
 								color="primary"
 								onClick={handleSaveLePath}
-								disabled={
-									lePathLoading || lePath === lePathOriginal || !isTauri()
-								}
+								disabled={lePathLoading || lePath === lePathOriginal}
 								startIcon={<SaveIcon />}
 								className="px-4 py-2"
 							>
@@ -408,12 +401,12 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									"components.PathSettingsModal.magpiePath.pathPlaceholder",
 									"选择Magpie软件的可执行文件",
 								)}
-								disabled={magpiePathLoading || !isTauri()}
+								disabled={magpiePathLoading}
 							/>
 							<Button
 								variant="outlined"
 								onClick={() => handleSelectFile(setMagpiePath, ["exe"])}
-								disabled={magpiePathLoading || !isTauri()}
+								disabled={magpiePathLoading}
 								startIcon={<FolderOpenIcon />}
 								className="px-4 py-2"
 							>
@@ -427,9 +420,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								color="primary"
 								onClick={handleSaveMagpiePath}
 								disabled={
-									magpiePathLoading ||
-									magpiePath === magpiePathOriginal ||
-									!isTauri()
+									magpiePathLoading || magpiePath === magpiePathOriginal
 								}
 								startIcon={<SaveIcon />}
 								className="px-4 py-2"
@@ -479,12 +470,12 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 										"components.PathSettingsModal.dbBackupPath.pathPlaceholder",
 										"留空使用默认路径",
 									)}
-									disabled={dbBackupPathLoading || !isTauri()}
+									disabled={dbBackupPathLoading}
 								/>
 								<Button
 									variant="outlined"
 									onClick={() => handleSelectFolder(setDbBackupPath)}
-									disabled={dbBackupPathLoading || !isTauri()}
+									disabled={dbBackupPathLoading}
 									startIcon={<FolderOpenIcon />}
 									className="px-4 py-2"
 								>
@@ -498,9 +489,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									color="primary"
 									onClick={handleSaveDbBackupPath}
 									disabled={
-										dbBackupPathLoading ||
-										dbBackupPath === dbBackupPathOriginal ||
-										!isTauri()
+										dbBackupPathLoading || dbBackupPath === dbBackupPathOriginal
 									}
 									startIcon={<SaveIcon />}
 									className="px-4 py-2"

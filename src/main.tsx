@@ -24,7 +24,6 @@ import "virtual:uno.css";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { isTauri } from "@tauri-apps/api/core";
 import { snackbar } from "@/components/Snackbar";
 import { initTray } from "@/components/Tray";
 import { initPathCache } from "@/utils";
@@ -87,12 +86,10 @@ initializeStores().then(async () => {
 	await initTray();
 
 	// 初始化所有路径缓存（包括便携模式判断和数据库配置读取）
-	if (isTauri()) {
-		try {
-			await initPathCache();
-		} catch (error) {
-			console.error("路径缓存初始化失败:", error);
-		}
+	try {
+		await initPathCache();
+	} catch (error) {
+		console.error("路径缓存初始化失败:", error);
 	}
 
 	createRoot(document.getElementById("root") as HTMLElement).render(

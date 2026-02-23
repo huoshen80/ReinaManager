@@ -29,7 +29,6 @@ import {
 	MenuItem,
 	MenuList,
 } from "@mui/material";
-import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
@@ -103,7 +102,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 */
 	const canUse = () => {
 		if (id !== undefined && id !== null)
-			return isTauri() && isLocalGame(id) && !isThisGameRunning;
+			return isLocalGame(id) && !isThisGameRunning;
 	};
 
 	/**
@@ -215,7 +214,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 				{/* 打开游戏文件夹 */}
 				<MenuItem
-					disabled={!(isTauri() && id != null && isLocalGame(id))}
+					disabled={id == null || !isLocalGame(id)}
 					onClick={() => {
 						if (id != null) {
 							handleOpenFolder({ id, getGameById });

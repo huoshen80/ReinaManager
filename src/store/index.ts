@@ -13,14 +13,11 @@
  * - zustand
  * - zustand/middleware
  * - @/types
- * - @/utils/repository
- * - @/utils/localStorage
  * - @/utils/settingsConfig
  * - @tauri-apps/api/core
  * - @/store/gamePlayStore
  */
 
-import { isTauri } from "@tauri-apps/api/core";
 import type { Update } from "@tauri-apps/plugin-updater";
 import i18next from "i18next";
 import { create } from "zustand";
@@ -43,16 +40,6 @@ import {
 	getGameDisplayName,
 } from "@/utils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
-import {
-	deleteGame as deleteGameLocal,
-	filterGamesByTypeLocal,
-	getBgmTokenLocal,
-	getGameByIdLocal,
-	getGames as getGamesLocal,
-	insertGame as insertGameLocal,
-	searchGamesLocal,
-	setBgmTokenLocal,
-} from "@/utils/localStorage";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
@@ -384,96 +371,65 @@ export const useStore = create<AppState>()(
 					let data: GameData[];
 					let allData: GameData[];
 
-					if (isTauri()) {
-						// 名称排序在前端处理，后端按添加时间获取
-						const backendSortOption =
-							option === "namesort" ? "addtime" : option;
-						const backendSortOrder = option === "namesort" ? "asc" : order;
+					// 名称排序在前端处理，后端按添加时间获取
+					const backendSortOption = option === "namesort" ? "addtime" : option;
+					const backendSortOrder = option === "namesort" ? "asc" : order;
 
-						// 优化：如果 gameFilterType 是 "all"，只请求一次
-						if (gameFilterType === "all") {
-							const fullGames = await gameService.getAllGames(
-								"all",
-								backendSortOption,
-								backendSortOrder,
-							);
-							const baseData = getDisplayGameDataList(
-								fullGames,
-								i18next.language,
-							);
+					// 优化：如果 gameFilterType 是 "all"，只请求一次
+					if (gameFilterType === "all") {
+						const fullGames = await gameService.getAllGames(
+							"all",
+							backendSortOption,
+							backendSortOrder,
+						);
+						const baseData = getDisplayGameDataList(
+							fullGames,
+							i18next.language,
+						);
 
-							// allData 保持完整数据（不筛选），用于统计和管理
-							allData = baseData;
+						// allData 保持完整数据（不筛选），用于统计和管理
+						allData = baseData;
 
-							// 显示数据需要排序和筛选
-							let displayData =
-								option === "namesort"
-									? get().sortGamesByName(baseData, order)
-									: baseData;
+						// 显示数据需要排序和筛选
+						let displayData =
+							option === "namesort"
+								? get().sortGamesByName(baseData, order)
+								: baseData;
 
-							displayData = applyNsfwFilter(displayData, nsfwFilter);
+						displayData = applyNsfwFilter(displayData, nsfwFilter);
 
-							// 搜索处理
-							if (searchKeyword && searchKeyword.trim() !== "") {
-								const searchResults = enhancedSearch(
-									displayData,
-									searchKeyword,
-								);
-								data = searchResults.map((result) => result.item);
-							} else {
-								data = displayData;
-							}
+						// 搜索处理
+						if (searchKeyword && searchKeyword.trim() !== "") {
+							const searchResults = enhancedSearch(displayData, searchKeyword);
+							data = searchResults.map((result) => result.item);
 						} else {
-							// 需要两次请求：一次获取筛选数据，一次获取全部
-							const fullGames = await gameService.getAllGames(
-								gameFilterType,
-								backendSortOption,
-								backendSortOrder,
-							);
-							let baseData = getDisplayGameDataList(
-								fullGames,
-								i18next.language,
-							);
-
-							if (option === "namesort") {
-								baseData = get().sortGamesByName(baseData, order);
-							}
-
-							baseData = applyNsfwFilter(baseData, nsfwFilter);
-
-							if (searchKeyword && searchKeyword.trim() !== "") {
-								const searchResults = enhancedSearch(baseData, searchKeyword);
-								data = searchResults.map((result) => result.item);
-							} else {
-								data = baseData;
-							}
-
-							// 第二次请求获取全部游戏
-							const allFullGames = await gameService.getAllGames();
-							allData = getDisplayGameDataList(allFullGames, i18next.language);
+							data = displayData;
 						}
 					} else {
-						// Web 环境逻辑保持不变
-						let baseData =
-							gameFilterType !== "all"
-								? filterGamesByTypeLocal(gameFilterType, option, order)
-								: getGamesLocal(option, order);
+						// 需要两次请求：一次获取筛选数据，一次获取全部
+						const fullGames = await gameService.getAllGames(
+							gameFilterType,
+							backendSortOption,
+							backendSortOrder,
+						);
+						let baseData = getDisplayGameDataList(fullGames, i18next.language);
+
+						if (option === "namesort") {
+							baseData = get().sortGamesByName(baseData, order);
+						}
 
 						baseData = applyNsfwFilter(baseData, nsfwFilter);
 
 						if (searchKeyword && searchKeyword.trim() !== "") {
-							data = searchGamesLocal(
-								searchKeyword,
-								gameFilterType,
-								option,
-								order,
-							);
-							data = applyNsfwFilter(data, nsfwFilter);
+							const searchResults = enhancedSearch(baseData, searchKeyword);
+							data = searchResults.map((result) => result.item);
 						} else {
 							data = baseData;
 						}
 
-						allData = getGamesLocal("addtime", "asc");
+						// 第二次请求获取全部游戏
+						const allFullGames = await gameService.getAllGames();
+						allData = getDisplayGameDataList(allFullGames, i18next.language);
 					}
 
 					// 一次性设置数据和状态
@@ -498,37 +454,31 @@ export const useStore = create<AppState>()(
 					let data: GameData[];
 					let allData: GameData[];
 
-					if (isTauri()) {
-						// 名称排序在前端处理，后端按添加时间获取
-						const backendSortOption =
-							option === "namesort" ? "addtime" : option;
-						const backendSortOrder = option === "namesort" ? "asc" : order;
+					// 名称排序在前端处理，后端按添加时间获取
+					const backendSortOption = option === "namesort" ? "addtime" : option;
+					const backendSortOrder = option === "namesort" ? "asc" : order;
 
-						// 只调用一次，获取所有游戏
-						const fullGames = await gameService.getAllGames(
-							"all",
-							backendSortOption,
-							backendSortOrder,
-						);
+					// 只调用一次，获取所有游戏
+					const fullGames = await gameService.getAllGames(
+						"all",
+						backendSortOption,
+						backendSortOrder,
+					);
 
-						// 转换为显示数据
-						const displayData = getDisplayGameDataList(
-							fullGames,
-							i18next.language,
-						);
+					// 转换为显示数据
+					const displayData = getDisplayGameDataList(
+						fullGames,
+						i18next.language,
+					);
 
-						// data 使用排序后的数据
-						data =
-							option === "namesort"
-								? get().sortGamesByName(displayData, order)
-								: displayData;
+					// data 使用排序后的数据
+					data =
+						option === "namesort"
+							? get().sortGamesByName(displayData, order)
+							: displayData;
 
-						// allData 直接复用，不需要第二次请求
-						allData = displayData;
-					} else {
-						data = getGamesLocal(option, order);
-						allData = getGamesLocal("addtime", "asc");
-					}
+					// allData 直接复用，不需要第二次请求
+					allData = displayData;
 
 					// 应用nsfw筛选
 					const { nsfwFilter } = get();
@@ -550,28 +500,16 @@ export const useStore = create<AppState>()(
 			fetchGame: async (id: number) => {
 				set({ loading: true });
 				try {
-					if (isTauri()) {
-						// 从后端获取完整游戏数据(包含 BGM/VNDB/Other 数据)
-						const fullGameData = await gameService.getGameById(id);
+					const fullGameData = await gameService.getGameById(id);
 
-						if (fullGameData) {
-							// 转换为展平的 GameData
-							const displayGame = getDisplayGameData(
-								fullGameData,
-								i18next.language,
-							);
-							set({ selectedGame: displayGame });
-						} else {
-							console.warn(`Game with ID ${id} not found`);
-						}
+					if (fullGameData) {
+						const displayGame = getDisplayGameData(
+							fullGameData,
+							i18next.language,
+						);
+						set({ selectedGame: displayGame });
 					} else {
-						// Web 环境下使用本地存储
-						const game = getGameByIdLocal(id);
-						if (game) {
-							set({ selectedGame: game });
-						} else {
-							console.warn(`Game with ID ${id} not found`);
-						}
+						console.warn(`Game with ID ${id} not found`);
 					}
 				} catch (error) {
 					console.error("获取游戏数据失败:", error);
@@ -583,17 +521,12 @@ export const useStore = create<AppState>()(
 			// 使用通用函数简化 addGame
 			addGame: async (gameParams: InsertGameParams): Promise<number | null> => {
 				try {
-					let insertedGameId: number | null = null;
-					if (isTauri()) {
-						// 确保 id_type 有值
-						const gameToInsert = {
-							...gameParams,
-							id_type: gameParams.id_type || "custom",
-						};
-						insertedGameId = await gameService.insertGame(gameToInsert);
-					} else {
-						insertedGameId = insertGameLocal(gameParams);
-					}
+					// 确保 id_type 有值
+					const gameToInsert = {
+						...gameParams,
+						id_type: gameParams.id_type || "custom",
+					};
+					const insertedGameId = await gameService.insertGame(gameToInsert);
 					// 使用通用刷新函数
 					await get().refreshGameData();
 					return insertedGameId;
@@ -606,11 +539,7 @@ export const useStore = create<AppState>()(
 			// 使用通用函数简化 deleteGame
 			deleteGame: async (gameId: number): Promise<void> => {
 				try {
-					if (isTauri()) {
-						await gameService.deleteGame(gameId);
-					} else {
-						deleteGameLocal(gameId);
-					}
+					await gameService.deleteGame(gameId);
 					// 使用通用刷新函数
 					await get().refreshGameData();
 					get().setSelectedGameId(null);
@@ -661,68 +590,59 @@ export const useStore = create<AppState>()(
 			},
 
 			getGameById: async (gameId: number): Promise<GameData> => {
-				if (isTauri()) {
-					const fullData = await gameService.getGameById(gameId);
-					const game = fullData
-						? getDisplayGameData(fullData, i18next.language)
-						: null;
-					if (game === null) {
-						throw new Error(`Game with ID ${gameId} not found`);
-					}
-					return game;
+				const fullData = await gameService.getGameById(gameId);
+				const game = fullData
+					? getDisplayGameData(fullData, i18next.language)
+					: null;
+				if (game === null) {
+					throw new Error(`Game with ID ${gameId} not found`);
 				}
-				return await Promise.resolve(getGameByIdLocal(gameId));
+				return game;
 			},
 
 			updateGame: async (id: number, gameUpdates: UpdateGameParams) => {
 				try {
-					if (isTauri()) {
-						await gameService.updateGame(id, gameUpdates);
-						// gameUpdates 的键会在下面被遍历，直接使用 gameUpdates 而不是解构未使用的变量
-						// 只有当更新的字段可能影响游戏列表显示时才刷新列表
-						// 游戏设置类字段（如 savepath, autosave）不需要刷新列表
-						// 注意：localpath 字段虽然不影响列表显示，但会影响 isLocalGame 判断，因此需要刷新
-						const listAffectingFields = [
-							"name",
-							"developer",
-							"date",
-							"score",
-							"rank",
-							"tags",
-							"localpath", // 添加 localpath，确保更新后 allGames 也同步更新
-							"custom_data", // 自定义数据可能影响封面和名称
-						]; // 将 gameUpdates 展开为一组字段名（支持一层嵌套：game / bgm_data / vndb_data / custom_data）
-						const updatedFieldNames = new Set<string>();
+					await gameService.updateGame(id, gameUpdates);
+					// gameUpdates 的键会在下面被遍历，直接使用 gameUpdates 而不是解构未使用的变量
+					// 只有当更新的字段可能影响游戏列表显示时才刷新列表
+					// 游戏设置类字段（如 savepath, autosave）不需要刷新列表
+					// 注意：localpath 字段虽然不影响列表显示，但会影响 isLocalGame 判断，因此需要刷新
+					const listAffectingFields = [
+						"name",
+						"developer",
+						"date",
+						"score",
+						"rank",
+						"tags",
+						"localpath", // 添加 localpath，确保更新后 allGames 也同步更新
+						"custom_data", // 自定义数据可能影响封面和名称
+					]; // 将 gameUpdates 展开为一组字段名（支持一层嵌套：game / bgm_data / vndb_data / custom_data）
+					const updatedFieldNames = new Set<string>();
 
-						// 如果外层直接包含字段
-						Object.keys(gameUpdates).forEach((key) => {
-							const value = gameUpdates[key as keyof UpdateGameParams];
-							if (value && typeof value === "object" && !Array.isArray(value)) {
-								// 展开一层嵌套的字段名
-								Object.keys(value).forEach((subKey) => {
-									updatedFieldNames.add(subKey);
-								});
-							} else {
-								updatedFieldNames.add(key);
-							}
-						});
-
-						// 检查是否有任一影响显示的字段被更新
-						const shouldRefreshList = Array.from(updatedFieldNames).some(
-							(field) => listAffectingFields.includes(field),
-						);
-
-						// 更新当前选中的游戏数据
-						await get().fetchGame(id);
-
-						// 如果更新的字段影响列表显示或游戏可用性，刷新游戏列表
-						if (shouldRefreshList) {
-							await get().refreshGameData();
+					// 如果外层直接包含字段
+					Object.keys(gameUpdates).forEach((key) => {
+						const value = gameUpdates[key as keyof UpdateGameParams];
+						if (value && typeof value === "object" && !Array.isArray(value)) {
+							// 展开一层嵌套的字段名
+							Object.keys(value).forEach((subKey) => {
+								updatedFieldNames.add(subKey);
+							});
+						} else {
+							updatedFieldNames.add(key);
 						}
-					} else {
-						console.warn(
-							"updateGameLocal is not implemented for browser environment.",
-						);
+					});
+
+					// 检查是否有任一影响显示的字段被更新
+					const shouldRefreshList = Array.from(updatedFieldNames).some(
+						(field) => listAffectingFields.includes(field),
+					);
+
+					// 更新当前选中的游戏数据
+					await get().fetchGame(id);
+
+					// 如果更新的字段影响列表显示或游戏可用性，刷新游戏列表
+					if (shouldRefreshList) {
+						await get().refreshGameData();
 					}
 				} catch (error) {
 					console.error("更新游戏数据失败:", error);
@@ -756,12 +676,7 @@ export const useStore = create<AppState>()(
 			// BGM 令牌方法
 			fetchBgmToken: async () => {
 				try {
-					let token = "";
-					if (isTauri()) {
-						token = await settingsService.getBgmToken();
-					} else {
-						token = getBgmTokenLocal();
-					}
+					const token = await settingsService.getBgmToken();
 					set({ bgmToken: token });
 				} catch (error) {
 					console.error("Error fetching BGM token:", error);
@@ -770,11 +685,7 @@ export const useStore = create<AppState>()(
 
 			setBgmToken: async (token: string) => {
 				try {
-					if (isTauri()) {
-						await settingsService.setBgmToken(token);
-					} else {
-						setBgmTokenLocal(token);
-					}
+					await settingsService.setBgmToken(token);
 					set({ bgmToken: token });
 				} catch (error) {
 					console.error("Error setting BGM token:", error);
@@ -876,11 +787,6 @@ export const useStore = create<AppState>()(
 			// 获取所有分组（包括默认分组和自定义分组）
 			fetchGroups: async () => {
 				try {
-					if (!isTauri()) {
-						console.warn("fetchGroups: Web environment not supported");
-						return;
-					}
-
 					const groups = await collectionService.getGroups();
 					set({ groups });
 				} catch (error) {
@@ -903,13 +809,6 @@ export const useStore = create<AppState>()(
 			// 获取指定分组下的分类
 			fetchCategoriesByGroup: async (groupId: string) => {
 				try {
-					if (!isTauri()) {
-						console.warn(
-							"fetchCategoriesByGroup: Web environment not supported",
-						);
-						return;
-					}
-
 					// 如果是默认分组，不需要从数据库查询
 					// 默认分组（DEVELOPER、PLAY_STATUS）由前端动态生成
 					if (groupId.startsWith("default_")) {
@@ -938,11 +837,6 @@ export const useStore = create<AppState>()(
 				categoryName?: string,
 			) => {
 				try {
-					if (!isTauri()) {
-						console.warn("fetchGamesByCategory: Web environment not supported");
-						return;
-					}
-
 					let gameDataList: GameData[];
 					const allGames = get().allGames;
 
@@ -1013,11 +907,6 @@ export const useStore = create<AppState>()(
 			// 创建分组
 			createGroup: async (name: string, icon?: string) => {
 				try {
-					if (!isTauri()) {
-						console.warn("createGroup: Web environment not supported");
-						return;
-					}
-
 					await collectionService.createCollection(name, null, 0, icon || null);
 					// 刷新分组列表
 					await get().fetchGroups();
@@ -1029,11 +918,6 @@ export const useStore = create<AppState>()(
 			// 创建分类
 			createCategory: async (name: string, groupId: number, icon?: string) => {
 				try {
-					if (!isTauri()) {
-						console.warn("createCategory: Web environment not supported");
-						return;
-					}
-
 					await collectionService.createCollection(
 						name,
 						groupId,
@@ -1050,11 +934,6 @@ export const useStore = create<AppState>()(
 			// 删除分组
 			deleteGroup: async (groupId: number) => {
 				try {
-					if (!isTauri()) {
-						console.warn("deleteGroup: Web environment not supported");
-						return;
-					}
-
 					await collectionService.deleteCollection(groupId);
 					// 分组删除，清空所有缓存
 					set({ categoryGamesCache: {} });
@@ -1072,11 +951,6 @@ export const useStore = create<AppState>()(
 			// 删除分类
 			deleteCategory: async (categoryId: number) => {
 				try {
-					if (!isTauri()) {
-						console.warn("deleteCategory: Web environment not supported");
-						return;
-					}
-
 					await collectionService.deleteCollection(categoryId);
 					// 分类删除，清理该分类缓存
 					set((state) => {
@@ -1108,11 +982,6 @@ export const useStore = create<AppState>()(
 				updates: { name?: string; icon?: string },
 			) => {
 				try {
-					if (!isTauri()) {
-						console.warn("updateGroup: Web environment not supported");
-						return;
-					}
-
 					await collectionService.updateCollection(
 						groupId,
 						updates.name,
@@ -1133,11 +1002,6 @@ export const useStore = create<AppState>()(
 				updates: { name?: string; icon?: string },
 			) => {
 				try {
-					if (!isTauri()) {
-						console.warn("updateCategory: Web environment not supported");
-						return;
-					}
-
 					await collectionService.updateCollection(
 						categoryId,
 						updates.name,
@@ -1158,11 +1022,6 @@ export const useStore = create<AppState>()(
 			// 重命名分组（基于 updateGroup 的简化版本）
 			renameGroup: async (groupId: number, newName: string) => {
 				try {
-					if (!isTauri()) {
-						console.warn("renameGroup: Web environment not supported");
-						return;
-					}
-
 					await collectionService.updateCollection(
 						groupId,
 						newName,
@@ -1180,11 +1039,6 @@ export const useStore = create<AppState>()(
 			// 重命名分类（基于 updateCategory 的简化版本）
 			renameCategory: async (categoryId: number, newName: string) => {
 				try {
-					if (!isTauri()) {
-						console.warn("renameCategory: Web environment not supported");
-						return;
-					}
-
 					await collectionService.updateCollection(
 						categoryId,
 						newName,
@@ -1205,11 +1059,6 @@ export const useStore = create<AppState>()(
 			// 添加游戏到分类（保留单个添加，供向后兼容）
 			addGameToCategory: async (gameId: number, categoryId: number) => {
 				try {
-					if (!isTauri()) {
-						console.warn("addGameToCategory: Web environment not supported");
-						return;
-					}
-
 					await collectionService.addGameToCollection(gameId, categoryId);
 					// 更新关联后清理该分类缓存
 					set((state) => {
@@ -1234,13 +1083,6 @@ export const useStore = create<AppState>()(
 			// 从分类移除游戏（保留单个删除，供向后兼容）
 			removeGameFromCategory: async (gameId: number, categoryId: number) => {
 				try {
-					if (!isTauri()) {
-						console.warn(
-							"removeGameFromCategory: Web environment not supported",
-						);
-						return;
-					}
-
 					await collectionService.removeGameFromCollection(gameId, categoryId);
 					// 更新关联后清理该分类缓存
 					set((state) => {
@@ -1265,11 +1107,6 @@ export const useStore = create<AppState>()(
 			// 批量更新分类中的游戏列表
 			updateCategoryGames: async (gameIds: number[], categoryId: number) => {
 				try {
-					if (!isTauri()) {
-						console.warn("updateCategoryGames: Web environment not supported");
-						return;
-					}
-
 					// 1. 乐观更新：先更新前端状态，防止列表闪烁
 					const { allGames, nsfwFilter, currentCategories } = get();
 					// 根据 ID 列表重新排序当前分类的游戏
@@ -1322,9 +1159,7 @@ export const useStore = create<AppState>()(
 				]);
 
 				// 初始化游戏时间跟踪
-				if (isTauri()) {
-					initializeGamePlayTracking();
-				}
+				initializeGamePlayTracking();
 			},
 		}),
 		{
