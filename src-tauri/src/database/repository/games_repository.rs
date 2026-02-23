@@ -64,7 +64,7 @@ impl GamesRepository {
             savepath: NotSet,
             autosave: NotSet,
             maxbackups: NotSet,
-            clear: Set(Some(1)),// 数据库迁移默认值麻烦，临时设定默认值为 1
+            clear: Set(Some(1)), // 数据库迁移默认值麻烦，临时设定默认值为 1
             le_launch: NotSet,
             magpie: NotSet,
             vndb_data: Set(game.vndb_data),
@@ -269,6 +269,30 @@ impl GamesRepository {
         query
     }
 
+    /// 应用层排序：按可选数值键排序，None 值统一置末尾
+    ///
+    /// - `key_fn`：从游戏记录提取排序键，返回 `Option<K>`
+    /// - `desc`：true 时降序（大值靠前），false 时升序（小值靠前）
+    fn sort_by_optional_key<K, F>(games: &mut [games::Model], desc: bool, key_fn: F)
+    where
+        K: PartialOrd,
+        F: Fn(&games::Model) -> Option<K>,
+    {
+        games.sort_by(|a, b| match (key_fn(a), key_fn(b)) {
+            (None, None) => std::cmp::Ordering::Equal,
+            (None, _) => std::cmp::Ordering::Greater,
+            (_, None) => std::cmp::Ordering::Less,
+            (Some(ka), Some(kb)) => {
+                let ord = ka.partial_cmp(&kb).unwrap_or(std::cmp::Ordering::Equal);
+                if desc {
+                    ord.reverse()
+                } else {
+                    ord
+                }
+            }
+        });
+    }
+
     /// 通用的排序和查询方法
     async fn find_with_sort(
         db: &DatabaseConnection,
@@ -277,11 +301,6 @@ impl GamesRepository {
         sort_order: SortOrder,
     ) -> Result<Vec<games::Model>, DbErr> {
         use crate::entity::game_statistics;
-
-        let order = match sort_order {
-            SortOrder::Asc => Order::Asc,
-            SortOrder::Desc => Order::Desc,
-        };
 
         match sort_option {
             SortOption::Addtime => {
@@ -309,16 +328,25 @@ impl GamesRepository {
                     .await
             }
             SortOption::BGMRank => {
-                // 单表架构下，bgm_data 是 JSON 列，无法直接用于排序
-                // 需要使用原始 SQL 或在应用层排序
-                // 暂时按 ID 排序，后续可优化为 JSON 路径查询
-                let query = Self::build_base_query(game_type);
-                query.order_by(games::Column::Id, order).all(db).await
+                // bgm_data.rank：数值越小排名越靠前，无 rank 或 rank=0 置末尾
+                let mut games = Self::build_base_query(game_type).all(db).await?;
+                let desc = matches!(sort_order, SortOrder::Desc);
+                Self::sort_by_optional_key(&mut games, desc, |g| {
+                    g.bgm_data.as_ref().and_then(|d| d.rank).filter(|&r| r != 0)
+                });
+                Ok(games)
             }
             SortOption::VNDBRank => {
-                // 同上，JSON 列排序需要特殊处理
-                let query = Self::build_base_query(game_type);
-                query.order_by(games::Column::Id, order).all(db).await
+                // vndb_data.score：数值越大越靠前，无 score 或 score=0 置末尾
+                let mut games = Self::build_base_query(game_type).all(db).await?;
+                let desc = matches!(sort_order, SortOrder::Asc);
+                Self::sort_by_optional_key(&mut games, desc, |g| {
+                    g.vndb_data
+                        .as_ref()
+                        .and_then(|d| d.score)
+                        .filter(|&s| s != 0.0)
+                });
+                Ok(games)
             }
         }
     }
