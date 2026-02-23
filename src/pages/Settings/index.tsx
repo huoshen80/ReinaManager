@@ -19,8 +19,10 @@
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import BackupIcon from "@mui/icons-material/Backup";
+import BugReportIcon from "@mui/icons-material/BugReport";
 import ClearIcon from "@mui/icons-material/Clear";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import RestoreIcon from "@mui/icons-material/Restore";
 import UpdateIcon from "@mui/icons-material/Update";
 import {
@@ -1084,7 +1086,6 @@ const AboutSection: React.FC = () => {
 							: t("pages.Settings.about.checkUpdate", "检查更新")}
 					</Button>
 				</Stack>
-
 				{/* 更新状态显示 */}
 				{updateStatus && (
 					<Typography
@@ -1098,13 +1099,12 @@ const AboutSection: React.FC = () => {
 						{updateStatus}
 					</Typography>
 				)}
-
 				{/* 作者信息 */}
 				<Typography variant="body2">
 					<strong>{t("pages.Settings.about.author", "作者")}: </strong>
 					huoshen80
-				</Typography>
-
+				</Typography>{" "}
+				{/* 使用文档和问题反馈 */}
 				{/* 项目链接 */}
 				<Typography variant="body2">
 					<strong>{t("pages.Settings.about.github", "项目地址")}: </strong>
@@ -1117,7 +1117,6 @@ const AboutSection: React.FC = () => {
 						https://github.com/huoshen80/ReinaManager
 					</Link>
 				</Typography>
-
 				{/* 作者博客链接 */}
 				<Typography variant="body2">
 					<strong>{t("pages.Settings.about.blog", "作者博客")}: </strong>
@@ -1130,6 +1129,28 @@ const AboutSection: React.FC = () => {
 						https://huoshen80.top
 					</Link>
 				</Typography>
+				{/* 使用文档和问题反馈 */}
+				<Stack direction="row" spacing={2} flexWrap="wrap">
+					<Button
+						variant="outlined"
+						startIcon={<MenuBookIcon />}
+						onClick={() => openurl("https://reina.huoshen80.top")}
+						size="small"
+					>
+						{t("pages.Settings.about.docs", "使用文档")}
+					</Button>
+					<Button
+						variant="outlined"
+						color="secondary"
+						startIcon={<BugReportIcon />}
+						onClick={() =>
+							openurl("https://github.com/huoshen80/ReinaManager/issues/new")
+						}
+						size="small"
+					>
+						{t("pages.Settings.about.feedback", "问题反馈")}
+					</Button>
+				</Stack>
 			</Box>
 		</Box>
 	);

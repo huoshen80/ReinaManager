@@ -456,6 +456,8 @@
 				"blog": "Author's Blog",
 				"checking": "Checking...",
 				"checkUpdate": "Check for Updates",
+				"docs": "Documentation",
+				"feedback": "Report an Issue",
 				"github": "Project Repository",
 				"title": "About",
 				"version": "Version"
