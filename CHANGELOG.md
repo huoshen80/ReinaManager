@@ -1,3 +1,33 @@
+## [0.16.2](https://github.com/huoshen80/ReinaManager/compare/v0.16.1...v0.16.2) (2026-02-24)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+* 自定义游戏预览封面显示问题 ([d0ed1f9](https://github.com/huoshen80/ReinaManager/commit/d0ed1f9708c5f5c9644cc290dfc4737c28773f10))
+* 标记为 NSFW 的游戏封面不被替换的问题 ([e4bfb56](https://github.com/huoshen80/ReinaManager/commit/e4bfb56d91f3fa88f35a617b4e541d9edd5a8d1b))
+* 在软件启动时按 Win+D 会导致 UI 崩溃的问题，取消全局禁用 Ctrl+A 快捷键 [#36](https://github.com/huoshen80/ReinaManager/issues/36) ([08fd61b](https://github.com/huoshen80/ReinaManager/commit/08fd61b1cfda35e47717f57aacb48e4e52c3a871))
+
+### 新功能
+* 在设置中添加文档链接和问题反馈按钮 ([afd58e5](https://github.com/huoshen80/ReinaManager/commit/afd58e5af1c382e9a8149877bdced90f1ab5d24b))
+* BGM 和 VNDB 排序功能的简单实现 ([f8503a7](https://github.com/huoshen80/ReinaManager/commit/f8503a711e051fc4e33008c5b250ff82cff0ae2b))
+
+</details>
+
+### Bug Fixes
+
+* custom game preview cover display issue ([d0ed1f9](https://github.com/huoshen80/ReinaManager/commit/d0ed1f9708c5f5c9644cc290dfc4737c28773f10))
+* game covers marked as NSFW will not be replaced ([e4bfb56](https://github.com/huoshen80/ReinaManager/commit/e4bfb56d91f3fa88f35a617b4e541d9edd5a8d1b))
+* pressing Win+D at startup causes the UI to crash, cancel the disabling of the Ctrl+A shortcut [#36](https://github.com/huoshen80/ReinaManager/issues/36) ([08fd61b](https://github.com/huoshen80/ReinaManager/commit/08fd61b1cfda35e47717f57aacb48e4e52c3a871))
+
+
+### Features
+
+* add docs link and issue button to settings ([afd58e5](https://github.com/huoshen80/ReinaManager/commit/afd58e5af1c382e9a8149877bdced90f1ab5d24b))
+* simple implementation of BGM and VNDB ranking sorting ([f8503a7](https://github.com/huoshen80/ReinaManager/commit/f8503a711e051fc4e33008c5b250ff82cff0ae2b))
+
+
+
 ## [0.16.1](https://github.com/huoshen80/ReinaManager/compare/v0.16.0...v0.16.1) (2026-02-07)
 
 <details>
