@@ -31,7 +31,6 @@ const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
 const assignBasicFields = (
 	target: GameData,
 	source: {
-		image?: string | null;
 		name?: string | null;
 		name_cn?: string | null;
 		summary?: string | null;
@@ -40,7 +39,6 @@ const assignBasicFields = (
 		date?: string | null;
 	},
 ) => {
-	if (source.image != null) target.image = source.image;
 	if (source.name != null) target.name = source.name;
 	if (source.name_cn != null) target.name_cn = source.name_cn;
 	if (source.summary != null) target.summary = source.summary;
@@ -150,6 +148,7 @@ function assignFromDataSource(
 	switch (sourceType) {
 		case "bgm": {
 			const bgmSource = source as BgmData;
+			target.image = bgmSource.image;
 			target.tags = bgmSource.tags || [];
 			target.rank = bgmSource.rank;
 			target.score = bgmSource.score;
@@ -159,6 +158,7 @@ function assignFromDataSource(
 
 		case "vndb": {
 			const vndbSource = source as VndbData;
+			target.image = vndbSource.image;
 			target.tags = vndbSource.tags || [];
 			target.score = vndbSource.score;
 			target.all_titles = vndbSource.all_titles || [];
@@ -169,6 +169,7 @@ function assignFromDataSource(
 
 		case "ymgal": {
 			const ymgalSource = source as YmgalData;
+			target.image = ymgalSource.image;
 			target.aliases = ymgalSource.aliases || [];
 			break;
 		}
@@ -200,6 +201,8 @@ function mergeMultipleDataSources(
 	// 基础字段：优先级 BGM > VNDB > YMGal
 	const primarySource = bgm_data || vndb_data || ymgal_data;
 	if (primarySource) assignBasicFields(target, primarySource);
+
+	target.image = bgm_data?.image || vndb_data?.image || ymgal_data?.image;
 
 	// 简介：YMGal 优先
 	target.summary =
