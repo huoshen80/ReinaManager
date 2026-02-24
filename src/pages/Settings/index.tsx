@@ -51,7 +51,6 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import pkg from "@pkg";
 import { path } from "@tauri-apps/api";
-import { invoke } from "@tauri-apps/api/core";
 import { isEnabled } from "@tauri-apps/plugin-autostart";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { open as openurl } from "@tauri-apps/plugin-shell";
@@ -65,7 +64,7 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
-import { settingsService } from "@/services";
+import { fileService, settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { LogLevel } from "@/types";
 import { openDatabaseBackupFolder } from "@/utils";
@@ -332,7 +331,7 @@ const LogLevelSettings = () => {
 		try {
 			const AppLocalData = await path.appLocalDataDir();
 			const logDir = join(AppLocalData, "logs");
-			await invoke("open_directory", { dirPath: logDir });
+			await fileService.openDirectory(logDir);
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error

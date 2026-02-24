@@ -5,6 +5,8 @@
 
 export type { Collection, GameCollectionLink } from "./collectionService";
 export { collectionService } from "./collectionService";
+export type { BackupResult, ImportResult } from "./fileService";
+export { fileService } from "./fileService";
 // 导出所有服务
 export { gameService } from "./gameService";
 export { savedataService } from "./savedataService";

@@ -3,9 +3,10 @@
  * @description 处理自定义封面的选择、预览、上传和管理
  */
 
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { basename, join } from "pathe";
+import { fileService } from "@/services";
 import { getcustomCoverFolder } from "./index";
 
 /**
@@ -74,19 +75,13 @@ export const uploadSelectedImage = async (
 
 		// 删除该游戏的所有旧封面文件（通过模式匹配）
 		try {
-			await invoke<void>("delete_game_covers", {
-				gameId: gameId,
-				coversDir: customCoverFolder,
-			});
+			await fileService.deleteGameCovers(gameId, customCoverFolder);
 		} catch {
 			// 如果删除失败（文件不存在等），继续执行
 		}
 
 		// 复制文件到目标位置
-		await invoke<void>("copy_file", {
-			src: imagePath,
-			dst: targetPath,
-		});
+		await fileService.copyFile(imagePath, targetPath);
 
 		// 返回版本化的文件标识符，存储到数据库
 		return versionedFileName;
@@ -150,9 +145,7 @@ export const deleteCustomCoverFile = async (
 		);
 
 		// 删除物理文件
-		await invoke<void>("delete_file", {
-			filePath: targetPath,
-		});
+		await fileService.deleteFile(targetPath);
 	} catch (error) {
 		throw new Error(`删除自定义封面失败: ${error}`);
 	}

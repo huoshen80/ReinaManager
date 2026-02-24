@@ -1,5 +1,5 @@
 import { path } from "@tauri-apps/api";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { resourceDir } from "@tauri-apps/api/path";
 import { open as openDirectory } from "@tauri-apps/plugin-dialog";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
@@ -8,7 +8,13 @@ import { extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
 import { fetchVNDBByIds } from "@/api/vndb";
 import { snackbar } from "@/components/Snackbar";
-import { gameService, savedataService, settingsService } from "@/services";
+import {
+	fileService,
+	gameService,
+	savedataService,
+	settingsService,
+	statsService,
+} from "@/services";
 import { useScrollStore } from "@/store/scrollStore";
 import type { BgmData, GameData, HanleGamesProps, VndbData } from "@/types";
 import { getDisplayGameData } from "./dataTransform";
@@ -190,8 +196,7 @@ export const handleOpenFolder = async ({
 		}
 		const folder = await path.dirname(selectedGame.localpath);
 		if (folder) {
-			// 使用我们自己的后端函数打开文件夹
-			await invoke("open_directory", { dirPath: folder });
+			await fileService.openDirectory(folder);
 		}
 	} catch (error) {
 		snackbar.error(i18next.t("components.Snackbar.failedOpenGameFolder"));
@@ -213,16 +218,12 @@ export async function launchGameWithTracking(
 	launchOptions?: GameLaunchOptions,
 ): Promise<{ success: boolean; message: string; process_id?: number }> {
 	try {
-		const result = await invoke<{
-			success: boolean;
-			message: string;
-			process_id?: number;
-		}>("launch_game", {
+		const result = await statsService.launchGame(
 			gamePath,
 			gameId,
-			args: args || [],
+			args || [],
 			launchOptions,
-		});
+		);
 
 		return result;
 	} catch (error) {
@@ -237,9 +238,7 @@ export async function stopGameWithTracking(
 	gameId: number,
 ): Promise<StopGameResult> {
 	try {
-		const result = await invoke<StopGameResult>("stop_game", {
-			gameId,
-		});
+		const result = await statsService.stopGame(gameId);
 		return result;
 	} catch (error) {
 		const errorMessage =
@@ -579,10 +578,7 @@ export async function createGameSavedataBackup(
  */
 export async function openGameBackupFolder(gameId: number): Promise<void> {
 	const backupPath = await getSavedataBackupPath(gameId);
-	// 使用后端函数打开文件夹
-	await invoke("open_directory", {
-		dirPath: backupPath,
-	});
+	await fileService.openDirectory(backupPath);
 }
 
 /**
@@ -595,8 +591,7 @@ export async function openGameSaveDataFolder(
 	if (!saveDataPath) {
 		throw new Error("存档路径不能为空");
 	}
-	// 使用后端函数打开文件夹
-	await invoke("open_directory", { dirPath: saveDataPath });
+	await fileService.openDirectory(saveDataPath);
 }
 
 /**
@@ -605,10 +600,7 @@ export async function openGameSaveDataFolder(
 export async function openDatabaseBackupFolder(): Promise<void> {
 	try {
 		const backupPath = await getDbBackupPath();
-		// 使用后端函数打开文件夹
-		await invoke("open_directory", {
-			dirPath: backupPath,
-		});
+		await fileService.openDirectory(backupPath);
 	} catch (error) {
 		snackbar.error(
 			i18next.t("components.Snackbar.failedOpenDatabaseBackupFolder"),
@@ -639,12 +631,9 @@ export async function moveBackupFolder(
 		const newBackupDir = join(newPath, "backups");
 
 		// 调用 Rust 后端函数移动文件夹
-		const result = await invoke<{ success: boolean; message: string }>(
-			"move_backup_folder",
-			{
-				oldPath: oldBackupDir,
-				newPath: newBackupDir,
-			},
+		const result = await fileService.moveBackupFolder(
+			oldBackupDir,
+			newBackupDir,
 		);
 
 		return {

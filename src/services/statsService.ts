@@ -7,7 +7,50 @@ import type { GameSession, GameStatistics } from "@/types";
 import { BaseService } from "./base";
 import type { DailyStats } from "./types";
 
+export interface GameLaunchOptions {
+	le_launch?: boolean;
+	magpie?: boolean;
+}
+
+export interface LaunchGameResult {
+	success: boolean;
+	message: string;
+	process_id?: number;
+}
+
+export interface StopGameResult {
+	success: boolean;
+	message: string;
+	terminated_count: number;
+}
+
 class StatsService extends BaseService {
+	/**
+	 * 启动游戏并开始监控
+	 */
+	async launchGame(
+		gamePath: string,
+		gameId: number,
+		args: string[] = [],
+		launchOptions?: GameLaunchOptions,
+	): Promise<LaunchGameResult> {
+		return this.invoke<LaunchGameResult>("launch_game", {
+			gamePath,
+			gameId,
+			args,
+			launchOptions,
+		});
+	}
+
+	/**
+	 * 停止游戏监控
+	 */
+	async stopGame(gameId: number): Promise<StopGameResult> {
+		return this.invoke<StopGameResult>("stop_game", {
+			gameId,
+		});
+	}
+
 	/**
 	 * 记录游戏会话
 	 */

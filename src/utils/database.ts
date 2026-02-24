@@ -1,19 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-
-/** 数据库备份结果 */
-interface BackupResult {
-	success: boolean;
-	path: string | null;
-	message: string;
-}
-
-/** 数据库导入结果 */
-interface ImportResult {
-	success: boolean;
-	message: string;
-	backup_path: string | null;
-}
+import { type BackupResult, fileService, type ImportResult } from "@/services";
 
 /**
  * 使用 VACUUM INTO 进行数据库热备份
@@ -29,7 +15,7 @@ interface ImportResult {
  */
 export async function backupDatabase(): Promise<BackupResult> {
 	try {
-		const result = await invoke<BackupResult>("backup_database");
+		const result = await fileService.backupDatabase();
 		console.log(`数据库已备份到: ${result.path}`);
 		return result;
 	} catch (error) {
@@ -66,9 +52,7 @@ export async function importDatabase(): Promise<ImportResult | null> {
 	}
 
 	// 调用后端命令导入数据库
-	const result = await invoke<ImportResult>("import_database", {
-		sourcePath: filePath,
-	});
+	const result = await fileService.importDatabase(filePath);
 
 	return result;
 }
