@@ -44,7 +44,7 @@ import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
-import { handleDirectory } from "@/utils";
+import { handleExeFile } from "@/utils";
 import GameSelectDialog from "./GameSelectDialog";
 
 /**
@@ -578,7 +578,7 @@ const AddModal: React.FC = () => {
 						className="w-md"
 						variant="contained"
 						onClick={async () => {
-							const result = await handleDirectory();
+							const result = await handleExeFile();
 							if (result) setAddModalPath(result);
 						}}
 						startIcon={<FileOpenIcon />}

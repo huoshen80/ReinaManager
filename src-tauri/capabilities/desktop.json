@@ -10,7 +10,7 @@
   ],
   "permissions": [
     "autostart:default",
-    "updater:default",
-    "window-state:default"
+    "window-state:default",
+    "store:default"
   ]
 }
