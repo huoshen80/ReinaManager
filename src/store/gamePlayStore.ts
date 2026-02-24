@@ -23,6 +23,7 @@ import { useStore } from "@/store";
 import type { GameSession, GameStatistics, GameTimeStats } from "@/types";
 import {
 	type GameLaunchOptions,
+	getErrorMessage,
 	getLocalDateString,
 	launchGameWithTracking,
 	type StopGameResult,
@@ -279,8 +280,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				};
 			});
 
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = getErrorMessage(error);
 			return { success: false, message: errorMessage };
 		}
 	},
@@ -321,8 +321,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 			return result;
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = getErrorMessage(error);
 			return {
 				success: false,
 				message: errorMessage,
@@ -463,10 +462,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 			return cleanup;
 		} catch (error) {
-			console.error(
-				"初始化游戏时间跟踪失败:",
-				error instanceof Error ? error.message : String(error),
-			);
+			console.error("初始化游戏时间跟踪失败:", getErrorMessage(error));
 		}
 	},
 

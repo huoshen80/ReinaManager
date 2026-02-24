@@ -1,6 +1,6 @@
 /**
  * @file 全局状态管理
- * @description 使用 Zustand 管理应用全局状态，包括游戏列表、排序、筛选、BGM Token、搜索、UI 状态等，适配 Tauri 与 Web 环境。
+ * @description 使用 Zustand 管理应用全局状态，包括游戏列表、排序、筛选、搜索、UI 状态等，适配 Tauri 与 Web 环境。
  * @module src/store/index
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -23,14 +23,13 @@ import i18next from "i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getVirtualCategoryGames } from "@/hooks/common/useVirtualCollections";
-import { collectionService, gameService, settingsService } from "@/services";
+import { collectionService, gameService } from "@/services";
 import type {
 	Category,
 	FullGameData,
 	GameData,
 	Group,
 	InsertGameParams,
-	LogLevel,
 	UpdateGameParams,
 } from "@/types";
 import {
@@ -53,17 +52,11 @@ export interface AppState {
 	games: GameData[]; // 当前显示的游戏列表（受筛选和排序影响）
 	allGames: GameData[]; // 所有游戏的完整列表（不受筛选影响，供统计使用）
 	loading: boolean;
-	// BGM 令牌
-	bgmToken: string;
 	// UI 状态
 	selectedGameId: number | null;
 	selectedGame: GameData | null;
 	addModalOpen: boolean;
 	addModalPath: string;
-
-	// 日志级别（运行时，不持久化）
-	logLevel: LogLevel;
-	setLogLevel: (level: LogLevel) => void;
 
 	// 排序选项
 	sortOption: string;
@@ -87,10 +80,6 @@ export interface AppState {
 	deleteGame: (gameId: number) => Promise<void>;
 	getGameById: (gameId: number) => Promise<GameData>;
 	updateGame: (id: number, gameUpdates: UpdateGameParams) => Promise<void>;
-
-	// BGM 令牌方法
-	fetchBgmToken: () => Promise<void>;
-	setBgmToken: (token: string) => Promise<void>;
 
 	// UI 操作方法
 	setSelectedGameId: (id: number | null | undefined) => void;
@@ -229,9 +218,6 @@ export const useStore = create<AppState>()(
 			allGames: [], // 所有游戏的完整列表（不受筛选影响，供统计使用）
 			loading: false,
 
-			// BGM 令牌
-			bgmToken: "",
-
 			// UI 状态
 			selectedGameId: null,
 			selectedGame: null,
@@ -241,10 +227,6 @@ export const useStore = create<AppState>()(
 			searchKeyword: "",
 
 			gameFilterType: "all",
-
-			// 日志级别（运行时，不持久化）
-			logLevel: "error",
-			setLogLevel: (level: LogLevel) => set({ logLevel: level }),
 
 			// 排序选项默认值
 			sortOption: "addtime",
@@ -671,25 +653,6 @@ export const useStore = create<AppState>()(
 
 				// 调用统一的刷新函数，会自动应用当前的搜索、筛选和排序
 				await get().refreshGameData();
-			},
-
-			// BGM 令牌方法
-			fetchBgmToken: async () => {
-				try {
-					const token = await settingsService.getBgmToken();
-					set({ bgmToken: token });
-				} catch (error) {
-					console.error("Error fetching BGM token:", error);
-				}
-			},
-
-			setBgmToken: async (token: string) => {
-				try {
-					await settingsService.setBgmToken(token);
-					set({ bgmToken: token });
-				} catch (error) {
-					console.error("Error setting BGM token:", error);
-				}
 			},
 
 			// UI 操作方法
@@ -1152,11 +1115,7 @@ export const useStore = create<AppState>()(
 			// 初始化方法，先初始化数据库，然后加载所有需要的数据
 			initialize: async () => {
 				// 然后并行加载其他数据
-				await Promise.all([
-					get().fetchGames(),
-					get().fetchBgmToken(),
-					get().fetchGroups(),
-				]);
+				await Promise.all([get().fetchGames(), get().fetchGroups()]);
 
 				// 初始化游戏时间跟踪
 				initializeGamePlayTracking();
@@ -1201,7 +1160,7 @@ export const useStore = create<AppState>()(
 
 /**
  * initializeStores
- * 初始化全局状态，加载游戏数据与 BGM Token，并初始化游戏时间跟踪（Tauri 环境下）。
+ * 初始化全局状态，加载游戏与分类数据，并初始化游戏时间跟踪（Tauri 环境下）。
  */
 export const initializeStores = async (): Promise<void> => {
 	await useStore.getState().initialize();

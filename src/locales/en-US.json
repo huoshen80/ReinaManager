@@ -1,6 +1,5 @@
 {
 	"errors": {
-		"gameNotFound": "Game data not found",
 		"updatePlayStatusFailed": "Failed to update play status"
 	},
 	"api": {
@@ -349,7 +348,6 @@
 				"deleteSuccess": "Backup deleted successfully",
 				"fileSize": "File Size",
 				"invalidMaxBackups": "Invalid maximum backups value",
-				"loadBackupsFailed": "Failed to load backup list",
 				"manualBackup": "Manual Backup",
 				"maxBackups": "Maximum Backups",
 				"maxBackupsUpdateFailed": "Failed to update maximum backups",
@@ -373,7 +371,6 @@
 				"setPathForAutosave": "Please set the save path first to enable auto backup",
 				"setPathForRestore": "Please set save data path first to restore backup",
 				"settings": "Backup Settings",
-				"unknownError": "Unknown error",
 				"updatePath": "Update Path",
 				"updating": "Updating..."
 			},

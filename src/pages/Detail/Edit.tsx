@@ -4,8 +4,10 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
+import { useSettingsResources } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store";
 import type { FullGameData, UpdateGameParams } from "@/types";
+import { getErrorMessage } from "@/utils";
 import { DataSourceUpdate } from "./DataSourceUpdate";
 import { GameInfoEdit } from "./GameInfoEdit";
 
@@ -17,7 +19,8 @@ import { GameInfoEdit } from "./GameInfoEdit";
  * @returns 编辑页面
  */
 export const Edit: React.FC = () => {
-	const { bgmToken, updateGame, selectedGame } = useStore();
+	const { updateGame, selectedGame } = useStore();
+	const { bgmToken } = useSettingsResources();
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
 
@@ -87,9 +90,8 @@ export const Edit: React.FC = () => {
 			);
 		} catch (error) {
 			const errorMsg =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.Edit.unknownError", "未知错误");
+				getErrorMessage(error) ||
+				t("pages.Detail.Edit.unknownError", "未知错误");
 			snackbar.error(errorMsg);
 			throw error; // 重新抛出错误，让子组件知道操作失败
 		}

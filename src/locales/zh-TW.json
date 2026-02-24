@@ -1,6 +1,5 @@
 {
 	"errors": {
-		"gameNotFound": "遊戲數據未找到",
 		"updatePlayStatusFailed": "更新遊戲狀態失敗"
 	},
 	"api": {
@@ -348,7 +347,6 @@
 				"deleteSuccess": "備份刪除成功",
 				"fileSize": "檔案大小",
 				"invalidMaxBackups": "無效的最大備份數",
-				"loadBackupsFailed": "載入備份清單失敗",
 				"manualBackup": "手動備份",
 				"maxBackups": "最大備份數",
 				"maxBackupsUpdateFailed": "最大備份數更新失敗",
@@ -372,7 +370,6 @@
 				"setPathForAutosave": "請先設定存檔路徑以啟用自動備份",
 				"setPathForRestore": "請先設定存檔路徑以恢復備份",
 				"settings": "備份設定",
-				"unknownError": "未知錯誤",
 				"updatePath": "更新路徑",
 				"updating": "更新中..."
 			},

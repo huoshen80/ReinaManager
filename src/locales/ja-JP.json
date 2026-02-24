@@ -1,6 +1,5 @@
 {
 	"errors": {
-		"gameNotFound": "ゲームデータが見つかりません",
 		"updatePlayStatusFailed": "プレイ状態の更新に失敗しました"
 	},
 	"api": {
@@ -348,7 +347,6 @@
 				"deleteSuccess": "バックアップが正常に削除されました",
 				"fileSize": "ファイルサイズ",
 				"invalidMaxBackups": "無効な最大バックアップ数",
-				"loadBackupsFailed": "バックアップリストの読み込みに失敗しました",
 				"manualBackup": "手動バックアップ",
 				"maxBackups": "最大バックアップ数",
 				"maxBackupsUpdateFailed": "最大バックアップ数の更新に失敗しました",
@@ -372,7 +370,6 @@
 				"setPathForAutosave": "自動バックアップを有効にするには、まずセーブパスを設定してください",
 				"setPathForRestore": "バックアップを復元するには、まずセーブデータパスを設定してください",
 				"settings": "バックアップ設定",
-				"unknownError": "不明なエラー",
 				"updatePath": "パスを更新",
 				"updating": "更新中..."
 			},

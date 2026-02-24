@@ -11,8 +11,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { join } from "pathe";
-import { useTranslation } from "react-i18next";
-import { snackbar } from "@/components/Snackbar";
 import { savedataService } from "@/services";
 import type { SavedataRecord } from "@/types";
 import { createGameSavedataBackup, getSavedataBackupPath } from "@/utils";
@@ -21,10 +19,26 @@ import { createGameSavedataBackup, getSavedataBackupPath } from "@/utils";
 // Key Factory - 统一的 Query Key 前缀
 // ============================================================================
 
-const saveDataKeys = {
+export const saveDataKeys = {
 	all: ["saveData"] as const,
 	backups: (gameId: number) => ["saveData", "backups", gameId] as const,
 };
+
+interface CreateBackupParams {
+	gameId: number;
+	savePath: string;
+}
+
+interface DeleteBackupParams {
+	gameId: number;
+	backup: SavedataRecord;
+}
+
+interface RestoreBackupParams {
+	gameId: number;
+	backup: SavedataRecord;
+	savePath: string;
+}
 
 // ============================================================================
 // Queries - 数据获取 hooks
@@ -35,9 +49,7 @@ const saveDataKeys = {
  * @param gameId 游戏 ID
  * @returns QueryResult<SavedataRecord[]>
  */
-export function useSaveDataBackups(gameId: number | undefined) {
-	const { t } = useTranslation();
-
+function useSaveDataBackups(gameId: number | undefined) {
 	return useQuery({
 		queryKey: saveDataKeys.backups(gameId ?? 0),
 		queryFn: async () => {
@@ -48,12 +60,6 @@ export function useSaveDataBackups(gameId: number | undefined) {
 		staleTime: Infinity,
 		refetchOnWindowFocus: false,
 		retry: 1,
-		meta: {
-			errorMessage: t(
-				"pages.Detail.Backup.loadBackupsFailed",
-				"加载备份列表失败",
-			),
-		},
 	});
 }
 
@@ -64,30 +70,17 @@ export function useSaveDataBackups(gameId: number | undefined) {
 /**
  * 创建备份
  */
-export function useCreateBackup() {
+function useCreateBackup() {
 	const queryClient = useQueryClient();
-	const { t } = useTranslation();
 
 	return useMutation({
-		mutationFn: async ({
-			gameId,
-			savePath,
-		}: {
-			gameId: number;
-			savePath: string;
-		}) => {
+		mutationFn: async ({ gameId, savePath }: CreateBackupParams) => {
 			return createGameSavedataBackup(gameId, savePath);
 		},
 		onSuccess: (_, variables) => {
-			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
 			queryClient.invalidateQueries({
 				queryKey: saveDataKeys.backups(variables.gameId),
 			});
-		},
-		onError: (error: Error) => {
-			snackbar.error(
-				`${t("pages.Detail.Backup.backupFailed", "备份失败")}: ${error.message}`,
-			);
 		},
 	});
 }
@@ -95,27 +88,13 @@ export function useCreateBackup() {
 /**
  * 删除备份
  */
-export function useDeleteBackup() {
+function useDeleteBackup() {
 	const queryClient = useQueryClient();
-	const { t } = useTranslation();
 
 	return useMutation({
-		mutationFn: async ({
-			backup,
-		}: {
-			gameId: number;
-			backup: SavedataRecord;
-		}) => {
+		mutationFn: async ({ backup }: DeleteBackupParams) => {
 			// 直接调用后端二合一接口，同时删除文件和数据库记录
 			await savedataService.deleteBackup(backup.id);
-		},
-		onSuccess: () => {
-			snackbar.success(t("pages.Detail.Backup.deleteSuccess", "备份删除成功"));
-		},
-		onError: (error: Error) => {
-			snackbar.error(
-				`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${error}`,
-			);
 		},
 		onSettled: (_, __, variables) => {
 			// 无论成功失败都刷新备份列表
@@ -129,19 +108,9 @@ export function useDeleteBackup() {
 /**
  * 恢复备份
  */
-export function useRestoreBackup() {
-	const { t } = useTranslation();
-
+function useRestoreBackup() {
 	return useMutation({
-		mutationFn: async ({
-			gameId,
-			backup,
-			savePath,
-		}: {
-			gameId: number;
-			backup: SavedataRecord;
-			savePath: string;
-		}) => {
+		mutationFn: async ({ gameId, backup, savePath }: RestoreBackupParams) => {
 			// 获取备份文件完整路径
 			const savedataBackupPath = await getSavedataBackupPath(gameId);
 			const backupFilePath = join(savedataBackupPath, backup.file);
@@ -149,13 +118,27 @@ export function useRestoreBackup() {
 			// 恢复备份
 			await savedataService.restoreBackup(backupFilePath, savePath);
 		},
-		onSuccess: () => {
-			snackbar.success(t("pages.Detail.Backup.restoreSuccess", "存档恢复成功"));
-		},
-		onError: (error: Error) => {
-			snackbar.error(
-				`${t("pages.Detail.Backup.restoreFailed", "恢复失败")}: ${error.message}`,
-			);
-		},
 	});
+}
+
+/**
+ * 组合存档备份查询 + mutations
+ * 用于页面层单入口消费
+ */
+export function useSaveDataResources(gameId: number | undefined) {
+	const backupsQuery = useSaveDataBackups(gameId);
+
+	const createBackupMutation = useCreateBackup();
+	const deleteBackupMutation = useDeleteBackup();
+	const restoreBackupMutation = useRestoreBackup();
+
+	return {
+		// queries
+		backupList: backupsQuery.data ?? [],
+
+		// mutations
+		createBackupMutation,
+		deleteBackupMutation,
+		restoreBackupMutation,
+	};
 }

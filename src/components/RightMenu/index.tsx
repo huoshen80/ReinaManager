@@ -32,7 +32,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
-import { useUpdatePlayStatusWithRefresh } from "@/hooks/queries/usePlayStatus";
+import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
@@ -72,8 +72,8 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	const [gameData, setGameData] = useState<GameData | null>(null);
 	const { t } = useTranslation();
 
-	// 使用 react-query mutation 更新游戏状态
-	const { mutate: updatePlayStatus } = useUpdatePlayStatusWithRefresh();
+	// 使用 Feature Facade 更新游戏状态
+	const { updatePlayStatus } = useGameStatusActions();
 
 	// 检查该游戏是否正在运行
 	const isThisGameRunning = isGameRunning(id === null ? undefined : id);
@@ -151,6 +151,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 		updatePlayStatus(
 			{ gameId: id, newStatus },
 			{
+				invalidateScope: "all",
 				onSuccess: (updatedGame) => {
 					// 更新本地状态，不关闭菜单
 					setGameData(updatedGame);

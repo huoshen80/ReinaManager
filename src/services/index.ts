@@ -10,7 +10,7 @@ export { fileService } from "./fileService";
 // 导出所有服务
 export { gameService } from "./gameService";
 export { savedataService } from "./savedataService";
-export type { UserSettings } from "./settingsService";
+export type { PortableModeResult, UserSettings } from "./settingsService";
 export { settingsService } from "./settingsService";
 export { statsService } from "./statsService";
 // 导出类型

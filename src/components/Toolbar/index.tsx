@@ -55,7 +55,7 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { snackbar } from "@/components/Snackbar";
 import SortModal from "@/components/SortModal";
-import { useUpdatePlayStatus } from "@/hooks/queries/usePlayStatus";
+import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
@@ -191,8 +191,8 @@ const MoreButton = () => {
 	const open = Boolean(anchorEl);
 	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
 
-	// 使用 react-query mutation 更新游戏状态
-	const { mutate: updatePlayStatus } = useUpdatePlayStatus();
+	// 使用 Feature Facade 更新游戏状态
+	const { updatePlayStatus } = useGameStatusActions();
 
 	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
 		setAnchorEl(event.currentTarget);

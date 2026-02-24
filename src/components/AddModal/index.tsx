@@ -42,6 +42,7 @@ import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
+import { useSettingsResources } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
 import { handleDirectory } from "@/utils";
@@ -159,8 +160,8 @@ function extractFolderName(path: string): string {
 const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const { bgmToken } = useSettingsResources();
 
-	const bgmToken = useStore((state) => state.bgmToken);
 	const apiSource = useStore((state) => state.apiSource);
 	const setApiSource = useStore((state) => state.setApiSource);
 	const addGame = useStore((state) => state.addGame);

@@ -180,6 +180,13 @@ export const getLocalDateString = (timestamp?: number): string => {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
+/**
+ * 提取错误对象中的可展示消息
+ */
+export const getErrorMessage = (error: unknown): string => {
+	return error instanceof Error ? error.message : String(error);
+};
+
 export const handleOpenFolder = async ({
 	id,
 	getGameById,

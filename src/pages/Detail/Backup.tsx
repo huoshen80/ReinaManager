@@ -26,15 +26,11 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
-import {
-	useCreateBackup,
-	useDeleteBackup,
-	useRestoreBackup,
-	useSaveDataBackups,
-} from "@/hooks/queries/useSavedata";
+import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { useStore } from "@/store";
 import type { SavedataRecord, UpdateGameParams } from "@/types";
 import {
+	getErrorMessage,
 	handleGetFolder,
 	openGameBackupFolder,
 	openGameSaveDataFolder,
@@ -51,10 +47,12 @@ export const Backup: React.FC = () => {
 	const { t } = useTranslation();
 
 	// React Query hooks
-	const { data: backupList = [] } = useSaveDataBackups(selectedGame?.id);
-	const createBackupMutation = useCreateBackup();
-	const deleteBackupMutation = useDeleteBackup();
-	const restoreBackupMutation = useRestoreBackup();
+	const {
+		backupList,
+		createBackupMutation,
+		deleteBackupMutation,
+		restoreBackupMutation,
+	} = useSaveDataResources(selectedGame?.id);
 
 	// 状态管理
 	const [saveDataPath, setSaveDataPath] = useState<string>("");
@@ -162,10 +160,17 @@ export const Backup: React.FC = () => {
 			return;
 		}
 
-		await createBackupMutation.mutateAsync({
-			gameId: selectedGame.id,
-			savePath: saveDataPath,
-		});
+		try {
+			await createBackupMutation.mutateAsync({
+				gameId: selectedGame.id,
+				savePath: saveDataPath,
+			});
+			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
+		} catch (error) {
+			snackbar.error(
+				`${t("pages.Detail.Backup.backupFailed", "备份失败")}: ${getErrorMessage(error)}`,
+			);
+		}
 	};
 
 	// 打开备份文件夹
@@ -214,6 +219,16 @@ export const Backup: React.FC = () => {
 				backup: backupToDelete,
 			},
 			{
+				onSuccess: () => {
+					snackbar.success(
+						t("pages.Detail.Backup.deleteSuccess", "备份删除成功"),
+					);
+				},
+				onError: (error) => {
+					snackbar.error(
+						`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${getErrorMessage(error)}`,
+					);
+				},
 				onSettled: () => {
 					setDeleteDialogOpen(false);
 					setBackupToDelete(null);
@@ -237,13 +252,20 @@ export const Backup: React.FC = () => {
 	// 确认恢复备份
 	const handleConfirmRestore = async () => {
 		if (!backupToRestore || !saveDataPath || !selectedGame?.id) return;
-		await restoreBackupMutation.mutateAsync({
-			gameId: selectedGame.id,
-			backup: backupToRestore,
-			savePath: saveDataPath,
-		});
-		setRestoreDialogOpen(false);
-		setBackupToRestore(null);
+		try {
+			await restoreBackupMutation.mutateAsync({
+				gameId: selectedGame.id,
+				backup: backupToRestore,
+				savePath: saveDataPath,
+			});
+			snackbar.success(t("pages.Detail.Backup.restoreSuccess", "存档恢复成功"));
+			setRestoreDialogOpen(false);
+			setBackupToRestore(null);
+		} catch (error) {
+			snackbar.error(
+				`${t("pages.Detail.Backup.restoreFailed", "恢复失败")}: ${getErrorMessage(error)}`,
+			);
+		}
 	};
 
 	// 格式化文件大小

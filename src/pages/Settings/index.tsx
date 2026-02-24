@@ -64,10 +64,10 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
-import { fileService, settingsService } from "@/services";
+import { useSettingsResources } from "@/hooks/queries/useSettings";
+import { fileService } from "@/services";
 import { useStore } from "@/store";
-import type { LogLevel } from "@/types";
-import { openDatabaseBackupFolder } from "@/utils";
+import { getErrorMessage, openDatabaseBackupFolder } from "@/utils";
 import { backupDatabase, importDatabase } from "@/utils/database";
 
 /**
@@ -123,7 +123,7 @@ const LanguageSelect = () => {
 
 const BgmTokenSettings = () => {
 	const { t } = useTranslation();
-	const { bgmToken, setBgmToken } = useStore();
+	const { bgmToken, setBgmToken, isSavingBgmToken } = useSettingsResources();
 	const [inputToken, setInputToken] = useState("");
 
 	useEffect(() => {
@@ -140,9 +140,9 @@ const BgmTokenSettings = () => {
 	/**
 	 * 保存BGM Token
 	 */
-	const handleSaveToken = () => {
+	const handleSaveToken = async () => {
 		try {
-			setBgmToken(inputToken);
+			await setBgmToken(inputToken);
 			snackbar.success(
 				t("pages.Settings.bgmTokenSettings.saveSuccess", "BGM Token 保存成功"),
 			);
@@ -206,6 +206,7 @@ const BgmTokenSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleSaveToken}
+					disabled={isSavingBgmToken}
 					className="px-6 py-2"
 				>
 					{t("pages.Settings.saveBtn")}
@@ -295,26 +296,12 @@ const NsfwSettings = () => {
 
 const LogLevelSettings = () => {
 	const { t } = useTranslation();
-	const { logLevel, setLogLevel: setLogLevelStore } = useStore();
-
-	// 组件挂载时从后端获取当前日志级别
-	useEffect(() => {
-		const fetchLogLevel = async () => {
-			try {
-				const level = await settingsService.getLogLevel();
-				setLogLevelStore(level);
-			} catch (error) {
-				console.error("获取日志级别失败:", error);
-			}
-		};
-		fetchLogLevel();
-	}, [setLogLevelStore]);
+	const { logLevel, setLogLevel } = useSettingsResources();
 
 	const handleChange = async (event: SelectChangeEvent) => {
-		const level = event.target.value as LogLevel;
-		setLogLevelStore(level); // 更新 store
+		const level = event.target.value as "error" | "warn" | "info" | "debug";
 		try {
-			await settingsService.setLogLevel(level);
+			await setLogLevel(level);
 			snackbar.success(
 				t("pages.Settings.logLevel.changed", `日志级别已切换为 ${level}`, {
 					level,
@@ -334,9 +321,8 @@ const LogLevelSettings = () => {
 			await fileService.openDirectory(logDir);
 		} catch (error) {
 			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.logLevel.openFolderFailed", "打开文件夹失败");
+				getErrorMessage(error) ||
+				t("pages.Settings.logLevel.openFolderFailed", "打开文件夹失败");
 			snackbar.error(
 				t("pages.Settings.logLevel.openFolderError", { error: errorMessage }),
 			);
@@ -792,25 +778,10 @@ const DatabaseBackupSettings = () => {
 
 const PortableModeSettings = () => {
 	const { t } = useTranslation();
-	const [portableMode, setPortableMode] = useState(false);
+	const { portableMode, setPortableMode } = useSettingsResources();
 	const [isLoading, setIsLoading] = useState(false);
 	const [showConfirm, setShowConfirm] = useState(false);
 	const [pendingValue, setPendingValue] = useState(false);
-
-	useEffect(() => {
-		const loadPortableMode = async () => {
-			setIsLoading(true);
-			try {
-				const enabled = await settingsService.getPortableMode();
-				setPortableMode(enabled);
-			} catch (error) {
-				console.error("加载便携模式状态失败:", error);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-		loadPortableMode();
-	}, []);
 
 	const handleTogglePortableMode = async (
 		event: React.ChangeEvent<HTMLInputElement>,
@@ -826,8 +797,7 @@ const PortableModeSettings = () => {
 		setIsLoading(true);
 
 		try {
-			const result = await settingsService.setPortableMode(pendingValue);
-			setPortableMode(pendingValue);
+			const result = await setPortableMode(pendingValue);
 
 			// 显示详细的迁移结果
 			if (result.total_files > 0) {
@@ -862,13 +832,9 @@ const PortableModeSettings = () => {
 		} catch (error) {
 			console.error("切换便携模式失败:", error);
 
-			// 显示详细的错误信息（包含换行符）
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-
 			// 使用多行显示错误信息
 			snackbar.error(
-				errorMessage ||
+				getErrorMessage(error) ||
 					t("pages.Settings.portableMode.toggleError", "切换失败"),
 			);
 		} finally {
@@ -1182,7 +1148,7 @@ const DevSettings: React.FC = () => {
 
 const BatchUpdateSettings: React.FC = () => {
 	const { t } = useTranslation();
-	const { bgmToken } = useStore();
+	const { bgmToken } = useSettingsResources();
 	const [isUpdatingVndb, setIsUpdatingVndb] = useState(false);
 	const [isUpdatingBgm, setIsUpdatingBgm] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");
