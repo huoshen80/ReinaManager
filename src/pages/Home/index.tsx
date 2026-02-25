@@ -236,7 +236,7 @@ export const Home: React.FC = () => {
 			allGames.map((game) => ({
 				title: getGameDisplayName(game, i18n.language),
 				id: game.id,
-				isLocal: game.localpath !== "",
+				isLocal: !!game.localpath,
 				imageUrl: getGameCover(game),
 			})),
 		[allGames, i18n.language],

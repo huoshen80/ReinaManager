@@ -681,10 +681,7 @@ export const useStore = create<AppState>()(
 			isLocalGame(gameId: number): boolean {
 				const allGames = useStore.getState().allGames;
 				const game = allGames.find((g) => g.id === gameId);
-				if (!game || !game.localpath) {
-					return false;
-				}
-				return game.localpath.trim() !== "";
+				return !!game?.localpath;
 			},
 
 			// 更新games数组中特定游戏的状态 (PlayStatus 1-5)
