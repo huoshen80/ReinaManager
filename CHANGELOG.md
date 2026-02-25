@@ -1,3 +1,22 @@
+## [0.16.3](https://github.com/huoshen80/ReinaManager/compare/v0.16.2...v0.16.3) (2026-02-25)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+* 首页显示的本地游戏数量异常 ([d15b1df](https://github.com/huoshen80/ReinaManager/commit/d15b1dfd85f78d589eca9a851fe048b23a4d2d2f))
+* 游戏库滚动条恢复功能有概率失效 ([8a572ef](https://github.com/huoshen80/ReinaManager/commit/8a572ef32075ec728f591e9309a7e77c535e3502))
+
+</details>
+
+
+### Bug Fixes
+
+* **home:** the number of local games displayed on the homepage is abnormal ([d15b1df](https://github.com/huoshen80/ReinaManager/commit/d15b1dfd85f78d589eca9a851fe048b23a4d2d2f))
+* **library:** game library scrollbar restore function may fail ([8a572ef](https://github.com/huoshen80/ReinaManager/commit/8a572ef32075ec728f591e9309a7e77c535e3502))
+
+
+
 ## [0.16.2](https://github.com/huoshen80/ReinaManager/compare/v0.16.1...v0.16.2) (2026-02-24)
 
 <details>
