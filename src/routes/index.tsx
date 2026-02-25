@@ -4,7 +4,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { Box, CircularProgress } from "@mui/material";
 import React, { lazy, Suspense } from "react";
-import { createHashRouter, type RouteObject } from "react-router-dom";
+import { createBrowserRouter, type RouteObject } from "react-router-dom";
 import App from "@/App";
 import Layout from "@/components/Layout";
 
@@ -139,4 +139,4 @@ const routeConfig: RouteObject[] = [
 /**
  * routers 路由对象
  */
-export const routers = createHashRouter(routeConfig);
+export const routers = createBrowserRouter(routeConfig);
