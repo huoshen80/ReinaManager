@@ -12,12 +12,12 @@ export type GameType = "all" | "local" | "online" | "noclear" | "clear";
  * 排序选项（小写，匹配后端 Rust 枚举）
  */
 export type SortOption =
-	| string
 	| "addtime"
 	| "datetime"
 	| "lastplayed"
 	| "bgmrank"
-	| "vndbrank";
+	| "vndbrank"
+	| "namesort";
 
 /**
  * 排序方向（小写，匹配后端 Rust 枚举）

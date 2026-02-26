@@ -64,8 +64,9 @@ pub async fn find_all_games(
     game_type: GameType,
     sort_option: SortOption,
     sort_order: SortOrder,
+    language: Option<String>,
 ) -> Result<Vec<games::Model>, String> {
-    GamesRepository::find_all(&db, game_type, sort_option, sort_order)
+    GamesRepository::find_all(&db, game_type, sort_option, sort_order, language)
         .await
         .map_err(|e| format!("获取游戏数据失败: {}", e))
 }

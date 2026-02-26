@@ -18,6 +18,7 @@ pub enum SortOption {
     LastPlayed,
     BGMRank,
     VNDBRank,
+    Namesort,
 }
 
 /// 排序方向
@@ -181,8 +182,9 @@ impl GamesRepository {
         game_type: GameType,
         sort_option: SortOption,
         sort_order: SortOrder,
+        language: Option<String>,
     ) -> Result<Vec<games::Model>, DbErr> {
-        Self::find_with_sort(db, game_type, sort_option, sort_order).await
+        Self::find_with_sort(db, game_type, sort_option, sort_order, language).await
     }
 
     /// 删除游戏
@@ -292,6 +294,79 @@ impl GamesRepository {
             }
         });
     }
+    /// 从游戏记录中提取用于排序的显示名称
+    ///
+    /// 优先级与前端 `getGameDisplayName` 保持一致：
+    /// `custom_data.name` > `name_cn`（仅 zh-CN）> 按 `id_type` 取 `name`
+    ///
+    /// 返回值为排序键字符串：zh-CN 时汉字转拼音，其他情况转小写
+    fn get_sort_name(game: &games::Model, use_cn: bool) -> Option<String> {
+        // 1. 自定义名称最高优先 (使用 as_deref 转为 &str)
+        if let Some(name) = game
+            .custom_data
+            .as_ref()
+            .and_then(|d| d.name.as_deref())
+            .filter(|n| !n.is_empty())
+        {
+            return Some(Self::to_sort_key(name, use_cn));
+        }
+
+        // 定义局部宏：处理不同数据源的提取与 fallback 逻辑。
+        // 全程使用 &str 操作，做到 Zero-cost (零成本抽象)
+        macro_rules! extract_name {
+            ($source:expr) => {
+                $source.as_ref().and_then(|d| {
+                    let cn = d.name_cn.as_deref().filter(|n| !n.is_empty());
+                    let en = d.name.as_deref().filter(|n| !n.is_empty());
+
+                    // 根据 use_cn 决定优先级链
+                    if use_cn {
+                        cn.or(en)
+                    } else {
+                        en
+                    }
+                })
+            };
+        }
+
+        // 2. 根据 id_type 获取最终名称的引用 (&str)
+        let name_ref = match game.id_type.as_str() {
+            "bgm" => extract_name!(game.bgm_data),
+            "vndb" => extract_name!(game.vndb_data),
+            "ymgal" => extract_name!(game.ymgal_data),
+            // mixed 和其他类型：依次降级尝试
+            _ => extract_name!(game.bgm_data)
+                .or_else(|| extract_name!(game.vndb_data))
+                .or_else(|| extract_name!(game.ymgal_data)),
+        };
+
+        // 3. 统一在这里进行内存分配，根据语言转换为合适的排序键
+        name_ref.map(|n| Self::to_sort_key(n, use_cn))
+    }
+
+    /// 将名称转换为排序键
+    ///
+    /// - zh-CN：汉字转拼音（无声调），非汉字字符保留并转小写，实现按拼音字母序排列
+    /// - 其他语言：直接转小写
+    fn to_sort_key(s: &str, use_cn: bool) -> String {
+        if !use_cn {
+            return s.to_lowercase();
+        }
+
+        use pinyin::ToPinyin;
+        let mut result = String::with_capacity(s.len() * 2);
+        for (c, py) in s.chars().zip(s.to_pinyin()) {
+            match py {
+                Some(p) => result.push_str(p.plain()),
+                None => {
+                    for lc in c.to_lowercase() {
+                        result.push(lc);
+                    }
+                }
+            }
+        }
+        result
+    }
 
     /// 通用的排序和查询方法
     async fn find_with_sort(
@@ -299,6 +374,7 @@ impl GamesRepository {
         game_type: GameType,
         sort_option: SortOption,
         sort_order: SortOrder,
+        language: Option<String>,
     ) -> Result<Vec<games::Model>, DbErr> {
         use crate::entity::game_statistics;
 
@@ -346,6 +422,15 @@ impl GamesRepository {
                         .and_then(|d| d.score)
                         .filter(|&s| s != 0.0)
                 });
+                Ok(games)
+            }
+            SortOption::Namesort => {
+                // 名称排序：应用层排序，名称来自 JSON 列
+                // 名称选择优先级与前端 getGameDisplayName 一致
+                let mut games = Self::build_base_query(game_type).all(db).await?;
+                let desc = matches!(sort_order, SortOrder::Desc);
+                let use_cn = language.as_deref().map(|l| l == "zh-CN").unwrap_or(false);
+                Self::sort_by_optional_key(&mut games, desc, |g| Self::get_sort_name(g, use_cn));
                 Ok(games)
             }
         }

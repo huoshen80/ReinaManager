@@ -24,6 +24,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getVirtualCategoryGames } from "@/hooks/common/useVirtualCollections";
 import { collectionService, gameService } from "@/services";
+import type { SortOption, SortOrder } from "@/services/types";
 import type {
 	Category,
 	FullGameData,
@@ -36,7 +37,6 @@ import {
 	applyNsfwFilter,
 	getDisplayGameData,
 	getDisplayGameDataList,
-	getGameDisplayName,
 } from "@/utils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
 import { initializeGamePlayTracking } from "./gamePlayStore";
@@ -45,7 +45,7 @@ import { initializeGamePlayTracking } from "./gamePlayStore";
  * AppState 全局状态类型定义
  */
 export interface AppState {
-	updateSort(option: string, sortOrder: string): Promise<void>;
+	updateSort(option: SortOption, sortOrder: SortOrder): Promise<void>;
 
 	// 游戏相关状态与方法
 	fullGames: FullGameData[]; // 所有完整的游戏数据（包含关联表）
@@ -59,8 +59,8 @@ export interface AppState {
 	addModalPath: string;
 
 	// 排序选项
-	sortOption: string;
-	sortOrder: "asc" | "desc";
+	sortOption: SortOption;
+	sortOrder: SortOrder;
 
 	// 关闭应用时的提醒设置，skip=不再提醒，行为为 'hide' 或 'close'
 	skipCloseRemind: boolean;
@@ -71,8 +71,8 @@ export interface AppState {
 
 	// 游戏操作方法
 	fetchGames: (
-		sortOption?: string,
-		sortOrder?: "asc" | "desc",
+		sortOption?: SortOption,
+		sortOrder?: SortOrder,
 		resetSearch?: boolean,
 	) => Promise<void>;
 	fetchGame: (id: number) => Promise<void>;
@@ -97,8 +97,8 @@ export interface AppState {
 
 	// 通用刷新方法
 	refreshGameData: (
-		customSortOption?: string,
-		customSortOrder?: "asc" | "desc",
+		customSortOption?: SortOption,
+		customSortOrder?: SortOrder,
 	) => Promise<void>;
 
 	// 筛选相关
@@ -141,9 +141,6 @@ export interface AppState {
 	// 计时模式：playtime = 真实游戏时间（仅活跃时），elapsed = 游戏启动时间（从启动到结束）
 	timeTrackingMode: "playtime" | "elapsed";
 	setTimeTrackingMode: (mode: "playtime" | "elapsed") => void;
-
-	// 前端名称排序
-	sortGamesByName: (games: GameData[], order: "asc" | "desc") => GameData[];
 
 	// 更新游戏状态 (PlayStatus 1-5)
 	updateGamePlayStatusInStore: (
@@ -314,34 +311,10 @@ export const useStore = create<AppState>()(
 				set({ timeTrackingMode: mode });
 			},
 
-			/**
-			 * 前端名称排序辅助函数
-			 * 使用与 dataTransform 相同的名称优先级
-			 * 优先级: custom_name > name_cn (中文环境) > name
-			 */
-			sortGamesByName: (
-				games: GameData[],
-				order: "asc" | "desc",
-			): GameData[] => {
-				const currentLanguage = i18next.language;
-
-				return [...games].sort((a, b) => {
-					// 直接使用 getGameDisplayName 获取显示名称，确保逻辑一致
-					const nameA = getGameDisplayName(a, currentLanguage).toLowerCase();
-					const nameB = getGameDisplayName(b, currentLanguage).toLowerCase();
-
-					// 使用 localeCompare 进行本地化排序（支持中文、日文等）
-					const comparison = nameA.localeCompare(nameB, currentLanguage, {
-						numeric: true,
-						sensitivity: "base",
-					});
-
-					return order === "asc" ? comparison : -comparison;
-				});
-			}, // 通用刷新函数，统一处理搜索、筛选、排序、NSFW筛选
+			// 通用刷新函数，统一处理搜索、筛选、排序、NSFW筛选
 			refreshGameData: async (
-				customSortOption?: string,
-				customSortOrder?: "asc" | "desc",
+				customSortOption?: SortOption,
+				customSortOrder?: SortOrder,
 			) => {
 				set({ loading: true });
 
@@ -353,16 +326,13 @@ export const useStore = create<AppState>()(
 					let data: GameData[];
 					let allData: GameData[];
 
-					// 名称排序在前端处理，后端按添加时间获取
-					const backendSortOption = option === "namesort" ? "addtime" : option;
-					const backendSortOrder = option === "namesort" ? "asc" : order;
-
 					// 优化：如果 gameFilterType 是 "all"，只请求一次
 					if (gameFilterType === "all") {
 						const fullGames = await gameService.getAllGames(
 							"all",
-							backendSortOption,
-							backendSortOrder,
+							option,
+							order,
+							i18next.language,
 						);
 						const baseData = getDisplayGameDataList(
 							fullGames,
@@ -372,13 +342,8 @@ export const useStore = create<AppState>()(
 						// allData 保持完整数据（不筛选），用于统计和管理
 						allData = baseData;
 
-						// 显示数据需要排序和筛选
-						let displayData =
-							option === "namesort"
-								? get().sortGamesByName(baseData, order)
-								: baseData;
-
-						displayData = applyNsfwFilter(displayData, nsfwFilter);
+						// 显示数据需要筛选
+						const displayData = applyNsfwFilter(baseData, nsfwFilter);
 
 						// 搜索处理
 						if (searchKeyword && searchKeyword.trim() !== "") {
@@ -391,14 +356,11 @@ export const useStore = create<AppState>()(
 						// 需要两次请求：一次获取筛选数据，一次获取全部
 						const fullGames = await gameService.getAllGames(
 							gameFilterType,
-							backendSortOption,
-							backendSortOrder,
+							option,
+							order,
+							i18next.language,
 						);
 						let baseData = getDisplayGameDataList(fullGames, i18next.language);
-
-						if (option === "namesort") {
-							baseData = get().sortGamesByName(baseData, order);
-						}
 
 						baseData = applyNsfwFilter(baseData, nsfwFilter);
 
@@ -424,8 +386,8 @@ export const useStore = create<AppState>()(
 
 			// 修改 fetchGames 方法，添加覆盖 searchKeyword 的选项
 			fetchGames: async (
-				sortOption?: string,
-				sortOrder?: "asc" | "desc",
+				sortOption?: SortOption,
+				sortOrder?: SortOrder,
 				resetSearch?: boolean,
 			) => {
 				set({ loading: true });
@@ -434,17 +396,13 @@ export const useStore = create<AppState>()(
 					const order = sortOrder || get().sortOrder;
 
 					let data: GameData[];
-					let allData: GameData[];
-
-					// 名称排序在前端处理，后端按添加时间获取
-					const backendSortOption = option === "namesort" ? "addtime" : option;
-					const backendSortOrder = option === "namesort" ? "asc" : order;
 
 					// 只调用一次，获取所有游戏
 					const fullGames = await gameService.getAllGames(
 						"all",
-						backendSortOption,
-						backendSortOrder,
+						option,
+						order,
+						i18next.language,
 					);
 
 					// 转换为显示数据
@@ -453,24 +411,15 @@ export const useStore = create<AppState>()(
 						i18next.language,
 					);
 
-					// data 使用排序后的数据
-					data =
-						option === "namesort"
-							? get().sortGamesByName(displayData, order)
-							: displayData;
-
-					// allData 直接复用，不需要第二次请求
-					allData = displayData;
-
 					// 应用nsfw筛选
 					const { nsfwFilter } = get();
-					data = applyNsfwFilter(data, nsfwFilter);
+					data = applyNsfwFilter(displayData, nsfwFilter);
 
 					// 只有在明确指定 resetSearch=true 时才重置搜索关键字
 					if (resetSearch) {
-						set({ games: data, allGames: allData, searchKeyword: "" });
+						set({ games: data, allGames: displayData, searchKeyword: "" });
 					} else {
-						set({ games: data, allGames: allData });
+						set({ games: data, allGames: displayData });
 					}
 				} catch (error) {
 					console.error("获取游戏数据失败", error);
@@ -638,7 +587,7 @@ export const useStore = create<AppState>()(
 			},
 
 			// 排序更新函数：设置排序选项，然后调用 refreshGameData 统一处理
-			updateSort: async (option: string, order: "asc" | "desc") => {
+			updateSort: async (option: SortOption, order: SortOrder) => {
 				const prevOption = get().sortOption;
 				const prevOrder = get().sortOrder;
 

@@ -27,22 +27,23 @@ import Switch from "@mui/material/Switch";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useModal } from "@/components/Toolbar";
+import type { SortOption as SortOptionType, SortOrder } from "@/services/types";
 import { useStore } from "@/store";
 
 /**
  * SortOption 组件的 props 接口
  */
 interface SortOptionProps {
-	value: string;
-	onChange: (value: string) => void;
+	value: SortOptionType;
+	onChange: (value: SortOptionType) => void;
 }
 
 /**
  * UpDownSwitches 组件的 props 接口
  */
 interface UpDownSwitchesProps {
-	value: string;
-	onChange: (value: string) => void;
+	value: SortOrder;
+	onChange: (value: SortOrder) => void;
 }
 
 /**
@@ -99,9 +100,7 @@ const SortModal: React.FC = () => {
 					<SortOption value={localSortOption} onChange={setLocalSortOption} />
 					<UpDownSwitches
 						value={localSortOrder}
-						onChange={(value: string) =>
-							setLocalSortOrder(value as "asc" | "desc")
-						}
+						onChange={(value: SortOrder) => setLocalSortOrder(value)}
 					/>
 				</DialogContent>
 				<DialogActions>
@@ -125,7 +124,7 @@ const SortModal: React.FC = () => {
 const SortOption: React.FC<SortOptionProps> = ({ value, onChange }) => {
 	const { t } = useTranslation();
 	const handleChange = (event: SelectChangeEvent) => {
-		onChange(event.target.value);
+		onChange(event.target.value as SortOptionType);
 	};
 
 	return (
