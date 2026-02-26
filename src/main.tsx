@@ -10,12 +10,7 @@
  * - 防止后来加载的样式(如 @mui/x-charts)覆盖 MUI 基础样式
  */
 
-import {
-	MutationCache,
-	QueryCache,
-	QueryClient,
-	QueryClientProvider,
-} from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
@@ -24,8 +19,8 @@ import "virtual:uno.css";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { snackbar } from "@/components/Snackbar";
 import { initTray } from "@/components/Tray";
+import { queryClient } from "@/lib/queryClient";
 import { initPathCache } from "@/utils";
 import { initializeStores } from "./store";
 
@@ -53,32 +48,6 @@ document.addEventListener("keydown", (e) => {
 	) {
 		e.preventDefault();
 	}
-});
-
-// 创建 React Query 客户端
-const queryClient = new QueryClient({
-	queryCache: new QueryCache({
-		onError: (error, query) => {
-			// 从 query.meta 中获取自定义错误消息
-			if (query.meta?.errorMessage) {
-				snackbar.error(`${query.meta.errorMessage}: ${error.message}`);
-			}
-		},
-	}),
-	mutationCache: new MutationCache({
-		onError: (error, _variables, _context, mutation) => {
-			// 同样的逻辑
-			if (mutation.meta?.errorMessage) {
-				snackbar.error(`${mutation.meta.errorMessage}: ${error.message}`);
-			}
-		},
-	}),
-	defaultOptions: {
-		queries: {
-			staleTime: 60 * 1000, // 默认 1 分钟内不重新请求
-			retry: 1,
-		},
-	},
 });
 
 // 初始化全局状态后，挂载 React 应用
