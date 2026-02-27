@@ -487,7 +487,6 @@ export const getGameCover = (game: GameData): string => {
 				`cover_${game.id}_${game.custom_data.image}`,
 			);
 
-			// 在 Tauri 环境中使用 convertFileSrc 转换路径
 			try {
 				return convertFileSrc(customCoverPath);
 			} catch (error) {

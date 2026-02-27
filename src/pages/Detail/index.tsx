@@ -79,7 +79,7 @@ const TabPanel = (props: TabPanelProps) => {
  * @returns {JSX.Element} 游戏详情页面
  */
 export const Detail: React.FC = () => {
-	const id = useStore((state) => state.selectedGameId);
+	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
 	const { setSelectedGameId, tagTranslation } = useStore();
 	const { selectedGame, isLoadingSelectedGame } = useSelectedGame(id);

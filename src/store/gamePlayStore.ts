@@ -1,6 +1,6 @@
 /**
  * @file gamePlayStore
- * @description 管理游戏运行状态、游玩统计、会话记录、实时状态等，支持 Tauri 桌面环境下的游戏启动与时间跟踪。
+ * @description 管理游戏运行状态、游玩统计、会话记录、实时状态等，支持游戏启动与时间跟踪。
  * @module src/store/gamePlayStore
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -75,7 +75,7 @@ interface GamePlayState {
 
 /**
  * useGamePlayStore
- * 管理游戏运行、统计、会话、实时状态等，支持 Tauri 桌面环境。
+ * 管理游戏运行、统计、会话、实时状态等
  */
 export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	runningGameIds: new Set<number>(),
@@ -248,7 +248,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	},
 
 	/**
-	 * 初始化游戏时间跟踪（仅限 Tauri 桌面环境）
+	 * 初始化游戏时间跟踪
 	 * 设置事件监听，自动管理运行状态与实时时长
 	 */
 	initTimeTracking: () => {
@@ -329,7 +329,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 /**
  * initializeGamePlayTracking
- * 在应用启动时初始化时间跟踪（Tauri 环境下）
+ * 在应用启动时初始化时间跟踪
  */
 export const initializeGamePlayTracking = (): void => {
 	useGamePlayStore.getState().initTimeTracking();

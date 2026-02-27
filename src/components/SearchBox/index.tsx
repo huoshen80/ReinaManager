@@ -19,7 +19,7 @@ import { Autocomplete, Box, TextField } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
-import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
+import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store";
 import { getSearchSuggestions } from "@/utils/enhancedSearch";
 
@@ -48,7 +48,7 @@ export const SearchBox = () => {
 	const searchInput = useStore((state) => state.searchInput);
 	const setSearchInput = useStore((state) => state.setSearchInput);
 	const setSearchKeyword = useStore((state) => state.setSearchKeyword);
-	const displayAllGames = useAllGameListFacade();
+	const { games: displayAllGames } = useGameListFacade();
 
 	const [suggestions, setSuggestions] = useState<string[]>([]);
 	const [isOpen, setIsOpen] = useState(false);
@@ -187,17 +187,22 @@ export const SearchBox = () => {
 						}}
 					/>
 				)}
-				renderOption={(props, option) => (
-					<Box
-						component="li"
-						{...props}
-						className="flex items-center gap-2 px-3 py-2 cursor-pointer"
-						sx={{ "&:hover": { bgcolor: "action.hover" } }}
-					>
-						<SearchIcon fontSize="small" />
-						<span className="flex-1 truncate text-sm">{option}</span>
-					</Box>
-				)}
+				renderOption={(props, option) => {
+					const { key, ...optionProps } = props;
+
+					return (
+						<Box
+							component="li"
+							key={key}
+							{...optionProps}
+							className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+							sx={{ "&:hover": { bgcolor: "action.hover" } }}
+						>
+							<SearchIcon fontSize="small" />
+							<span className="flex-1 truncate text-sm">{option}</span>
+						</Box>
+					);
+				}}
 				slotProps={{
 					paper: {
 						className: "mt-1 rounded-lg shadow-lg",

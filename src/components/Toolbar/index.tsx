@@ -1,6 +1,6 @@
 /**
  * @file Toolbar 组件与工具函数
- * @description 提供应用主界面顶部工具栏、按钮组、弹窗控制等功能，支持添加、排序、筛选、启动、删除、编辑、外链等操作，适配不同页面，集成国际化与 Tauri 桌面环境。
+ * @description 提供应用主界面顶部工具栏、按钮组、弹窗控制等功能，支持添加、排序、筛选、启动、删除、编辑、外链等操作，适配不同页面，集成国际化
  * @module src/components/Toolbar/index
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -56,7 +56,7 @@ import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { snackbar } from "@/components/Snackbar";
 import SortModal from "@/components/SortModal";
 import {
-	useGameFacade,
+	useGetGameById,
 	useSelectedGame,
 } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
@@ -135,6 +135,7 @@ const OpenFolder = ({ id, getGameById }: HanleGamesProps) => {
  */
 export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 	const { t } = useTranslation();
+	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const deleteGameMutation = useDeleteGame();
@@ -149,6 +150,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 		try {
 			setIsDeleting(true);
 			await deleteGameMutation.mutateAsync(id);
+			setSelectedGameId(null);
 			navigate("/libraries");
 		} catch (error) {
 			console.error("删除游戏失败:", error);
@@ -390,7 +392,7 @@ export const Buttongroup = ({
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
 	const { openAddModal } = useStore();
-	const { getGameById } = useGameFacade();
+	const getGameById = useGetGameById();
 
 	return (
 		<>

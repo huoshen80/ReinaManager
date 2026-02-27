@@ -14,6 +14,26 @@ import type { GameType, SortOption, SortOrder } from "@/services";
 import { gameService } from "@/services";
 import type { InsertGameParams, UpdateGameParams } from "@/types";
 
+const listRelevantUpdateFields = new Set<keyof UpdateGameParams>([
+	"bgm_id",
+	"vndb_id",
+	"ymgal_id",
+	"id_type",
+	"date",
+	"localpath",
+	"clear",
+	"bgm_data",
+	"vndb_data",
+	"ymgal_data",
+	"custom_data",
+]);
+
+function shouldInvalidateGameLists(updates: UpdateGameParams): boolean {
+	return Object.keys(updates).some((field) =>
+		listRelevantUpdateFields.has(field as keyof UpdateGameParams),
+	);
+}
+
 export const gameKeys = {
 	all: ["games"] as const,
 	lists: () => [...gameKeys.all, "list"] as const,
@@ -63,6 +83,7 @@ function useGameDetail(gameId: number | null) {
 			return gameService.getGameById(gameId);
 		},
 		enabled: gameId !== null,
+		placeholderData: keepPreviousData,
 		staleTime: 60_000,
 	});
 }
@@ -132,16 +153,19 @@ function useUpdateGame() {
 			gameId: number;
 			updates: UpdateGameParams;
 		}) => gameService.updateGame(gameId, updates),
-		onSuccess: (_, { gameId }) => {
+		onSuccess: (_, { gameId, updates }) => {
 			queryClient.invalidateQueries({
 				queryKey: gameKeys.detail(gameId),
 				exact: true,
 			});
-			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
-			queryClient.invalidateQueries({
-				queryKey: gameKeys.all,
-				exact: true,
-			});
+
+			if (shouldInvalidateGameLists(updates)) {
+				queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
+				queryClient.invalidateQueries({
+					queryKey: gameKeys.all,
+					exact: true,
+				});
+			}
 		},
 	});
 }

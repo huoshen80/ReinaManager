@@ -75,7 +75,7 @@ export interface AppState {
 
 	// NSFW相关
 	nsfwFilter: boolean;
-	setNsfwFilter: (enabled: boolean) => Promise<void>;
+	setNsfwFilter: (enabled: boolean) => void;
 	nsfwCoverReplace: boolean;
 	setNsfwCoverReplace: (enabled: boolean) => void;
 
@@ -102,13 +102,6 @@ export interface AppState {
 	// 计时模式：playtime = 真实游戏时间（仅活跃时），elapsed = 游戏启动时间（从启动到结束）
 	timeTrackingMode: "playtime" | "elapsed";
 	setTimeTrackingMode: (mode: "playtime" | "elapsed") => void;
-
-	// 更新游戏状态 (PlayStatus 1-5)
-	updateGamePlayStatusInStore: (
-		gameId: number,
-		newStatus: number,
-		skipRefresh?: boolean,
-	) => Promise<void>;
 
 	// 更新窗口状态管理
 	showUpdateModal: boolean;
@@ -175,7 +168,7 @@ export const useStore = create<AppState>()(
 
 			// NSFW相关
 			nsfwFilter: false,
-			setNsfwFilter: async (enabled: boolean) => {
+			setNsfwFilter: (enabled: boolean) => {
 				set({ nsfwFilter: enabled });
 			},
 			nsfwCoverReplace: false,
@@ -256,17 +249,6 @@ export const useStore = create<AppState>()(
 
 				// 设置新的筛选类型
 				set({ gameFilterType: type });
-			},
-
-			// 更新games数组中特定游戏的状态 (PlayStatus 1-5)
-			updateGamePlayStatusInStore: async (
-				_gameId: number,
-				_newStatus: number,
-				skipRefresh?: boolean,
-			) => {
-				void _gameId;
-				void _newStatus;
-				void skipRefresh;
 			},
 
 			// 更新窗口状态管理
@@ -354,7 +336,7 @@ export const useStore = create<AppState>()(
 
 /**
  * initializeStores
- * 初始化全局状态，加载游戏与分类数据，并初始化游戏时间跟踪（Tauri 环境下）。
+ * 初始化全局状态，加载游戏与分类数据，并初始化游戏时间跟踪
  */
 export const initializeStores = async (): Promise<void> => {
 	await useStore.getState().initialize();

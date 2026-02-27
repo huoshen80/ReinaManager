@@ -1,6 +1,6 @@
 /**
  * @file RightMenu 组件
- * @description 游戏卡片右键菜单组件，支持启动游戏、进入详情、删除、打开文件夹等操作，适配 Tauri 桌面环境，集成国际化和删除确认弹窗。
+ * @description 游戏卡片右键菜单组件，支持启动游戏、进入详情、删除、打开文件夹等操作，集成国际化和删除确认弹窗。
  * @module src/components/RightMenu/index
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -33,11 +33,12 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import {
-	useGameFacade,
+	useGetGameById,
 	useSelectedGame,
 } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame } from "@/hooks/queries/useGames";
+import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
 import type { PlayStatus } from "@/types/collection";
@@ -58,7 +59,7 @@ interface RightMenuProps {
 
 /**
  * 游戏卡片右键菜单组件
- * 支持启动、详情、删除、打开文件夹等操作，适配 Tauri 桌面环境。
+ * 支持启动、详情、删除、打开文件夹等操作
  *
  * @param {RightMenuProps} props 组件属性
  * @returns {JSX.Element | null} 右键菜单
@@ -69,9 +70,10 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	setAnchorEl,
 	id,
 }) => {
+	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
 	const deleteGameMutation = useDeleteGame();
 	const { selectedGame } = useSelectedGame(id ?? null);
-	const { getGameById, isLocalGame } = useGameFacade();
+	const getGameById = useGetGameById();
 	const { launchGame, isGameRunning } = useGamePlayStore();
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -97,7 +99,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 */
 	const canUse = () => {
 		if (id !== undefined && id !== null)
-			return isLocalGame(id) && !isThisGameRunning;
+			return selectedGame?.localpath && !isThisGameRunning;
 	};
 
 	/**
@@ -109,6 +111,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 			setIsDeleting(true);
 			setAnchorEl(null);
 			await deleteGameMutation.mutateAsync(id);
+			setSelectedGameId(null);
 		} catch (error) {
 			console.error("删除游戏失败:", error);
 		} finally {
@@ -210,7 +213,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 				{/* 打开游戏文件夹 */}
 				<MenuItem
-					disabled={id == null || !isLocalGame(id)}
+					disabled={id == null || !selectedGame?.localpath}
 					onClick={() => {
 						if (id != null) {
 							handleOpenFolder({ id, getGameById });

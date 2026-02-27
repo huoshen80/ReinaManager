@@ -6,7 +6,6 @@ import {
 	type UpdatePlayStatusParams,
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
-import { useStore } from "@/store";
 import type { FullGameData, GameData } from "@/types";
 import { getErrorMessage } from "@/utils";
 
@@ -28,14 +27,13 @@ interface UpdatePlayStatusOptions {
  * 游戏状态更新业务编排层
  *
  * 说明：
- * - 组合 Query Mutation 与 Zustand UI 状态同步
- * - 对外保持接近 useStore 的动作调用体验
+ * - 组合 Query Mutation 与 Query 缓存乐观更新
+ * - 对外保持轻量动作调用体验
  * - 统一处理错误提示与回滚逻辑
  */
 export function useGameStatusActions() {
 	const { t } = useTranslation();
 	const queryClient = useQueryClient();
-	const { updateGamePlayStatusInStore } = useStore();
 	const updateMutation = useUpdatePlayStatus();
 
 	const updatePlayStatus = (
@@ -52,28 +50,32 @@ export function useGameStatusActions() {
 			: null;
 
 		if (!useGlobalInvalidate) {
-			updateGamePlayStatusInStore(params.gameId, params.newStatus, true);
+			queryClient.setQueryData<FullGameData | null>(
+				gameKeys.detail(params.gameId),
+				(currentGame) => {
+					if (!currentGame) {
+						return currentGame;
+					}
+
+					return {
+						...currentGame,
+						clear: params.newStatus,
+					};
+				},
+			);
 		}
 
 		updateMutation.mutate(
 			{ ...params, invalidateScope },
 			{
 				onSuccess: (updatedGame, variables) => {
-					if (useGlobalInvalidate) {
-						updateGamePlayStatusInStore(
-							variables.gameId,
-							variables.newStatus,
-							false,
-						);
-					}
 					options?.onSuccess?.(updatedGame, variables);
 				},
 				onError: (error, variables) => {
-					if (!useGlobalInvalidate && typeof previousGame?.clear === "number") {
-						updateGamePlayStatusInStore(
-							variables.gameId,
-							previousGame.clear,
-							true,
+					if (!useGlobalInvalidate) {
+						queryClient.setQueryData<FullGameData | null>(
+							gameKeys.detail(variables.gameId),
+							previousGame,
 						);
 					}
 					snackbar.error(

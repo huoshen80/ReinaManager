@@ -1,8 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useGameDetail } from "@/hooks/queries/useGames";
+import { gameKeys, useGameDetail } from "@/hooks/queries/useGames";
 import { gameService } from "@/services";
-import type { GameData } from "@/types";
+import type { FullGameData, GameData } from "@/types";
 import { getDisplayGameData } from "@/utils";
 import { useAllGameListFacade } from "./useGameListFacade";
 
@@ -23,8 +24,9 @@ export function useSelectedGame(gameId: number | null | undefined) {
 	};
 }
 
-function useGameLookup() {
+export function useGetGameById() {
 	const { i18n } = useTranslation();
+	const queryClient = useQueryClient();
 	const displayAllGames = useAllGameListFacade();
 
 	const getGameById = useCallback(
@@ -35,7 +37,20 @@ function useGameLookup() {
 				return cachedGame;
 			}
 
-			const fullGame = await gameService.getGameById(gameId);
+			const detailKey = gameKeys.detail(gameId);
+			const cachedDetail = queryClient.getQueryData<FullGameData | null>(
+				detailKey,
+			);
+
+			if (cachedDetail) {
+				return getDisplayGameData(cachedDetail, i18n.language);
+			}
+
+			const fullGame = await queryClient.fetchQuery({
+				queryKey: detailKey,
+				queryFn: () => gameService.getGameById(gameId),
+				staleTime: 60_000,
+			});
 
 			if (!fullGame) {
 				throw new Error("游戏不存在");
@@ -43,33 +58,8 @@ function useGameLookup() {
 
 			return getDisplayGameData(fullGame, i18n.language);
 		},
-		[displayAllGames, i18n.language],
+		[displayAllGames, i18n.language, queryClient],
 	);
 
 	return getGameById;
-}
-
-function useIsLocalGame() {
-	const displayAllGames = useAllGameListFacade();
-
-	const isLocalGame = useCallback(
-		(gameId: number) => {
-			return displayAllGames.some(
-				(game) => game.id === gameId && !!game.localpath,
-			);
-		},
-		[displayAllGames],
-	);
-
-	return isLocalGame;
-}
-
-export function useGameFacade() {
-	const getGameById = useGameLookup();
-	const isLocalGame = useIsLocalGame();
-
-	return {
-		getGameById,
-		isLocalGame,
-	};
 }
