@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSettingsResources } from "@/hooks/queries/useSettings";
-import { useStore } from "@/store";
 import type { FullGameData, UpdateGameParams } from "@/types";
 import { getErrorMessage } from "@/utils";
 import { DataSourceUpdate } from "./DataSourceUpdate";
@@ -19,9 +20,10 @@ import { GameInfoEdit } from "./GameInfoEdit";
  * @returns 编辑页面
  */
 export const Edit: React.FC = () => {
-	const { updateGame, selectedGame } = useStore();
 	const { bgmToken } = useSettingsResources();
 	const id = Number(useLocation().pathname.split("/").pop());
+	const { selectedGame } = useSelectedGame(id);
+	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 
 	// UI 状态
@@ -29,7 +31,7 @@ export const Edit: React.FC = () => {
 	const [openViewBox, setOpenViewBox] = useState(false);
 
 	// 确认更新游戏数据（从数据源）
-	const handleConfirmGameUpdate = () => {
+	const handleConfirmGameUpdate = async () => {
 		if (gameData) {
 			// 根据新的数据源类型，清除其他数据源的数据
 			const updateData: UpdateGameParams = { ...gameData };
@@ -67,7 +69,7 @@ export const Edit: React.FC = () => {
 					break;
 			}
 
-			updateGame(id, updateData);
+			await updateGameMutation.mutateAsync({ gameId: id, updates: updateData });
 			setOpenViewBox(false);
 			snackbar.success(t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"));
 		}
@@ -84,7 +86,7 @@ export const Edit: React.FC = () => {
 		if (!selectedGame) return;
 
 		try {
-			await updateGame(id, data);
+			await updateGameMutation.mutateAsync({ gameId: id, updates: data });
 			snackbar.success(
 				t("pages.Detail.Edit.updateSuccess", "游戏信息已成功更新"),
 			);

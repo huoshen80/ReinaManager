@@ -42,6 +42,7 @@ import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
+import { useAddGame, useAllGames } from "@/hooks/queries/useGames";
 import { useSettingsResources } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
@@ -161,10 +162,11 @@ const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { bgmToken } = useSettingsResources();
+	const { data: allGames = [] } = useAllGames();
+	const addGameMutation = useAddGame();
 
 	const apiSource = useStore((state) => state.apiSource);
 	const setApiSource = useStore((state) => state.setApiSource);
-	const addGame = useStore((state) => state.addGame);
 	const addModalOpen = useStore((state) => state.addModalOpen);
 	const addModalPath = useStore((state) => state.addModalPath);
 	const openAddModal = useStore((state) => state.openAddModal);
@@ -241,13 +243,15 @@ const AddModal: React.FC = () => {
 		closeAddModal();
 	}, [setAddModalPath, closeAddModal]);
 
-	const checkGameExists = useCallback((gameData: InsertGameParams): boolean => {
-		const currentGames = useStore.getState().games;
-		return currentGames.some((game) => {
-			if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
-			return false;
-		});
-	}, []);
+	const checkGameExists = useCallback(
+		(gameData: InsertGameParams): boolean => {
+			return allGames.some((game) => {
+				if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
+				return false;
+			});
+		},
+		[allGames],
+	);
 
 	const finalizeAddGame = useCallback(
 		async (gameData: InsertGameParams) => {
@@ -261,7 +265,7 @@ const AddModal: React.FC = () => {
 				return;
 			}
 
-			const gameId = await addGame(gameData);
+			const gameId = await addGameMutation.mutateAsync(insertData);
 			resetState();
 
 			// 显示带跳转按钮的成功提示
@@ -280,7 +284,7 @@ const AddModal: React.FC = () => {
 			}
 		},
 		[
-			addGame,
+			addGameMutation,
 			checkGameExists,
 			addModalPath,
 			t,

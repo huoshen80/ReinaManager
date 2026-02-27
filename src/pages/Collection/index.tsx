@@ -23,6 +23,7 @@ import { CollectionRightMenu } from "@/components/RightMenu";
 import { snackbar } from "@/components/Snackbar";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import { useVirtualCategories } from "@/hooks/common/useVirtualCollections";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { collectionService } from "@/services";
 import { useStore } from "@/store";
 import type { Category as CategoryType } from "@/types/collection";
@@ -40,7 +41,6 @@ export const Collection: React.FC = () => {
 		fetchGamesByCategory,
 		setSelectedCategory,
 		setCurrentGroup,
-		allGames,
 		selectedCategoryId,
 		selectedCategoryName,
 		categoryGames,
@@ -48,9 +48,10 @@ export const Collection: React.FC = () => {
 		deleteCategory,
 		deleteGroup,
 	} = useStore();
+	const displayAllGames = useAllGameListFacade();
 
 	// 使用统一的虚拟分类 Hook
-	const virtualCategories = useVirtualCategories(allGames);
+	const virtualCategories = useVirtualCategories(displayAllGames);
 
 	// 存储每个分组的游戏数量
 	const [groupGameCounts, setGroupGameCounts] = useState<Map<string, number>>(
@@ -83,10 +84,10 @@ export const Collection: React.FC = () => {
 
 				// 对于默认分组，计算游戏数量
 				// Developer 分组：所有游戏都算
-				counts.set(DefaultGroup.DEVELOPER, allGames.length);
+				counts.set(DefaultGroup.DEVELOPER, displayAllGames.length);
 
 				// PlayStatus 分组：所有游戏都算
-				counts.set(DefaultGroup.PLAY_STATUS, allGames.length);
+				counts.set(DefaultGroup.PLAY_STATUS, displayAllGames.length);
 
 				// 对于自定义分组，使用批量接口一次获取所有游戏数量（优化）
 				if (groups.length > 0) {
@@ -124,7 +125,7 @@ export const Collection: React.FC = () => {
 
 			fetchGroupGameCounts();
 		}
-	}, [currentGroupId, selectedCategoryId, groups, allGames.length]);
+	}, [currentGroupId, selectedCategoryId, groups, displayAllGames.length]);
 
 	// 当选中分组时，加载分类
 	useEffect(() => {
@@ -132,16 +133,6 @@ export const Collection: React.FC = () => {
 			fetchCategoriesByGroup(currentGroupId);
 		}
 	}, [currentGroupId, fetchCategoriesByGroup]);
-
-	// 当选中分类时，加载游戏
-	useEffect(() => {
-		if (selectedCategoryId !== null) {
-			fetchGamesByCategory(
-				selectedCategoryId,
-				selectedCategoryName || undefined,
-			);
-		}
-	}, [selectedCategoryId, selectedCategoryName, fetchGamesByCategory]);
 
 	/**
 	 * 处理分组点击事件 - 设置当前分组

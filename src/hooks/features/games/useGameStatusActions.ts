@@ -1,11 +1,13 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
+import { gameKeys } from "@/hooks/queries/useGames";
 import {
 	type UpdatePlayStatusParams,
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
 import { useStore } from "@/store";
-import type { GameData } from "@/types";
+import type { FullGameData, GameData } from "@/types";
 import { getErrorMessage } from "@/utils";
 
 interface UpdatePlayStatusOptions {
@@ -32,7 +34,8 @@ interface UpdatePlayStatusOptions {
  */
 export function useGameStatusActions() {
 	const { t } = useTranslation();
-	const { updateGamePlayStatusInStore, setSelectedGame } = useStore();
+	const queryClient = useQueryClient();
+	const { updateGamePlayStatusInStore } = useStore();
 	const updateMutation = useUpdatePlayStatus();
 
 	const updatePlayStatus = (
@@ -42,11 +45,11 @@ export function useGameStatusActions() {
 		const invalidateScope = options?.invalidateScope ?? "game";
 		const useGlobalInvalidate = invalidateScope === "all";
 
-		const currentSelectedGame = useStore.getState().selectedGame;
-		const previousGame =
-			!useGlobalInvalidate && currentSelectedGame?.id === params.gameId
-				? { ...currentSelectedGame }
-				: undefined;
+		const previousGame = !useGlobalInvalidate
+			? (queryClient.getQueryData(
+					gameKeys.detail(params.gameId),
+				) as FullGameData | null)
+			: null;
 
 		if (!useGlobalInvalidate) {
 			updateGamePlayStatusInStore(params.gameId, params.newStatus, true);
@@ -62,25 +65,16 @@ export function useGameStatusActions() {
 							variables.newStatus,
 							false,
 						);
-					} else {
-						const latestSelectedGame = useStore.getState().selectedGame;
-						if (latestSelectedGame?.id === variables.gameId) {
-							setSelectedGame(updatedGame);
-						}
 					}
 					options?.onSuccess?.(updatedGame, variables);
 				},
 				onError: (error, variables) => {
-					if (!useGlobalInvalidate && previousGame) {
+					if (!useGlobalInvalidate && typeof previousGame?.clear === "number") {
 						updateGamePlayStatusInStore(
 							variables.gameId,
-							previousGame.clear ?? 1,
+							previousGame.clear,
 							true,
 						);
-						const latestSelectedGame = useStore.getState().selectedGame;
-						if (latestSelectedGame?.id === variables.gameId) {
-							setSelectedGame(previousGame);
-						}
 					}
 					snackbar.error(
 						`${t("errors.updatePlayStatusFailed", "更新游戏状态失败")}: ${getErrorMessage(error)}`,

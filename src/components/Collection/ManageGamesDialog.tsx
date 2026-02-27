@@ -28,6 +28,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store";
 import type { GameData } from "@/types";
 import { getGameDisplayName } from "@/utils";
@@ -52,7 +53,8 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 	categoryName,
 }) => {
 	const { t, i18n } = useTranslation();
-	const { allGames, categoryGamesCache, updateCategoryGames } = useStore();
+	const { categoryGamesCache, updateCategoryGames } = useStore();
+	const displayAllGames = useAllGameListFacade();
 
 	// 从缓存获取分类游戏 ID（未经 NSFW 筛选的完整列表）
 	const categoryGameIds = useMemo(() => {
@@ -92,13 +94,15 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 
 	// 左栏：未在分类中的游戏
 	const availableGames = useMemo(() => {
-		return allGames.filter((game) => !gamesInCategory.has(game.id ?? -1));
-	}, [allGames, gamesInCategory]);
+		return displayAllGames.filter(
+			(game) => !gamesInCategory.has(game.id ?? -1),
+		);
+	}, [displayAllGames, gamesInCategory]);
 
 	// 右栏：已在分类中的游戏
 	const categoryGamesList = useMemo(() => {
-		return allGames.filter((game) => gamesInCategory.has(game.id ?? -1));
-	}, [allGames, gamesInCategory]);
+		return displayAllGames.filter((game) => gamesInCategory.has(game.id ?? -1));
+	}, [displayAllGames, gamesInCategory]);
 
 	// 左栏搜索过滤
 	const filteredAvailableGames = useMemo(() => {

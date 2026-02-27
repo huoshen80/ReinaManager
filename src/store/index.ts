@@ -25,36 +25,18 @@ import { persist } from "zustand/middleware";
 import { getVirtualCategoryGames } from "@/hooks/common/useVirtualCollections";
 import { collectionService, gameService } from "@/services";
 import type { SortOption, SortOrder } from "@/services/types";
-import type {
-	Category,
-	FullGameData,
-	GameData,
-	Group,
-	InsertGameParams,
-	UpdateGameParams,
-} from "@/types";
-import {
-	applyNsfwFilter,
-	getDisplayGameData,
-	getDisplayGameDataList,
-} from "@/utils";
-import { enhancedSearch } from "@/utils/enhancedSearch";
+import type { Category, GameData, Group } from "@/types";
+import { applyNsfwFilter, getDisplayGameDataList } from "@/utils";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
  * AppState 全局状态类型定义
  */
 export interface AppState {
-	updateSort(option: SortOption, sortOrder: SortOrder): Promise<void>;
+	updateSort(option: SortOption, sortOrder: SortOrder): void;
 
-	// 游戏相关状态与方法
-	fullGames: FullGameData[]; // 所有完整的游戏数据（包含关联表）
-	games: GameData[]; // 当前显示的游戏列表（受筛选和排序影响）
-	allGames: GameData[]; // 所有游戏的完整列表（不受筛选影响，供统计使用）
-	loading: boolean;
 	// UI 状态
 	selectedGameId: number | null;
-	selectedGame: GameData | null;
 	addModalOpen: boolean;
 	addModalPath: string;
 
@@ -69,21 +51,8 @@ export interface AppState {
 	setSkipCloseRemind: (skip: boolean) => void;
 	setDefaultCloseAction: (action: "hide" | "close") => void;
 
-	// 游戏操作方法
-	fetchGames: (
-		sortOption?: SortOption,
-		sortOrder?: SortOrder,
-		resetSearch?: boolean,
-	) => Promise<void>;
-	fetchGame: (id: number) => Promise<void>;
-	addGame: (gameParams: InsertGameParams) => Promise<number | null>;
-	deleteGame: (gameId: number) => Promise<void>;
-	getGameById: (gameId: number) => Promise<GameData>;
-	updateGame: (id: number, gameUpdates: UpdateGameParams) => Promise<void>;
-
 	// UI 操作方法
 	setSelectedGameId: (id: number | null | undefined) => void;
-	setSelectedGame: (game: GameData | null) => void;
 	openAddModal: (path?: string) => void;
 	closeAddModal: () => void;
 	setAddModalPath: (path: string) => void;
@@ -92,21 +61,18 @@ export interface AppState {
 	initialize: () => Promise<void>;
 
 	// 搜索相关
+	/** 搜索输入框的原始输入值（即时更新，仅 SearchBox 订阅） */
+	searchInput: string;
+	setSearchInput: (input: string) => void;
+	/** 防抖后的搜索关键词（用于游戏列表过滤） */
 	searchKeyword: string;
 	setSearchKeyword: (keyword: string) => void;
-
-	// 通用刷新方法
-	refreshGameData: (
-		customSortOption?: SortOption,
-		customSortOrder?: SortOrder,
-	) => Promise<void>;
 
 	// 筛选相关
 	gameFilterType: "all" | "local" | "online" | "noclear" | "clear";
 	setGameFilterType: (
 		type: "all" | "local" | "online" | "noclear" | "clear",
 	) => void;
-	isLocalGame: (gameId: number) => boolean;
 
 	// 数据来源选择
 	apiSource: "bgm" | "vndb" | "ymgal" | "mixed";
@@ -147,7 +113,7 @@ export interface AppState {
 		gameId: number,
 		newStatus: number,
 		skipRefresh?: boolean,
-	) => void;
+	) => Promise<void>;
 
 	// 更新窗口状态管理
 	showUpdateModal: boolean;
@@ -209,18 +175,12 @@ export interface AppState {
 export const useStore = create<AppState>()(
 	persist(
 		(set, get) => ({
-			// 游戏相关状态
-			fullGames: [], // 所有完整的游戏数据（包含关联表）
-			games: [], // 当前显示的游戏列表（受筛选和排序影响）
-			allGames: [], // 所有游戏的完整列表（不受筛选影响，供统计使用）
-			loading: false,
-
 			// UI 状态
 			selectedGameId: null,
-			selectedGame: null,
 			addModalOpen: false,
 			addModalPath: "",
 
+			searchInput: "",
 			searchKeyword: "",
 
 			gameFilterType: "all",
@@ -310,284 +270,15 @@ export const useStore = create<AppState>()(
 			setTimeTrackingMode: (mode: "playtime" | "elapsed") => {
 				set({ timeTrackingMode: mode });
 			},
-
-			// 通用刷新函数，统一处理搜索、筛选、排序、NSFW筛选
-			refreshGameData: async (
-				customSortOption?: SortOption,
-				customSortOrder?: SortOrder,
-			) => {
-				set({ loading: true });
-
-				try {
-					const { searchKeyword, gameFilterType, nsfwFilter } = get();
-					const option = customSortOption || get().sortOption;
-					const order = customSortOrder || get().sortOrder;
-
-					let data: GameData[];
-					let allData: GameData[];
-
-					// 优化：如果 gameFilterType 是 "all"，只请求一次
-					if (gameFilterType === "all") {
-						const fullGames = await gameService.getAllGames(
-							"all",
-							option,
-							order,
-							i18next.language,
-						);
-						const baseData = getDisplayGameDataList(
-							fullGames,
-							i18next.language,
-						);
-
-						// allData 保持完整数据（不筛选），用于统计和管理
-						allData = baseData;
-
-						// 显示数据需要筛选
-						const displayData = applyNsfwFilter(baseData, nsfwFilter);
-
-						// 搜索处理
-						if (searchKeyword && searchKeyword.trim() !== "") {
-							const searchResults = enhancedSearch(displayData, searchKeyword);
-							data = searchResults.map((result) => result.item);
-						} else {
-							data = displayData;
-						}
-					} else {
-						// 需要两次请求：一次获取筛选数据，一次获取全部
-						const fullGames = await gameService.getAllGames(
-							gameFilterType,
-							option,
-							order,
-							i18next.language,
-						);
-						let baseData = getDisplayGameDataList(fullGames, i18next.language);
-
-						baseData = applyNsfwFilter(baseData, nsfwFilter);
-
-						if (searchKeyword && searchKeyword.trim() !== "") {
-							const searchResults = enhancedSearch(baseData, searchKeyword);
-							data = searchResults.map((result) => result.item);
-						} else {
-							data = baseData;
-						}
-
-						// 第二次请求获取全部游戏
-						const allFullGames = await gameService.getAllGames();
-						allData = getDisplayGameDataList(allFullGames, i18next.language);
-					}
-
-					// 一次性设置数据和状态
-					set({ games: data, allGames: allData, loading: false });
-				} catch (error) {
-					console.error("刷新游戏数据失败:", error);
-					set({ loading: false });
-				}
+			setSearchInput: (input: string) => {
+				set({ searchInput: input });
 			},
-
-			// 修改 fetchGames 方法，添加覆盖 searchKeyword 的选项
-			fetchGames: async (
-				sortOption?: SortOption,
-				sortOrder?: SortOrder,
-				resetSearch?: boolean,
-			) => {
-				set({ loading: true });
-				try {
-					const option = sortOption || get().sortOption;
-					const order = sortOrder || get().sortOrder;
-
-					let data: GameData[];
-
-					// 只调用一次，获取所有游戏
-					const fullGames = await gameService.getAllGames(
-						"all",
-						option,
-						order,
-						i18next.language,
-					);
-
-					// 转换为显示数据
-					const displayData = getDisplayGameDataList(
-						fullGames,
-						i18next.language,
-					);
-
-					// 应用nsfw筛选
-					const { nsfwFilter } = get();
-					data = applyNsfwFilter(displayData, nsfwFilter);
-
-					// 只有在明确指定 resetSearch=true 时才重置搜索关键字
-					if (resetSearch) {
-						set({ games: data, allGames: displayData, searchKeyword: "" });
-					} else {
-						set({ games: data, allGames: displayData });
-					}
-				} catch (error) {
-					console.error("获取游戏数据失败", error);
-					set({ games: [], allGames: [] });
-				} finally {
-					set({ loading: false });
-				}
-			},
-			fetchGame: async (id: number) => {
-				set({ loading: true });
-				try {
-					const fullGameData = await gameService.getGameById(id);
-
-					if (fullGameData) {
-						const displayGame = getDisplayGameData(
-							fullGameData,
-							i18next.language,
-						);
-						set({ selectedGame: displayGame });
-					} else {
-						console.warn(`Game with ID ${id} not found`);
-					}
-				} catch (error) {
-					console.error("获取游戏数据失败:", error);
-				} finally {
-					set({ loading: false });
-				}
-			},
-
-			// 使用通用函数简化 addGame
-			addGame: async (gameParams: InsertGameParams): Promise<number | null> => {
-				try {
-					// 确保 id_type 有值
-					const gameToInsert = {
-						...gameParams,
-						id_type: gameParams.id_type || "custom",
-					};
-					const insertedGameId = await gameService.insertGame(gameToInsert);
-					// 使用通用刷新函数
-					await get().refreshGameData();
-					return insertedGameId;
-				} catch (error) {
-					console.error("Error adding game:", error);
-					return null;
-				}
-			},
-
-			// 使用通用函数简化 deleteGame
-			deleteGame: async (gameId: number): Promise<void> => {
-				try {
-					await gameService.deleteGame(gameId);
-					// 使用通用刷新函数
-					await get().refreshGameData();
-					get().setSelectedGameId(null);
-
-					// 如果当前在分类页面，也需要刷新 categoryGames 和 currentCategories
-					const {
-						selectedCategoryId,
-						selectedCategoryName,
-						currentGroupId,
-						categoryGamesCache,
-					} = get();
-					if (selectedCategoryId !== null) {
-						// 更新缓存：从缓存中移除被删除的游戏
-						if (
-							selectedCategoryId > 0 &&
-							categoryGamesCache[selectedCategoryId]
-						) {
-							const updatedCache = categoryGamesCache[
-								selectedCategoryId
-							].filter((id) => id !== gameId);
-							set((state) => ({
-								categoryGamesCache: {
-									...state.categoryGamesCache,
-									[selectedCategoryId]: updatedCache,
-								},
-								// 同时更新 currentCategories 中对应分类的 game_count
-								currentCategories: state.currentCategories.map((cat) =>
-									cat.id === selectedCategoryId
-										? { ...cat, game_count: updatedCache.length }
-										: cat,
-								),
-							}));
-						}
-
-						await get().fetchGamesByCategory(
-							selectedCategoryId,
-							selectedCategoryName || undefined,
-						);
-					}
-
-					// 如果当前在分组页面（查看分类列表），刷新分类列表以更新游戏数量
-					if (currentGroupId && selectedCategoryId === null) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-				} catch (error) {
-					console.error("删除游戏数据失败:", error);
-				}
-			},
-
-			getGameById: async (gameId: number): Promise<GameData> => {
-				const fullData = await gameService.getGameById(gameId);
-				const game = fullData
-					? getDisplayGameData(fullData, i18next.language)
-					: null;
-				if (game === null) {
-					throw new Error(`Game with ID ${gameId} not found`);
-				}
-				return game;
-			},
-
-			updateGame: async (id: number, gameUpdates: UpdateGameParams) => {
-				try {
-					await gameService.updateGame(id, gameUpdates);
-					// gameUpdates 的键会在下面被遍历，直接使用 gameUpdates 而不是解构未使用的变量
-					// 只有当更新的字段可能影响游戏列表显示时才刷新列表
-					// 游戏设置类字段（如 savepath, autosave）不需要刷新列表
-					// 注意：localpath 字段虽然不影响列表显示，但会影响 isLocalGame 判断，因此需要刷新
-					const listAffectingFields = [
-						"name",
-						"developer",
-						"date",
-						"score",
-						"rank",
-						"tags",
-						"localpath", // 添加 localpath，确保更新后 allGames 也同步更新
-						"custom_data", // 自定义数据可能影响封面和名称
-					]; // 将 gameUpdates 展开为一组字段名（支持一层嵌套：game / bgm_data / vndb_data / custom_data）
-					const updatedFieldNames = new Set<string>();
-
-					// 如果外层直接包含字段
-					Object.keys(gameUpdates).forEach((key) => {
-						const value = gameUpdates[key as keyof UpdateGameParams];
-						if (value && typeof value === "object" && !Array.isArray(value)) {
-							// 展开一层嵌套的字段名
-							Object.keys(value).forEach((subKey) => {
-								updatedFieldNames.add(subKey);
-							});
-						} else {
-							updatedFieldNames.add(key);
-						}
-					});
-
-					// 检查是否有任一影响显示的字段被更新
-					const shouldRefreshList = Array.from(updatedFieldNames).some(
-						(field) => listAffectingFields.includes(field),
-					);
-
-					// 更新当前选中的游戏数据
-					await get().fetchGame(id);
-
-					// 如果更新的字段影响列表显示或游戏可用性，刷新游戏列表
-					if (shouldRefreshList) {
-						await get().refreshGameData();
-					}
-				} catch (error) {
-					console.error("更新游戏数据失败:", error);
-					throw error;
-				}
-			},
-
 			setSearchKeyword: (keyword: string) => {
 				set({ searchKeyword: keyword });
-				get().refreshGameData();
 			},
 
-			// 排序更新函数：设置排序选项，然后调用 refreshGameData 统一处理
-			updateSort: async (option: SortOption, order: SortOrder) => {
+			// 排序偏好更新（数据刷新由 React Query 参数驱动）
+			updateSort: (option: SortOption, order: SortOrder) => {
 				const prevOption = get().sortOption;
 				const prevOrder = get().sortOrder;
 
@@ -599,21 +290,15 @@ export const useStore = create<AppState>()(
 					sortOption: option,
 					sortOrder: order,
 				});
-
-				// 调用统一的刷新函数，会自动应用当前的搜索、筛选和排序
-				await get().refreshGameData();
 			},
 
 			// UI 操作方法
 			setSelectedGameId: (id: number | null | undefined) => {
 				set({ selectedGameId: id });
 			},
-			setSelectedGame: (game: GameData | null) => {
-				set({ selectedGame: game });
-			},
 
-			// 筛选类型设置函数：设置筛选类型，然后调用 refreshGameData 统一处理
-			setGameFilterType: async (
+			// 筛选偏好更新（数据刷新由 React Query 参数驱动）
+			setGameFilterType: (
 				type: "all" | "local" | "online" | "noclear" | "clear",
 			) => {
 				const prevType = get().gameFilterType;
@@ -623,40 +308,17 @@ export const useStore = create<AppState>()(
 
 				// 设置新的筛选类型
 				set({ gameFilterType: type });
-
-				// 调用统一的刷新函数，会自动应用当前的搜索、筛选和排序
-				await get().refreshGameData();
-			},
-			isLocalGame(gameId: number): boolean {
-				const allGames = useStore.getState().allGames;
-				const game = allGames.find((g) => g.id === gameId);
-				return !!game?.localpath;
 			},
 
 			// 更新games数组中特定游戏的状态 (PlayStatus 1-5)
 			updateGamePlayStatusInStore: async (
-				gameId: number,
-				newStatus: number,
+				_gameId: number,
+				_newStatus: number,
 				skipRefresh?: boolean,
 			) => {
-				const { games, allGames } = get();
-
-				// 更新当前显示的游戏列表
-				const updatedGames = games.map((game) =>
-					game.id === gameId ? { ...game, clear: newStatus } : game,
-				);
-
-				// 更新完整的游戏列表
-				const updatedAllGames = allGames.map((game) =>
-					game.id === gameId ? { ...game, clear: newStatus } : game,
-				);
-
-				set({ games: updatedGames, allGames: updatedAllGames });
-
-				// 只有在不跳过刷新时才调用 refreshGameData
-				if (!skipRefresh) {
-					await get().refreshGameData();
-				}
+				void _gameId;
+				void _newStatus;
+				void skipRefresh;
 
 				// 如果当前在分类页面，也需要刷新 categoryGames
 				const { selectedCategoryId, selectedCategoryName } = get();
@@ -747,7 +409,15 @@ export const useStore = create<AppState>()(
 			) => {
 				try {
 					let gameDataList: GameData[];
-					const allGames = get().allGames;
+					const allGames = getDisplayGameDataList(
+						await gameService.getAllGames(
+							"all",
+							get().sortOption,
+							get().sortOrder,
+							i18next.language,
+						),
+						i18next.language,
+					);
 
 					// 处理虚拟分类（负数ID）- 使用提取的工具函数
 					if (categoryId < 0) {
@@ -1017,7 +687,16 @@ export const useStore = create<AppState>()(
 			updateCategoryGames: async (gameIds: number[], categoryId: number) => {
 				try {
 					// 1. 乐观更新：先更新前端状态，防止列表闪烁
-					const { allGames, nsfwFilter, currentCategories } = get();
+					const { nsfwFilter, currentCategories } = get();
+					const allGames = getDisplayGameDataList(
+						await gameService.getAllGames(
+							"all",
+							get().sortOption,
+							get().sortOrder,
+							i18next.language,
+						),
+						i18next.language,
+					);
 					// 根据 ID 列表重新排序当前分类的游戏
 					const newOrderGames = gameIds
 						.map((id) => allGames.find((g) => g.id === id))
@@ -1060,8 +739,8 @@ export const useStore = create<AppState>()(
 
 			// 初始化方法，先初始化数据库，然后加载所有需要的数据
 			initialize: async () => {
-				// 然后并行加载其他数据
-				await Promise.all([get().fetchGames(), get().fetchGroups()]);
+				// React Query 负责游戏数据获取，这里只保留分组初始化
+				await get().fetchGroups();
 
 				// 初始化游戏时间跟踪
 				initializeGamePlayTracking();

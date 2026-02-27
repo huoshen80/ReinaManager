@@ -26,6 +26,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { useStore } from "@/store";
 import type { SavedataRecord, UpdateGameParams } from "@/types";
@@ -43,7 +45,9 @@ import {
  * @returns 备份页面
  */
 export const Backup: React.FC = () => {
-	const { selectedGame, updateGame } = useStore();
+	const selectedGameId = useStore((state) => state.selectedGameId);
+	const { selectedGame } = useSelectedGame(selectedGameId);
+	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 
 	// React Query hooks
@@ -88,7 +92,10 @@ export const Backup: React.FC = () => {
 		setIsUpdatingSettings(true);
 
 		try {
-			await updateGame(selectedGame.id, updateData);
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: updateData,
+			});
 			snackbar.success(successMessage);
 
 			// 移除本地状态同步，由 useEffect 负责

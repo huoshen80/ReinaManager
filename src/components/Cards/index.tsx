@@ -39,6 +39,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import RightMenu from "@/components/RightMenu";
+import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
@@ -431,14 +432,14 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const cardClickMode = useStore((s) => s.cardClickMode);
 	const doubleClickLaunch = useStore((s) => s.doubleClickLaunch);
 	const longPressLaunch = useStore((s) => s.longPressLaunch);
-	const gamesFromStore = useStore((s) => s.games);
+	const { games: gamesFromFacade } = useGameListFacade();
 	const { launchGame } = useGamePlayStore();
 
 	// 右键菜单状态
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
 	// 数据源
-	const sourceGames = gamesData ?? gamesFromStore;
+	const sourceGames = gamesData ?? gamesFromFacade;
 
 	// 判断是否启用拖拽排序
 	const isSortable =

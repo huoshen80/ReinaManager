@@ -55,7 +55,12 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { snackbar } from "@/components/Snackbar";
 import SortModal from "@/components/SortModal";
+import {
+	useGameFacade,
+	useSelectedGame,
+} from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
+import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
@@ -104,14 +109,10 @@ export const useModal = () => {
  * @param {HanleGamesProps} props
  * @returns {JSX.Element}
  */
-const OpenFolder = ({ id, getGameById, canUse }: HanleGamesProps) => {
+const OpenFolder = ({ id, getGameById }: HanleGamesProps) => {
 	const { t } = useTranslation();
-	// 订阅 allGames 以确保 localpath 更新时组件重新渲染
-	const { allGames } = useStore();
-
-	// 通过使用 allGames.length 确保订阅生效
-	const isDisabled =
-		allGames.length >= 0 && (typeof canUse === "function" ? !canUse() : true);
+	const { selectedGame } = useSelectedGame(id);
+	const isDisabled = selectedGame?.localpath == null;
 
 	return (
 		<Button
@@ -136,7 +137,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 	const { t } = useTranslation();
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const { deleteGame } = useStore();
+	const deleteGameMutation = useDeleteGame();
 	const navigate = useNavigate();
 
 	/**
@@ -147,7 +148,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 
 		try {
 			setIsDeleting(true);
-			await deleteGame(id);
+			await deleteGameMutation.mutateAsync(id);
 			navigate("/libraries");
 		} catch (error) {
 			console.error("删除游戏失败:", error);
@@ -185,7 +186,9 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
  * @returns {JSX.Element}
  */
 const MoreButton = () => {
-	const { selectedGame, setSelectedGame, updateGame } = useStore();
+	const selectedGameId = useStore((state) => state.selectedGameId);
+	const { selectedGame } = useSelectedGame(selectedGameId);
+	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
@@ -254,9 +257,10 @@ const MoreButton = () => {
 		}
 
 		try {
-			await updateGame(selectedGame.id, { le_launch: checked ? 1 : 0 });
-			// 更新本地状态
-			setSelectedGame({ ...selectedGame, le_launch: checked ? 1 : 0 });
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: { le_launch: checked ? 1 : 0 },
+			});
 		} catch (error) {
 			console.error("更新LE转区启动状态失败:", error);
 		}
@@ -292,9 +296,10 @@ const MoreButton = () => {
 		}
 
 		try {
-			await updateGame(selectedGame.id, { magpie: checked ? 1 : 0 });
-			// 更新本地状态
-			setSelectedGame({ ...selectedGame, magpie: checked ? 1 : 0 });
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: { magpie: checked ? 1 : 0 },
+			});
 		} catch (error) {
 			console.error("更新Magpie放大状态失败:", error);
 		}
@@ -406,26 +411,15 @@ export const Buttongroup = ({
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const { getGameById, isLocalGame, allGames, openAddModal } = useStore();
-
-	/**
-	 * 判断当前游戏是否可用（本地且 Tauri 环境）
-	 * 订阅 allGames 确保 localpath 更新时按钮状态同步
-	 * @returns {boolean}
-	 */
-	const canUse = () => {
-		// 使用 allGames.length 确保订阅生效
-		return (
-			allGames.length >= 0 && id !== undefined && id !== null && isLocalGame(id)
-		);
-	};
+	const { openAddModal } = useStore();
+	const { getGameById } = useGameFacade();
 
 	return (
 		<>
 			{isDetail && id && (
 				<>
 					<LaunchModal />
-					<OpenFolder id={id} getGameById={getGameById} canUse={canUse} />
+					<OpenFolder id={id} getGameById={getGameById} />
 					<DeleteModal id={id} />
 					<MoreButton />
 					<ThemeSwitcher />

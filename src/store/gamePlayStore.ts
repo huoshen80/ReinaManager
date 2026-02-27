@@ -19,6 +19,8 @@
  */
 
 import { create } from "zustand";
+import { gameKeys } from "@/hooks/queries/useGames";
+import { queryClient } from "@/lib/queryClient";
 import { useStore } from "@/store";
 import type { GameSession, GameStatistics, GameTimeStats } from "@/types";
 import {
@@ -94,7 +96,6 @@ interface GamePlayState {
 }
 
 // ====== 统计缓存优化：全局作用域 ======
-let lastGamesSnapshot: number[] = [];
 let lastTotalPlayTime = 0;
 let lastWeekPlayTime = 0;
 let lastTodayPlayTime = 0;
@@ -103,22 +104,12 @@ let allStatsCache: Map<number, GameStatistics> | null = null;
 // Promise 锁，确保并行调用时只请求一次
 let statsFetchPromise: Promise<Map<number, GameStatistics>> | null = null;
 
-function getGamesIdSnapshot() {
-	const { games } = useStore.getState();
-	return games.map((g) => g.id ?? 0).sort();
-}
-
 /**
  * 获取所有游戏统计缓存（若缓存失效则重新获取）
  * 使用 Promise 锁确保并行调用时只请求一次
  */
 async function getAllStatsCached(): Promise<Map<number, GameStatistics>> {
-	const gamesSnapshot = getGamesIdSnapshot();
-	// 检查缓存是否有效
-	if (
-		allStatsCache !== null &&
-		JSON.stringify(gamesSnapshot) === JSON.stringify(lastGamesSnapshot)
-	) {
+	if (allStatsCache !== null) {
 		return allStatsCache;
 	}
 	// 如果已经有请求在进行中，等待它完成
@@ -129,7 +120,6 @@ async function getAllStatsCached(): Promise<Map<number, GameStatistics>> {
 	statsFetchPromise = getAllGameStatistics()
 		.then((result) => {
 			allStatsCache = result;
-			lastGamesSnapshot = gamesSnapshot;
 			statsFetchPromise = null; // 请求完成，清除锁
 			return result;
 		})
@@ -447,8 +437,8 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 					// 获取主store的状态，检查当前排序选项
 					const store = useStore.getState();
 					if (_minutes && store.sortOption === "lastplayed") {
-						// 如果当前排序是"最近游玩"，刷新游戏数据以更新顺序
-						await store.refreshGameData();
+						// 如果当前排序是"最近游玩"，刷新游戏列表查询以更新顺序
+						await queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
 					}
 					// ====== END ======
 				},

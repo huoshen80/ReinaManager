@@ -36,6 +36,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { UpdateGameParams } from "@/types";
@@ -71,13 +73,9 @@ const formatPlayTime = (minutes: number, seconds: number): string => {
  */
 export const LaunchModal = () => {
 	const { t } = useTranslation();
-	const {
-		selectedGameId,
-		getGameById,
-		isLocalGame,
-		timeTrackingMode,
-		updateGame,
-	} = useStore();
+	const { selectedGameId, timeTrackingMode } = useStore();
+	const updateGameMutation = useUpdateGame();
+	const { selectedGame } = useSelectedGame(selectedGameId);
 	const { launchGame, stopGame, isGameRunning, getGameRealTimeState } =
 		useGamePlayStore();
 
@@ -139,7 +137,6 @@ export const LaunchModal = () => {
 		if (!selectedGameId) return;
 
 		try {
-			const selectedGame = await getGameById(selectedGameId);
 			if (!selectedGame || !selectedGame.localpath) {
 				console.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
@@ -175,8 +172,7 @@ export const LaunchModal = () => {
 		if (!selectedGameId) return;
 
 		try {
-			const game = await getGameById(selectedGameId);
-			setLocalPath(game.localpath || "");
+			setLocalPath(selectedGame?.localpath || "");
 			setPathDialogOpen(true);
 		} catch (error) {
 			console.error("Failed to load game data:", error);
@@ -224,7 +220,10 @@ export const LaunchModal = () => {
 				localpath: localPath.trim(),
 			};
 
-			await updateGame(selectedGameId, updateData);
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGameId,
+				updates: updateData,
+			});
 			snackbar.success(t("components.LaunchModal.pathSaved"));
 			handleClosePathDialog();
 		} catch (error) {
@@ -282,7 +281,7 @@ export const LaunchModal = () => {
 	}
 
 	// 如果不是本地游戏，显示"同步本地"按钮
-	if (selectedGameId && !isLocalGame(selectedGameId)) {
+	if (selectedGameId && !selectedGame?.localpath) {
 		return (
 			<>
 				<Button

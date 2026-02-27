@@ -9,6 +9,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { gameKeys } from "@/hooks/queries/useGames";
 import { gameService } from "@/services";
 import type { GameData } from "@/types";
 import type { PlayStatus } from "@/types/collection";
@@ -71,6 +72,18 @@ export function useUpdatePlayStatus() {
 	return useMutation<GameData, Error, UpdatePlayStatusParams>({
 		mutationFn: updatePlayStatus,
 		onSuccess: (_, { gameId, invalidateScope = "game" }) => {
+			queryClient.invalidateQueries({
+				queryKey: gameKeys.detail(gameId),
+				exact: true,
+			});
+			queryClient.invalidateQueries({
+				queryKey: gameKeys.lists(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: gameKeys.all,
+				exact: true,
+			});
+
 			if (invalidateScope === "all") {
 				queryClient.invalidateQueries({
 					queryKey: playStatusKeys.all,

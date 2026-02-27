@@ -48,7 +48,7 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useStore } from "@/store";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
 import { PlayStatus } from "@/types/collection";
@@ -203,7 +203,7 @@ async function getGameActivities(
 }
 
 export const Home: React.FC = () => {
-	const { allGames } = useStore();
+	const displayAllGames = useAllGameListFacade();
 	const { getTotalPlayTime, getWeekPlayTime, getTodayPlayTime, statsVersion } =
 		useGamePlayStore();
 
@@ -233,13 +233,13 @@ export const Home: React.FC = () => {
 	// 同步计算的数据 - 立即显示，无需 loading 状态
 	const gamesList = useMemo(
 		() =>
-			allGames.map((game) => ({
+			displayAllGames.map((game) => ({
 				title: getGameDisplayName(game, i18n.language),
 				id: game.id,
 				isLocal: !!game.localpath,
 				imageUrl: getGameCover(game),
 			})),
-		[allGames, i18n.language],
+		[displayAllGames, i18n.language],
 	);
 
 	const gamesLocalCount = useMemo(
@@ -247,8 +247,9 @@ export const Home: React.FC = () => {
 		[gamesList],
 	);
 	const completedGamesCount = useMemo(
-		() => allGames.filter((game) => game.clear === PlayStatus.PLAYED).length,
-		[allGames],
+		() =>
+			displayAllGames.filter((game) => game.clear === PlayStatus.PLAYED).length,
+		[displayAllGames],
 	);
 
 	// 统计卡片数据 - 区分同步和异步数据
@@ -257,7 +258,7 @@ export const Home: React.FC = () => {
 			// 同步数据 - 立即显示
 			{
 				title: t("home.stats.totalGames", "总游戏数"),
-				value: allGames.length,
+				value: displayAllGames.length,
 				icon: <GamesIcon />,
 				isAsync: false,
 			},
@@ -293,7 +294,13 @@ export const Home: React.FC = () => {
 				isAsync: true,
 			},
 		],
-		[t, allGames.length, gamesLocalCount, completedGamesCount, playTimeStats],
+		[
+			t,
+			displayAllGames.length,
+			gamesLocalCount,
+			completedGamesCount,
+			playTimeStats,
+		],
 	);
 
 	// 异步获取游戏时长数据
@@ -330,7 +337,7 @@ export const Home: React.FC = () => {
 	useEffect(() => {
 		const fetchActivityData = async () => {
 			try {
-				const result = await getGameActivities(allGames, i18n.language);
+				const result = await getGameActivities(displayAllGames, i18n.language);
 				setActivityData({
 					sessions: result.sessions,
 					added: result.added,
@@ -344,7 +351,7 @@ export const Home: React.FC = () => {
 		};
 
 		fetchActivityData();
-	}, [allGames, i18n.language]);
+	}, [displayAllGames, i18n.language]);
 
 	return (
 		<Box className="p-6 pt-4 flex flex-col gap-4">
