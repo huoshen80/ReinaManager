@@ -19,6 +19,12 @@ import { AlertConfirmBox } from "@/components/AlertBox";
 import { ManageGamesDialog } from "@/components/Collection";
 import { InputDialog } from "@/components/CommonDialog";
 import { LaunchModal } from "@/components/LaunchModal";
+import {
+	useCategories,
+	useCreateCategory,
+	useCreateGroup,
+	useDeleteGroup,
+} from "@/hooks/queries/useCollections";
 import { useStore } from "@/store";
 
 export const CollectionToolbar: React.FC = () => {
@@ -26,11 +32,14 @@ export const CollectionToolbar: React.FC = () => {
 	const {
 		currentGroupId,
 		selectedCategoryId,
-		createGroup,
-		createCategory,
-		deleteGroup,
-		currentCategories,
+		setCurrentGroup,
+		setSelectedCategory,
 	} = useStore();
+	const categoriesQuery = useCategories(currentGroupId);
+	const currentCategories = categoriesQuery.data ?? [];
+	const createGroupMutation = useCreateGroup();
+	const createCategoryMutation = useCreateCategory();
+	const deleteGroupMutation = useDeleteGroup();
 
 	// 对话框状态
 	const [addGroupDialogOpen, setAddGroupDialogOpen] = useState(false);
@@ -53,7 +62,7 @@ export const CollectionToolbar: React.FC = () => {
 	 * 创建新分组
 	 */
 	const handleCreateGroup = async (name: string) => {
-		await createGroup(name);
+		await createGroupMutation.mutateAsync({ name });
 	};
 
 	/**
@@ -61,7 +70,10 @@ export const CollectionToolbar: React.FC = () => {
 	 */
 	const handleCreateCategory = async (name: string) => {
 		if (!currentGroupId || isDefaultGroup) return;
-		await createCategory(name, Number.parseInt(currentGroupId, 10));
+		await createCategoryMutation.mutateAsync({
+			name,
+			groupId: Number.parseInt(currentGroupId, 10),
+		});
 	};
 
 	/**
@@ -72,7 +84,11 @@ export const CollectionToolbar: React.FC = () => {
 
 		try {
 			setIsDeleting(true);
-			await deleteGroup(Number.parseInt(currentGroupId, 10));
+			await deleteGroupMutation.mutateAsync(
+				Number.parseInt(currentGroupId, 10),
+			);
+			setCurrentGroup(null);
+			setSelectedCategory(null);
 			setDeleteGroupDialogOpen(false);
 		} catch (error) {
 			console.error("删除分组失败:", error);
