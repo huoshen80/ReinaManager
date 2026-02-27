@@ -61,7 +61,7 @@ import {
 } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
-import { settingsService } from "@/services";
+import { useLePath, useMagpiePath } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
 import type { PlayStatus } from "@/types/collection";
@@ -193,6 +193,8 @@ const MoreButton = () => {
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
 	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
+	const { data: lePath = "" } = useLePath();
+	const { data: magpiePath = "" } = useMagpiePath();
 
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
@@ -233,24 +235,12 @@ const MoreButton = () => {
 	const handleToggleLeLaunch = async (checked: boolean) => {
 		if (selectedGame?.id === undefined) return;
 
-		// 检查LE路径是否存在
-		try {
-			const lePath = await settingsService.getLePath();
-			if (!lePath || lePath.trim() === "") {
-				// 路径不存在，显示提示并打开路径设置弹窗
-				snackbar.warning(
-					t(
-						"components.Toolbar.lePathNotSet",
-						"未设置LE转区软件路径，请先配置路径",
-					),
-				);
-				setPathSettingsModalOpen(true);
-				return;
-			}
-		} catch (error) {
-			console.error("检查LE路径失败:", error);
-			snackbar.error(
-				t("components.Toolbar.lePathCheckFailed", "检查LE路径失败"),
+		if (!lePath || lePath.trim() === "") {
+			snackbar.warning(
+				t(
+					"components.Toolbar.lePathNotSet",
+					"未设置LE转区软件路径，请先配置路径",
+				),
 			);
 			setPathSettingsModalOpen(true);
 			return;
@@ -272,24 +262,12 @@ const MoreButton = () => {
 	const handleToggleMagpie = async (checked: boolean) => {
 		if (selectedGame?.id === undefined) return;
 
-		// 检查Magpie路径是否存在
-		try {
-			const magpiePath = await settingsService.getMagpiePath();
-			if (!magpiePath || magpiePath.trim() === "") {
-				// 路径不存在，显示提示并打开路径设置弹窗
-				snackbar.warning(
-					t(
-						"components.Toolbar.magpiePathNotSet",
-						"未设置Magpie软件路径，请先配置路径",
-					),
-				);
-				setPathSettingsModalOpen(true);
-				return;
-			}
-		} catch (error) {
-			console.error("检查Magpie路径失败:", error);
-			snackbar.error(
-				t("components.Toolbar.magpiePathCheckFailed", "检查Magpie路径失败"),
+		if (!magpiePath || magpiePath.trim() === "") {
+			snackbar.warning(
+				t(
+					"components.Toolbar.magpiePathNotSet",
+					"未设置Magpie软件路径，请先配置路径",
+				),
 			);
 			setPathSettingsModalOpen(true);
 			return;

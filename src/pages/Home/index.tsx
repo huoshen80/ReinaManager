@@ -49,7 +49,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
-import { useGamePlayStore } from "@/store/gamePlayStore";
+import { usePlayTimeSummary } from "@/hooks/queries/useStats";
 import type { GameData } from "@/types";
 import { PlayStatus } from "@/types/collection";
 import {
@@ -204,16 +204,8 @@ async function getGameActivities(
 
 export const Home: React.FC = () => {
 	const displayAllGames = useAllGameListFacade();
-	const { getTotalPlayTime, getWeekPlayTime, getTodayPlayTime, statsVersion } =
-		useGamePlayStore();
-
-	// 分离时长数据的状态管理
-	const [playTimeStats, setPlayTimeStats] = useState({
-		total: 0,
-		week: 0,
-		today: 0,
-		loading: true,
-	});
+	const { totalPlayTime, weekPlayTime, todayPlayTime, isLoading } =
+		usePlayTimeSummary();
 
 	// 分离活动数据的状态管理
 	const [activityData, setActivityData] = useState<{
@@ -277,19 +269,19 @@ export const Home: React.FC = () => {
 			// 异步数据 - 可能需要 loading
 			{
 				title: t("home.stats.totalPlayTime", "总游戏时长"),
-				value: formatPlayTime(playTimeStats.total),
+				value: formatPlayTime(totalPlayTime),
 				icon: <TimeIcon />,
 				isAsync: true,
 			},
 			{
 				title: t("home.stats.weekPlayTime", "本周游戏时长"),
-				value: formatPlayTime(playTimeStats.week),
+				value: formatPlayTime(weekPlayTime),
 				icon: <WeekIcon />,
 				isAsync: true,
 			},
 			{
 				title: t("home.stats.todayPlayTime", "今日游戏时长"),
-				value: formatPlayTime(playTimeStats.today),
+				value: formatPlayTime(todayPlayTime),
 				icon: <TodayIcon />,
 				isAsync: true,
 			},
@@ -299,39 +291,11 @@ export const Home: React.FC = () => {
 			displayAllGames.length,
 			gamesLocalCount,
 			completedGamesCount,
-			playTimeStats,
+			totalPlayTime,
+			weekPlayTime,
+			todayPlayTime,
 		],
 	);
-
-	// 异步获取游戏时长数据
-	// statsVersion 变化时（游戏结束后）重新获取数据
-	useEffect(() => {
-		// statsVersion 用于触发重新获取（游戏结束时会更新）
-		void statsVersion;
-
-		const fetchPlayTimeStats = async () => {
-			try {
-				const [totalTimeResult, weekTimeResult, todayTimeResult] =
-					await Promise.all([
-						getTotalPlayTime(),
-						getWeekPlayTime(),
-						getTodayPlayTime(),
-					]);
-
-				setPlayTimeStats({
-					total: totalTimeResult,
-					week: weekTimeResult,
-					today: todayTimeResult,
-					loading: false,
-				});
-			} catch (error) {
-				console.error("获取游戏时长统计失败:", error);
-				setPlayTimeStats((prev) => ({ ...prev, loading: false }));
-			}
-		};
-
-		fetchPlayTimeStats();
-	}, [getTotalPlayTime, getWeekPlayTime, getTodayPlayTime, statsVersion]);
 
 	// 异步获取活动数据
 	useEffect(() => {
@@ -373,7 +337,7 @@ export const Home: React.FC = () => {
 									className="font-bold mb-1 w-full whitespace-nowrap overflow-hidden text-ellipsis"
 								>
 									{/* 异步数据显示 loading，同步数据直接显示 */}
-									{card.isAsync && playTimeStats.loading ? (
+									{card.isAsync && isLoading ? (
 										<Skeleton width={60} />
 									) : (
 										card.value

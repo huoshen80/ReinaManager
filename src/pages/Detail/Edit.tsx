@@ -6,7 +6,7 @@ import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
-import { useSettingsResources } from "@/hooks/queries/useSettings";
+import { useBgmToken } from "@/hooks/queries/useSettings";
 import type { FullGameData, UpdateGameParams } from "@/types";
 import { getErrorMessage } from "@/utils";
 import { DataSourceUpdate } from "./DataSourceUpdate";
@@ -20,7 +20,7 @@ import { GameInfoEdit } from "./GameInfoEdit";
  * @returns 编辑页面
  */
 export const Edit: React.FC = () => {
-	const { bgmToken } = useSettingsResources();
+	const { data: bgmToken = "" } = useBgmToken();
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { selectedGame } = useSelectedGame(id);
 	const updateGameMutation = useUpdateGame();

@@ -15,6 +15,7 @@ import {
 import { LineChart } from "@mui/x-charts/LineChart";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useGameStats } from "@/hooks/queries/useStats";
 import { savedataService } from "@/services";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameTimeStats } from "@/types";
@@ -49,8 +50,9 @@ interface InfoBoxProps {
  */
 export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 	const { t } = useTranslation();
-	const { loadGameStats, runningGameIds } = useGamePlayStore();
-	const [stats, setStats] = useState<GameTimeStats | null>(null);
+	const { runningGameIds } = useGamePlayStore();
+	const gameStatsQuery = useGameStats(gameID);
+	const stats = gameStatsQuery.data as GameTimeStats | null;
 	const [backupCount, setBackupCount] = useState<number>(0);
 	const [timeRange, setTimeRange] = useState<TimeRange>("7D");
 	// 选中的月份 (YYYY-MM 格式)
@@ -62,23 +64,17 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 	// 存储上一次游戏运行状态，用于检测变化
 	const prevRunningRef = useRef(false);
 
-	/**
-	 * 异步加载游戏统计数据
-	 */
-	const fetchStats = useCallback(async () => {
-		try {
-			const gameStats = await loadGameStats(gameID, true); // 强制刷新
-			setBackupCount(await savedataService.getSavedataCount(gameID));
-			setStats(gameStats);
-		} catch (error) {
-			console.error("加载游戏统计失败:", error);
-		}
-	}, [gameID, loadGameStats]);
-
-	// 初始加载数据
 	useEffect(() => {
-		fetchStats();
-	}, [fetchStats]);
+		const loadBackupCount = async () => {
+			try {
+				setBackupCount(await savedataService.getSavedataCount(gameID));
+			} catch (error) {
+				console.error("加载备份数量失败:", error);
+			}
+		};
+
+		loadBackupCount();
+	}, [gameID]);
 
 	/**
 	 * 切换到上个月
@@ -130,7 +126,9 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 		const isCurrentGameRunning = runningGameIds.has(gameID);
 		if (prevRunningRef.current && !isCurrentGameRunning) {
 			const timer = setTimeout(() => {
-				if (!unmounted) fetchStats();
+				if (!unmounted) {
+					gameStatsQuery.refetch();
+				}
 			}, 500);
 			return () => {
 				unmounted = true;
@@ -141,7 +139,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 		return () => {
 			unmounted = true;
 		};
-	}, [runningGameIds, gameID, fetchStats]);
+	}, [runningGameIds, gameID, gameStatsQuery]);
 
 	/**
 	 * 统计项数据

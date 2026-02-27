@@ -33,7 +33,16 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { settingsService } from "@/services";
+import {
+	useDbBackupPath,
+	useLePath,
+	useMagpiePath,
+	useSaveRootPath,
+	useSetDbBackupPath,
+	useSetLePath,
+	useSetMagpiePath,
+	useSetSaveRootPath,
+} from "@/hooks/queries/useSettings";
 import { getAppDataDirPath, handleGetFolder, moveBackupFolder } from "@/utils";
 
 /**
@@ -78,42 +87,45 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const [dbBackupPathOriginal, setDbBackupPathOriginal] = useState("");
 	const [dbBackupPathLoading, setDbBackupPathLoading] = useState(false);
 
+	const { data: saveRootPath = "" } = useSaveRootPath({
+		enabled: open && inSettingsPage,
+	});
+	const { data: lePathData = "" } = useLePath({ enabled: open });
+	const { data: magpiePathData = "" } = useMagpiePath({ enabled: open });
+	const { data: dbBackupPathData = "" } = useDbBackupPath({
+		enabled: open && inSettingsPage,
+	});
+
+	const setSaveRootPathMutation = useSetSaveRootPath();
+	const setLePathMutation = useSetLePath();
+	const setMagpiePathMutation = useSetMagpiePath();
+	const setDbBackupPathMutation = useSetDbBackupPath();
+
 	// 弹窗打开时加载数据
 	useEffect(() => {
-		const loadData = async () => {
-			try {
-				// 游戏存档备份路径
-				if (inSettingsPage) {
-					const currentSavePath = await settingsService.getSaveRootPath();
-					setSavePath(currentSavePath);
-					setSavePathOriginal(currentSavePath);
-				}
-
-				// LE转区软件路径
-				const currentLePath = await settingsService.getLePath();
-				setLePath(currentLePath);
-				setLePathOriginal(currentLePath);
-
-				// Magpie软件路径
-				const currentMagpiePath = await settingsService.getMagpiePath();
-				setMagpiePath(currentMagpiePath);
-				setMagpiePathOriginal(currentMagpiePath);
-
-				// 数据库备份路径
-				if (inSettingsPage) {
-					const currentDbBackupPath = await settingsService.getDbBackupPath();
-					setDbBackupPath(currentDbBackupPath);
-					setDbBackupPathOriginal(currentDbBackupPath);
-				}
-			} catch (error) {
-				console.error("加载路径设置失败:", error);
-			}
-		};
-
-		if (open) {
-			loadData();
+		if (!open) {
+			return;
 		}
-	}, [open, inSettingsPage]);
+
+		if (inSettingsPage) {
+			setSavePath(saveRootPath);
+			setSavePathOriginal(saveRootPath);
+			setDbBackupPath(dbBackupPathData);
+			setDbBackupPathOriginal(dbBackupPathData);
+		}
+
+		setLePath(lePathData);
+		setLePathOriginal(lePathData);
+		setMagpiePath(magpiePathData);
+		setMagpiePathOriginal(magpiePathData);
+	}, [
+		open,
+		inSettingsPage,
+		saveRootPath,
+		dbBackupPathData,
+		lePathData,
+		magpiePathData,
+	]);
 
 	/**
 	 * 选择文件夹的通用处理函数
@@ -161,7 +173,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const handleSaveSavePath = async () => {
 		try {
 			setSavePathLoading(true);
-			await settingsService.setSaveRootPath(savePath);
+			await setSaveRootPathMutation.mutateAsync(savePath);
 
 			// 如果路径发生了变化，需要移动备份文件夹
 			if (savePathOriginal !== savePath || savePathOriginal !== "") {
@@ -192,7 +204,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const handleSaveLePath = async () => {
 		try {
 			setLePathLoading(true);
-			await settingsService.setLePath(lePath);
+			await setLePathMutation.mutateAsync(lePath);
 			setLePathOriginal(lePath);
 		} catch (error) {
 			console.error("保存LE转区软件路径失败:", error);
@@ -207,7 +219,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const handleSaveMagpiePath = async () => {
 		try {
 			setMagpiePathLoading(true);
-			await settingsService.setMagpiePath(magpiePath);
+			await setMagpiePathMutation.mutateAsync(magpiePath);
 			setMagpiePathOriginal(magpiePath);
 		} catch (error) {
 			console.error("保存Magpie软件路径失败:", error);
@@ -222,7 +234,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const handleSaveDbBackupPath = async () => {
 		try {
 			setDbBackupPathLoading(true);
-			await settingsService.setDbBackupPath(dbBackupPath);
+			await setDbBackupPathMutation.mutateAsync(dbBackupPath);
 			setDbBackupPathOriginal(dbBackupPath);
 		} catch (error) {
 			console.error("保存数据库备份路径失败:", error);

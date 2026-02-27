@@ -43,7 +43,7 @@ import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useAddGame, useAllGames } from "@/hooks/queries/useGames";
-import { useSettingsResources } from "@/hooks/queries/useSettings";
+import { useBgmToken } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
 import { handleDirectory } from "@/utils";
@@ -161,7 +161,7 @@ function extractFolderName(path: string): string {
 const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { bgmToken } = useSettingsResources();
+	const { data: bgmToken = "" } = useBgmToken();
 	const { data: allGames = [] } = useAllGames();
 	const addGameMutation = useAddGame();
 

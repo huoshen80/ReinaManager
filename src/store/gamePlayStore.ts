@@ -22,21 +22,14 @@ import { create } from "zustand";
 import { gameKeys } from "@/hooks/queries/useGames";
 import { queryClient } from "@/lib/queryClient";
 import { useStore } from "@/store";
-import type { GameSession, GameStatistics, GameTimeStats } from "@/types";
 import {
 	type GameLaunchOptions,
 	getErrorMessage,
-	getLocalDateString,
 	launchGameWithTracking,
 	type StopGameResult,
 	stopGameWithTracking,
 } from "@/utils";
-import {
-	getAllGameStatistics,
-	getFormattedGameStats,
-	getGameSessions,
-	initGameTimeTracking,
-} from "@/utils/gameStats";
+import { initGameTimeTracking } from "@/utils/gameStats";
 
 /**
  * 游戏启动结果类型
@@ -64,11 +57,7 @@ interface GameRealTimeState {
 interface GamePlayState {
 	runningGameIds: Set<number>; // 正在运行的游戏ID集合
 	isTrackingInitialized: boolean; // 是否已初始化时间跟踪
-	gameTimeStats: Record<string, GameTimeStats>; // 游戏统计缓存
-	recentSessions: Record<string, GameSession[]>; // 最近会话缓存
-	// trendData: Record<string, GameTimeChartData[]>; // 预留趋势数据
 	gameRealTimeStates: Record<string, GameRealTimeState>; // 实时状态
-	statsVersion: number; // 统计数据版本号，用于触发重新获取
 
 	// 方法
 	isGameRunning: (gameId?: number) => boolean;
@@ -79,68 +68,10 @@ interface GamePlayState {
 		args?: string[],
 	) => Promise<LaunchGameResult>;
 	stopGame: (gameId: number) => Promise<StopGameResult>;
-	loadGameStats: (
-		gameId: number,
-		forceRefresh?: boolean,
-	) => Promise<GameTimeStats | null>;
-	loadRecentSessions: (
-		gameId: number,
-		limit?: number,
-	) => Promise<GameSession[] | null>;
 	initTimeTracking: () => void;
 	clearActiveGame: () => void;
 	getGameRealTimeState: (gameId: number) => GameRealTimeState | null;
-	getTotalPlayTime: () => Promise<number>;
-	getWeekPlayTime: () => Promise<number>;
-	getTodayPlayTime: () => Promise<number>;
 }
-
-// ====== 统计缓存优化：全局作用域 ======
-let lastTotalPlayTime = 0;
-let lastWeekPlayTime = 0;
-let lastTodayPlayTime = 0;
-// 缓存所有游戏统计数据，一次获取多处使用
-let allStatsCache: Map<number, GameStatistics> | null = null;
-// Promise 锁，确保并行调用时只请求一次
-let statsFetchPromise: Promise<Map<number, GameStatistics>> | null = null;
-
-/**
- * 获取所有游戏统计缓存（若缓存失效则重新获取）
- * 使用 Promise 锁确保并行调用时只请求一次
- */
-async function getAllStatsCached(): Promise<Map<number, GameStatistics>> {
-	if (allStatsCache !== null) {
-		return allStatsCache;
-	}
-	// 如果已经有请求在进行中，等待它完成
-	if (statsFetchPromise !== null) {
-		return statsFetchPromise;
-	}
-	// 创建新的请求并保存 Promise
-	statsFetchPromise = getAllGameStatistics()
-		.then((result) => {
-			allStatsCache = result;
-			statsFetchPromise = null; // 请求完成，清除锁
-			return result;
-		})
-		.catch((error) => {
-			statsFetchPromise = null; // 请求失败，清除锁
-			throw error;
-		});
-	return statsFetchPromise;
-}
-
-/**
- * 清除统计缓存（在游戏会话结束后调用）
- */
-function invalidateStatsCache() {
-	allStatsCache = null;
-	statsFetchPromise = null;
-	lastTotalPlayTime = 0;
-	lastWeekPlayTime = 0;
-	lastTodayPlayTime = 0;
-}
-// ====== 统计缓存优化 END ======
 
 /**
  * useGamePlayStore
@@ -149,11 +80,7 @@ function invalidateStatsCache() {
 export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	runningGameIds: new Set<number>(),
 	isTrackingInitialized: false,
-	gameTimeStats: {},
-	recentSessions: {},
-	trendData: {},
 	gameRealTimeStates: {},
-	statsVersion: 0,
 
 	/**
 	 * 判断指定游戏是否正在运行
@@ -321,69 +248,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	},
 
 	/**
-	 * 加载指定游戏的统计数据
-	 * @param gameId 游戏ID
-	 * @param forceRefresh 是否强制刷新
-	 */
-	loadGameStats: async (
-		gameId: number,
-		forceRefresh = false,
-	): Promise<GameTimeStats | null> => {
-		try {
-			// 如果不强制刷新且已有缓存，则使用缓存
-			const cached = get().gameTimeStats[gameId];
-			if (!forceRefresh && cached) return cached;
-
-			// 获取新数据
-			const stats = await getFormattedGameStats(gameId);
-
-			if (stats) {
-				// 更新状态
-				set((state) => ({
-					gameTimeStats: {
-						...state.gameTimeStats,
-						[gameId]: stats,
-					},
-				}));
-			}
-
-			return stats;
-		} catch (error) {
-			console.error("加载游戏统计失败:", error);
-			return null;
-		}
-	},
-
-	// 暂时无用，未来用于实现游戏游玩时间线
-	/**
-	 * 加载指定游戏的最近会话
-	 * @param gameId 游戏ID
-	 * @param limit 数量限制
-	 */
-	loadRecentSessions: async (
-		gameId: number,
-		limit = 5,
-	): Promise<GameSession[] | null> => {
-		try {
-			// 获取新数据
-			const sessions = await getGameSessions(gameId, limit);
-
-			// 更新状态
-			set((state) => ({
-				recentSessions: {
-					...state.recentSessions,
-					[gameId]: sessions,
-				},
-			}));
-
-			return sessions;
-		} catch (error) {
-			console.error("加载游戏会话失败:", error);
-			return null;
-		}
-	},
-
-	/**
 	 * 初始化游戏时间跟踪（仅限 Tauri 桌面环境）
 	 * 设置事件监听，自动管理运行状态与实时时长
 	 */
@@ -428,11 +292,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 							gameRealTimeStates: newRealTimeStates,
 						};
 					});
-					// ====== 清除统计缓存并触发更新 ======
-					invalidateStatsCache();
-					// 递增版本号，触发依赖 statsVersion 的组件重新获取数据
-					set((state) => ({ statsVersion: state.statsVersion + 1 }));
-					// ====== END ======
+					await queryClient.invalidateQueries({ queryKey: ["stats"] });
 					// ====== 游戏结束后刷新Cards组件 ======
 					// 获取主store的状态，检查当前排序选项
 					const store = useStore.getState();
@@ -464,86 +324,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 			runningGameIds: new Set<number>(),
 			gameRealTimeStates: {},
 		});
-	},
-
-	/**
-	 * 获取所有游戏的总游玩时长（分钟）
-	 */
-	getTotalPlayTime: async () => {
-		if (lastTotalPlayTime !== 0) {
-			return lastTotalPlayTime;
-		}
-		const statsMap = await getAllStatsCached();
-		let total = 0;
-		for (const stats of statsMap.values()) {
-			if (typeof stats.total_time === "number") {
-				total += stats.total_time;
-			}
-		}
-		lastTotalPlayTime = total;
-		return total;
-	},
-
-	/**
-	 * 获取本周所有游戏的总游玩时长（分钟）
-	 * 本周定义：周一凌晨0点0分 到 周日23点59分59秒
-	 */
-	getWeekPlayTime: async () => {
-		if (lastWeekPlayTime !== 0) {
-			return lastWeekPlayTime;
-		}
-		const statsMap = await getAllStatsCached();
-		let total = 0;
-		const now = new Date();
-
-		// 计算本周开始日期（周一为一周的开始）
-		const weekStart = new Date(now);
-		const dayOfWeek = now.getDay(); // 0 = 周日, 1 = 周一, ..., 6 = 周六
-
-		// 计算距离本周周一的天数
-		const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 周日时为6天前，其他为 dayOfWeek - 1
-		weekStart.setDate(now.getDate() - daysFromMonday);
-		weekStart.setHours(0, 0, 0, 0); // 设置为周一凌晨0点0分
-
-		// 生成本周开始日期字符串用于比较
-		const weekStartDateStr = getLocalDateString(
-			Math.floor(weekStart.getTime() / 1000),
-		);
-
-		for (const stats of statsMap.values()) {
-			if (Array.isArray(stats.daily_stats)) {
-				for (const record of stats.daily_stats) {
-					// 使用字符串比较，确保准确性
-					if (record.date && record.date >= weekStartDateStr) {
-						total += record.playtime || 0;
-					}
-				}
-			}
-		}
-		lastWeekPlayTime = total;
-		return total;
-	},
-
-	/**
-	 * 获取今天所有游戏的总游玩时长（分钟）
-	 */
-	getTodayPlayTime: async () => {
-		if (lastTodayPlayTime !== 0) {
-			return lastTodayPlayTime;
-		}
-		const statsMap = await getAllStatsCached();
-		let total = 0;
-		const today = getLocalDateString();
-		for (const stats of statsMap.values()) {
-			if (Array.isArray(stats.daily_stats)) {
-				const todayRecord = stats.daily_stats.find((r) => r.date === today);
-				if (todayRecord) {
-					total += todayRecord.playtime || 0;
-				}
-			}
-		}
-		lastTodayPlayTime = total;
-		return total;
 	},
 }));
 

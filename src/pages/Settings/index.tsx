@@ -64,7 +64,14 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
-import { useSettingsResources } from "@/hooks/queries/useSettings";
+import {
+	useBgmToken,
+	useLogLevel,
+	usePortableMode,
+	useSetBgmToken,
+	useSetLogLevel,
+	useSetPortableMode,
+} from "@/hooks/queries/useSettings";
 import { fileService } from "@/services";
 import { useStore } from "@/store";
 import { getErrorMessage, openDatabaseBackupFolder } from "@/utils";
@@ -123,7 +130,8 @@ const LanguageSelect = () => {
 
 const BgmTokenSettings = () => {
 	const { t } = useTranslation();
-	const { bgmToken, setBgmToken, isSavingBgmToken } = useSettingsResources();
+	const { data: bgmToken = "" } = useBgmToken();
+	const setBgmTokenMutation = useSetBgmToken();
 	const [inputToken, setInputToken] = useState("");
 
 	useEffect(() => {
@@ -142,7 +150,7 @@ const BgmTokenSettings = () => {
 	 */
 	const handleSaveToken = async () => {
 		try {
-			await setBgmToken(inputToken);
+			await setBgmTokenMutation.mutateAsync(inputToken);
 			snackbar.success(
 				t("pages.Settings.bgmTokenSettings.saveSuccess", "BGM Token 保存成功"),
 			);
@@ -206,7 +214,7 @@ const BgmTokenSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleSaveToken}
-					disabled={isSavingBgmToken}
+					disabled={setBgmTokenMutation.isPending}
 					className="px-6 py-2"
 				>
 					{t("pages.Settings.saveBtn")}
@@ -296,12 +304,13 @@ const NsfwSettings = () => {
 
 const LogLevelSettings = () => {
 	const { t } = useTranslation();
-	const { logLevel, setLogLevel } = useSettingsResources();
+	const { data: logLevel = "error" } = useLogLevel();
+	const setLogLevelMutation = useSetLogLevel();
 
 	const handleChange = async (event: SelectChangeEvent) => {
 		const level = event.target.value as "error" | "warn" | "info" | "debug";
 		try {
-			await setLogLevel(level);
+			await setLogLevelMutation.mutateAsync(level);
 			snackbar.success(
 				t("pages.Settings.logLevel.changed", `日志级别已切换为 ${level}`, {
 					level,
@@ -778,7 +787,8 @@ const DatabaseBackupSettings = () => {
 
 const PortableModeSettings = () => {
 	const { t } = useTranslation();
-	const { portableMode, setPortableMode } = useSettingsResources();
+	const { data: portableMode = false } = usePortableMode();
+	const setPortableModeMutation = useSetPortableMode();
 	const [isLoading, setIsLoading] = useState(false);
 	const [showConfirm, setShowConfirm] = useState(false);
 	const [pendingValue, setPendingValue] = useState(false);
@@ -797,7 +807,7 @@ const PortableModeSettings = () => {
 		setIsLoading(true);
 
 		try {
-			const result = await setPortableMode(pendingValue);
+			const result = await setPortableModeMutation.mutateAsync(pendingValue);
 
 			// 显示详细的迁移结果
 			if (result.total_files > 0) {
@@ -1148,7 +1158,7 @@ const DevSettings: React.FC = () => {
 
 const BatchUpdateSettings: React.FC = () => {
 	const { t } = useTranslation();
-	const { bgmToken } = useSettingsResources();
+	const { data: bgmToken = "" } = useBgmToken();
 	const [isUpdatingVndb, setIsUpdatingVndb] = useState(false);
 	const [isUpdatingBgm, setIsUpdatingBgm] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");

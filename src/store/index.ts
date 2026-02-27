@@ -19,14 +19,9 @@
  */
 
 import type { Update } from "@tauri-apps/plugin-updater";
-import i18next from "i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { getVirtualCategoryGames } from "@/hooks/common/useVirtualCollections";
-import { collectionService, gameService } from "@/services";
 import type { SortOption, SortOrder } from "@/services/types";
-import type { Category, GameData, Group } from "@/types";
-import { applyNsfwFilter, getDisplayGameDataList } from "@/utils";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
@@ -122,53 +117,15 @@ export interface AppState {
 	setPendingUpdate: (update: Update | null) => void;
 	triggerUpdateModal: (update: Update) => void;
 
-	// 分组分类相关状态与方法
-	groups: Group[]; // 所有分组（包括默认分组和自定义分组）
+	// 分组分类选择状态
 	currentGroupId: string | null; // 当前选中的分组ID
-	currentCategories: Category[]; // 当前分组下的分类列表（带游戏数量）
-	categoryGames: GameData[]; // 当前分类下的游戏列表
 	selectedCategoryId: number | null; // 当前选中的分类ID
 	selectedCategoryName: string | null; // 当前选中的分类名称
-	// 分类游戏ID缓存（仅真实分类，虚拟分类从 allGames 派生）
-	categoryGamesCache: Record<number, number[]>; // key: categoryId, value: gameIds
-
-	// 分组操作方法
-	fetchGroups: () => Promise<void>; // 获取所有分组
 	setCurrentGroup: (groupId: string | null) => void; // 设置当前分组
-	fetchCategoriesByGroup: (groupId: string) => Promise<void>; // 获取指定分组下的分类
-	fetchGamesByCategory: (
-		categoryId: number,
-		categoryName?: string,
-	) => Promise<void>; // 获取指定分类下的游戏
 	setSelectedCategory: (
 		categoryId: number | null,
 		categoryName?: string,
 	) => void; // 设置当前选中的分类
-
-	// 分类 CRUD 操作
-	createGroup: (name: string, icon?: string) => Promise<void>; // 创建分组
-	createCategory: (
-		name: string,
-		groupId: number,
-		icon?: string,
-	) => Promise<void>; // 创建分类
-	deleteGroup: (groupId: number) => Promise<void>; // 删除分组
-	deleteCategory: (categoryId: number) => Promise<void>; // 删除分类
-	updateGroup: (
-		groupId: number,
-		updates: { name?: string; icon?: string },
-	) => Promise<void>; // 更新分组
-	updateCategory: (
-		categoryId: number,
-		updates: { name?: string; icon?: string },
-	) => Promise<void>; // 更新分类
-	renameGroup: (groupId: number, newName: string) => Promise<void>; // 重命名分组
-	renameCategory: (categoryId: number, newName: string) => Promise<void>; // 重命名分类
-
-	// 游戏-分类关联操作
-	addGameToCategory: (gameId: number, categoryId: number) => Promise<void>; // 添加游戏到分类
-	removeGameFromCategory: (gameId: number, categoryId: number) => Promise<void>; // 从分类移除游戏
-	updateCategoryGames: (gameIds: number[], categoryId: number) => Promise<void>; // 批量更新分类中的游戏列表
 }
 
 // 创建持久化的全局状态
@@ -220,15 +177,6 @@ export const useStore = create<AppState>()(
 			nsfwFilter: false,
 			setNsfwFilter: async (enabled: boolean) => {
 				set({ nsfwFilter: enabled });
-
-				// 如果当前在分类页面，刷新 categoryGames 以应用新的 NSFW 筛选
-				const { selectedCategoryId, selectedCategoryName } = get();
-				if (selectedCategoryId !== null) {
-					await get().fetchGamesByCategory(
-						selectedCategoryId,
-						selectedCategoryName || undefined,
-					);
-				}
 			},
 			nsfwCoverReplace: false,
 			setNsfwCoverReplace: (enabled: boolean) => {
@@ -319,15 +267,6 @@ export const useStore = create<AppState>()(
 				void _gameId;
 				void _newStatus;
 				void skipRefresh;
-
-				// 如果当前在分类页面，也需要刷新 categoryGames
-				const { selectedCategoryId, selectedCategoryName } = get();
-				if (selectedCategoryId !== null) {
-					await get().fetchGamesByCategory(
-						selectedCategoryId,
-						selectedCategoryName || undefined,
-					);
-				}
 			},
 
 			// 更新窗口状态管理
@@ -346,125 +285,18 @@ export const useStore = create<AppState>()(
 				});
 			},
 
-			// 分组分类相关状态初始值
-			groups: [],
+			// 分组分类选择状态初始值
 			currentGroupId: null,
-			currentCategories: [],
-			categoryGames: [],
 			selectedCategoryId: null,
-			selectedCategoryName: null, // 仅用于虚拟分类（开发商分类）的名称存储
-			categoryGamesCache: {}, // 分类游戏ID缓存
-
-			// 获取所有分组（包括默认分组和自定义分组）
-			fetchGroups: async () => {
-				try {
-					const groups = await collectionService.getGroups();
-					set({ groups });
-				} catch (error) {
-					console.error("Failed to fetch groups:", error);
-				}
-			},
+			selectedCategoryName: null,
 
 			// 设置当前分组
 			setCurrentGroup: (groupId: string | null) => {
 				set({
 					currentGroupId: groupId,
-					currentCategories: [],
-					categoryGames: [],
+					selectedCategoryId: null,
+					selectedCategoryName: null,
 				});
-				if (groupId) {
-					get().fetchCategoriesByGroup(groupId);
-				}
-			},
-
-			// 获取指定分组下的分类
-			fetchCategoriesByGroup: async (groupId: string) => {
-				try {
-					// 如果是默认分组，不需要从数据库查询
-					// 默认分组（DEVELOPER、PLAY_STATUS）由前端动态生成
-					if (groupId.startsWith("default_")) {
-						set({ currentCategories: [] });
-						return;
-					}
-
-					// 自定义分组直接从数据库查询
-					const groupIdNum = Number.parseInt(groupId, 10);
-					if (Number.isNaN(groupIdNum)) {
-						console.error("Invalid group ID:", groupId);
-						return;
-					}
-
-					const categories =
-						await collectionService.getCategoriesWithCount(groupIdNum);
-					set({ currentCategories: categories });
-				} catch (error) {
-					console.error("Failed to fetch categories:", error);
-				}
-			},
-
-			// 获取指定分类下的游戏
-			fetchGamesByCategory: async (
-				categoryId: number,
-				categoryName?: string,
-			) => {
-				try {
-					let gameDataList: GameData[];
-					const allGames = getDisplayGameDataList(
-						await gameService.getAllGames(
-							"all",
-							get().sortOption,
-							get().sortOrder,
-							i18next.language,
-						),
-						i18next.language,
-					);
-
-					// 处理虚拟分类（负数ID）- 使用提取的工具函数
-					if (categoryId < 0) {
-						gameDataList = getVirtualCategoryGames(
-							categoryId,
-							categoryName || null,
-							allGames,
-							(key: string) => i18next.t(key),
-						);
-					} else {
-						// 真实分类（正数ID），使用 store 缓存优化
-						const cache = get().categoryGamesCache;
-						const cachedGameIds = cache[categoryId];
-
-						let gameIds: number[];
-						if (cachedGameIds) {
-							gameIds = cachedGameIds;
-						} else {
-							// 缓存缺失，重新获取
-							gameIds =
-								await collectionService.getGamesInCollection(categoryId);
-
-							// 更新 store 缓存
-							set((state) => ({
-								categoryGamesCache: {
-									...state.categoryGamesCache,
-									[categoryId]: gameIds,
-								},
-							}));
-						}
-
-						// 按照 gameIds 的顺序从 allGames 中获取游戏（保持排序）
-						gameDataList = gameIds
-							.map((id) => allGames.find((game) => game.id === id))
-							.filter((game): game is GameData => !!game);
-					} // 应用NSFW筛选
-					const filteredGames = applyNsfwFilter(gameDataList, get().nsfwFilter);
-					// 只在首次设置时更新 selectedCategoryId 和 selectedCategoryName
-					// 后续调用 fetchGamesByCategory 只更新 categoryGames，避免覆盖名称
-					// setSelectedCategory 会先行设置这两个字段，fetchGamesByCategory 只需要加载游戏
-
-					set({
-						categoryGames: filteredGames,
-					});
-				} catch (error) {
-					console.error("Failed to fetch games by category:", error);
-				}
 			},
 
 			// 设置当前选中的分类
@@ -476,273 +308,11 @@ export const useStore = create<AppState>()(
 					selectedCategoryId: categoryId,
 					selectedCategoryName: categoryName || null,
 				});
-				if (categoryId) {
-					get().fetchGamesByCategory(categoryId, categoryName);
-				} else {
-					set({ categoryGames: [] });
-				}
 			},
 
-			// 创建分组
-			createGroup: async (name: string, icon?: string) => {
-				try {
-					await collectionService.createCollection(name, null, 0, icon || null);
-					// 刷新分组列表
-					await get().fetchGroups();
-				} catch (error) {
-					console.error("Failed to create group:", error);
-				}
-			},
-
-			// 创建分类
-			createCategory: async (name: string, groupId: number, icon?: string) => {
-				try {
-					await collectionService.createCollection(
-						name,
-						groupId,
-						0,
-						icon || null,
-					);
-					// 刷新当前分组的分类列表
-					await get().fetchCategoriesByGroup(groupId.toString());
-				} catch (error) {
-					console.error("Failed to create category:", error);
-				}
-			},
-
-			// 删除分组
-			deleteGroup: async (groupId: number) => {
-				try {
-					await collectionService.deleteCollection(groupId);
-					// 分组删除，清空所有缓存
-					set({ categoryGamesCache: {} });
-					// 刷新分组列表
-					await get().fetchGroups();
-					// 如果删除的是当前分组，清空当前分组
-					if (get().currentGroupId === groupId.toString()) {
-						set({ currentGroupId: null, currentCategories: [] });
-					}
-				} catch (error) {
-					console.error("Failed to delete group:", error);
-				}
-			},
-
-			// 删除分类
-			deleteCategory: async (categoryId: number) => {
-				try {
-					await collectionService.deleteCollection(categoryId);
-					// 分类删除，清理该分类缓存
-					set((state) => {
-						const newCache = { ...state.categoryGamesCache };
-						delete newCache[categoryId];
-						return { categoryGamesCache: newCache };
-					});
-					// 刷新当前分组的分类列表
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-					// 如果删除的是当前分类，清空当前分类
-					if (get().selectedCategoryId === categoryId) {
-						set({
-							selectedCategoryId: null,
-							categoryGames: [],
-							selectedCategoryName: null,
-						});
-					}
-				} catch (error) {
-					console.error("Failed to delete category:", error);
-				}
-			},
-
-			// 更新分组
-			updateGroup: async (
-				groupId: number,
-				updates: { name?: string; icon?: string },
-			) => {
-				try {
-					await collectionService.updateCollection(
-						groupId,
-						updates.name,
-						undefined,
-						undefined,
-						updates.icon,
-					);
-					// 刷新分组列表
-					await get().fetchGroups();
-				} catch (error) {
-					console.error("Failed to update group:", error);
-				}
-			},
-
-			// 更新分类
-			updateCategory: async (
-				categoryId: number,
-				updates: { name?: string; icon?: string },
-			) => {
-				try {
-					await collectionService.updateCollection(
-						categoryId,
-						updates.name,
-						undefined,
-						undefined,
-						updates.icon,
-					);
-					// 刷新当前分组的分类列表
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-				} catch (error) {
-					console.error("Failed to update category:", error);
-				}
-			},
-
-			// 重命名分组（基于 updateGroup 的简化版本）
-			renameGroup: async (groupId: number, newName: string) => {
-				try {
-					await collectionService.updateCollection(
-						groupId,
-						newName,
-						undefined,
-						undefined,
-						undefined,
-					);
-					// 刷新分组列表
-					await get().fetchGroups();
-				} catch (error) {
-					console.error("Failed to rename group:", error);
-				}
-			},
-
-			// 重命名分类（基于 updateCategory 的简化版本）
-			renameCategory: async (categoryId: number, newName: string) => {
-				try {
-					await collectionService.updateCollection(
-						categoryId,
-						newName,
-						undefined,
-						undefined,
-						undefined,
-					);
-					// 刷新当前分组的分类列表
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-				} catch (error) {
-					console.error("Failed to rename category:", error);
-				}
-			},
-
-			// 添加游戏到分类（保留单个添加，供向后兼容）
-			addGameToCategory: async (gameId: number, categoryId: number) => {
-				try {
-					await collectionService.addGameToCollection(gameId, categoryId);
-					// 更新关联后清理该分类缓存
-					set((state) => {
-						const newCache = { ...state.categoryGamesCache };
-						delete newCache[categoryId];
-						return { categoryGamesCache: newCache };
-					});
-					// 如果当前选中的是这个分类，刷新游戏列表
-					if (get().selectedCategoryId === categoryId) {
-						await get().fetchGamesByCategory(categoryId);
-					}
-					// 刷新当前分组的分类列表（更新游戏数量）
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-				} catch (error) {
-					console.error("Failed to add game to category:", error);
-				}
-			},
-
-			// 从分类移除游戏（保留单个删除，供向后兼容）
-			removeGameFromCategory: async (gameId: number, categoryId: number) => {
-				try {
-					await collectionService.removeGameFromCollection(gameId, categoryId);
-					// 更新关联后清理该分类缓存
-					set((state) => {
-						const newCache = { ...state.categoryGamesCache };
-						delete newCache[categoryId];
-						return { categoryGamesCache: newCache };
-					});
-					// 如果当前选中的是这个分类，刷新游戏列表
-					if (get().selectedCategoryId === categoryId) {
-						await get().fetchGamesByCategory(categoryId);
-					}
-					// 刷新当前分组的分类列表（更新游戏数量）
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-				} catch (error) {
-					console.error("Failed to remove game from category:", error);
-				}
-			},
-
-			// 批量更新分类中的游戏列表
-			updateCategoryGames: async (gameIds: number[], categoryId: number) => {
-				try {
-					// 1. 乐观更新：先更新前端状态，防止列表闪烁
-					const { nsfwFilter, currentCategories } = get();
-					const allGames = getDisplayGameDataList(
-						await gameService.getAllGames(
-							"all",
-							get().sortOption,
-							get().sortOrder,
-							i18next.language,
-						),
-						i18next.language,
-					);
-					// 根据 ID 列表重新排序当前分类的游戏
-					const newOrderGames = gameIds
-						.map((id) => allGames.find((g) => g.id === id))
-						.filter((g): g is GameData => !!g);
-
-					// 应用 NSFW 筛选
-					const filteredGames = applyNsfwFilter(newOrderGames, nsfwFilter);
-
-					// 同时更新 currentCategories 中对应分类的 game_count
-					const updatedCategories = currentCategories.map((cat) =>
-						cat.id === categoryId
-							? { ...cat, game_count: gameIds.length }
-							: cat,
-					);
-
-					// 立即更新状态
-					set((state) => ({
-						categoryGames: filteredGames,
-						categoryGamesCache: {
-							...state.categoryGamesCache,
-							[categoryId]: gameIds,
-						},
-						currentCategories: updatedCategories,
-					}));
-
-					// 2. 后台异步更新数据库
-					await collectionService.updateCategoryGames(gameIds, categoryId);
-				} catch (error) {
-					console.error("Failed to update category games:", error);
-					// 更新失败，回滚状态（重新获取）
-					await get().fetchGamesByCategory(categoryId);
-					// 同时刷新分类列表以恢复正确的 game_count
-					const currentGroupId = get().currentGroupId;
-					if (currentGroupId) {
-						await get().fetchCategoriesByGroup(currentGroupId);
-					}
-					throw error;
-				}
-			},
-
-			// 初始化方法，先初始化数据库，然后加载所有需要的数据
+			// 初始化方法
 			initialize: async () => {
-				// React Query 负责游戏数据获取，这里只保留分组初始化
-				await get().fetchGroups();
-
-				// 初始化游戏时间跟踪
+				// 初始化游戏时间跟踪（数据获取由 React Query 自动触发）
 				initializeGamePlayTracking();
 			},
 		}),
@@ -773,10 +343,9 @@ export const useStore = create<AppState>()(
 				spoilerLevel: state.spoilerLevel,
 				// 计时模式：playtime 或 elapsed
 				timeTrackingMode: state.timeTrackingMode,
-				// 分组分类相关（优化存储）
+				// 分组分类选择状态
 				currentGroupId: state.currentGroupId,
 				selectedCategoryId: state.selectedCategoryId,
-				// selectedCategoryName 只用于开发商分类，页面刷新时会重新获取
 				selectedCategoryName: state.selectedCategoryName,
 			}),
 		},
