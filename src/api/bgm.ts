@@ -337,8 +337,8 @@ export async function updateUserCollection(
 	subjectId: string,
 	type: number,
 	token: string,
-) {
-	if (!token || !username) return null;
+): Promise<boolean> {
+	if (!token || !username) return false;
 	const BGM_HEADER = {
 		headers: {
 			Accept: "application/json",
@@ -351,14 +351,15 @@ export async function updateUserCollection(
 		console.log(
 			`https://api.bgm.tv/v0/users/${username}/collections/${subjectId}`,
 		);
-		const res = await tauriHttp.post(
+		await tauriHttp.post(
 			`https://api.bgm.tv/v0/users/-/collections/${subjectId}`,
 			{ type },
 			BGM_HEADER,
 		);
-		return res.data;
+		// HTTP 204 does not return response body
+		return true;
 	} catch (error) {
 		console.error(`更新用户收藏状态失败 (subjectId: ${subjectId}):`, error);
-		return null;
+		return false;
 	}
 }

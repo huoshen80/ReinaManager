@@ -136,19 +136,19 @@ const SyncBangumiModal = () => {
 
 		setLoading(true);
 		try {
-			const res = await updateUserCollection(
+			const success = await updateUserCollection(
 				bgmProfileUsername,
 				selectedGame.bgm_id,
 				mappedBgmType as number,
 				bgmToken,
 			);
-			if (res !== null) {
+			if (success) {
 				snackbar.success(
 					t("components.SyncBangumiModal.syncSuccess", "已同步到 Bangumi"),
 				);
 				handleClose();
 			} else {
-				throw new Error("API returned null");
+				throw new Error("API sync failed");
 			}
 		} catch (error) {
 			console.error("Failed to overwrite BGM", error);
