@@ -15,6 +15,7 @@ import type { LogLevel } from "@/types";
 export const settingsKeys = {
 	all: ["settings"] as const,
 	bgmToken: () => [...settingsKeys.all, "bgmToken"] as const,
+	bgmProfile: () => [...settingsKeys.all, "bgmProfile"] as const,
 	logLevel: () => [...settingsKeys.all, "logLevel"] as const,
 	saveRootPath: () => [...settingsKeys.all, "saveRootPath"] as const,
 	dbBackupPath: () => [...settingsKeys.all, "dbBackupPath"] as const,
@@ -37,6 +38,17 @@ function useBgmToken() {
 		queryKey: settingsKeys.bgmToken(),
 		queryFn: () => settingsService.getBgmToken(),
 		// BGM Token 变化频率低，使用长缓存避免不必要请求
+		staleTime: Infinity,
+	});
+}
+
+/**
+ * 获取 BGM Profile
+ */
+function useBgmProfile() {
+	return useQuery({
+		queryKey: settingsKeys.bgmProfile(),
+		queryFn: () => settingsService.getBgmProfile(),
 		staleTime: Infinity,
 	});
 }
@@ -81,6 +93,25 @@ function useSetBgmToken() {
 	});
 }
 
+function useSetBgmProfile() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			username,
+			avatar,
+		}: {
+			username?: string | null;
+			avatar?: string | null;
+		}) => settingsService.setBgmProfile(username, avatar),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.bgmProfile(),
+			});
+		},
+	});
+}
+
 /**
  * 设置日志级别
  */
@@ -120,6 +151,9 @@ export function useSettingsResources() {
 	const bgmTokenQuery = useBgmToken();
 	const setBgmTokenMutation = useSetBgmToken();
 
+	const bgmProfileQuery = useBgmProfile();
+	const setBgmProfileMutation = useSetBgmProfile();
+
 	const logLevelQuery = useLogLevel();
 	const setLogLevelMutation = useSetLogLevel();
 
@@ -127,10 +161,13 @@ export function useSettingsResources() {
 	const setPortableModeMutation = useSetPortableMode();
 
 	return {
-		// BGM Token
+		// BGM Token & Profile
 		bgmToken: bgmTokenQuery.data ?? "",
 		setBgmToken: setBgmTokenMutation.mutateAsync,
 		isSavingBgmToken: setBgmTokenMutation.isPending,
+		bgmProfileUsername: bgmProfileQuery.data?.[0] ?? "",
+		bgmProfileAvatar: bgmProfileQuery.data?.[1] ?? "",
+		setBgmProfile: setBgmProfileMutation.mutateAsync,
 
 		// 日志级别
 		logLevel: logLevelQuery.data ?? "error",

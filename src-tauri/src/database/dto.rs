@@ -112,6 +112,8 @@ impl UpdateCollectionData {
 #[serde(default)]
 pub struct UpdateSettingsData {
     pub bgm_token: Option<String>,
+    pub bgm_username: Option<String>,
+    pub bgm_avatar: Option<String>,
     pub save_root_path: Option<String>,
     pub db_backup_path: Option<String>,
     pub le_path: Option<String>,
@@ -123,6 +125,8 @@ impl UpdateSettingsData {
     /// 返回清洗后的数据，将空字符串转换为 None
     pub fn cleaned(mut self) -> Self {
         self.bgm_token = self.bgm_token.filter(|s| !s.trim().is_empty());
+        self.bgm_username = self.bgm_username.filter(|s| !s.trim().is_empty());
+        self.bgm_avatar = self.bgm_avatar.filter(|s| !s.trim().is_empty());
         self.save_root_path = self.save_root_path.filter(|s| !s.trim().is_empty());
         self.db_backup_path = self.db_backup_path.filter(|s| !s.trim().is_empty());
         self.le_path = self.le_path.filter(|s| !s.trim().is_empty());
@@ -151,6 +155,8 @@ pub struct InsertGameData {
     pub clear: Option<i32>,
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
+    pub bgm_sync_status: Option<i32>,
+    pub vndb_sync_status: Option<i32>,
 
     // === JSON 元数据 ===
     pub vndb_data: Option<VndbData>,
@@ -191,6 +197,10 @@ pub struct UpdateGameData {
     pub le_launch: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub bgm_sync_status: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub vndb_sync_status: Option<Option<i32>>,
     // === JSON 元数据 ===
     #[serde(default, deserialize_with = "double_option")]
     pub vndb_data: Option<Option<VndbData>>,

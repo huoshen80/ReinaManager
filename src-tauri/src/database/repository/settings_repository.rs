@@ -15,6 +15,8 @@ impl SettingsRepository {
             let user = user::ActiveModel {
                 id: Set(1),
                 bgm_token: Set(None),
+                bgm_username: Set(None),
+                bgm_avatar: Set(None),
                 save_root_path: Set(None),
                 db_backup_path: Set(None),
                 le_path: Set(None),
@@ -51,6 +53,42 @@ impl SettingsRepository {
         let mut active: user::ActiveModel = user.into();
         // 清洗空字符串为 NULL
         active.bgm_token = Set(Some(token).filter(|s| !s.trim().is_empty()));
+
+        active.update(db).await?;
+        Ok(())
+    }
+
+    /// 获取bgm用户信息
+    pub async fn get_bgm_profile(db: &DatabaseConnection) -> Result<(String, String), DbErr> {
+        Self::ensure_user_exists(db).await?;
+
+        let user = User::find_by_id(1)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
+
+        Ok((
+            user.bgm_username.unwrap_or_default(),
+            user.bgm_avatar.unwrap_or_default(),
+        ))
+    }
+
+    /// 设置bgm用户信息
+    pub async fn set_bgm_profile(
+        db: &DatabaseConnection,
+        username: Option<String>,
+        avatar: Option<String>,
+    ) -> Result<(), DbErr> {
+        Self::ensure_user_exists(db).await?;
+
+        let user = User::find_by_id(1)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
+
+        let mut active: user::ActiveModel = user.into();
+        active.bgm_username = Set(username.filter(|s| !s.trim().is_empty()));
+        active.bgm_avatar = Set(avatar.filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -197,6 +235,14 @@ impl SettingsRepository {
 
         if let Some(token) = data.bgm_token {
             active.bgm_token = Set(Some(token));
+        }
+
+        if let Some(username) = data.bgm_username {
+            active.bgm_username = Set(Some(username));
+        }
+
+        if let Some(avatar) = data.bgm_avatar {
+            active.bgm_avatar = Set(Some(avatar));
         }
 
         if let Some(path) = data.save_root_path {

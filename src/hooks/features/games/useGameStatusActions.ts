@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
+import { updateUserCollection } from "@/api/bgm";
 import { snackbar } from "@/components/Snackbar";
 import {
 	type UpdatePlayStatusParams,
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
+import { settingsService } from "@/services";
 import { useStore } from "@/store";
 import type { GameData } from "@/types";
 import { getErrorMessage } from "@/utils";
@@ -69,6 +71,46 @@ export function useGameStatusActions() {
 						}
 					}
 					options?.onSuccess?.(updatedGame, variables);
+
+					const storeState = useStore.getState();
+					if (storeState.autoSyncBgm && updatedGame.bgm_id) {
+						Promise.all([
+							settingsService.getBgmToken(),
+							settingsService.getBgmProfile(),
+						])
+							.then(([token, [username, _]]) => {
+								if (token && username) {
+									const localToBgmTypeMap: Record<number, number> = {
+										1: 1,
+										3: 2,
+										2: 3,
+										4: 4,
+										5: 5,
+									};
+									const mapped = localToBgmTypeMap[variables.newStatus];
+									if (mapped) {
+										updateUserCollection(
+											username,
+											updatedGame.bgm_id as string,
+											mapped,
+											token,
+										)
+											.then(() => {
+												snackbar.success(
+													t(
+														"components.SyncBangumiModal.syncSuccess",
+														"已同步到 Bangumi",
+													),
+												);
+											})
+											.catch((e) => {
+												console.error("Auto sync to BGM failed", e);
+											});
+									}
+								}
+							})
+							.catch(console.error);
+					}
 				},
 				onError: (error, variables) => {
 					if (!useGlobalInvalidate && previousGame) {
