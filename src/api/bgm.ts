@@ -356,7 +356,7 @@ export async function updateUserCollection(
 			{ type },
 			BGM_HEADER,
 		);
-		// HTTP 204 does not return response body
+		// HTTP 204 does not return response body (但是官方api调试文档返回的是202(?))
 		return true;
 	} catch (error) {
 		console.error(`更新用户收藏状态失败 (subjectId: ${subjectId}):`, error);
