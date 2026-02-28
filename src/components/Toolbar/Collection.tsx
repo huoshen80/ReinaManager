@@ -15,6 +15,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import Button from "@mui/material/Button";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { ManageGamesDialog } from "@/components/Collection";
 import { InputDialog } from "@/components/CommonDialog";
@@ -34,7 +35,14 @@ export const CollectionToolbar: React.FC = () => {
 		selectedCategoryId,
 		setCurrentGroup,
 		setSelectedCategory,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			currentGroupId: s.currentGroupId,
+			selectedCategoryId: s.selectedCategoryId,
+			setCurrentGroup: s.setCurrentGroup,
+			setSelectedCategory: s.setSelectedCategory,
+		})),
+	);
 	const categoriesQuery = useCategories(currentGroupId);
 	const currentCategories = categoriesQuery.data ?? [];
 	const createGroupMutation = useCreateGroup();

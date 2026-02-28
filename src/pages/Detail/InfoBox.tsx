@@ -50,7 +50,7 @@ interface InfoBoxProps {
  */
 export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 	const { t } = useTranslation();
-	const { runningGameIds } = useGamePlayStore();
+	const runningGameIds = useGamePlayStore((s) => s.runningGameIds);
 	const gameStatsQuery = useGameStats(gameID);
 	const stats = gameStatsQuery.data as GameTimeStats | null;
 	const [backupCount, setBackupCount] = useState<number>(0);

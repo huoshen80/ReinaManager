@@ -21,6 +21,7 @@ import parse, { domToReact, Element } from "html-react-parser";
 import { marked } from "marked";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import {
 	checkForUpdates,
 	downloadAndInstallUpdate,
@@ -258,7 +259,16 @@ const WindowsHandler: React.FC = () => {
 		setSkipCloseRemind,
 		setShowUpdateModal,
 		setPendingUpdate,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			showUpdateModal: s.showUpdateModal,
+			pendingUpdate: s.pendingUpdate,
+			setDefaultCloseAction: s.setDefaultCloseAction,
+			setSkipCloseRemind: s.setSkipCloseRemind,
+			setShowUpdateModal: s.setShowUpdateModal,
+			setPendingUpdate: s.setPendingUpdate,
+		})),
+	);
 	const { t } = useTranslation();
 	const [open, setOpen] = useState(false);
 

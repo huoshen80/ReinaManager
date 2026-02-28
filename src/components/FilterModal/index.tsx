@@ -38,7 +38,8 @@ export type GameFilterType = "all" | "local" | "online" | "noclear" | "clear";
  */
 export const FilterModal: React.FC = () => {
 	const { t } = useTranslation();
-	const { gameFilterType, setGameFilterType } = useStore();
+	const gameFilterType = useStore((s) => s.gameFilterType);
+	const setGameFilterType = useStore((s) => s.setGameFilterType);
 
 	const [open, setOpen] = useState(false);
 	const [filterValue, setFilterValue] = useState<GameFilterType>(

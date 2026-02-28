@@ -81,7 +81,8 @@ const TabPanel = (props: TabPanelProps) => {
 export const Detail: React.FC = () => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const { setSelectedGameId, tagTranslation } = useStore();
+	const setSelectedGameId = useStore((s) => s.setSelectedGameId);
+	const tagTranslation = useStore((s) => s.tagTranslation);
 	const { selectedGame, isLoadingSelectedGame } = useSelectedGame(id);
 	const [tabIndex, setTabIndex] = useState(0);
 	const [showAllTags, setShowAllTags] = useState(false); // 控制标签折叠状态

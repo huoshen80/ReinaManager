@@ -58,6 +58,7 @@ import { PageContainer } from "@toolpad/core/PageContainer";
 import { join } from "pathe";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { toggleAutostart } from "@/components/AutoStart";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
@@ -267,7 +268,14 @@ const AutoStartSettings = () => {
 const NsfwSettings = () => {
 	const { t } = useTranslation();
 	const { nsfwFilter, setNsfwFilter, nsfwCoverReplace, setNsfwCoverReplace } =
-		useStore();
+		useStore(
+			useShallow((s) => ({
+				nsfwFilter: s.nsfwFilter,
+				setNsfwFilter: s.setNsfwFilter,
+				nsfwCoverReplace: s.nsfwCoverReplace,
+				setNsfwCoverReplace: s.setNsfwCoverReplace,
+			})),
+		);
 
 	return (
 		<Box className="mb-6">
@@ -405,7 +413,8 @@ const VndbDataSettings = () => {
 
 const TagTranslationSettings = () => {
 	const { t } = useTranslation();
-	const { tagTranslation, setTagTranslation } = useStore();
+	const tagTranslation = useStore((s) => s.tagTranslation);
+	const setTagTranslation = useStore((s) => s.setTagTranslation);
 
 	return (
 		<Box className="mb-6">
@@ -430,7 +439,8 @@ const TagTranslationSettings = () => {
 
 const SpoilerLevelSettings = () => {
 	const { t } = useTranslation();
-	const { spoilerLevel, setSpoilerLevel } = useStore();
+	const spoilerLevel = useStore((s) => s.spoilerLevel);
+	const setSpoilerLevel = useStore((s) => s.setSpoilerLevel);
 
 	return (
 		<Box className="mb-6">
@@ -473,7 +483,16 @@ const CardClickModeSettings = () => {
 		setDoubleClickLaunch,
 		longPressLaunch,
 		setLongPressLaunch,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			cardClickMode: s.cardClickMode,
+			setCardClickMode: s.setCardClickMode,
+			doubleClickLaunch: s.doubleClickLaunch,
+			setDoubleClickLaunch: s.setDoubleClickLaunch,
+			longPressLaunch: s.longPressLaunch,
+			setLongPressLaunch: s.setLongPressLaunch,
+		})),
+	);
 
 	return (
 		<Box className="mb-6">
@@ -561,7 +580,14 @@ const CloseBtnSettings = () => {
 		defaultCloseAction,
 		setSkipCloseRemind,
 		setDefaultCloseAction,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			skipCloseRemind: s.skipCloseRemind,
+			defaultCloseAction: s.defaultCloseAction,
+			setSkipCloseRemind: s.setSkipCloseRemind,
+			setDefaultCloseAction: s.setDefaultCloseAction,
+		})),
+	);
 	return (
 		<Box className="mb-6">
 			<InputLabel className="font-semibold mb-4">
@@ -914,7 +940,8 @@ const PortableModeSettings = () => {
 
 const TimeTrackingModeSettings = () => {
 	const { t } = useTranslation();
-	const { timeTrackingMode, setTimeTrackingMode } = useStore();
+	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
+	const setTimeTrackingMode = useStore((s) => s.setTimeTrackingMode);
 
 	return (
 		<Box className="mb-6">
@@ -990,7 +1017,7 @@ const TimeTrackingModeSettings = () => {
  */
 const AboutSection: React.FC = () => {
 	const { t } = useTranslation();
-	const { triggerUpdateModal } = useStore();
+	const triggerUpdateModal = useStore((s) => s.triggerUpdateModal);
 	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");
 

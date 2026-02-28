@@ -391,7 +391,7 @@ export const Buttongroup = ({
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const { openAddModal } = useStore();
+	const openAddModal = useStore((s) => s.openAddModal);
 	const getGameById = useGetGameById();
 
 	return (

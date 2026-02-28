@@ -57,7 +57,9 @@ const SortModal: React.FC = () => {
 	const { t } = useTranslation();
 	const { isopen, handleOpen, handleClose } = useModal();
 	// 从 store 获取排序状态
-	const { sortOption, sortOrder, updateSort } = useStore();
+	const sortOption = useStore((s) => s.sortOption);
+	const sortOrder = useStore((s) => s.sortOrder);
+	const updateSort = useStore((s) => s.updateSort);
 
 	// 本地状态，用于在对话框内部跟踪更改
 	const [localSortOption, setLocalSortOption] = useState(sortOption);

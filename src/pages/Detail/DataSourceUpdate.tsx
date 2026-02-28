@@ -48,7 +48,12 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 		setVndbId(selectedGame?.vndb_id || "");
 		setYmgalId(selectedGame?.ymgal_id || "");
 		setIdType(selectedGame?.id_type || "");
-	}, [selectedGame]);
+	}, [
+		selectedGame?.bgm_id,
+		selectedGame?.vndb_id,
+		selectedGame?.ymgal_id,
+		selectedGame?.id_type,
+	]);
 
 	// 重构的数据获取逻辑
 	const fetchGameData = useCallback(async () => {

@@ -15,6 +15,7 @@ import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import Cards from "@/components/Cards";
 import { ManageGamesDialog } from "@/components/Collection";
 import { EntityCard } from "@/components/Collection/EntityCard";
@@ -50,7 +51,16 @@ export const Collection: React.FC = () => {
 		selectedCategoryId,
 		selectedCategoryName,
 		nsfwFilter,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			currentGroupId: s.currentGroupId,
+			setSelectedCategory: s.setSelectedCategory,
+			setCurrentGroup: s.setCurrentGroup,
+			selectedCategoryId: s.selectedCategoryId,
+			selectedCategoryName: s.selectedCategoryName,
+			nsfwFilter: s.nsfwFilter,
+		})),
+	);
 	const displayAllGames = useAllGameListFacade();
 	const groupsQuery = useGroups();
 	const groups = groupsQuery.data ?? [];

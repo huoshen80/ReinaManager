@@ -438,7 +438,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const doubleClickLaunch = useStore((s) => s.doubleClickLaunch);
 	const longPressLaunch = useStore((s) => s.longPressLaunch);
 	const { games: gamesFromFacade } = useGameListFacade();
-	const { launchGame } = useGamePlayStore();
+	const launchGame = useGamePlayStore((s) => s.launchGame);
 
 	// 右键菜单状态
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
