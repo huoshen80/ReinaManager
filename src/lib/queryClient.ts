@@ -18,8 +18,11 @@ export const queryClient = new QueryClient({
 	}),
 	defaultOptions: {
 		queries: {
-			staleTime: 60 * 1000,
+			staleTime: Number.POSITIVE_INFINITY,
+			gcTime: 1000 * 60 * 15, // 15分钟
 			retry: 1,
+			refetchOnWindowFocus: false,
+			refetchOnReconnect: false,
 		},
 	},
 });

@@ -21,7 +21,6 @@ function useGroups() {
 	return useQuery({
 		queryKey: collectionKeys.groups(),
 		queryFn: () => collectionService.getGroups(),
-		staleTime: 30_000,
 	});
 }
 
@@ -30,7 +29,6 @@ function useGroupGameCounts(groupIds: number[]) {
 		queryKey: collectionKeys.groupCounts(groupIds),
 		queryFn: () => collectionService.batchCountGamesInGroups(groupIds),
 		enabled: groupIds.length > 0,
-		staleTime: 10_000,
 	});
 }
 
@@ -52,7 +50,6 @@ function useCategories(groupId: string | null) {
 			return collectionService.getCategoriesWithCount(groupIdNum);
 		},
 		enabled: isEnabled,
-		staleTime: 30_000,
 	});
 }
 
@@ -67,7 +64,6 @@ function useCategoryGameIds(categoryId: number | null) {
 			return collectionService.getGamesInCollection(categoryId);
 		},
 		enabled: categoryId !== null && categoryId > 0,
-		staleTime: 30_000,
 	});
 }
 

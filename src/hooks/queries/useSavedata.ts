@@ -57,9 +57,6 @@ function useSaveDataBackups(gameId: number | undefined) {
 			return savedataService.getSavedataRecords(gameId);
 		},
 		enabled: !!gameId,
-		staleTime: Infinity,
-		refetchOnWindowFocus: false,
-		retry: 1,
 	});
 }
 

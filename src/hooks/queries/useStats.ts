@@ -75,7 +75,6 @@ function usePlayTimeSummaryQuery() {
 	return useQuery({
 		queryKey: statsKeys.playTimeSummary(),
 		queryFn: getPlayTimeSummary,
-		staleTime: 10_000,
 	});
 }
 
@@ -90,7 +89,6 @@ function useGameStats(gameId: number | null) {
 			return getFormattedGameStats(gameId);
 		},
 		enabled: gameId !== null,
-		staleTime: 10_000,
 	});
 }
 
@@ -105,7 +103,6 @@ function useGameSessions(gameId: number | null, limit = 10) {
 			return getGameSessions(gameId, limit);
 		},
 		enabled: gameId !== null,
-		staleTime: 10_000,
 	});
 }
 

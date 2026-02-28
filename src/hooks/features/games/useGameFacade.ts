@@ -49,7 +49,6 @@ export function useGetGameById() {
 			const fullGame = await queryClient.fetchQuery({
 				queryKey: detailKey,
 				queryFn: () => gameService.getGameById(gameId),
-				staleTime: 60_000,
 			});
 
 			if (!fullGame) {

@@ -40,8 +40,6 @@ export function useBgmToken(options?: SettingsQueryOptions) {
 	return useQuery({
 		queryKey: settingsKeys.bgmToken(),
 		queryFn: () => settingsService.getBgmToken(),
-		// BGM Token 变化频率低，使用长缓存避免不必要请求
-		staleTime: Infinity,
 		enabled: options?.enabled,
 	});
 }

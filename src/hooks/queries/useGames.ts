@@ -52,7 +52,6 @@ function useAllGames() {
 	return useQuery({
 		queryKey: gameKeys.all,
 		queryFn: () => gameService.getAllGames("all"),
-		staleTime: 30_000,
 	});
 }
 
@@ -71,7 +70,6 @@ function useGameList(
 				i18next.language,
 			),
 		placeholderData: keepPreviousData,
-		staleTime: 30_000,
 	});
 }
 
@@ -84,7 +82,6 @@ function useGameDetail(gameId: number | null) {
 		},
 		enabled: gameId !== null,
 		placeholderData: keepPreviousData,
-		staleTime: 60_000,
 	});
 }
 
@@ -92,7 +89,6 @@ function useAllVndbIds() {
 	return useQuery({
 		queryKey: gameKeys.vndbIds(),
 		queryFn: () => gameService.getAllVndbIds(),
-		staleTime: 30_000,
 	});
 }
 
@@ -100,7 +96,6 @@ function useAllBgmIds() {
 	return useQuery({
 		queryKey: gameKeys.bgmIds(),
 		queryFn: () => gameService.getAllBgmIds(),
-		staleTime: 30_000,
 	});
 }
 
