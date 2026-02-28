@@ -5,7 +5,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type PortableModeResult, settingsService } from "@/services";
+import { settingsService } from "@/services";
 import type { LogLevel } from "@/types";
 
 // ============================================================================
@@ -25,6 +25,10 @@ export const settingsKeys = {
 };
 
 type BgmToken = string;
+type SettingPath = string;
+type SettingsQueryOptions = {
+	enabled?: boolean;
+};
 
 // ============================================================================
 // Queries - 数据获取 hooks
@@ -33,12 +37,11 @@ type BgmToken = string;
 /**
  * 获取 BGM Token
  */
-function useBgmToken() {
+export function useBgmToken(options?: SettingsQueryOptions) {
 	return useQuery({
 		queryKey: settingsKeys.bgmToken(),
 		queryFn: () => settingsService.getBgmToken(),
-		// BGM Token 变化频率低，使用长缓存避免不必要请求
-		staleTime: Infinity,
+		enabled: options?.enabled,
 	});
 }
 
@@ -49,27 +52,72 @@ function useBgmProfile() {
 	return useQuery({
 		queryKey: settingsKeys.bgmProfile(),
 		queryFn: () => settingsService.getBgmProfile(),
-		staleTime: Infinity,
 	});
 }
 
 /**
  * 获取当前日志级别
  */
-function useLogLevel() {
+export function useLogLevel(options?: SettingsQueryOptions) {
 	return useQuery({
 		queryKey: settingsKeys.logLevel(),
 		queryFn: () => settingsService.getLogLevel(),
+		enabled: options?.enabled,
 	});
 }
 
 /**
  * 获取便携模式状态
  */
-function usePortableMode() {
+export function usePortableMode(options?: SettingsQueryOptions) {
 	return useQuery({
 		queryKey: settingsKeys.portableMode(),
 		queryFn: () => settingsService.getPortableMode(),
+		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取存档备份根目录
+ */
+export function useSaveRootPath(options?: SettingsQueryOptions) {
+	return useQuery({
+		queryKey: settingsKeys.saveRootPath(),
+		queryFn: () => settingsService.getSaveRootPath(),
+		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取数据库备份路径
+ */
+export function useDbBackupPath(options?: SettingsQueryOptions) {
+	return useQuery({
+		queryKey: settingsKeys.dbBackupPath(),
+		queryFn: () => settingsService.getDbBackupPath(),
+		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取 LE 路径
+ */
+export function useLePath(options?: SettingsQueryOptions) {
+	return useQuery({
+		queryKey: settingsKeys.lePath(),
+		queryFn: () => settingsService.getLePath(),
+		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取 Magpie 路径
+ */
+export function useMagpiePath(options?: SettingsQueryOptions) {
+	return useQuery({
+		queryKey: settingsKeys.magpiePath(),
+		queryFn: () => settingsService.getMagpiePath(),
+		enabled: options?.enabled,
 	});
 }
 
@@ -80,7 +128,7 @@ function usePortableMode() {
 /**
  * 设置 BGM Token
  */
-function useSetBgmToken() {
+export function useSetBgmToken() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -93,7 +141,7 @@ function useSetBgmToken() {
 	});
 }
 
-function useSetBgmProfile() {
+export function useSetBgmProfile() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -115,7 +163,7 @@ function useSetBgmProfile() {
 /**
  * 设置日志级别
  */
-function useSetLogLevel() {
+export function useSetLogLevel() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -131,7 +179,7 @@ function useSetLogLevel() {
 /**
  * 设置便携模式
  */
-function useSetPortableMode() {
+export function useSetPortableMode() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -145,41 +193,65 @@ function useSetPortableMode() {
 }
 
 /**
- * Settings 统一资源导出入口
+ * 设置存档备份根目录
  */
-export function useSettingsResources() {
-	const bgmTokenQuery = useBgmToken();
-	const setBgmTokenMutation = useSetBgmToken();
+export function useSetSaveRootPath() {
+	const queryClient = useQueryClient();
 
-	const bgmProfileQuery = useBgmProfile();
-	const setBgmProfileMutation = useSetBgmProfile();
+	return useMutation({
+		mutationFn: (path: SettingPath) => settingsService.setSaveRootPath(path),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.saveRootPath(),
+			});
+		},
+	});
+}
 
-	const logLevelQuery = useLogLevel();
-	const setLogLevelMutation = useSetLogLevel();
+/**
+ * 设置数据库备份路径
+ */
+export function useSetDbBackupPath() {
+	const queryClient = useQueryClient();
 
-	const portableModeQuery = usePortableMode();
-	const setPortableModeMutation = useSetPortableMode();
+	return useMutation({
+		mutationFn: (path: SettingPath) => settingsService.setDbBackupPath(path),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.dbBackupPath(),
+			});
+		},
+	});
+}
 
-	return {
-		// BGM Token & Profile
-		bgmToken: bgmTokenQuery.data ?? "",
-		setBgmToken: setBgmTokenMutation.mutateAsync,
-		isSavingBgmToken: setBgmTokenMutation.isPending,
-		bgmProfileUsername: bgmProfileQuery.data?.[0] ?? "",
-		bgmProfileAvatar: bgmProfileQuery.data?.[1] ?? "",
-		setBgmProfile: setBgmProfileMutation.mutateAsync,
+/**
+ * 设置 LE 路径
+ */
+export function useSetLePath() {
+	const queryClient = useQueryClient();
 
-		// 日志级别
-		logLevel: logLevelQuery.data ?? "error",
-		setLogLevel: setLogLevelMutation.mutateAsync,
-		isSettingLogLevel: setLogLevelMutation.isPending,
+	return useMutation({
+		mutationFn: (path: SettingPath) => settingsService.setLePath(path),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.lePath(),
+			});
+		},
+	});
+}
 
-		// 便携模式
-		portableMode: portableModeQuery.data ?? false,
-		setPortableMode: setPortableModeMutation.mutateAsync,
-		isSettingPortableMode: setPortableModeMutation.isPending,
-		portableModeResult:
-			(setPortableModeMutation.data as PortableModeResult | undefined) ??
-			undefined,
-	};
+/**
+ * 设置 Magpie 路径
+ */
+export function useSetMagpiePath() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (path: SettingPath) => settingsService.setMagpiePath(path),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.magpiePath(),
+			});
+		},
+	});
 }

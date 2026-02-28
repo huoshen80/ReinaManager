@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useActivate, useUnactivate } from "react-activation";
 import { useLocation } from "react-router-dom";
-import { useScrollStore } from "@/store/scrollStore";
+
+const scrollPositions: Record<string, number> = {};
+
+export const getScrollPosition = (path: string): number => {
+	return scrollPositions[path] ?? 0;
+};
+
+export const setScrollPosition = (path: string, position: number): void => {
+	scrollPositions[path] = position;
+};
 
 interface UseScrollRestoreOptions {
 	/** 滚动容器选择器，默认 'main' */
@@ -52,7 +61,6 @@ export function useScrollRestore(
 	};
 
 	const location = useLocation();
-	const { scrollPositions } = useScrollStore();
 
 	const cleanupRef = useRef<(() => void) | null>(null);
 	const settledRef = useRef(false);
@@ -101,7 +109,7 @@ export function useScrollRestore(
 		}
 
 		const isTargetPath = location.pathname === scrollPath;
-		const target = isTargetPath ? scrollPositions[scrollPath] || 0 : 0;
+		const target = isTargetPath ? getScrollPosition(scrollPath) : 0;
 
 		log("Target position:", target, "for path:", location.pathname);
 
@@ -239,7 +247,6 @@ export function useScrollRestore(
 	}, [
 		location.pathname,
 		scrollPath,
-		scrollPositions,
 		isLoading,
 		containerSelector,
 		timeout,

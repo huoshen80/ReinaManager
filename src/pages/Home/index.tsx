@@ -48,8 +48,8 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useStore } from "@/store";
-import { useGamePlayStore } from "@/store/gamePlayStore";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
+import { usePlayTimeSummary } from "@/hooks/queries/useStats";
 import type { GameData } from "@/types";
 import { PlayStatus } from "@/types/collection";
 import {
@@ -203,17 +203,9 @@ async function getGameActivities(
 }
 
 export const Home: React.FC = () => {
-	const { allGames } = useStore();
-	const { getTotalPlayTime, getWeekPlayTime, getTodayPlayTime, statsVersion } =
-		useGamePlayStore();
-
-	// 分离时长数据的状态管理
-	const [playTimeStats, setPlayTimeStats] = useState({
-		total: 0,
-		week: 0,
-		today: 0,
-		loading: true,
-	});
+	const displayAllGames = useAllGameListFacade();
+	const { totalPlayTime, weekPlayTime, todayPlayTime, isLoading } =
+		usePlayTimeSummary();
 
 	// 分离活动数据的状态管理
 	const [activityData, setActivityData] = useState<{
@@ -233,13 +225,13 @@ export const Home: React.FC = () => {
 	// 同步计算的数据 - 立即显示，无需 loading 状态
 	const gamesList = useMemo(
 		() =>
-			allGames.map((game) => ({
+			displayAllGames.map((game) => ({
 				title: getGameDisplayName(game, i18n.language),
 				id: game.id,
 				isLocal: !!game.localpath,
 				imageUrl: getGameCover(game),
 			})),
-		[allGames, i18n.language],
+		[displayAllGames, i18n.language],
 	);
 
 	const gamesLocalCount = useMemo(
@@ -247,8 +239,9 @@ export const Home: React.FC = () => {
 		[gamesList],
 	);
 	const completedGamesCount = useMemo(
-		() => allGames.filter((game) => game.clear === PlayStatus.PLAYED).length,
-		[allGames],
+		() =>
+			displayAllGames.filter((game) => game.clear === PlayStatus.PLAYED).length,
+		[displayAllGames],
 	);
 
 	// 统计卡片数据 - 区分同步和异步数据
@@ -257,7 +250,7 @@ export const Home: React.FC = () => {
 			// 同步数据 - 立即显示
 			{
 				title: t("home.stats.totalGames", "总游戏数"),
-				value: allGames.length,
+				value: displayAllGames.length,
 				icon: <GamesIcon />,
 				isAsync: false,
 			},
@@ -276,61 +269,39 @@ export const Home: React.FC = () => {
 			// 异步数据 - 可能需要 loading
 			{
 				title: t("home.stats.totalPlayTime", "总游戏时长"),
-				value: formatPlayTime(playTimeStats.total),
+				value: formatPlayTime(totalPlayTime),
 				icon: <TimeIcon />,
 				isAsync: true,
 			},
 			{
 				title: t("home.stats.weekPlayTime", "本周游戏时长"),
-				value: formatPlayTime(playTimeStats.week),
+				value: formatPlayTime(weekPlayTime),
 				icon: <WeekIcon />,
 				isAsync: true,
 			},
 			{
 				title: t("home.stats.todayPlayTime", "今日游戏时长"),
-				value: formatPlayTime(playTimeStats.today),
+				value: formatPlayTime(todayPlayTime),
 				icon: <TodayIcon />,
 				isAsync: true,
 			},
 		],
-		[t, allGames.length, gamesLocalCount, completedGamesCount, playTimeStats],
+		[
+			t,
+			displayAllGames.length,
+			gamesLocalCount,
+			completedGamesCount,
+			totalPlayTime,
+			weekPlayTime,
+			todayPlayTime,
+		],
 	);
-
-	// 异步获取游戏时长数据
-	// statsVersion 变化时（游戏结束后）重新获取数据
-	useEffect(() => {
-		// statsVersion 用于触发重新获取（游戏结束时会更新）
-		void statsVersion;
-
-		const fetchPlayTimeStats = async () => {
-			try {
-				const [totalTimeResult, weekTimeResult, todayTimeResult] =
-					await Promise.all([
-						getTotalPlayTime(),
-						getWeekPlayTime(),
-						getTodayPlayTime(),
-					]);
-
-				setPlayTimeStats({
-					total: totalTimeResult,
-					week: weekTimeResult,
-					today: todayTimeResult,
-					loading: false,
-				});
-			} catch (error) {
-				console.error("获取游戏时长统计失败:", error);
-				setPlayTimeStats((prev) => ({ ...prev, loading: false }));
-			}
-		};
-
-		fetchPlayTimeStats();
-	}, [getTotalPlayTime, getWeekPlayTime, getTodayPlayTime, statsVersion]);
 
 	// 异步获取活动数据
 	useEffect(() => {
 		const fetchActivityData = async () => {
 			try {
-				const result = await getGameActivities(allGames, i18n.language);
+				const result = await getGameActivities(displayAllGames, i18n.language);
 				setActivityData({
 					sessions: result.sessions,
 					added: result.added,
@@ -344,7 +315,7 @@ export const Home: React.FC = () => {
 		};
 
 		fetchActivityData();
-	}, [allGames, i18n.language]);
+	}, [displayAllGames, i18n.language]);
 
 	return (
 		<Box className="p-6 pt-4 flex flex-col gap-4">
@@ -366,7 +337,7 @@ export const Home: React.FC = () => {
 									className="font-bold mb-1 w-full whitespace-nowrap overflow-hidden text-ellipsis"
 								>
 									{/* 异步数据显示 loading，同步数据直接显示 */}
-									{card.isAsync && playTimeStats.loading ? (
+									{card.isAsync && isLoading ? (
 										<Skeleton width={60} />
 									) : (
 										card.value

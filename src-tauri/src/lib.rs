@@ -131,6 +131,32 @@ pub fn run() {
                 let window = app.get_webview_window("main").unwrap();
                 window.open_devtools();
             }
+
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .timezone_strategy(TimezoneStrategy::UseLocal)
+                        .level(log::LevelFilter::Debug) // 允许运行时动态调整到任意级别
+                        .targets([
+                            Target::new(TargetKind::LogDir {
+                                // set custom log file name for debug
+                                file_name: Some("debug".into()),
+                            }),
+                            Target::new(TargetKind::Stdout),
+                        ])
+                        .build(),
+                )?;
+            } else {
+                // 设置初始日志级别为 Error（运行时可通过命令调整）
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .timezone_strategy(TimezoneStrategy::UseLocal)
+                        .level(log::LevelFilter::Debug) // 允许运行时动态调整到任意级别
+                        .build(),
+                )?;
+            }
+            log::set_max_level(log::LevelFilter::Error);
+
             // 初始化路径管理器
             let path_manager = PathManager::new();
             app.manage(path_manager);
@@ -171,31 +197,6 @@ pub fn run() {
                     }
                 }
             });
-
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Debug) // 允许运行时动态调整到任意级别
-                        .targets([
-                            Target::new(TargetKind::LogDir {
-                                // set custom log file name for debug
-                                file_name: Some("debug".into()),
-                            }),
-                            Target::new(TargetKind::Stdout),
-                        ])
-                        .build(),
-                )?;
-            } else {
-                // 设置初始日志级别为 Error（运行时可通过命令调整）
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Debug) // 允许运行时动态调整到任意级别
-                        .build(),
-                )?;
-            }
-            log::set_max_level(log::LevelFilter::Error);
             Ok(())
         })
         .build(tauri::generate_context!())

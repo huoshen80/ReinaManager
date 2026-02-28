@@ -28,7 +28,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
-import { useStore } from "@/store";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
+import {
+	useCategoryGameIds,
+	useUpdateCategoryGames,
+} from "@/hooks/queries/useCollections";
 import type { GameData } from "@/types";
 import { getGameDisplayName } from "@/utils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
@@ -52,12 +56,14 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 	categoryName,
 }) => {
 	const { t, i18n } = useTranslation();
-	const { allGames, categoryGamesCache, updateCategoryGames } = useStore();
+	const displayAllGames = useAllGameListFacade();
+	const categoryGameIdsQuery = useCategoryGameIds(categoryId);
+	const updateCategoryGamesMutation = useUpdateCategoryGames();
 
 	// 从缓存获取分类游戏 ID（未经 NSFW 筛选的完整列表）
 	const categoryGameIds = useMemo(() => {
-		return categoryGamesCache[categoryId] || [];
-	}, [categoryGamesCache, categoryId]);
+		return categoryGameIdsQuery.data || [];
+	}, [categoryGameIdsQuery.data]);
 
 	// 对话框状态
 	const [leftSearchInput, setLeftSearchInput] = useState(""); // 左栏搜索输入
@@ -92,13 +98,15 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 
 	// 左栏：未在分类中的游戏
 	const availableGames = useMemo(() => {
-		return allGames.filter((game) => !gamesInCategory.has(game.id ?? -1));
-	}, [allGames, gamesInCategory]);
+		return displayAllGames.filter(
+			(game) => !gamesInCategory.has(game.id ?? -1),
+		);
+	}, [displayAllGames, gamesInCategory]);
 
 	// 右栏：已在分类中的游戏
 	const categoryGamesList = useMemo(() => {
-		return allGames.filter((game) => gamesInCategory.has(game.id ?? -1));
-	}, [allGames, gamesInCategory]);
+		return displayAllGames.filter((game) => gamesInCategory.has(game.id ?? -1));
+	}, [displayAllGames, gamesInCategory]);
 
 	// 左栏搜索过滤
 	const filteredAvailableGames = useMemo(() => {
@@ -220,7 +228,10 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 		try {
 			// 将当前分类中的游戏列表完全替换为 gamesInCategory
 			const gameIdsArray = Array.from(gamesInCategory);
-			await updateCategoryGames(gameIdsArray, categoryId);
+			await updateCategoryGamesMutation.mutateAsync({
+				categoryId,
+				gameIds: gameIdsArray,
+			});
 
 			// 成功提示
 			snackbar.success(

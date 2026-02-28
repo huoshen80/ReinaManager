@@ -1,13 +1,14 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { updateUserCollection } from "@/api/bgm";
 import { snackbar } from "@/components/Snackbar";
+import { gameKeys } from "@/hooks/queries/useGames";
 import {
 	type UpdatePlayStatusParams,
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
 import { settingsService } from "@/services";
-import { useStore } from "@/store";
-import type { GameData } from "@/types";
+import type { FullGameData, GameData } from "@/types";
 import { getErrorMessage } from "@/utils";
 
 interface UpdatePlayStatusOptions {
@@ -28,13 +29,13 @@ interface UpdatePlayStatusOptions {
  * 游戏状态更新业务编排层
  *
  * 说明：
- * - 组合 Query Mutation 与 Zustand UI 状态同步
- * - 对外保持接近 useStore 的动作调用体验
+ * - 组合 Query Mutation 与 Query 缓存乐观更新
+ * - 对外保持轻量动作调用体验
  * - 统一处理错误提示与回滚逻辑
  */
 export function useGameStatusActions() {
 	const { t } = useTranslation();
-	const { updateGamePlayStatusInStore, setSelectedGame } = useStore();
+	const queryClient = useQueryClient();
 	const updateMutation = useUpdatePlayStatus();
 
 	const updatePlayStatus = (
@@ -44,32 +45,32 @@ export function useGameStatusActions() {
 		const invalidateScope = options?.invalidateScope ?? "game";
 		const useGlobalInvalidate = invalidateScope === "all";
 
-		const currentSelectedGame = useStore.getState().selectedGame;
-		const previousGame =
-			!useGlobalInvalidate && currentSelectedGame?.id === params.gameId
-				? { ...currentSelectedGame }
-				: undefined;
+		const previousGame = !useGlobalInvalidate
+			? (queryClient.getQueryData(
+					gameKeys.detail(params.gameId),
+				) as FullGameData | null)
+			: null;
 
 		if (!useGlobalInvalidate) {
-			updateGamePlayStatusInStore(params.gameId, params.newStatus, true);
+			queryClient.setQueryData<FullGameData | null>(
+				gameKeys.detail(params.gameId),
+				(currentGame) => {
+					if (!currentGame) {
+						return currentGame;
+					}
+
+					return {
+						...currentGame,
+						clear: params.newStatus,
+					};
+				},
+			);
 		}
 
 		updateMutation.mutate(
 			{ ...params, invalidateScope },
 			{
 				onSuccess: (updatedGame, variables) => {
-					if (useGlobalInvalidate) {
-						updateGamePlayStatusInStore(
-							variables.gameId,
-							variables.newStatus,
-							false,
-						);
-					} else {
-						const latestSelectedGame = useStore.getState().selectedGame;
-						if (latestSelectedGame?.id === variables.gameId) {
-							setSelectedGame(updatedGame);
-						}
-					}
 					options?.onSuccess?.(updatedGame, variables);
 
 					const storeState = useStore.getState();
@@ -113,16 +114,11 @@ export function useGameStatusActions() {
 					}
 				},
 				onError: (error, variables) => {
-					if (!useGlobalInvalidate && previousGame) {
-						updateGamePlayStatusInStore(
-							variables.gameId,
-							previousGame.clear ?? 1,
-							true,
+					if (!useGlobalInvalidate) {
+						queryClient.setQueryData<FullGameData | null>(
+							gameKeys.detail(variables.gameId),
+							previousGame,
 						);
-						const latestSelectedGame = useStore.getState().selectedGame;
-						if (latestSelectedGame?.id === variables.gameId) {
-							setSelectedGame(previousGame);
-						}
 					}
 					snackbar.error(
 						`${t("errors.updatePlayStatusFailed", "更新游戏状态失败")}: ${getErrorMessage(error)}`,

@@ -8,6 +8,7 @@ import { extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
 import { fetchVNDBByIds } from "@/api/vndb";
 import { snackbar } from "@/components/Snackbar";
+import { setScrollPosition } from "@/hooks/common/useScrollRestore";
 import {
 	fileService,
 	gameService,
@@ -15,7 +16,6 @@ import {
 	settingsService,
 	statsService,
 } from "@/services";
-import { useScrollStore } from "@/store/scrollStore";
 import type { BgmData, GameData, HanleGamesProps, VndbData } from "@/types";
 import { getDisplayGameData } from "./dataTransform";
 
@@ -487,7 +487,6 @@ export const getGameCover = (game: GameData): string => {
 				`cover_${game.id}_${game.custom_data.image}`,
 			);
 
-			// 在 Tauri 环境中使用 convertFileSrc 转换路径
 			try {
 				return convertFileSrc(customCoverPath);
 			} catch (error) {
@@ -708,12 +707,7 @@ export const saveScrollPosition = (path: string) => {
 	// 增加一个检查，确保容器是可滚动的，避免无效保存
 	if (container && container.scrollHeight > container.clientHeight) {
 		const scrollTop = container.scrollTop;
-		useScrollStore.setState((state) => ({
-			scrollPositions: {
-				...state.scrollPositions,
-				[path]: scrollTop,
-			},
-		}));
+		setScrollPosition(path, scrollTop);
 	}
 };
 

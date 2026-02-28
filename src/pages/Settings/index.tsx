@@ -60,6 +60,7 @@ import { PageContainer } from "@toolpad/core/PageContainer";
 import { join } from "pathe";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { fetchCurrentUserProfile } from "@/api/bgm";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { toggleAutostart } from "@/components/AutoStart";
@@ -67,7 +68,15 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
-import { useSettingsResources } from "@/hooks/queries/useSettings";
+import {
+	useBgmToken,
+	useLogLevel,
+	usePortableMode,
+	useSetBgmProfile,
+	useSetBgmToken,
+	useSetLogLevel,
+	useSetPortableMode,
+} from "@/hooks/queries/useSettings";
 import { fileService } from "@/services";
 import { useStore } from "@/store";
 import { getErrorMessage, openDatabaseBackupFolder } from "@/utils";
@@ -126,15 +135,10 @@ const LanguageSelect = () => {
 
 const BgmTokenSettings = () => {
 	const { t } = useTranslation();
-	const {
-		bgmToken,
-		setBgmToken,
-		isSavingBgmToken,
-		bgmProfileUsername,
-		bgmProfileAvatar,
-		setBgmProfile,
-	} = useSettingsResources();
-	const { autoSyncBgm, setAutoSyncBgm } = useStore();
+	const { data: bgmToken = "" } = useBgmToken();
+	const setBgmTokenMutation = useSetBgmToken();
+	const autoSyncBgm = useStore((s) => s.autoSyncBgm);
+	const setAutoSyncBgm = useStore((s) => s.setAutoSyncBgm);
 	const [inputToken, setInputToken] = useState("");
 	const [isFetchingProfile, setIsFetchingProfile] = useState(false);
 
@@ -155,12 +159,12 @@ const BgmTokenSettings = () => {
 	const handleSaveToken = async () => {
 		try {
 			setIsFetchingProfile(true);
-			await setBgmToken(inputToken);
+			await setBgmTokenMutation.mutateAsync(inputToken);
 
 			if (inputToken) {
 				const profile = await fetchCurrentUserProfile(inputToken);
 				if (profile) {
-					await setBgmProfile({
+					await useSetBgmProfile({
 						username: profile.username,
 						avatar: profile.avatar.large,
 					});
@@ -176,7 +180,7 @@ const BgmTokenSettings = () => {
 					);
 				}
 			} else {
-				await setBgmProfile({ username: "", avatar: "" });
+				await useSetBgmProfile({ username: "", avatar: "" });
 				snackbar.success(
 					t("pages.Settings.bgmTokenSettings.clearSuccess", "已清除 BGM Token"),
 				);
@@ -243,7 +247,7 @@ const BgmTokenSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleSaveToken}
-					disabled={isSavingBgmToken || isFetchingProfile}
+					disabled={setBgmTokenMutation.isPending || isFetchingProfile}
 					className="px-6 py-2"
 				>
 					{isFetchingProfile ? (
@@ -337,7 +341,14 @@ const AutoStartSettings = () => {
 const NsfwSettings = () => {
 	const { t } = useTranslation();
 	const { nsfwFilter, setNsfwFilter, nsfwCoverReplace, setNsfwCoverReplace } =
-		useStore();
+		useStore(
+			useShallow((s) => ({
+				nsfwFilter: s.nsfwFilter,
+				setNsfwFilter: s.setNsfwFilter,
+				nsfwCoverReplace: s.nsfwCoverReplace,
+				setNsfwCoverReplace: s.setNsfwCoverReplace,
+			})),
+		);
 
 	return (
 		<Box className="mb-6">
@@ -374,12 +385,13 @@ const NsfwSettings = () => {
 
 const LogLevelSettings = () => {
 	const { t } = useTranslation();
-	const { logLevel, setLogLevel } = useSettingsResources();
+	const { data: logLevel = "error" } = useLogLevel();
+	const setLogLevelMutation = useSetLogLevel();
 
 	const handleChange = async (event: SelectChangeEvent) => {
 		const level = event.target.value as "error" | "warn" | "info" | "debug";
 		try {
-			await setLogLevel(level);
+			await setLogLevelMutation.mutateAsync(level);
 			snackbar.success(
 				t("pages.Settings.logLevel.changed", `日志级别已切换为 ${level}`, {
 					level,
@@ -474,7 +486,8 @@ const VndbDataSettings = () => {
 
 const TagTranslationSettings = () => {
 	const { t } = useTranslation();
-	const { tagTranslation, setTagTranslation } = useStore();
+	const tagTranslation = useStore((s) => s.tagTranslation);
+	const setTagTranslation = useStore((s) => s.setTagTranslation);
 
 	return (
 		<Box className="mb-6">
@@ -499,7 +512,8 @@ const TagTranslationSettings = () => {
 
 const SpoilerLevelSettings = () => {
 	const { t } = useTranslation();
-	const { spoilerLevel, setSpoilerLevel } = useStore();
+	const spoilerLevel = useStore((s) => s.spoilerLevel);
+	const setSpoilerLevel = useStore((s) => s.setSpoilerLevel);
 
 	return (
 		<Box className="mb-6">
@@ -542,7 +556,16 @@ const CardClickModeSettings = () => {
 		setDoubleClickLaunch,
 		longPressLaunch,
 		setLongPressLaunch,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			cardClickMode: s.cardClickMode,
+			setCardClickMode: s.setCardClickMode,
+			doubleClickLaunch: s.doubleClickLaunch,
+			setDoubleClickLaunch: s.setDoubleClickLaunch,
+			longPressLaunch: s.longPressLaunch,
+			setLongPressLaunch: s.setLongPressLaunch,
+		})),
+	);
 
 	return (
 		<Box className="mb-6">
@@ -630,7 +653,14 @@ const CloseBtnSettings = () => {
 		defaultCloseAction,
 		setSkipCloseRemind,
 		setDefaultCloseAction,
-	} = useStore();
+	} = useStore(
+		useShallow((s) => ({
+			skipCloseRemind: s.skipCloseRemind,
+			defaultCloseAction: s.defaultCloseAction,
+			setSkipCloseRemind: s.setSkipCloseRemind,
+			setDefaultCloseAction: s.setDefaultCloseAction,
+		})),
+	);
 	return (
 		<Box className="mb-6">
 			<InputLabel className="font-semibold mb-4">
@@ -856,7 +886,8 @@ const DatabaseBackupSettings = () => {
 
 const PortableModeSettings = () => {
 	const { t } = useTranslation();
-	const { portableMode, setPortableMode } = useSettingsResources();
+	const { data: portableMode = false } = usePortableMode();
+	const setPortableModeMutation = useSetPortableMode();
 	const [isLoading, setIsLoading] = useState(false);
 	const [showConfirm, setShowConfirm] = useState(false);
 	const [pendingValue, setPendingValue] = useState(false);
@@ -875,7 +906,7 @@ const PortableModeSettings = () => {
 		setIsLoading(true);
 
 		try {
-			const result = await setPortableMode(pendingValue);
+			const result = await setPortableModeMutation.mutateAsync(pendingValue);
 
 			// 显示详细的迁移结果
 			if (result.total_files > 0) {
@@ -982,7 +1013,8 @@ const PortableModeSettings = () => {
 
 const TimeTrackingModeSettings = () => {
 	const { t } = useTranslation();
-	const { timeTrackingMode, setTimeTrackingMode } = useStore();
+	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
+	const setTimeTrackingMode = useStore((s) => s.setTimeTrackingMode);
 
 	return (
 		<Box className="mb-6">
@@ -1058,7 +1090,7 @@ const TimeTrackingModeSettings = () => {
  */
 const AboutSection: React.FC = () => {
 	const { t } = useTranslation();
-	const { triggerUpdateModal } = useStore();
+	const triggerUpdateModal = useStore((s) => s.triggerUpdateModal);
 	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");
 
@@ -1226,7 +1258,7 @@ const DevSettings: React.FC = () => {
 
 const BatchUpdateSettings: React.FC = () => {
 	const { t } = useTranslation();
-	const { bgmToken } = useSettingsResources();
+	const { data: bgmToken = "" } = useBgmToken();
 	const [isUpdatingVndb, setIsUpdatingVndb] = useState(false);
 	const [isUpdatingBgm, setIsUpdatingBgm] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");

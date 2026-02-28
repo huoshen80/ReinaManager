@@ -19,6 +19,7 @@ import { Autocomplete, Box, TextField } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
+import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store";
 import { getSearchSuggestions } from "@/utils/enhancedSearch";
 
@@ -44,7 +45,11 @@ const SEARCH_BOX_WIDTH_CONFIG: Record<string, string> = {
  */
 export const SearchBox = () => {
 	const { t, i18n } = useTranslation();
-	const { searchKeyword, setSearchKeyword, games, allGames } = useStore();
+	const searchInput = useStore((state) => state.searchInput);
+	const setSearchInput = useStore((state) => state.setSearchInput);
+	const setSearchKeyword = useStore((state) => state.setSearchKeyword);
+	const { games: displayAllGames } = useGameListFacade();
+
 	const [suggestions, setSuggestions] = useState<string[]>([]);
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -56,14 +61,14 @@ export const SearchBox = () => {
 		return SEARCH_BOX_WIDTH_CONFIG.default;
 	}, [i18n.language]);
 
-	// 对输入值应用防抖
-	const debouncedKeyword = useDebouncedValue(searchKeyword, DEBOUNCE_SEARCH);
+	// 对输入值应用防抖，防抖后再同步到全局 store 的 searchKeyword 触发搜索
+	const debouncedKeyword = useDebouncedValue(searchInput, DEBOUNCE_SEARCH);
 	const debouncedSuggestions = useDebouncedValue(
-		searchKeyword,
+		searchInput,
 		DEBOUNCE_SUGGESTIONS,
 	);
 
-	// 防抖搜索
+	// 防抖后同步到全局 store 的 searchKeyword（触发游戏列表搜索过滤）
 	useEffect(() => {
 		setSearchKeyword(debouncedKeyword);
 	}, [debouncedKeyword, setSearchKeyword]);
@@ -79,7 +84,7 @@ export const SearchBox = () => {
 
 		try {
 			return getSearchSuggestions(
-				allGames.length > 0 ? allGames : games,
+				displayAllGames,
 				debouncedSuggestions,
 				MAX_SUGGESTIONS,
 			);
@@ -87,7 +92,7 @@ export const SearchBox = () => {
 			console.error("生成搜索建议失败:", error);
 			return [];
 		}
-	}, [debouncedSuggestions, allGames, games]);
+	}, [debouncedSuggestions, displayAllGames]);
 
 	// 同步建议到状态
 	useEffect(() => {
@@ -98,26 +103,28 @@ export const SearchBox = () => {
 	const handleSelect = useCallback(
 		(_: React.SyntheticEvent, value: string | null) => {
 			if (value) {
+				setSearchInput(value);
 				setSearchKeyword(value);
 				setIsOpen(false);
 			}
 		},
-		[setSearchKeyword],
+		[setSearchInput, setSearchKeyword],
 	);
 
-	// 处理输入变化
+	// 处理输入变化——即时更新 searchInput，防抖后才同步到 searchKeyword
 	const handleInputChange = useCallback(
 		(_event: React.SyntheticEvent, newInputValue: string, reason: string) => {
 			if (reason === "input") {
-				setSearchKeyword(newInputValue);
+				setSearchInput(newInputValue);
 				setIsOpen(true);
 			} else if (reason === "clear") {
+				setSearchInput("");
 				setSearchKeyword("");
 				setSuggestions([]);
 				setIsOpen(false);
 			}
 		},
-		[setSearchKeyword],
+		[setSearchInput, setSearchKeyword],
 	);
 
 	// 处理键盘事件
@@ -140,11 +147,10 @@ export const SearchBox = () => {
 		<Box sx={{ width: searchBoxWidth }}>
 			<Autocomplete
 				freeSolo
-				open={isOpen && suggestions.length > 0}
 				onOpen={() => setIsOpen(true)}
 				onClose={() => setIsOpen(false)}
 				options={suggestions}
-				inputValue={searchKeyword}
+				inputValue={searchInput}
 				selectOnFocus={false}
 				clearOnBlur={false}
 				blurOnSelect={false}
@@ -181,17 +187,22 @@ export const SearchBox = () => {
 						}}
 					/>
 				)}
-				renderOption={(props, option) => (
-					<Box
-						component="li"
-						{...props}
-						className="flex items-center gap-2 px-3 py-2 cursor-pointer"
-						sx={{ "&:hover": { bgcolor: "action.hover" } }}
-					>
-						<SearchIcon fontSize="small" />
-						<span className="flex-1 truncate text-sm">{option}</span>
-					</Box>
-				)}
+				renderOption={(props, option) => {
+					const { key, ...optionProps } = props;
+
+					return (
+						<Box
+							component="li"
+							key={key}
+							{...optionProps}
+							className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+							sx={{ "&:hover": { bgcolor: "action.hover" } }}
+						>
+							<SearchIcon fontSize="small" />
+							<span className="flex-1 truncate text-sm">{option}</span>
+						</Box>
+					);
+				}}
 				slotProps={{
 					paper: {
 						className: "mt-1 rounded-lg shadow-lg",

@@ -31,6 +31,7 @@ import { useActivePage } from "@toolpad/core/useActivePage";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useStore } from "@/store";
 import { getGameCover, getGameDisplayName } from "@/utils";
 import i18n from "@/utils/i18n";
@@ -80,11 +81,11 @@ const TabPanel = (props: TabPanelProps) => {
 export const Detail: React.FC = () => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const { setSelectedGameId, selectedGame, fetchGame, tagTranslation } =
-		useStore();
+	const setSelectedGameId = useStore((s) => s.setSelectedGameId);
+	const tagTranslation = useStore((s) => s.tagTranslation);
+	const { selectedGame, isLoadingSelectedGame } = useSelectedGame(id);
 	const [tabIndex, setTabIndex] = useState(0);
 	const [showAllTags, setShowAllTags] = useState(false); // 控制标签折叠状态
-	const [isDetailLoading, setIsDetailLoading] = useState(false); // 详情页面专用的加载状态
 
 	const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
 		setTabIndex(newValue);
@@ -107,25 +108,17 @@ export const Detail: React.FC = () => {
 		return title ? [...base, { title, path }] : base;
 	}, [activePage?.breadcrumbs, location.pathname, title]);
 
-	// 优化后的 useEffect - 统一数据获取逻辑
+	// 同步当前选中游戏ID
 	useEffect(() => {
 		if (id) {
-			setIsDetailLoading(true); // 开始加载
-			setSelectedGameId(id); // 立即设置ID，以便其他组件（如LaunchModal）能响应
-			fetchGame(id).finally(() => {
-				setIsDetailLoading(false); // 加载完成
-			});
+			setSelectedGameId(id);
 		}
-
-		// 返回清理函数，防止快速切换时显示上一个游戏的数据
-		return () => {
-			useStore.setState({ selectedGame: null });
-		};
-	}, [id, fetchGame, setSelectedGameId]);
+	}, [id, setSelectedGameId]);
 
 	// 派生状态：基于selectedGame和isDetailLoading计算当前状态
-	const isLoading = isDetailLoading || !selectedGame || selectedGame.id !== id;
-	const isNotFound = !isDetailLoading && !selectedGame && id; // 加载完成但仍然没有数据
+	const isLoading =
+		isLoadingSelectedGame || !selectedGame || selectedGame.id !== id;
+	const isNotFound = !isLoadingSelectedGame && !selectedGame && id; // 加载完成但仍然没有数据
 
 	// 加载状态UI - 使用骨架屏
 	if (isLoading) {

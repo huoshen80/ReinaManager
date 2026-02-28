@@ -1,6 +1,6 @@
 /**
  * @file Toolbar 组件与工具函数
- * @description 提供应用主界面顶部工具栏、按钮组、弹窗控制等功能，支持添加、排序、筛选、启动、删除、编辑、外链等操作，适配不同页面，集成国际化与 Tauri 桌面环境。
+ * @description 提供应用主界面顶部工具栏、按钮组、弹窗控制等功能，支持添加、排序、筛选、启动、删除、编辑、外链等操作，适配不同页面，集成国际化
  * @module src/components/Toolbar/index
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -50,6 +50,7 @@ import { ThemeSwitcher } from "@toolpad/core/DashboardLayout";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
@@ -57,8 +58,13 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { snackbar } from "@/components/Snackbar";
 import SortModal from "@/components/SortModal";
+import {
+	useGetGameById,
+	useSelectedGame,
+} from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
-import { settingsService } from "@/services";
+import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
+import { useLePath, useMagpiePath } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store";
 import type { HanleGamesProps } from "@/types";
 import type { PlayStatus } from "@/types/collection";
@@ -106,14 +112,10 @@ export const useModal = () => {
  * @param {HanleGamesProps} props
  * @returns {JSX.Element}
  */
-const OpenFolder = ({ id, getGameById, canUse }: HanleGamesProps) => {
+const OpenFolder = ({ id, getGameById }: HanleGamesProps) => {
 	const { t } = useTranslation();
-	// 订阅 allGames 以确保 localpath 更新时组件重新渲染
-	const { allGames } = useStore();
-
-	// 通过使用 allGames.length 确保订阅生效
-	const isDisabled =
-		allGames.length >= 0 && (typeof canUse === "function" ? !canUse() : true);
+	const { selectedGame } = useSelectedGame(id);
+	const isDisabled = selectedGame?.localpath == null;
 
 	return (
 		<Button
@@ -136,9 +138,10 @@ const OpenFolder = ({ id, getGameById, canUse }: HanleGamesProps) => {
  */
 export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 	const { t } = useTranslation();
+	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const { deleteGame } = useStore();
+	const deleteGameMutation = useDeleteGame();
 	const navigate = useNavigate();
 
 	/**
@@ -149,7 +152,8 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 
 		try {
 			setIsDeleting(true);
-			await deleteGame(id);
+			await deleteGameMutation.mutateAsync(id);
+			setSelectedGameId(null);
 			navigate("/libraries");
 		} catch (error) {
 			console.error("删除游戏失败:", error);
@@ -187,11 +191,15 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
  * @returns {JSX.Element}
  */
 const MoreButton = () => {
-	const { selectedGame, setSelectedGame, updateGame } = useStore();
+	const selectedGameId = useStore((state) => state.selectedGameId);
+	const { selectedGame } = useSelectedGame(selectedGameId);
+	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
 	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
+	const { data: lePath = "" } = useLePath();
+	const { data: magpiePath = "" } = useMagpiePath();
 
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
@@ -232,33 +240,22 @@ const MoreButton = () => {
 	const handleToggleLeLaunch = async (checked: boolean) => {
 		if (selectedGame?.id === undefined) return;
 
-		// 检查LE路径是否存在
-		try {
-			const lePath = await settingsService.getLePath();
-			if (!lePath || lePath.trim() === "") {
-				// 路径不存在，显示提示并打开路径设置弹窗
-				snackbar.warning(
-					t(
-						"components.Toolbar.lePathNotSet",
-						"未设置LE转区软件路径，请先配置路径",
-					),
-				);
-				setPathSettingsModalOpen(true);
-				return;
-			}
-		} catch (error) {
-			console.error("检查LE路径失败:", error);
-			snackbar.error(
-				t("components.Toolbar.lePathCheckFailed", "检查LE路径失败"),
+		if (!lePath || lePath.trim() === "") {
+			snackbar.warning(
+				t(
+					"components.Toolbar.lePathNotSet",
+					"未设置LE转区软件路径，请先配置路径",
+				),
 			);
 			setPathSettingsModalOpen(true);
 			return;
 		}
 
 		try {
-			await updateGame(selectedGame.id, { le_launch: checked ? 1 : 0 });
-			// 更新本地状态
-			setSelectedGame({ ...selectedGame, le_launch: checked ? 1 : 0 });
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: { le_launch: checked ? 1 : 0 },
+			});
 		} catch (error) {
 			console.error("更新LE转区启动状态失败:", error);
 		}
@@ -270,33 +267,22 @@ const MoreButton = () => {
 	const handleToggleMagpie = async (checked: boolean) => {
 		if (selectedGame?.id === undefined) return;
 
-		// 检查Magpie路径是否存在
-		try {
-			const magpiePath = await settingsService.getMagpiePath();
-			if (!magpiePath || magpiePath.trim() === "") {
-				// 路径不存在，显示提示并打开路径设置弹窗
-				snackbar.warning(
-					t(
-						"components.Toolbar.magpiePathNotSet",
-						"未设置Magpie软件路径，请先配置路径",
-					),
-				);
-				setPathSettingsModalOpen(true);
-				return;
-			}
-		} catch (error) {
-			console.error("检查Magpie路径失败:", error);
-			snackbar.error(
-				t("components.Toolbar.magpiePathCheckFailed", "检查Magpie路径失败"),
+		if (!magpiePath || magpiePath.trim() === "") {
+			snackbar.warning(
+				t(
+					"components.Toolbar.magpiePathNotSet",
+					"未设置Magpie软件路径，请先配置路径",
+				),
 			);
 			setPathSettingsModalOpen(true);
 			return;
 		}
 
 		try {
-			await updateGame(selectedGame.id, { magpie: checked ? 1 : 0 });
-			// 更新本地状态
-			setSelectedGame({ ...selectedGame, magpie: checked ? 1 : 0 });
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: { magpie: checked ? 1 : 0 },
+			});
 		} catch (error) {
 			console.error("更新Magpie放大状态失败:", error);
 		}
@@ -409,33 +395,27 @@ export const Buttongroup = ({
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
 	const {
-		getGameById,
-		isLocalGame,
-		allGames,
+		selectedGameId,
 		openAddModal,
 		openBulkImportModal,
 		openSyncBangumiModal,
-		selectedGame,
-	} = useStore();
-
-	/**
-	 * 判断当前游戏是否可用（本地且 Tauri 环境）
-	 * 订阅 allGames 确保 localpath 更新时按钮状态同步
-	 * @returns {boolean}
-	 */
-	const canUse = () => {
-		// 使用 allGames.length 确保订阅生效
-		return (
-			allGames.length >= 0 && id !== undefined && id !== null && isLocalGame(id)
-		);
-	};
+	} = useStore(
+		useShallow((state) => ({
+			selectedGameId: state.selectedGameId,
+			openAddModal: state.openAddModal,
+			openBulkImportModal: state.openBulkImportModal,
+			openSyncBangumiModal: state.openSyncBangumiModal,
+		})),
+	);
+	const { selectedGame } = useSelectedGame(selectedGameId);
+	const getGameById = useGetGameById();
 
 	return (
 		<>
 			{isDetail && id && (
 				<>
 					<LaunchModal />
-					<OpenFolder id={id} getGameById={getGameById} canUse={canUse} />
+					<OpenFolder id={id} getGameById={getGameById} />
 					{selectedGame?.bgm_id && (
 						<Button startIcon={<SyncAltIcon />} onClick={openSyncBangumiModal}>
 							{t("components.Toolbar.syncBgm", "同步 BGM")}

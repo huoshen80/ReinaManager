@@ -2,8 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::Local;
-use sea_orm_migration::sea_orm::DbErr;
 use reina_path::get_db_path;
+use sea_orm_migration::sea_orm::DbErr;
 
 /// 备份 SQLite 数据库文件。
 ///
@@ -11,8 +11,8 @@ use reina_path::get_db_path;
 /// - 若存在且非空，则备份到该路径下
 /// - 否则备份到数据库所在目录的 `backups/` 子目录
 pub async fn backup_sqlite(version: &str) -> Result<PathBuf, DbErr> {
-    let db_path = get_db_path()
-        .map_err(|e| DbErr::Custom(format!("Failed to get database path: {}", e)))?;
+    let db_path =
+        get_db_path().map_err(|e| DbErr::Custom(format!("Failed to get database path: {}", e)))?;
     let db_url = path_to_sqlite_url(&db_path)?;
 
     // 查询 user.db_backup_path

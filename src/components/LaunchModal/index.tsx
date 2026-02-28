@@ -1,6 +1,6 @@
 /**
  * @file LaunchModal 组件
- * @description 游戏启动弹窗组件，负责判断游戏是否可启动、是否正在运行，并提供启动按钮，适配 Tauri 桌面环境，支持国际化。
+ * @description 游戏启动弹窗组件，负责判断游戏是否可启动、是否正在运行，并提供启动按钮，支持国际化。
  * @module src/components/LaunchModal/index
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -35,7 +35,10 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { snackbar } from "@/components/Snackbar";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { UpdateGameParams } from "@/types";
@@ -61,7 +64,7 @@ const formatPlayTime = (minutes: number, seconds: number): string => {
 /**
  * LaunchModal 组件
  * 判断游戏是否可启动、是否正在运行，并渲染启动按钮。
- * 仅本地游戏且未运行时可启动，适配 Tauri 桌面环境。
+ * 仅本地游戏且未运行时可启动
  * 运行时显示实时游戏时长。
  * 支持两种计时模式：
  * - playtime: 真实游戏时间（仅活跃时间，通过后端事件更新）
@@ -71,15 +74,20 @@ const formatPlayTime = (minutes: number, seconds: number): string => {
  */
 export const LaunchModal = () => {
 	const { t } = useTranslation();
-	const {
-		selectedGameId,
-		getGameById,
-		isLocalGame,
-		timeTrackingMode,
-		updateGame,
-	} = useStore();
+	const selectedGameId = useStore((s) => s.selectedGameId);
+	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
+	const updateGameMutation = useUpdateGame();
+	const { selectedGame, isLoadingSelectedGame } =
+		useSelectedGame(selectedGameId);
 	const { launchGame, stopGame, isGameRunning, getGameRealTimeState } =
-		useGamePlayStore();
+		useGamePlayStore(
+			useShallow((s) => ({
+				launchGame: s.launchGame,
+				stopGame: s.stopGame,
+				isGameRunning: s.isGameRunning,
+				getGameRealTimeState: s.getGameRealTimeState,
+			})),
+		);
 
 	// 用于 elapsed 模式下的前端计时器显示
 	const timerRef = useRef<HTMLSpanElement>(null);
@@ -93,6 +101,8 @@ export const LaunchModal = () => {
 	const isThisGameRunning = isGameRunning(
 		selectedGameId === null ? undefined : selectedGameId,
 	);
+	const hasSelectedGame = selectedGameId !== null;
+	const hasLocalPath = Boolean(selectedGame?.localpath?.trim());
 
 	// 获取实时游戏状态
 	const realTimeState = selectedGameId
@@ -139,7 +149,6 @@ export const LaunchModal = () => {
 		if (!selectedGameId) return;
 
 		try {
-			const selectedGame = await getGameById(selectedGameId);
 			if (!selectedGame || !selectedGame.localpath) {
 				console.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
@@ -175,8 +184,7 @@ export const LaunchModal = () => {
 		if (!selectedGameId) return;
 
 		try {
-			const game = await getGameById(selectedGameId);
-			setLocalPath(game.localpath || "");
+			setLocalPath(selectedGame?.localpath || "");
 			setPathDialogOpen(true);
 		} catch (error) {
 			console.error("Failed to load game data:", error);
@@ -224,7 +232,10 @@ export const LaunchModal = () => {
 				localpath: localPath.trim(),
 			};
 
-			await updateGame(selectedGameId, updateData);
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGameId,
+				updates: updateData,
+			});
 			snackbar.success(t("components.LaunchModal.pathSaved"));
 			handleClosePathDialog();
 		} catch (error) {
@@ -280,73 +291,75 @@ export const LaunchModal = () => {
 			</Button>
 		);
 	}
-
-	// 如果不是本地游戏，显示"同步本地"按钮
-	if (selectedGameId && !isLocalGame(selectedGameId)) {
+	if (!hasSelectedGame || isLoadingSelectedGame || hasLocalPath) {
 		return (
-			<>
-				<Button
-					startIcon={<SyncIcon />}
-					onClick={handleOpenPathDialog}
-					variant="text"
-				>
-					{t("components.LaunchModal.syncLocalPath")}
-				</Button>
-
-				{/* 路径设置对话框 */}
-				<Dialog
-					open={pathDialogOpen}
-					onClose={handleClosePathDialog}
-					maxWidth="sm"
-					fullWidth
-				>
-					<DialogTitle>
-						{t("components.LaunchModal.setLocalPathTitle")}
-					</DialogTitle>
-					<DialogContent>
-						<Box sx={{ display: "flex", gap: 1, mt: 2 }}>
-							<TextField
-								label={t("components.LaunchModal.localPathLabel")}
-								variant="outlined"
-								fullWidth
-								value={localPath}
-								onChange={(e) => setLocalPath(e.target.value)}
-								disabled={isSaving}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" && localPath.trim()) {
-										handleSavePath();
-									}
-								}}
-							/>
-							<IconButton
-								onClick={handleSelectFolder}
-								disabled={isSaving}
-								color="primary"
-							>
-								<FolderOpenIcon />
-							</IconButton>
-						</Box>
-					</DialogContent>
-					<DialogActions>
-						<Button onClick={handleClosePathDialog} disabled={isSaving}>
-							{t("common.cancel")}
-						</Button>
-						<Button
-							onClick={handleSavePath}
-							variant="contained"
-							disabled={!localPath.trim() || isSaving}
-						>
-							{isSaving ? t("common.saving") : t("common.confirm")}
-						</Button>
-					</DialogActions>
-				</Dialog>
-			</>
+			<Button
+				startIcon={<PlayArrowIcon />}
+				onClick={handleStartGame}
+				disabled={!hasSelectedGame || isLoadingSelectedGame}
+			>
+				{t("components.LaunchModal.launchGame")}
+			</Button>
 		);
 	}
 
 	return (
-		<Button startIcon={<PlayArrowIcon />} onClick={handleStartGame}>
-			{t("components.LaunchModal.launchGame")}
-		</Button>
+		<>
+			<Button
+				startIcon={<SyncIcon />}
+				onClick={handleOpenPathDialog}
+				variant="text"
+			>
+				{t("components.LaunchModal.syncLocalPath")}
+			</Button>
+
+			{/* 路径设置对话框 */}
+			<Dialog
+				open={pathDialogOpen}
+				onClose={handleClosePathDialog}
+				maxWidth="sm"
+				fullWidth
+			>
+				<DialogTitle>
+					{t("components.LaunchModal.setLocalPathTitle")}
+				</DialogTitle>
+				<DialogContent>
+					<Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+						<TextField
+							label={t("components.LaunchModal.localPathLabel")}
+							variant="outlined"
+							fullWidth
+							value={localPath}
+							onChange={(e) => setLocalPath(e.target.value)}
+							disabled={isSaving}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && localPath.trim()) {
+									handleSavePath();
+								}
+							}}
+						/>
+						<IconButton
+							onClick={handleSelectFolder}
+							disabled={isSaving}
+							color="primary"
+						>
+							<FolderOpenIcon />
+						</IconButton>
+					</Box>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={handleClosePathDialog} disabled={isSaving}>
+						{t("common.cancel")}
+					</Button>
+					<Button
+						onClick={handleSavePath}
+						variant="contained"
+						disabled={!localPath.trim() || isSaving}
+					>
+						{isSaving ? t("common.saving") : t("common.confirm")}
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</>
 	);
 };

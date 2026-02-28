@@ -100,7 +100,9 @@ impl UpdateCollectionData {
         if let Some(name) = self.name {
             self.name = Some(name.trim().to_string());
         }
-        self.icon = self.icon.map(|inner| inner.filter(|s| !s.trim().is_empty()));
+        self.icon = self
+            .icon
+            .map(|inner| inner.filter(|s| !s.trim().is_empty()));
         self
     }
 }

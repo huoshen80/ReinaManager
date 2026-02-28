@@ -24,9 +24,10 @@ pub fn is_portable_mode() -> bool {
 pub fn get_base_data_dir() -> Result<PathBuf, String> {
     if is_portable_mode() {
         // 便携模式：使用可执行文件所在目录的 resources 子目录
-        let exe_path = std::env::current_exe()
-            .map_err(|e| format!("无法获取可执行文件路径: {}", e))?;
-        let exe_dir = exe_path.parent()
+        let exe_path =
+            std::env::current_exe().map_err(|e| format!("无法获取可执行文件路径: {}", e))?;
+        let exe_dir = exe_path
+            .parent()
             .ok_or_else(|| "无法获取可执行文件父目录".to_string())?;
         Ok(exe_dir.join(RESOURCE_DIR))
     } else {
@@ -39,8 +40,7 @@ pub fn get_base_data_dir() -> Result<PathBuf, String> {
 fn get_system_data_dir() -> Result<PathBuf, String> {
     use directories::BaseDirs;
 
-    let base_dirs = BaseDirs::new()
-        .ok_or_else(|| "无法获取系统目录信息".to_string())?;
+    let base_dirs = BaseDirs::new().ok_or_else(|| "无法获取系统目录信息".to_string())?;
 
     #[cfg(target_os = "windows")]
     {
@@ -66,9 +66,10 @@ pub fn get_db_path() -> Result<PathBuf, String> {
 /// 获取指定模式的数据库目录
 pub fn get_base_data_dir_for_mode(portable: bool) -> Result<PathBuf, String> {
     if portable {
-        let exe_path = std::env::current_exe()
-            .map_err(|e| format!("无法获取可执行文件路径: {}", e))?;
-        let exe_dir = exe_path.parent()
+        let exe_path =
+            std::env::current_exe().map_err(|e| format!("无法获取可执行文件路径: {}", e))?;
+        let exe_dir = exe_path
+            .parent()
             .ok_or_else(|| "无法获取可执行文件父目录".to_string())?;
         Ok(exe_dir.join(RESOURCE_DIR))
     } else {

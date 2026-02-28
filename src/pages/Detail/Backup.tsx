@@ -22,28 +22,44 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { useStore } from "@/store";
-import type { SavedataRecord, UpdateGameParams } from "@/types";
+import type { SavedataRecord } from "@/types";
 import {
 	getErrorMessage,
 	handleGetFolder,
 	openGameBackupFolder,
 	openGameSaveDataFolder,
 } from "@/utils";
+
+/** 格式化文件大小 */
+const formatFileSize = (bytes: number): string => {
+	if (bytes === 0) return "0 B";
+	const k = 1024;
+	const sizes = ["B", "KB", "MB", "GB"];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+};
+
+/** 格式化时间戳 */
+const formatDate = (timestamp: number): string => {
+	return new Date(timestamp * 1000).toLocaleString();
+};
+
 /**
  * Backup 组件
  * 游戏存档备份页面
- *
- * @component
- * @returns 备份页面
  */
 export const Backup: React.FC = () => {
-	const { selectedGame, updateGame } = useStore();
+	const selectedGameId = useStore((state) => state.selectedGameId);
+	const { selectedGame } = useSelectedGame(selectedGameId);
+	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 
 	// React Query hooks
@@ -54,54 +70,71 @@ export const Backup: React.FC = () => {
 		restoreBackupMutation,
 	} = useSaveDataResources(selectedGame?.id);
 
-	// 状态管理
-	const [saveDataPath, setSaveDataPath] = useState<string>("");
+	// 备份设置 - 本地状态（统一保存）
+	const [saveDataPath, setSaveDataPath] = useState("");
+	const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+	const [maxBackups, setMaxBackups] = useState(20);
+
+	// 对话框状态
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [backupToDelete, setBackupToDelete] = useState<SavedataRecord | null>(
 		null,
 	);
-	const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(false);
-	const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 	const [backupToRestore, setBackupToRestore] = useState<SavedataRecord | null>(
 		null,
 	);
-	const [maxBackups, setMaxBackups] = useState<number>(20);
 
 	// 从 selectedGame 同步设置状态
 	useEffect(() => {
-		if (selectedGame) {
-			setAutoSaveEnabled(selectedGame.autosave === 1);
-			setSaveDataPath(selectedGame.savepath || "");
-			setMaxBackups(selectedGame.maxbackups ?? 20);
-		}
-	}, [selectedGame]);
+		setAutoSaveEnabled(selectedGame?.autosave === 1);
+		setSaveDataPath(selectedGame?.savepath || "");
+		setMaxBackups(selectedGame?.maxbackups ?? 20);
+	}, [
+		selectedGame?.autosave,
+		selectedGame?.savepath,
+		selectedGame?.maxbackups,
+	]);
 
-	// 统一的设置更新逻辑
-	const handleSettingUpdate = async (
-		updateData: UpdateGameParams,
-		successMessage: string,
-		failureMessage: string,
-	) => {
+	// 检测是否有未保存的更改
+	const hasUnsavedChanges = useMemo(() => {
+		if (!selectedGame) return false;
+		return (
+			autoSaveEnabled !== (selectedGame.autosave === 1) ||
+			saveDataPath !== (selectedGame.savepath || "") ||
+			maxBackups !== (selectedGame.maxbackups ?? 20)
+		);
+	}, [autoSaveEnabled, saveDataPath, maxBackups, selectedGame]);
+
+	const isSaving = updateGameMutation.isPending;
+
+	// 统一保存备份设置
+	const handleSaveSettings = async () => {
 		if (!selectedGame?.id) return;
 
-		setIsUpdatingSettings(true);
+		if (maxBackups < 1) {
+			snackbar.error(
+				t("pages.Detail.Backup.invalidMaxBackups", "最大备份数量必须大于0"),
+			);
+			return;
+		}
 
 		try {
-			await updateGame(selectedGame.id, updateData);
-			snackbar.success(successMessage);
-
-			// 移除本地状态同步，由 useEffect 负责
-			// 这样可以避免重复的状态更新和备份列表刷新
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: {
+					savepath: saveDataPath,
+					autosave: saveDataPath !== "" ? (autoSaveEnabled ? 1 : 0) : 0,
+					maxbackups: maxBackups,
+				},
+			});
+			snackbar.success(
+				t("pages.Detail.Backup.settingsSaved", "备份设置保存成功"),
+			);
 		} catch (error) {
-			snackbar.error(`${failureMessage}: ${error}`);
-
-			// 如果设置失败，由于没有调用 updateGame，useEffect 不会被触发
-			// selectedGame 保持原值，所以不需要手动恢复状态
-
-			throw error; // 重新抛出错误以便调用者处理
-		} finally {
-			setIsUpdatingSettings(false);
+			snackbar.error(
+				`${t("pages.Detail.Backup.settingsSaveFailed", "备份设置保存失败")}: ${getErrorMessage(error)}`,
+			);
 		}
 	};
 
@@ -113,47 +146,9 @@ export const Backup: React.FC = () => {
 		}
 	};
 
-	// 更新存档路径
-	const handleUpdateSaveDataPath = async () => {
-		await handleSettingUpdate(
-			{ savepath: saveDataPath },
-			t("pages.Detail.Backup.pathUpdateSuccess", "存档路径更新成功"),
-			t("pages.Detail.Backup.pathUpdateFailed", "路径更新失败"),
-		);
-	};
-
-	// 处理自动备份开关
-	const handleAutoSaveToggle = async (enabled: boolean) => {
-		const message = enabled
-			? t("pages.Detail.Backup.autoSaveEnabled", "自动备份已启用")
-			: t("pages.Detail.Backup.autoSaveDisabled", "自动备份已禁用");
-
-		await handleSettingUpdate(
-			{ autosave: enabled ? 1 : 0 },
-			message,
-			t("pages.Detail.Backup.autoSaveUpdateFailed", "自动备份设置失败"),
-		);
-	};
-
-	// 更新最大备份数量
-	const handleUpdateMaxBackups = async () => {
-		if (!selectedGame?.id || maxBackups < 1) {
-			snackbar.error(
-				t("pages.Detail.Backup.invalidMaxBackups", "最大备份数量必须大于0"),
-			);
-			return;
-		}
-
-		await handleSettingUpdate(
-			{ maxbackups: maxBackups },
-			t("pages.Detail.Backup.maxBackupsUpdateSuccess", "最大备份数量更新成功"),
-			t("pages.Detail.Backup.maxBackupsUpdateFailed", "最大备份数量更新失败"),
-		);
-	};
-
 	// 创建备份
 	const handleCreateBackup = async () => {
-		if (!saveDataPath || !selectedGame?.id) {
+		if (!selectedGame?.savepath || !selectedGame?.id) {
 			snackbar.error(
 				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
 			);
@@ -163,7 +158,7 @@ export const Backup: React.FC = () => {
 		try {
 			await createBackupMutation.mutateAsync({
 				gameId: selectedGame.id,
-				savePath: saveDataPath,
+				savePath: selectedGame.savepath,
 			});
 			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
 		} catch (error) {
@@ -188,7 +183,7 @@ export const Backup: React.FC = () => {
 
 	// 打开存档文件夹
 	const handleOpenSaveDataFolder = async () => {
-		if (!saveDataPath) {
+		if (!selectedGame?.savepath) {
 			snackbar.error(
 				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
 			);
@@ -196,7 +191,7 @@ export const Backup: React.FC = () => {
 		}
 
 		try {
-			await openGameSaveDataFolder(saveDataPath);
+			await openGameSaveDataFolder(selectedGame.savepath);
 		} catch (error) {
 			snackbar.error(
 				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${error}`,
@@ -239,7 +234,7 @@ export const Backup: React.FC = () => {
 
 	// 打开恢复确认对话框
 	const handleRestoreClick = (backup: SavedataRecord) => {
-		if (!saveDataPath) {
+		if (!selectedGame?.savepath) {
 			snackbar.error(
 				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
 			);
@@ -251,12 +246,13 @@ export const Backup: React.FC = () => {
 
 	// 确认恢复备份
 	const handleConfirmRestore = async () => {
-		if (!backupToRestore || !saveDataPath || !selectedGame?.id) return;
+		if (!backupToRestore || !selectedGame?.savepath || !selectedGame?.id)
+			return;
 		try {
 			await restoreBackupMutation.mutateAsync({
 				gameId: selectedGame.id,
 				backup: backupToRestore,
-				savePath: saveDataPath,
+				savePath: selectedGame.savepath,
 			});
 			snackbar.success(t("pages.Detail.Backup.restoreSuccess", "存档恢复成功"));
 			setRestoreDialogOpen(false);
@@ -268,24 +264,10 @@ export const Backup: React.FC = () => {
 		}
 	};
 
-	// 格式化文件大小
-	const formatFileSize = (bytes: number): string => {
-		if (bytes === 0) return "0 B";
-		const k = 1024;
-		const sizes = ["B", "KB", "MB", "GB"];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
-	};
-
-	// 格式化时间
-	const formatDate = (timestamp: number): string => {
-		return new Date(timestamp * 1000).toLocaleString();
-	};
-
 	return (
 		<Box sx={{ p: 3 }}>
 			<Stack spacing={3}>
-				{/* 自动备份设置 */}
+				{/* 备份设置 */}
 				<Card>
 					<CardContent>
 						<Typography variant="h6" gutterBottom>
@@ -293,69 +275,33 @@ export const Backup: React.FC = () => {
 						</Typography>
 
 						<Stack spacing={2}>
-							{/* 自动备份开关和最大备份数量设置 */}
+							{/* 自动备份开关和最大备份数量 */}
 							<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-								<Tooltip
-									title={
-										!selectedGame?.savepath
-											? t(
-													"pages.Detail.Backup.setPathForAutosave",
-													"请先设置存档路径以启用自动备份",
-												)
-											: ""
-									}
-								>
-									{/* 需要一个 div 包裹来让 Tooltip 在 disabled 元素上生效 */}
-									<div>
-										<FormControlLabel
-											control={
-												<Switch
-													checked={autoSaveEnabled}
-													onChange={(e) =>
-														handleAutoSaveToggle(e.target.checked)
-													}
-													disabled={
-														isUpdatingSettings || !selectedGame?.savepath
-													}
-												/>
-											}
-											label={t("pages.Detail.Backup.autoSave", "自动备份")}
+								<FormControlLabel
+									control={
+										<Switch
+											checked={autoSaveEnabled}
+											onChange={(e) => setAutoSaveEnabled(e.target.checked)}
+											disabled={!saveDataPath}
 										/>
-									</div>
-								</Tooltip>
+									}
+									label={t("pages.Detail.Backup.autoSave", "自动备份")}
+								/>
 
-								<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-									<TextField
-										label={t("pages.Detail.Backup.maxBackups", "最大备份数量")}
-										type="number"
-										variant="outlined"
-										size="small"
-										value={maxBackups}
-										onChange={(e) => {
-											const value = Number.parseInt(e.target.value, 10);
-											if (!Number.isNaN(value) && value > 0) {
-												setMaxBackups(value);
-											}
-										}}
-										disabled={isUpdatingSettings || !selectedGame}
-									/>
-									<Button
-										variant="outlined"
-										onClick={handleUpdateMaxBackups}
-										disabled={
-											isUpdatingSettings || !selectedGame || maxBackups < 1
+								<TextField
+									label={t("pages.Detail.Backup.maxBackups", "最大备份数量")}
+									type="number"
+									variant="outlined"
+									size="small"
+									value={maxBackups}
+									onChange={(e) => {
+										const value = Number.parseInt(e.target.value, 10);
+										if (!Number.isNaN(value) && value > 0) {
+											setMaxBackups(value);
 										}
-										startIcon={
-											isUpdatingSettings ? (
-												<CircularProgress size={16} />
-											) : (
-												<SaveIcon />
-											)
-										}
-									>
-										{t("pages.Detail.Backup.save", "保存")}
-									</Button>
-								</Box>
+									}}
+									disabled={isSaving || !selectedGame}
+								/>
 							</Box>
 
 							<Divider />
@@ -375,11 +321,7 @@ export const Backup: React.FC = () => {
 									fullWidth
 									value={saveDataPath}
 									onChange={(e) => setSaveDataPath(e.target.value)}
-									disabled={
-										createBackupMutation.isPending ||
-										isUpdatingSettings ||
-										!selectedGame
-									}
+									disabled={isSaving || !selectedGame}
 									placeholder={t(
 										"pages.Detail.Backup.selectSaveDataFolder",
 										"选择存档文件夹",
@@ -388,38 +330,28 @@ export const Backup: React.FC = () => {
 								<Button
 									variant="outlined"
 									onClick={handleSelectSaveDataPath}
-									disabled={
-										createBackupMutation.isPending ||
-										isUpdatingSettings ||
-										!selectedGame
-									}
+									disabled={isSaving || !selectedGame}
 									sx={{ minWidth: "40px", px: 1 }}
 								>
 									<FolderOpenIcon />
 								</Button>
-								<Button
-									variant="outlined"
-									onClick={handleUpdateSaveDataPath}
-									disabled={
-										createBackupMutation.isPending ||
-										isUpdatingSettings ||
-										!selectedGame ||
-										!saveDataPath
-									}
-									startIcon={
-										isUpdatingSettings ? (
-											<CircularProgress size={16} />
-										) : (
-											<SaveIcon />
-										)
-									}
-									sx={{ minWidth: "100px" }}
-								>
-									{isUpdatingSettings
-										? t("pages.Detail.Backup.updating", "更新中...")
-										: t("pages.Detail.Backup.updatePath", "更新路径")}
-								</Button>
 							</Box>
+
+							<Divider />
+
+							{/* 统一保存按钮 */}
+							<Button
+								variant="contained"
+								onClick={handleSaveSettings}
+								disabled={isSaving || !selectedGame || !hasUnsavedChanges}
+								startIcon={
+									isSaving ? <CircularProgress size={16} /> : <SaveIcon />
+								}
+							>
+								{isSaving
+									? t("pages.Detail.Backup.saving", "保存中...")
+									: t("pages.Detail.Backup.saveSettings", "保存备份设置")}
+							</Button>
 						</Stack>
 					</CardContent>
 				</Card>
@@ -440,9 +372,7 @@ export const Backup: React.FC = () => {
 								fullWidth
 								onClick={handleCreateBackup}
 								disabled={
-									createBackupMutation.isPending ||
-									!saveDataPath ||
-									!selectedGame?.savepath
+									createBackupMutation.isPending || !selectedGame?.savepath
 								}
 								startIcon={
 									createBackupMutation.isPending ? (
@@ -474,7 +404,7 @@ export const Backup: React.FC = () => {
 									variant="outlined"
 									size="medium"
 									onClick={() => handleOpenSaveDataFolder()}
-									disabled={!saveDataPath || !selectedGame?.savepath}
+									disabled={!selectedGame?.savepath}
 									startIcon={<FolderOpenIcon />}
 									sx={{ flex: 1 }}
 								>
@@ -545,7 +475,6 @@ export const Backup: React.FC = () => {
 														disabled={
 															createBackupMutation.isPending ||
 															restoreBackupMutation.isPending ||
-															!saveDataPath ||
 															!selectedGame?.savepath
 														}
 														color="primary"

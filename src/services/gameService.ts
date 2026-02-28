@@ -32,16 +32,19 @@ class GameService extends BaseService {
 
 	/**
 	 * 获取所有游戏数据，支持按类型筛选和排序
+	 * @param language - 语言代码，用于名称排序时决定 name_cn 优先级（如 "zh-CN"）
 	 */
 	async getAllGames(
 		gameType: GameType = "all",
 		sortOption: SortOption = "addtime",
 		sortOrder: SortOrder = "asc",
+		language?: string,
 	): Promise<FullGameData[]> {
 		return this.invoke<FullGameData[]>("find_all_games", {
 			gameType,
 			sortOption,
 			sortOrder,
+			language: language ?? null,
 		});
 	}
 

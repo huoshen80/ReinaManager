@@ -39,6 +39,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import RightMenu from "@/components/RightMenu";
+import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
+import { useUpdateCategoryGames } from "@/hooks/queries/useCollections";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
@@ -214,6 +216,7 @@ function useDragSort(options: {
 	enabled: boolean;
 }) {
 	const { sourceGames, categoryId, enabled } = options;
+	const updateCategoryGamesMutation = useUpdateCategoryGames();
 
 	const [games, setGames] = useState(sourceGames);
 	const [activeId, setActiveId] = useState<number | null>(null);
@@ -264,7 +267,10 @@ function useDragSort(options: {
 
 				try {
 					const gameIds = newGames.map((g) => g.id as number);
-					await useStore.getState().updateCategoryGames(gameIds, categoryId);
+					await updateCategoryGamesMutation.mutateAsync({
+						categoryId,
+						gameIds,
+					});
 				} catch (error) {
 					console.error("排序更新失败:", error);
 					setGames(games); // 回滚
@@ -276,7 +282,7 @@ function useDragSort(options: {
 				isDraggingRef.current = false;
 			}, 100);
 		},
-		[games, categoryId],
+		[games, categoryId, updateCategoryGamesMutation],
 	);
 
 	const activeGame = useMemo(
@@ -431,14 +437,14 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const cardClickMode = useStore((s) => s.cardClickMode);
 	const doubleClickLaunch = useStore((s) => s.doubleClickLaunch);
 	const longPressLaunch = useStore((s) => s.longPressLaunch);
-	const gamesFromStore = useStore((s) => s.games);
-	const { launchGame } = useGamePlayStore();
+	const { games: gamesFromFacade } = useGameListFacade();
+	const launchGame = useGamePlayStore((s) => s.launchGame);
 
 	// 右键菜单状态
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
 	// 数据源
-	const sourceGames = gamesData ?? gamesFromStore;
+	const sourceGames = gamesData ?? gamesFromFacade;
 
 	// 判断是否启用拖拽排序
 	const isSortable =

@@ -15,6 +15,7 @@ import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import Cards from "@/components/Cards";
 import { ManageGamesDialog } from "@/components/Collection";
 import { EntityCard } from "@/components/Collection/EntityCard";
@@ -23,7 +24,17 @@ import { CollectionRightMenu } from "@/components/RightMenu";
 import { snackbar } from "@/components/Snackbar";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import { useVirtualCategories } from "@/hooks/common/useVirtualCollections";
-import { collectionService } from "@/services";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
+import {
+	useCategories,
+	useCategoryGames,
+	useDeleteCategory,
+	useDeleteGroup,
+	useGroupGameCounts,
+	useGroups,
+	useRenameCategory,
+	useRenameGroup,
+} from "@/hooks/queries/useCollections";
 import { useStore } from "@/store";
 import type { Category as CategoryType } from "@/types/collection";
 import { DefaultGroup } from "@/types/collection";
@@ -35,22 +46,42 @@ export const Collection: React.FC = () => {
 	useScrollRestore("/collection");
 	const {
 		currentGroupId,
-		currentCategories,
-		fetchCategoriesByGroup,
-		fetchGamesByCategory,
 		setSelectedCategory,
 		setCurrentGroup,
-		allGames,
 		selectedCategoryId,
 		selectedCategoryName,
-		categoryGames,
-		groups,
-		deleteCategory,
-		deleteGroup,
-	} = useStore();
+		nsfwFilter,
+	} = useStore(
+		useShallow((s) => ({
+			currentGroupId: s.currentGroupId,
+			setSelectedCategory: s.setSelectedCategory,
+			setCurrentGroup: s.setCurrentGroup,
+			selectedCategoryId: s.selectedCategoryId,
+			selectedCategoryName: s.selectedCategoryName,
+			nsfwFilter: s.nsfwFilter,
+		})),
+	);
+	const displayAllGames = useAllGameListFacade();
+	const groupsQuery = useGroups();
+	const groups = groupsQuery.data ?? [];
+	const categoriesQuery = useCategories(currentGroupId);
+	const currentCategories = categoriesQuery.data ?? [];
+	const categoryGamesQuery = useCategoryGames(
+		selectedCategoryId,
+		selectedCategoryName,
+		displayAllGames,
+		nsfwFilter,
+	);
+	const categoryGames = categoryGamesQuery.data;
+	const groupIds = groups.map((group) => group.id);
+	const groupGameCountsQuery = useGroupGameCounts(groupIds);
+	const deleteCategoryMutation = useDeleteCategory();
+	const deleteGroupMutation = useDeleteGroup();
+	const renameGroupMutation = useRenameGroup();
+	const renameCategoryMutation = useRenameCategory();
 
 	// 使用统一的虚拟分类 Hook
-	const virtualCategories = useVirtualCategories(allGames);
+	const virtualCategories = useVirtualCategories(displayAllGames);
 
 	// 存储每个分组的游戏数量
 	const [groupGameCounts, setGroupGameCounts] = useState<Map<string, number>>(
@@ -75,73 +106,27 @@ export const Collection: React.FC = () => {
 		name: string;
 	} | null>(null);
 
-	// 当在分组列表页时，加载所有分组的游戏数量
+	// 当在分组列表页时，计算所有分组的游戏数量
 	useEffect(() => {
 		if (!currentGroupId && !selectedCategoryId) {
-			const fetchGroupGameCounts = async () => {
-				const counts = new Map<string, number>();
+			const counts = new Map<string, number>();
+			counts.set(DefaultGroup.DEVELOPER, displayAllGames.length);
+			counts.set(DefaultGroup.PLAY_STATUS, displayAllGames.length);
 
-				// 对于默认分组，计算游戏数量
-				// Developer 分组：所有游戏都算
-				counts.set(DefaultGroup.DEVELOPER, allGames.length);
+			for (const [groupId, count] of Object.entries(
+				groupGameCountsQuery.data ?? {},
+			)) {
+				counts.set(groupId, count);
+			}
 
-				// PlayStatus 分组：所有游戏都算
-				counts.set(DefaultGroup.PLAY_STATUS, allGames.length);
-
-				// 对于自定义分组，使用批量接口一次获取所有游戏数量（优化）
-				if (groups.length > 0) {
-					try {
-						const groupIds = groups.map((g) => g.id);
-						const batchCounts =
-							await collectionService.batchCountGamesInGroups(groupIds);
-
-						// 将结果转换为 Map
-						for (const [groupId, count] of Object.entries(batchCounts)) {
-							counts.set(groupId, count);
-						}
-					} catch (error) {
-						console.error("Failed to batch get game counts for groups:", error);
-						// 如果批量查询失败，回退到逐个查询
-						for (const group of groups) {
-							try {
-								const count = await collectionService.countGamesInGroup(
-									group.id,
-								);
-								counts.set(group.id.toString(), count);
-							} catch (error) {
-								console.error(
-									`Failed to get game count for group ${group.id}:`,
-									error,
-								);
-								counts.set(group.id.toString(), 0);
-							}
-						}
-					}
-				}
-
-				setGroupGameCounts(counts);
-			};
-
-			fetchGroupGameCounts();
+			setGroupGameCounts(counts);
 		}
-	}, [currentGroupId, selectedCategoryId, groups, allGames.length]);
-
-	// 当选中分组时，加载分类
-	useEffect(() => {
-		if (currentGroupId) {
-			fetchCategoriesByGroup(currentGroupId);
-		}
-	}, [currentGroupId, fetchCategoriesByGroup]);
-
-	// 当选中分类时，加载游戏
-	useEffect(() => {
-		if (selectedCategoryId !== null) {
-			fetchGamesByCategory(
-				selectedCategoryId,
-				selectedCategoryName || undefined,
-			);
-		}
-	}, [selectedCategoryId, selectedCategoryName, fetchGamesByCategory]);
+	}, [
+		currentGroupId,
+		selectedCategoryId,
+		displayAllGames.length,
+		groupGameCountsQuery.data,
+	]);
 
 	/**
 	 * 处理分组点击事件 - 设置当前分组
@@ -170,10 +155,12 @@ export const Collection: React.FC = () => {
 	 */
 	const handleDeleteCategory = async (categoryIdToDelete: number) => {
 		try {
-			await deleteCategory(categoryIdToDelete);
-			// 重新加载当前分组的分类列表
-			if (currentGroupId) {
-				await fetchCategoriesByGroup(currentGroupId);
+			await deleteCategoryMutation.mutateAsync({
+				categoryId: categoryIdToDelete,
+				groupId: currentGroupId,
+			});
+			if (selectedCategoryId === categoryIdToDelete) {
+				setSelectedCategory(null);
 			}
 			snackbar.success(
 				t("pages.Collection.success.categoryDeleted", {
@@ -204,7 +191,11 @@ export const Collection: React.FC = () => {
 				);
 				return;
 			}
-			await deleteGroup(Number.parseInt(groupId, 10));
+			await deleteGroupMutation.mutateAsync(Number.parseInt(groupId, 10));
+			if (currentGroupId === groupId) {
+				setCurrentGroup(null);
+				setSelectedCategory(null);
+			}
 			snackbar.success(
 				t("pages.Collection.success.groupDeleted", {
 					defaultValue: "已删除分组",
@@ -280,10 +271,6 @@ export const Collection: React.FC = () => {
 
 		setMenuPosition(null); // 关闭右键菜单
 
-		const categoryId = selectedItem.id as number;
-		// 加载分类游戏
-		await fetchGamesByCategory(categoryId);
-
 		setManageGamesDialogOpen(true);
 	};
 
@@ -297,10 +284,10 @@ export const Collection: React.FC = () => {
 			if (selectedItem.type === "group") {
 				const groupId = Number.parseInt(selectedItem.id as string, 10);
 				if (Number.isNaN(groupId)) return;
-				await useStore.getState().renameGroup(groupId, newName);
+				await renameGroupMutation.mutateAsync({ groupId, newName });
 			} else {
 				const categoryId = selectedItem.id as number;
-				await useStore.getState().renameCategory(categoryId, newName);
+				await renameCategoryMutation.mutateAsync({ categoryId, newName });
 			}
 		} catch (error) {
 			console.error("重命名失败:", error);

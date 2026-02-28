@@ -1,6 +1,6 @@
 /**
  * @file RightMenu 组件
- * @description 游戏卡片右键菜单组件，支持启动游戏、进入详情、删除、打开文件夹等操作，适配 Tauri 桌面环境，集成国际化和删除确认弹窗。
+ * @description 游戏卡片右键菜单组件，支持启动游戏、进入详情、删除、打开文件夹等操作，集成国际化和删除确认弹窗。
  * @module src/components/RightMenu/index
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -32,7 +32,12 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
+import {
+	useGetGameById,
+	useSelectedGame,
+} from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
+import { useDeleteGame } from "@/hooks/queries/useGames";
 import { useStore } from "@/store";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
@@ -54,7 +59,7 @@ interface RightMenuProps {
 
 /**
  * 游戏卡片右键菜单组件
- * 支持启动、详情、删除、打开文件夹等操作，适配 Tauri 桌面环境。
+ * 支持启动、详情、删除、打开文件夹等操作
  *
  * @param {RightMenuProps} props 组件属性
  * @returns {JSX.Element | null} 右键菜单
@@ -65,8 +70,12 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	setAnchorEl,
 	id,
 }) => {
-	const { getGameById, deleteGame, isLocalGame } = useStore();
-	const { launchGame, isGameRunning } = useGamePlayStore();
+	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
+	const deleteGameMutation = useDeleteGame();
+	const { selectedGame } = useSelectedGame(id ?? null);
+	const getGameById = useGetGameById();
+	const launchGame = useGamePlayStore((s) => s.launchGame);
+	const isGameRunning = useGamePlayStore((s) => s.isGameRunning);
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [gameData, setGameData] = useState<GameData | null>(null);
@@ -80,21 +89,10 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 	// 获取游戏数据以显示游戏状态
 	useEffect(() => {
-		const fetchGameData = async () => {
-			if (id !== null && id !== undefined) {
-				try {
-					const game = await getGameById(id);
-					setGameData(game);
-				} catch (error) {
-					console.error("获取游戏数据失败:", error);
-				}
-			}
-		};
-
 		if (isopen) {
-			fetchGameData();
+			setGameData(selectedGame);
 		}
-	}, [id, isopen, getGameById]);
+	}, [isopen, selectedGame]);
 
 	/**
 	 * 判断当前游戏是否可以启动
@@ -102,7 +100,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 */
 	const canUse = () => {
 		if (id !== undefined && id !== null)
-			return isLocalGame(id) && !isThisGameRunning;
+			return selectedGame?.localpath && !isThisGameRunning;
 	};
 
 	/**
@@ -113,7 +111,8 @@ const RightMenu: React.FC<RightMenuProps> = ({
 		try {
 			setIsDeleting(true);
 			setAnchorEl(null);
-			await deleteGame(id);
+			await deleteGameMutation.mutateAsync(id);
+			setSelectedGameId(null);
 		} catch (error) {
 			console.error("删除游戏失败:", error);
 		} finally {
@@ -129,14 +128,14 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	const handleStartGame = async () => {
 		if (!id) return;
 		try {
-			const selectedGame = await getGameById(id);
-			if (!selectedGame || !selectedGame.localpath) {
+			const game = await getGameById(id);
+			if (!game || !game.localpath) {
 				console.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}
-			await launchGame(selectedGame.localpath, id, {
-				le_launch: selectedGame.le_launch === 1,
-				magpie: selectedGame.magpie === 1,
+			await launchGame(game.localpath, id, {
+				le_launch: game.le_launch === 1,
+				magpie: game.magpie === 1,
 			});
 		} catch (error) {
 			console.error(t("components.LaunchModal.launchFailed"), error);
@@ -215,7 +214,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 				{/* 打开游戏文件夹 */}
 				<MenuItem
-					disabled={id == null || !isLocalGame(id)}
+					disabled={id == null || !selectedGame?.localpath}
 					onClick={() => {
 						if (id != null) {
 							handleOpenFolder({ id, getGameById });
