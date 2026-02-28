@@ -13,7 +13,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchUserCollection, updateUserCollection } from "@/api/bgm";
 import { snackbar } from "@/components/Snackbar";
-import { useSettingsResources } from "@/hooks/queries/useSettings";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
+import { useBgmProfile, useBgmToken } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store";
 
 const bgmTypeToLocalMap: Record<number, number> = {
@@ -43,14 +45,16 @@ const statusLabels: Record<number, string> = {
 
 const SyncBangumiModal = () => {
 	const { t } = useTranslation();
-	const { bgmToken, bgmProfileUsername } = useSettingsResources();
-	const {
-		syncBangumiModalOpen,
-		closeSyncBangumiModal,
-		selectedGame,
-		updateGame,
-		updateGamePlayStatusInStore,
-	} = useStore();
+	const { data: bgmToken = "" } = useBgmToken();
+	const { data: bgmProfile } = useBgmProfile();
+	const bgmProfileUsername = bgmProfile?.[0] ?? "";
+
+	const selectedGameId = useStore((s) => s.selectedGameId);
+	const syncBangumiModalOpen = useStore((s) => s.syncBangumiModalOpen);
+	const closeSyncBangumiModal = useStore((s) => s.closeSyncBangumiModal);
+
+	const { selectedGame } = useSelectedGame(selectedGameId);
+	const updateGameMutation = useUpdateGame();
 
 	const [loading, setLoading] = useState(false);
 	const [bgmStatus, setBgmStatus] = useState<number | null>(null);
@@ -70,7 +74,7 @@ const SyncBangumiModal = () => {
 						selectedGame.bgm_id,
 						bgmToken,
 					);
-					if (res && res.type) {
+					if (res?.type) {
 						setBgmStatus(res.type);
 					} else {
 						setBgmStatus(null);
@@ -104,10 +108,10 @@ const SyncBangumiModal = () => {
 
 		setLoading(true);
 		try {
-			await updateGame(selectedGame.id, {
-				clear: mappedLocalStatus as number,
+			await updateGameMutation.mutateAsync({
+				gameId: selectedGame.id,
+				updates: { clear: mappedLocalStatus as number },
 			});
-			updateGamePlayStatusInStore(selectedGame.id, mappedLocalStatus as number);
 			snackbar.success(
 				t("components.SyncBangumiModal.syncSuccess", "已同步到本地"),
 			);

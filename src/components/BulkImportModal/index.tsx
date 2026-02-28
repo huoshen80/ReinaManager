@@ -16,6 +16,7 @@ import {
 	RadioGroup,
 	Select,
 	Stack,
+	Switch,
 	Table,
 	TableBody,
 	TableCell,
@@ -24,14 +25,14 @@ import {
 	TableRow,
 	TextField,
 	Typography,
-	Switch,
 } from "@mui/material";
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
 import GameSelectDialog from "@/components/AddModal/GameSelectDialog";
-import { useSettingsResources } from "@/hooks/queries/useSettings";
+import { useAddGame } from "@/hooks/queries/useGames";
+import { useBgmToken } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store";
 import type { FullGameData } from "@/types";
 import { handleGetFolder } from "@/utils/index";
@@ -50,8 +51,11 @@ interface ImportItem extends ScanResult {
 
 const BulkImportModal = () => {
 	const { t } = useTranslation();
-	const { bgmToken } = useSettingsResources();
-	const { bulkImportModalOpen, closeBulkImportModal, addGame } = useStore();
+	const { data: bgmToken = "" } = useBgmToken();
+	const addGameMutation = useAddGame();
+
+	const bulkImportModalOpen = useStore((state) => state.bulkImportModalOpen);
+	const closeBulkImportModal = useStore((state) => state.closeBulkImportModal);
 
 	const [loading, setLoading] = useState(false);
 	const [rootPath, setRootPath] = useState("");
@@ -150,7 +154,7 @@ const BulkImportModal = () => {
 					custom_data = undefined;
 				}
 
-				await addGame({
+				await addGameMutation.mutateAsync({
 					id_type,
 					bgm_id,
 					bgm_data: bgm_data === null ? undefined : bgm_data,
@@ -478,7 +482,11 @@ const BulkImportModal = () => {
 							<RadioGroup
 								row
 								value={editApiSource}
-								onChange={(e) => setEditApiSource(e.target.value as any)}
+								onChange={(e) =>
+									setEditApiSource(
+										e.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
+									)
+								}
 							>
 								<FormControlLabel
 									value="bgm"

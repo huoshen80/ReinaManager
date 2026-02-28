@@ -69,6 +69,7 @@ import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import {
+	useBgmProfile,
 	useBgmToken,
 	useLogLevel,
 	usePortableMode,
@@ -136,7 +137,11 @@ const LanguageSelect = () => {
 const BgmTokenSettings = () => {
 	const { t } = useTranslation();
 	const { data: bgmToken = "" } = useBgmToken();
+	const { data: bgmProfile } = useBgmProfile();
+	const bgmProfileUsername = bgmProfile?.[0] ?? "";
+	const bgmProfileAvatar = bgmProfile?.[1] ?? "";
 	const setBgmTokenMutation = useSetBgmToken();
+	const setBgmProfileMutation = useSetBgmProfile();
 	const autoSyncBgm = useStore((s) => s.autoSyncBgm);
 	const setAutoSyncBgm = useStore((s) => s.setAutoSyncBgm);
 	const [inputToken, setInputToken] = useState("");
@@ -164,7 +169,7 @@ const BgmTokenSettings = () => {
 			if (inputToken) {
 				const profile = await fetchCurrentUserProfile(inputToken);
 				if (profile) {
-					await useSetBgmProfile({
+					await setBgmProfileMutation.mutateAsync({
 						username: profile.username,
 						avatar: profile.avatar.large,
 					});
@@ -180,7 +185,7 @@ const BgmTokenSettings = () => {
 					);
 				}
 			} else {
-				await useSetBgmProfile({ username: "", avatar: "" });
+				await setBgmProfileMutation.mutateAsync({ username: "", avatar: "" });
 				snackbar.success(
 					t("pages.Settings.bgmTokenSettings.clearSuccess", "已清除 BGM Token"),
 				);

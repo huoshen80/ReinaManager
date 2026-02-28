@@ -48,7 +48,7 @@ export function useBgmToken(options?: SettingsQueryOptions) {
 /**
  * 获取 BGM Profile
  */
-function useBgmProfile() {
+export function useBgmProfile() {
 	return useQuery({
 		queryKey: settingsKeys.bgmProfile(),
 		queryFn: () => settingsService.getBgmProfile(),

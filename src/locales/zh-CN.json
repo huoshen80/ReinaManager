@@ -87,29 +87,29 @@
 			"unknownError": "发生未知错误",
 			"viewMore": "查看更多"
 		},
-		"BulkImportModal":{
-			"title":"批量导入",
-			"selectRootFolder":"选择根文件夹",
-			"noFolderSelected":"未选择文件夹",
-			"folderName":"文件夹名称",
-			"matchedGame":"匹配的游戏",
-			"status":"状态",
-			"executable":"启动程序",
-			"actions":"操作",
-			"noGamesFound":"未找到游戏",
-			"statusPending":"待处理",
-			"statusMatched":"已匹配",
-			"statusNotFound":"未找到",
-			"statusImported":"已导入",
-			"statusError":"错误",
-			"selectExe":"请选择启动程序",
-			"noExeFound":"未找到",
-			"cancel":"取消",
-			"matchMetadata":"匹配元数据",
-			"importAll":"全部导入",
-			"editMetadata":"编辑游戏信息",
-			"saveNameOnly":"仅保存名称",
-			"search":"搜索"
+		"BulkImportModal": {
+			"title": "批量导入",
+			"selectRootFolder": "选择根文件夹",
+			"noFolderSelected": "未选择文件夹",
+			"folderName": "文件夹名称",
+			"matchedGame": "匹配的游戏",
+			"status": "状态",
+			"executable": "启动程序",
+			"actions": "操作",
+			"noGamesFound": "未找到游戏",
+			"statusPending": "待处理",
+			"statusMatched": "已匹配",
+			"statusNotFound": "未找到",
+			"statusImported": "已导入",
+			"statusError": "错误",
+			"selectExe": "请选择启动程序",
+			"noExeFound": "未找到",
+			"cancel": "取消",
+			"matchMetadata": "匹配元数据",
+			"importAll": "全部导入",
+			"editMetadata": "编辑游戏信息",
+			"saveNameOnly": "仅保存名称",
+			"search": "搜索"
 		},
 		"AlertBox": {
 			"bgmData": "BGM 数据",
@@ -126,8 +126,8 @@
 			"processing": "处理中...",
 			"vndbData": "VNDB 数据",
 			"ymgalData": "YMGal 数据",
-			"gameIDTips":"游戏ID",
-			"searchById":"通过ID搜索"
+			"gameIDTips": "游戏ID",
+			"searchById": "通过ID搜索"
 		},
 		"Collection": {
 			"errors": {

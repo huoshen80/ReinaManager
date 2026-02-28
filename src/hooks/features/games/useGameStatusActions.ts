@@ -8,6 +8,7 @@ import {
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
 import { settingsService } from "@/services";
+import { useStore } from "@/store";
 import type { FullGameData, GameData } from "@/types";
 import { getErrorMessage } from "@/utils";
 
