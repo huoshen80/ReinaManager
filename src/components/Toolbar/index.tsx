@@ -18,6 +18,7 @@
  * - @mui/icons-material
  * - @toolpad/core/DashboardLayout
  * - @/components/AddModal
+ * - @/components/BulkImportModal
  * - @/components/SortModal
  * - @/components/FilterModal
  * - @/components/LaunchModal
@@ -35,6 +36,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import TurnRightIcon from "@mui/icons-material/TurnRight";
 import Button from "@mui/material/Button";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -48,6 +50,7 @@ import { ThemeSwitcher } from "@toolpad/core/DashboardLayout";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
@@ -391,7 +394,20 @@ export const Buttongroup = ({
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const openAddModal = useStore((s) => s.openAddModal);
+	const {
+		selectedGameId,
+		openAddModal,
+		openBulkImportModal,
+		openSyncBangumiModal,
+	} = useStore(
+		useShallow((state) => ({
+			selectedGameId: state.selectedGameId,
+			openAddModal: state.openAddModal,
+			openBulkImportModal: state.openBulkImportModal,
+			openSyncBangumiModal: state.openSyncBangumiModal,
+		})),
+	);
+	const { selectedGame } = useSelectedGame(selectedGameId);
 	const getGameById = useGetGameById();
 
 	return (
@@ -400,6 +416,11 @@ export const Buttongroup = ({
 				<>
 					<LaunchModal />
 					<OpenFolder id={id} getGameById={getGameById} />
+					{selectedGame?.bgm_id && (
+						<Button startIcon={<SyncAltIcon />} onClick={openSyncBangumiModal}>
+							{t("components.Toolbar.syncBgm", "同步 BGM")}
+						</Button>
+					)}
 					<DeleteModal id={id} />
 					<MoreButton />
 					<ThemeSwitcher />
@@ -410,6 +431,9 @@ export const Buttongroup = ({
 					<LaunchModal />
 					<Button onClick={() => openAddModal("")} startIcon={<AddIcon />}>
 						{t("components.AddModal.addGame")}
+					</Button>
+					<Button onClick={openBulkImportModal} startIcon={<FolderOpenIcon />}>
+						{t("components.Toolbar.bulkImport", "批量导入")}
 					</Button>
 					<SortModal />
 					<FilterModal />

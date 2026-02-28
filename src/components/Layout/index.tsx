@@ -36,7 +36,9 @@ import { Outlet, useLocation } from "react-router-dom";
 import { SearchBox } from "@/components/SearchBox";
 import { Toolbars } from "@/components/Toolbar";
 import AddModal from "../AddModal";
+import BulkImportModal from "../BulkImportModal";
 import { LinkWithScrollSave } from "../LinkWithScrollSave";
+import SyncBangumiModal from "../SyncBangumiModal";
 
 /**
  * 自定义应用标题组件属性类型
@@ -121,6 +123,8 @@ export const Layout: React.FC = () => {
 	return (
 		<>
 			<AddModal />
+			<BulkImportModal />
+			<SyncBangumiModal />
 			<DashboardLayout
 				slots={{
 					appTitle: AppTitle,

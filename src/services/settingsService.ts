@@ -38,6 +38,23 @@ class SettingsService extends BaseService {
 	}
 
 	/**
+	 * 获取 BGM Profile
+	 */
+	async getBgmProfile(): Promise<[string, string]> {
+		return this.invoke<[string, string]>("get_bgm_profile");
+	}
+
+	/**
+	 * 设置 BGM Profile
+	 */
+	async setBgmProfile(
+		username?: string | null,
+		avatar?: string | null,
+	): Promise<void> {
+		return this.invoke<void>("set_bgm_profile", { username, avatar });
+	}
+
+	/**
 	 * 获取存档根路径
 	 */
 	async getSaveRootPath(): Promise<string> {

@@ -15,6 +15,7 @@ import type { LogLevel } from "@/types";
 export const settingsKeys = {
 	all: ["settings"] as const,
 	bgmToken: () => [...settingsKeys.all, "bgmToken"] as const,
+	bgmProfile: () => [...settingsKeys.all, "bgmProfile"] as const,
 	logLevel: () => [...settingsKeys.all, "logLevel"] as const,
 	saveRootPath: () => [...settingsKeys.all, "saveRootPath"] as const,
 	dbBackupPath: () => [...settingsKeys.all, "dbBackupPath"] as const,
@@ -41,6 +42,16 @@ export function useBgmToken(options?: SettingsQueryOptions) {
 		queryKey: settingsKeys.bgmToken(),
 		queryFn: () => settingsService.getBgmToken(),
 		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取 BGM Profile
+ */
+export function useBgmProfile() {
+	return useQuery({
+		queryKey: settingsKeys.bgmProfile(),
+		queryFn: () => settingsService.getBgmProfile(),
 	});
 }
 
@@ -125,6 +136,25 @@ export function useSetBgmToken() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: settingsKeys.bgmToken(),
+			});
+		},
+	});
+}
+
+export function useSetBgmProfile() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			username,
+			avatar,
+		}: {
+			username?: string | null;
+			avatar?: string | null;
+		}) => settingsService.setBgmProfile(username, avatar),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.bgmProfile(),
 			});
 		},
 	});

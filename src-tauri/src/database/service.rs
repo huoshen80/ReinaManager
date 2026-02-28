@@ -366,6 +366,24 @@ pub async fn set_bgm_token(db: State<'_, DatabaseConnection>, token: String) -> 
         .map_err(|e| format!("设置 BGM Token 失败: {}", e))
 }
 
+#[tauri::command]
+pub async fn get_bgm_profile(db: State<'_, DatabaseConnection>) -> Result<(String, String), String> {
+    SettingsRepository::get_bgm_profile(&db)
+        .await
+        .map_err(|e| format!("获取 BGM Profile 失败: {}", e))
+}
+
+#[tauri::command]
+pub async fn set_bgm_profile(
+    db: State<'_, DatabaseConnection>,
+    username: Option<String>,
+    avatar: Option<String>,
+) -> Result<(), String> {
+    SettingsRepository::set_bgm_profile(&db, username, avatar)
+        .await
+        .map_err(|e| format!("设置 BGM Profile 失败: {}", e))
+}
+
 /// 获取存档根路径
 #[tauri::command]
 pub async fn get_save_root_path(db: State<'_, DatabaseConnection>) -> Result<String, String> {

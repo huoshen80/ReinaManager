@@ -38,6 +38,8 @@ pub struct Model {
     pub clear: Option<i32>,
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
+    pub bgm_sync_status: Option<i32>,
+    pub vndb_sync_status: Option<i32>,
 
     // === JSON 元数据列 ===
     #[sea_orm(column_type = "Text", nullable)]

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { useAllGames, useGameList } from "@/hooks/queries/useGames";
 import { useStore } from "@/store";
 import { applyNsfwFilter, getDisplayGameDataList } from "@/utils";
@@ -7,11 +8,16 @@ import { enhancedSearch } from "@/utils/enhancedSearch";
 
 export function useGameListFacade() {
 	const { i18n } = useTranslation();
-	const gameFilterType = useStore((state) => state.gameFilterType);
-	const sortOption = useStore((state) => state.sortOption);
-	const sortOrder = useStore((state) => state.sortOrder);
-	const nsfwFilter = useStore((state) => state.nsfwFilter);
-	const searchKeyword = useStore((state) => state.searchKeyword);
+	const { gameFilterType, sortOption, sortOrder, nsfwFilter, searchKeyword } =
+		useStore(
+			useShallow((s) => ({
+				gameFilterType: s.gameFilterType,
+				sortOption: s.sortOption,
+				sortOrder: s.sortOrder,
+				nsfwFilter: s.nsfwFilter,
+				searchKeyword: s.searchKeyword,
+			})),
+		);
 
 	const gameListQuery = useGameList(gameFilterType, sortOption, sortOrder);
 

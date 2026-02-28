@@ -265,3 +265,101 @@ export async function fetchBgmByIds(ids: string[], BGM_TOKEN?: string) {
 		return i18n.t("api.bgm.fetchFailed", "获取数据失败，请稍后重试");
 	}
 }
+
+/**
+ * 获取当前用户的 Profile 信息
+ * @param token Bangumi API 访问令牌
+ * @returns { username: string, avatar: string, nickname: string } 或 null
+ */
+export async function fetchCurrentUserProfile(token: string) {
+	if (!token) return null;
+	const BGM_HEADER = {
+		headers: {
+			Accept: "application/json",
+			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
+			Authorization: `Bearer ${token}`,
+		},
+	};
+	try {
+		const res = await tauriHttp.get("https://api.bgm.tv/v0/me", BGM_HEADER);
+		return res.data as {
+			username: string;
+			nickname: string;
+			avatar: { large: string; medium: string; small: string };
+		};
+	} catch (error) {
+		console.error("获取用户Profile失败:", error);
+		return null;
+	}
+}
+
+/**
+ * 获取当前用户的条目收藏状态
+ * @param username 用户名
+ * @param subjectId Bangumi 条目 ID
+ * @param token Bangumi API 访问令牌
+ * @returns 收藏数据对象或 null
+ */
+export async function fetchUserCollection(
+	username: string,
+	subjectId: string,
+	token: string,
+) {
+	if (!token || !username) return null;
+	const BGM_HEADER = {
+		headers: {
+			Accept: "application/json",
+			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
+			Authorization: `Bearer ${token}`,
+		},
+	};
+	try {
+		const res = await tauriHttp.get(
+			`https://api.bgm.tv/v0/users/${username}/collections/${subjectId}`,
+			BGM_HEADER,
+		);
+		return res.data as { type: number; rate?: number; comment?: string };
+	} catch (error) {
+		console.error(`获取用户收藏状态失败 (subjectId: ${subjectId}):`, error);
+		return null;
+	}
+}
+
+/**
+ * 更新当前用户的条目收藏状态
+ * @param username 用户名
+ * @param subjectId Bangumi 条目 ID
+ * @param type 收藏状态 (1=wish, 2=collect, 3=do, 4=on_hold, 5=dropped)
+ * @param token Bangumi API 访问令牌
+ */
+export async function updateUserCollection(
+	username: string,
+	subjectId: string,
+	type: number,
+	token: string,
+): Promise<boolean> {
+	if (!token || !username) return false;
+	const BGM_HEADER = {
+		headers: {
+			Accept: "application/json",
+			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
+			Authorization: `Bearer ${token}`,
+		},
+	};
+	try {
+		console.log(BGM_HEADER);
+		console.log(
+			`https://api.bgm.tv/v0/users/${username}/collections/${subjectId}`,
+		);
+		await tauriHttp.post(
+			`https://api.bgm.tv/v0/users/-/collections/${subjectId}`,
+			{ type },
+			BGM_HEADER,
+		);
+		// HTTP 204 does not return response body (但是官方api调试文档返回的是202(?))
+		return true;
+	} catch (error) {
+		console.error(`更新用户收藏状态失败 (subjectId: ${subjectId}):`, error);
+		return false;
+	}
+}

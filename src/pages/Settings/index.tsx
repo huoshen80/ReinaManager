@@ -29,6 +29,7 @@ import {
 	Accordion,
 	AccordionDetails,
 	AccordionSummary,
+	Avatar,
 	Checkbox,
 	CircularProgress,
 	Divider,
@@ -36,6 +37,7 @@ import {
 	IconButton,
 	InputAdornment,
 	Link,
+	Paper,
 	Radio,
 	RadioGroup,
 	Switch,
@@ -59,6 +61,7 @@ import { join } from "pathe";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
+import { fetchCurrentUserProfile } from "@/api/bgm";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { toggleAutostart } from "@/components/AutoStart";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
@@ -66,9 +69,11 @@ import { snackbar } from "@/components/Snackbar";
 import { checkForUpdates } from "@/components/Update";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import {
+	useBgmProfile,
 	useBgmToken,
 	useLogLevel,
 	usePortableMode,
+	useSetBgmProfile,
 	useSetBgmToken,
 	useSetLogLevel,
 	useSetPortableMode,
@@ -132,8 +137,15 @@ const LanguageSelect = () => {
 const BgmTokenSettings = () => {
 	const { t } = useTranslation();
 	const { data: bgmToken = "" } = useBgmToken();
+	const { data: bgmProfile } = useBgmProfile();
+	const bgmProfileUsername = bgmProfile?.[0] ?? "";
+	const bgmProfileAvatar = bgmProfile?.[1] ?? "";
 	const setBgmTokenMutation = useSetBgmToken();
+	const setBgmProfileMutation = useSetBgmProfile();
+	const autoSyncBgm = useStore((s) => s.autoSyncBgm);
+	const setAutoSyncBgm = useStore((s) => s.setAutoSyncBgm);
 	const [inputToken, setInputToken] = useState("");
+	const [isFetchingProfile, setIsFetchingProfile] = useState(false);
 
 	useEffect(() => {
 		setInputToken(bgmToken);
@@ -151,15 +163,40 @@ const BgmTokenSettings = () => {
 	 */
 	const handleSaveToken = async () => {
 		try {
+			setIsFetchingProfile(true);
 			await setBgmTokenMutation.mutateAsync(inputToken);
-			snackbar.success(
-				t("pages.Settings.bgmTokenSettings.saveSuccess", "BGM Token 保存成功"),
-			);
+
+			if (inputToken) {
+				const profile = await fetchCurrentUserProfile(inputToken);
+				if (profile) {
+					await setBgmProfileMutation.mutateAsync({
+						username: profile.username,
+						avatar: profile.avatar.large,
+					});
+					snackbar.success(
+						t(
+							"pages.Settings.bgmTokenSettings.saveSuccess",
+							"BGM Token 保存成功，已获取用户资料",
+						),
+					);
+				} else {
+					snackbar.warning(
+						"BGM Token 保存成功，但获取用户资料失败，请检查网络或Token",
+					);
+				}
+			} else {
+				await setBgmProfileMutation.mutateAsync({ username: "", avatar: "" });
+				snackbar.success(
+					t("pages.Settings.bgmTokenSettings.clearSuccess", "已清除 BGM Token"),
+				);
+			}
 		} catch (error) {
 			console.error(error);
 			snackbar.error(
 				t("pages.Settings.bgmTokenSettings.saveError", "BGM Token 保存失败"),
 			);
+		} finally {
+			setIsFetchingProfile(false);
 		}
 	};
 
@@ -215,10 +252,14 @@ const BgmTokenSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleSaveToken}
-					disabled={setBgmTokenMutation.isPending}
+					disabled={setBgmTokenMutation.isPending || isFetchingProfile}
 					className="px-6 py-2"
 				>
-					{t("pages.Settings.saveBtn")}
+					{isFetchingProfile ? (
+						<CircularProgress size={24} />
+					) : (
+						t("pages.Settings.saveBtn")
+					)}
 				</Button>
 				<Button
 					variant="outlined"
@@ -229,6 +270,43 @@ const BgmTokenSettings = () => {
 					{t("pages.Settings.getToken")}
 				</Button>
 			</Stack>
+
+			{bgmProfileUsername && (
+				<Paper
+					elevation={0}
+					className="p-4 mt-4 bg-transparent border border-gray-200 dark:border-gray-700/50 rounded-xl max-w-sm flex items-center gap-4"
+				>
+					<Avatar
+						src={bgmProfileAvatar}
+						alt={bgmProfileUsername}
+						sx={{ width: 56, height: 56 }}
+					/>
+					<Box>
+						<Typography variant="subtitle1" className="font-bold">
+							{bgmProfileUsername}
+						</Typography>
+						<Typography variant="body2" color="text.secondary">
+							{t("pages.Settings.bgmTokenSettings.authenticated", "已授权连接")}
+						</Typography>
+					</Box>
+				</Paper>
+			)}
+
+			<Box className="mt-4">
+				<FormControlLabel
+					control={
+						<Switch
+							checked={autoSyncBgm}
+							onChange={(e) => setAutoSyncBgm(e.target.checked)}
+							color="primary"
+						/>
+					}
+					label={t(
+						"pages.Settings.bgmTokenSettings.autoSync",
+						"修改游戏状态时自动同步到 Bangumi",
+					)}
+				/>
+			</Box>
 		</Box>
 	);
 };

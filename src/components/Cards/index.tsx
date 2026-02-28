@@ -38,6 +38,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import RightMenu from "@/components/RightMenu";
 import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useUpdateCategoryGames } from "@/hooks/queries/useCollections";
@@ -432,11 +433,21 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const isLibraries = path === "/libraries";
 
 	// Store 状态
-	const selectedGameId = useStore((s) => s.selectedGameId);
-	const setSelectedGameId = useStore((s) => s.setSelectedGameId);
-	const cardClickMode = useStore((s) => s.cardClickMode);
-	const doubleClickLaunch = useStore((s) => s.doubleClickLaunch);
-	const longPressLaunch = useStore((s) => s.longPressLaunch);
+	const {
+		selectedGameId,
+		setSelectedGameId,
+		cardClickMode,
+		doubleClickLaunch,
+		longPressLaunch,
+	} = useStore(
+		useShallow((s) => ({
+			selectedGameId: s.selectedGameId,
+			setSelectedGameId: s.setSelectedGameId,
+			cardClickMode: s.cardClickMode,
+			doubleClickLaunch: s.doubleClickLaunch,
+			longPressLaunch: s.longPressLaunch,
+		})),
+	);
 	const { games: gamesFromFacade } = useGameListFacade();
 	const launchGame = useGamePlayStore((s) => s.launchGame);
 

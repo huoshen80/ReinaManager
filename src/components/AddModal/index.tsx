@@ -37,6 +37,7 @@ import { basename, dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { gameMetadataService } from "@/api";
 import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
@@ -165,13 +166,25 @@ const AddModal: React.FC = () => {
 	const { data: allGames = [] } = useAllGames();
 	const addGameMutation = useAddGame();
 
-	const apiSource = useStore((state) => state.apiSource);
-	const setApiSource = useStore((state) => state.setApiSource);
-	const addModalOpen = useStore((state) => state.addModalOpen);
-	const addModalPath = useStore((state) => state.addModalPath);
-	const openAddModal = useStore((state) => state.openAddModal);
-	const closeAddModal = useStore((state) => state.closeAddModal);
-	const setAddModalPath = useStore((state) => state.setAddModalPath);
+	const {
+		apiSource,
+		setApiSource,
+		addModalOpen,
+		addModalPath,
+		openAddModal,
+		closeAddModal,
+		setAddModalPath,
+	} = useStore(
+		useShallow((s) => ({
+			apiSource: s.apiSource,
+			setApiSource: s.setApiSource,
+			addModalOpen: s.addModalOpen,
+			addModalPath: s.addModalPath,
+			openAddModal: s.openAddModal,
+			closeAddModal: s.closeAddModal,
+			setAddModalPath: s.setAddModalPath,
+		})),
+	);
 
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");

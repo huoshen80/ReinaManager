@@ -15,6 +15,7 @@ use utils::{
     },
     launch::{launch_game, stop_game},
     logs::{get_reina_log_level, set_reina_log_level},
+    scan::scan_directory_for_games,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +44,7 @@ pub fn run() {
             launch_game,
             stop_game,
             open_directory,
+            scan_directory_for_games,
             move_backup_folder,
             copy_file,
             create_savedata_backup,
@@ -84,6 +86,8 @@ pub fn run() {
             // 用户设置相关 commands
             get_bgm_token,
             set_bgm_token,
+            get_bgm_profile,
+            set_bgm_profile,
             get_save_root_path,
             set_save_root_path,
             get_db_backup_path,
