@@ -8,7 +8,7 @@ use tauri::{command, AppHandle, Manager};
 
 // ==================== 路径相关常量（重导出） ====================
 
-pub use reina_path::{DB_DATA_DIR, DB_FILE_NAME, DB_BACKUP_SUBDIR, RESOURCE_DIR};
+pub use reina_path::{DB_BACKUP_SUBDIR, DB_DATA_DIR, DB_FILE_NAME, RESOURCE_DIR};
 
 // ==================== 路径基础函数（直接使用 Tauri API） ====================
 
@@ -26,7 +26,8 @@ pub fn is_portable_mode(app: &AppHandle) -> bool {
 /// 获取基础数据目录
 pub fn get_base_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if is_portable_mode(app) {
-        Ok(app.path()
+        Ok(app
+            .path()
             .resource_dir()
             .map_err(|e| format!("无法获取应用目录: {}", e))?
             .join(RESOURCE_DIR))
@@ -45,7 +46,8 @@ pub fn get_db_path(app: &AppHandle) -> Result<PathBuf, String> {
 /// 获取指定模式的数据库目录
 pub fn get_base_data_dir_for_mode(app: &AppHandle, portable: bool) -> Result<PathBuf, String> {
     if portable {
-        Ok(app.path()
+        Ok(app
+            .path()
             .resource_dir()
             .map_err(|e| format!("无法获取应用目录: {}", e))?
             .join(RESOURCE_DIR))
@@ -192,7 +194,7 @@ impl PathManager {
             let mut cache = self.cache.lock().expect("路径管理器缓存锁已被污染");
             cache.le_path = Some(le_path);
             cache.magpie_path = Some(magpie_path);
-            cache.db_backup_path = Some(db_backup_path); 
+            cache.db_backup_path = Some(db_backup_path);
             cache.savedata_backup_path = Some(savedata_backup_path);
         }
 

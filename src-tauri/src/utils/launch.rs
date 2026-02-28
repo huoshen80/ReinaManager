@@ -14,7 +14,7 @@ use tokio::time;
 mod keyboard_simulator {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS,
-        KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, VIRTUAL_KEY
+        KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, VIRTUAL_KEY,
     };
 
     /// 创建键盘输入事件
@@ -28,8 +28,8 @@ mod keyboard_simulator {
                     dwFlags: flags,
                     time: 0,
                     dwExtraInfo: 0,
-                }
-            }
+                },
+            },
         }
     }
 
@@ -38,10 +38,10 @@ mod keyboard_simulator {
         unsafe {
             // 定义按键序列：Win按下, Shift按下, A按下, A释放, Shift释放, Win释放
             let inputs = [
-                create_keyboard_input(VIRTUAL_KEY(0x5B), KEYEVENTF_EXTENDEDKEY),        // Win按下
-                create_keyboard_input(VIRTUAL_KEY(0xA0), KEYEVENTF_EXTENDEDKEY),        // Shift按下
-                create_keyboard_input(VIRTUAL_KEY(0x41), KEYBD_EVENT_FLAGS(0)),         // A按下
-                create_keyboard_input(VIRTUAL_KEY(0x41), KEYEVENTF_KEYUP),              // A释放
+                create_keyboard_input(VIRTUAL_KEY(0x5B), KEYEVENTF_EXTENDEDKEY), // Win按下
+                create_keyboard_input(VIRTUAL_KEY(0xA0), KEYEVENTF_EXTENDEDKEY), // Shift按下
+                create_keyboard_input(VIRTUAL_KEY(0x41), KEYBD_EVENT_FLAGS(0)),  // A按下
+                create_keyboard_input(VIRTUAL_KEY(0x41), KEYEVENTF_KEYUP),       // A释放
                 create_keyboard_input(VIRTUAL_KEY(0xA0), KEYEVENTF_KEYUP | KEYEVENTF_EXTENDEDKEY), // Shift释放
                 create_keyboard_input(VIRTUAL_KEY(0x5B), KEYEVENTF_KEYUP | KEYEVENTF_EXTENDEDKEY), // Win释放
             ];
@@ -51,7 +51,11 @@ mod keyboard_simulator {
             if result == inputs.len() as u32 {
                 Ok(())
             } else {
-                Err(format!("键盘模拟失败，只发送了{}个事件中的{}个", result, inputs.len()))
+                Err(format!(
+                    "键盘模拟失败，只发送了{}个事件中的{}个",
+                    result,
+                    inputs.len()
+                ))
             }
         }
     }
@@ -183,8 +187,14 @@ pub async fn launch_game<R: Runtime>(
     launch_options: Option<GameLaunchOptions>,
 ) -> Result<LaunchResult, String> {
     // 处理启动选项
-    let use_le = launch_options.as_ref().map(|opt| opt.le_launch.unwrap_or(false)).unwrap_or(false);
-    let use_magpie = launch_options.as_ref().map(|opt| opt.magpie.unwrap_or(false)).unwrap_or(false);
+    let use_le = launch_options
+        .as_ref()
+        .map(|opt| opt.le_launch.unwrap_or(false))
+        .unwrap_or(false);
+    let use_magpie = launch_options
+        .as_ref()
+        .map(|opt| opt.magpie.unwrap_or(false))
+        .unwrap_or(false);
 
     // 获取游戏可执行文件的目录
     let game_dir = match Path::new(&game_path).parent() {
@@ -201,11 +211,10 @@ pub async fn launch_game<R: Runtime>(
     // 根据启动选项决定启动方式
     let mut command = if use_le {
         // LE转区启动
-        let path_manager = app_handle
-            .state::<PathManager>()
-            .inner();
+        let path_manager = app_handle.state::<PathManager>().inner();
 
-        let le_path = path_manager.get_le_path()
+        let le_path = path_manager
+            .get_le_path()
             .map_err(|e| format!("获取LE路径失败: {}", e))?;
 
         if le_path.is_empty() {
@@ -243,7 +252,8 @@ pub async fn launch_game<R: Runtime>(
 
                 tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                    if let Err(e) = start_magpie_for_game(&game_path_clone, &app_handle_clone).await {
+                    if let Err(e) = start_magpie_for_game(&game_path_clone, &app_handle_clone).await
+                    {
                         error!("启动Magpie失败: {}", e);
                     }
                 });
@@ -266,11 +276,10 @@ pub async fn launch_game<R: Runtime>(
             if needs_elevation {
                 // 对于LE启动，需要用LE路径作为执行文件，游戏路径作为参数
                 let (exec_path, exec_args) = if use_le {
-                    let path_manager = app_handle
-                        .state::<PathManager>()
-                        .inner();
+                    let path_manager = app_handle.state::<PathManager>().inner();
 
-                    let le_path = path_manager.get_le_path()
+                    let le_path = path_manager
+                        .get_le_path()
                         .map_err(|_| "获取LE路径失败".to_string())?;
 
                     if le_path.is_empty() {
@@ -303,7 +312,9 @@ pub async fn launch_game<R: Runtime>(
 
                             tokio::spawn(async move {
                                 time::sleep(time::Duration::from_secs(1)).await;
-                                if let Err(e) = start_magpie_for_game(&game_path_clone, &app_handle_clone).await {
+                                if let Err(e) =
+                                    start_magpie_for_game(&game_path_clone, &app_handle_clone).await
+                                {
                                     error!("启动Magpie失败: {}", e);
                                 }
                             });
@@ -367,11 +378,10 @@ async fn start_magpie_for_game(
     app_handle: &AppHandle<impl Runtime>,
 ) -> Result<(), String> {
     // 获取Magpie路径
-    let path_manager = app_handle
-        .state::<PathManager>()
-        .inner();
+    let path_manager = app_handle.state::<PathManager>().inner();
 
-    let magpie_path = path_manager.get_magpie_path()
+    let magpie_path = path_manager
+        .get_magpie_path()
         .map_err(|e| format!("获取Magpie路径失败: {}", e))?;
 
     if magpie_path.is_empty() {
@@ -425,14 +435,15 @@ async fn start_magpie_for_game(
 /// 检查进程是否在运行（使用sysinfo，性能优于tasklist命令）
 fn is_process_running(process_name: &str) -> bool {
     let mut system = System::new_with_specifics(
-        RefreshKind::nothing().with_processes(ProcessRefreshKind::everything())
+        RefreshKind::nothing().with_processes(ProcessRefreshKind::everything()),
     );
 
     // 刷新进程信息
     system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
     // 检查是否有匹配的进程
-    system.processes().values().any(|process| {
-        process.name().eq_ignore_ascii_case(process_name)
-    })
+    system
+        .processes()
+        .values()
+        .any(|process| process.name().eq_ignore_ascii_case(process_name))
 }

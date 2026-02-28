@@ -183,7 +183,10 @@ impl SettingsRepository {
     }
 
     /// 批量更新设置
-    pub async fn update_settings(db: &DatabaseConnection, data: UpdateSettingsData) -> Result<(), DbErr> {
+    pub async fn update_settings(
+        db: &DatabaseConnection,
+        data: UpdateSettingsData,
+    ) -> Result<(), DbErr> {
         let data = data.cleaned(); // 清洗空字符串
 
         Self::ensure_user_exists(db).await?;

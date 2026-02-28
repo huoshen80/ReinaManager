@@ -7,9 +7,9 @@
 //!
 //! 注意: id_type 字段是 NOT NULL，保持原样不处理
 
-use log::{info, error};
-use sea_orm_migration::prelude::*;
 use crate::backup::backup_sqlite;
+use log::{error, info};
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;

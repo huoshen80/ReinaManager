@@ -262,8 +262,8 @@ async fn run_legacy_migrations_with_sqlx() -> Result<(), DbErr> {
     println!("[MIGRATION] Running legacy migrations with sqlx...");
 
     // 获取数据库连接 URL（从系统目录推导）
-    let db_path = get_db_path()
-        .map_err(|e| DbErr::Custom(format!("Failed to get database path: {}", e)))?;
+    let db_path =
+        get_db_path().map_err(|e| DbErr::Custom(format!("Failed to get database path: {}", e)))?;
     let database_url = path_to_sqlite_url(&db_path)?;
 
     // 创建 sqlx 连接池
