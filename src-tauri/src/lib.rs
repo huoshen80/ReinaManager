@@ -86,8 +86,6 @@ pub fn run() {
             // 用户设置相关 commands
             get_bgm_token,
             set_bgm_token,
-            get_bgm_profile,
-            set_bgm_profile,
             get_save_root_path,
             set_save_root_path,
             get_db_backup_path,

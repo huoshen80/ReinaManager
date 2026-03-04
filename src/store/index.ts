@@ -35,11 +35,6 @@ export interface AppState {
 	addModalOpen: boolean;
 	addModalPath: string;
 	bulkImportModalOpen: boolean;
-	syncBangumiModalOpen: boolean;
-
-	// API Sync
-	autoSyncBgm: boolean;
-	setAutoSyncBgm: (enabled: boolean) => void;
 
 	// 排序选项
 	sortOption: SortOption;
@@ -59,8 +54,6 @@ export interface AppState {
 	setAddModalPath: (path: string) => void;
 	openBulkImportModal: () => void;
 	closeBulkImportModal: () => void;
-	openSyncBangumiModal: () => void;
-	closeSyncBangumiModal: () => void;
 
 	// 初始化
 	initialize: () => Promise<void>;
@@ -140,16 +133,9 @@ export const useStore = create<AppState>()(
 			addModalOpen: false,
 			addModalPath: "",
 			bulkImportModalOpen: false,
-			syncBangumiModalOpen: false,
 
 			searchInput: "",
 			searchKeyword: "",
-
-			// API Sync
-			autoSyncBgm: false,
-			setAutoSyncBgm: (enabled: boolean) => {
-				set({ autoSyncBgm: enabled });
-			},
 
 			gameFilterType: "all",
 
@@ -188,12 +174,6 @@ export const useStore = create<AppState>()(
 			},
 			closeBulkImportModal: () => {
 				set({ bulkImportModalOpen: false });
-			},
-			openSyncBangumiModal: () => {
-				set({ syncBangumiModalOpen: true });
-			},
-			closeSyncBangumiModal: () => {
-				set({ syncBangumiModalOpen: false });
 			},
 
 			// NSFW相关

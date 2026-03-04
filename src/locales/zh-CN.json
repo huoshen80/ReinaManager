@@ -497,9 +497,7 @@
 			"bgmTokenSettings": {
 				"clearToken": "清除令牌",
 				"saveError": "BGM Token 保存失败",
-				"saveSuccess": "BGM Token 保存成功",
-				"authenticated": "已授权连接",
-				"autoSync": "修改游戏状态时自动同步到 Bangumi"
+				"saveSuccess": "BGM Token 保存成功"
 			},
 			"cardClickMode": {
 				"doubleClickLaunch": "双击启动游戏",

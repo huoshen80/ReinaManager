@@ -36,7 +36,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
-import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import TurnRightIcon from "@mui/icons-material/TurnRight";
 import Button from "@mui/material/Button";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -394,20 +393,13 @@ export const Buttongroup = ({
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const {
-		selectedGameId,
-		openAddModal,
-		openBulkImportModal,
-		openSyncBangumiModal,
-	} = useStore(
+	const { openAddModal, openBulkImportModal } = useStore(
 		useShallow((state) => ({
 			selectedGameId: state.selectedGameId,
 			openAddModal: state.openAddModal,
 			openBulkImportModal: state.openBulkImportModal,
-			openSyncBangumiModal: state.openSyncBangumiModal,
 		})),
 	);
-	const { selectedGame } = useSelectedGame(selectedGameId);
 	const getGameById = useGetGameById();
 
 	return (
@@ -416,11 +408,6 @@ export const Buttongroup = ({
 				<>
 					<LaunchModal />
 					<OpenFolder id={id} getGameById={getGameById} />
-					{selectedGame?.bgm_id && (
-						<Button startIcon={<SyncAltIcon />} onClick={openSyncBangumiModal}>
-							{t("components.Toolbar.syncBgm", "同步 BGM")}
-						</Button>
-					)}
 					<DeleteModal id={id} />
 					<MoreButton />
 					<ThemeSwitcher />
