@@ -31,6 +31,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tokio",
  "url",
+ "walkdir",
  "windows 0.62.2",
 ]
 

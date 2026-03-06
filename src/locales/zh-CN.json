@@ -109,7 +109,8 @@
 			"importAll": "全部导入",
 			"editMetadata": "编辑游戏信息",
 			"saveNameOnly": "仅保存名称",
-			"search": "搜索"
+			"search": "搜索",
+			"gamesCount": "共 {{count}} 个游戏"
 		},
 		"AlertBox": {
 			"bgmData": "BGM 数据",

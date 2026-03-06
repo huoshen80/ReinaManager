@@ -1,3 +1,4 @@
+import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import SearchIcon from "@mui/icons-material/Search";
@@ -210,6 +211,10 @@ const BulkImportModal = () => {
 		setEditItemPath(null);
 	};
 
+	const handleDeleteItem = (path: string) => {
+		setItems((prev) => prev.filter((i) => i.path !== path));
+	};
+
 	const handleEditRowSaveNameOnly = () => {
 		if (!editItemPath) return;
 		const newItems = [...items];
@@ -252,6 +257,11 @@ const BulkImportModal = () => {
 									"未选择文件夹",
 								)}
 						</Typography>
+						{items.length > 0 && (
+							<Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+								{t("components.BulkImportModal.gamesCount",  { count: items.length })}
+							</Typography>
+						)}
 					</Stack>
 
 					<TableContainer sx={{ maxHeight: 400 }}>
@@ -344,7 +354,15 @@ const BulkImportModal = () => {
 																	)}
 											</TableCell>
 											<TableCell>
-												{item.executables.length > 0 ? (
+												{item.executables.length === 1 ? (
+													<Typography
+														variant="body2"
+														noWrap
+														title={item.executables[0]}
+													>
+														{item.executables[0]}
+													</Typography>
+												) : (
 													<FormControl size="small" fullWidth>
 														<Select
 															value={item.selectedExe || ""}
@@ -360,31 +378,20 @@ const BulkImportModal = () => {
 															}}
 															displayEmpty
 															disabled={item.status === "imported"}
-															renderValue={(selected) => {
-																if (!selected) {
-																	return (
-																		<Typography
-																			variant="body2"
-																			color="text.secondary"
-																			noWrap
-																		>
-																			{t(
-																				"components.BulkImportModal.selectExe",
-																				"请选择启动程序",
-																			)}
-																		</Typography>
-																	);
-																}
-																return (
-																	<Typography
-																		variant="body2"
-																		noWrap
-																		sx={{ maxWidth: "100%" }}
-																	>
-																		{selected}
-																	</Typography>
-																);
-															}}
+															renderValue={(selected) => (
+																<Typography
+																	variant="body2"
+																	noWrap
+																	color={selected ? undefined : "text.secondary"}
+																	sx={{ maxWidth: "100%" }}
+																>
+																	{selected ||
+																		t(
+																			"components.BulkImportModal.selectExe",
+																			"请选择启动程序",
+																		)}
+																</Typography>
+															)}
 														>
 															<MenuItem value="" disabled>
 																{t(
@@ -399,28 +406,30 @@ const BulkImportModal = () => {
 															))}
 														</Select>
 													</FormControl>
-												) : (
-													<Typography variant="body2" color="text.secondary">
-														{t(
-															"components.BulkImportModal.noExeFound",
-															"未找到",
-														)}
-													</Typography>
 												)}
 											</TableCell>
 											<TableCell align="center">
-												<IconButton
-													size="small"
-													onClick={() => {
-														setEditItemPath(item.path);
-														setEditName(item.name);
-														setEditApiSource("bgm");
-														setEditIsIdSearch(false);
-													}}
-													disabled={item.status === "imported"}
-												>
-													<EditIcon fontSize="small" />
-												</IconButton>
+												<Stack direction="row" justifyContent="center">
+													<IconButton
+														size="small"
+														onClick={() => {
+															setEditItemPath(item.path);
+															setEditName(item.name);
+															setEditApiSource("bgm");
+															setEditIsIdSearch(false);
+														}}
+														disabled={item.status === "imported"}
+													>
+														<EditIcon fontSize="small" />
+													</IconButton>
+													<IconButton
+														size="small"
+														onClick={() => handleDeleteItem(item.path)}
+														disabled={item.status === "imported"}
+													>
+														<DeleteIcon fontSize="small" />
+													</IconButton>
+												</Stack>
 											</TableCell>
 										</TableRow>
 									))

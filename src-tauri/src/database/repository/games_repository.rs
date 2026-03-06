@@ -8,6 +8,7 @@ use crate::entity::prelude::*;
 use crate::entity::{games, savedata};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// 游戏数据排序选项
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -252,6 +253,18 @@ impl GamesRepository {
             .count(db)
             .await?
             > 0)
+    }
+
+    /// 获取所有非空本地路径，用于扫描去重
+    ///
+    /// 返回数据库中所有 `localpath` 字段的集合（仅非 NULL 值），
+    /// 使用 `HashSet` 以便调用方做 O(1) 精确匹配；前缀检查由调用方负责。
+    pub async fn get_all_localpaths(db: &DatabaseConnection) -> Result<HashSet<String>, DbErr> {
+        Games::find()
+            .filter(games::Column::Localpath.is_not_null())
+            .all(db)
+            .await
+            .map(|rows| rows.into_iter().filter_map(|g| g.localpath).collect())
     }
 
     // ==================== 私有方法 ====================
