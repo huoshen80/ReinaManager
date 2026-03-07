@@ -1,13 +1,17 @@
 use crate::database::dto::GameLaunchOptions;
-use crate::utils::fs::PathManager;
 use crate::utils::game_monitor::{monitor_game, stop_game_session};
-use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use sysinfo::{ProcessRefreshKind, RefreshKind, System};
-use tauri::{command, AppHandle, Manager, Runtime};
-use tokio::time;
+use tauri::{command, AppHandle, Runtime};
+#[cfg(target_os = "windows")]
+use {
+    crate::utils::fs::PathManager,
+    log::{error, info},
+    sysinfo::{ProcessRefreshKind, RefreshKind, System},
+    tauri::Manager,
+    tokio::time,
+};
 
 // ================= Windows键盘模拟支持 =================
 #[cfg(target_os = "windows")]
@@ -58,13 +62,6 @@ mod keyboard_simulator {
                 ))
             }
         }
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-mod keyboard_simulator {
-    pub fn simulate_win_shift_a() -> Result<(), String> {
-        Err("键盘模拟仅在Windows系统上支持".to_string())
     }
 }
 
@@ -146,25 +143,6 @@ mod win_elevated_launch {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-mod win_elevated_launch {
-    use std::path::Path;
-    pub fn shell_execute_runas(
-        _path: &str,
-        _args: Option<&[String]>,
-        _work_dir: &Path,
-    ) -> Result<u32, String> {
-        Err("Elevated launch is only supported on Windows".to_string())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LaunchResult {
-    success: bool,
-    message: String,
-    process_id: Option<u32>, // 添加进程ID字段
-}
-
 /// 启动游戏
 ///
 /// # Arguments
@@ -191,6 +169,7 @@ pub async fn launch_game<R: Runtime>(
         .as_ref()
         .map(|opt| opt.le_launch.unwrap_or(false))
         .unwrap_or(false);
+    #[cfg(target_os = "windows")]
     let use_magpie = launch_options
         .as_ref()
         .map(|opt| opt.magpie.unwrap_or(false))
@@ -209,6 +188,7 @@ pub async fn launch_game<R: Runtime>(
     };
 
     // 根据启动选项决定启动方式
+    #[cfg(target_os = "windows")]
     let mut command = if use_le {
         // LE转区启动
         let path_manager = app_handle.state::<PathManager>().inner();
@@ -231,7 +211,42 @@ pub async fn launch_game<R: Runtime>(
         cmd.current_dir(game_dir);
         cmd
     };
+    #[cfg(target_os = "linux")]
+    let systemd_unit_name = format!("reina_game_{}.scope", game_id);
+    #[cfg(target_os = "linux")]
+    {
+        // 检查 systemd scope 是否存在且状态正常
+        let _ = check_scope_or_reset_failed(&systemd_unit_name).await;
+    }
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        // 从 store 中读取 Linux 启动命令配置
 
+        use log::debug;
+        use tauri_plugin_store::StoreExt;
+        let linux_launch_command = app_handle
+            .store("settings.json")
+            .ok()
+            .and_then(|store| store.get("linux_launch_command"))
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| "wine".to_string());
+        let linux_launch_command = expand_path(&linux_launch_command);
+        debug!("使用的 Linux 启动命令: {:?}", linux_launch_command);
+        let mut command = Command::new("systemd-run"); // 使用 systemd-run 启动游戏进程
+        command.arg("--scope"); // 使用 scope 模式
+        command.arg("--user"); // 以用户身份运行
+        command.arg("-p");
+        command.arg("Delegate=yes"); // 允许子进程
+        command.arg("--unit");
+
+        command.arg(&systemd_unit_name); // 设置 systemd unit 名称
+        if exe_name.to_string_lossy().ends_with(".exe") {
+            command.arg(&linux_launch_command); // 使用配置的启动命令（如 wine）
+        }
+        command.arg(&game_path); // 添加游戏可执行文件路径
+        command.current_dir(game_dir);
+        command
+    };
     // 克隆一份参数用于普通启动与可能的提权回退
     let args_clone = args.clone();
     if let Some(arguments) = &args_clone {
@@ -243,9 +258,19 @@ pub async fn launch_game<R: Runtime>(
             let process_id = child.id();
 
             // 启动游戏监控
-            monitor_game(app_handle.clone(), game_id, process_id, game_path.clone()).await;
+            monitor_game(
+                app_handle.clone(),
+                game_id,
+                process_id,
+                #[cfg(target_os = "windows")]
+                game_path.clone(),
+                #[cfg(target_os = "linux")]
+                systemd_unit_name.clone(),
+            )
+            .await;
 
             // 如果需要Magpie放大，在后台启动
+            #[cfg(target_os = "windows")]
             if use_magpie {
                 let game_path_clone = game_path.clone();
                 let app_handle_clone = app_handle.clone();
@@ -268,74 +293,84 @@ pub async fn launch_game<R: Runtime>(
                     if use_le { " (LE转区)" } else { "" }
                 ),
                 process_id: Some(process_id),
+                #[cfg(target_os = "linux")]
+                systemd_scope: Some(systemd_unit_name),
             })
         }
         Err(e) => {
             // 如果为 Windows 的 740 错误（需要提升权限），尝试使用 ShellExecuteExW("runas") 再启动
-            let needs_elevation = e.raw_os_error() == Some(740);
-            if needs_elevation {
-                // 对于LE启动，需要用LE路径作为执行文件，游戏路径作为参数
-                let (exec_path, exec_args) = if use_le {
-                    let path_manager = app_handle.state::<PathManager>().inner();
+            #[cfg(target_os = "windows")]
+            {
+                let needs_elevation = e.raw_os_error() == Some(740);
+                if needs_elevation {
+                    // 对于LE启动，需要用LE路径作为执行文件，游戏路径作为参数
+                    let (exec_path, exec_args) = if use_le {
+                        let path_manager = app_handle.state::<PathManager>().inner();
 
-                    let le_path = path_manager
-                        .get_le_path()
-                        .map_err(|_| "获取LE路径失败".to_string())?;
+                        let le_path = path_manager
+                            .get_le_path()
+                            .map_err(|_| "获取LE路径失败".to_string())?;
 
-                    if le_path.is_empty() {
-                        return Err("LE转区软件路径未设置，无法提权启动".to_string());
-                    }
-
-                    let mut args = vec![game_path.clone()];
-                    if let Some(additional_args) = &args_clone {
-                        args.extend(additional_args.clone());
-                    }
-
-                    (le_path.to_string(), Some(args))
-                } else {
-                    (game_path.clone(), args_clone)
-                };
-
-                match win_elevated_launch::shell_execute_runas(
-                    &exec_path,
-                    exec_args.as_deref(),
-                    game_dir,
-                ) {
-                    Ok(pid) => {
-                        // 提权启动成功，继续进入监控
-                        monitor_game(app_handle.clone(), game_id, pid, game_path.clone()).await;
-
-                        // 如果需要Magpie放大，在后台启动
-                        if use_magpie {
-                            let game_path_clone = game_path.clone();
-                            let app_handle_clone = app_handle.clone();
-
-                            tokio::spawn(async move {
-                                time::sleep(time::Duration::from_secs(1)).await;
-                                if let Err(e) =
-                                    start_magpie_for_game(&game_path_clone, &app_handle_clone).await
-                                {
-                                    error!("启动Magpie失败: {}", e);
-                                }
-                            });
+                        if le_path.is_empty() {
+                            return Err("LE转区软件路径未设置，无法提权启动".to_string());
                         }
 
-                        Ok(LaunchResult {
-                            success: true,
-                            message: format!(
-                                "已使用管理员权限启动游戏: {}{}，工作目录: {:?}",
-                                exe_name.to_string_lossy(),
-                                if use_le { " (LE转区)" } else { "" },
-                                game_dir
-                            ),
-                            process_id: Some(pid),
-                        })
+                        let mut args = vec![game_path.clone()];
+                        if let Some(additional_args) = &args_clone {
+                            args.extend(additional_args.clone());
+                        }
+
+                        (le_path.to_string(), Some(args))
+                    } else {
+                        (game_path.clone(), args_clone)
+                    };
+                    match win_elevated_launch::shell_execute_runas(
+                        &exec_path,
+                        exec_args.as_deref(),
+                        game_dir,
+                    ) {
+                        Ok(pid) => {
+                            // 提权启动成功，继续进入监控
+                            monitor_game(app_handle.clone(), game_id, pid, game_path.clone()).await;
+
+                            // 如果需要Magpie放大，在后台启动
+                            if use_magpie {
+                                let game_path_clone = game_path.clone();
+                                let app_handle_clone = app_handle.clone();
+
+                                tokio::spawn(async move {
+                                    time::sleep(time::Duration::from_secs(1)).await;
+                                    if let Err(e) =
+                                        start_magpie_for_game(&game_path_clone, &app_handle_clone)
+                                            .await
+                                    {
+                                        error!("启动Magpie失败: {}", e);
+                                    }
+                                });
+                            }
+
+                            Ok(LaunchResult {
+                                success: true,
+                                message: format!(
+                                    "已使用管理员权限启动游戏: {}{}，工作目录: {:?}",
+                                    exe_name.to_string_lossy(),
+                                    if use_le { " (LE转区)" } else { "" },
+                                    game_dir
+                                ),
+                                process_id: Some(pid),
+                            })
+                        }
+                        Err(err2) => Err(format!("普通启动失败且提权启动失败: {} | {}", e, err2)),
                     }
-                    Err(err2) => Err(format!("普通启动失败且提权启动失败: {} | {}", e, err2)),
+                    #[cfg(not(target_os = "windows"))]
+                    Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
+                } else {
+                    Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
                 }
-            } else {
-                Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
             }
+
+            #[cfg(not(target_os = "windows"))]
+            Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir))
         }
     }
 }
@@ -358,8 +393,8 @@ pub struct StopResult {
 ///
 /// 停止结果，包含成功标志、消息和终止的进程数量
 #[command]
-pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
-    match stop_game_session(game_id) {
+pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
+    match stop_game_session(game_id).await {
         Ok(terminated_count) => Ok(StopResult {
             success: true,
             message: format!(
@@ -373,6 +408,7 @@ pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
 }
 
 /// 为游戏启动Magpie放大
+#[cfg(target_os = "windows")]
 async fn start_magpie_for_game(
     _game_path: &str,
     app_handle: &AppHandle<impl Runtime>,
@@ -433,6 +469,7 @@ async fn start_magpie_for_game(
 }
 
 /// 检查进程是否在运行（使用sysinfo，性能优于tasklist命令）
+#[cfg(target_os = "windows")]
 fn is_process_running(process_name: &str) -> bool {
     let mut system = System::new_with_specifics(
         RefreshKind::nothing().with_processes(ProcessRefreshKind::everything()),
@@ -446,4 +483,93 @@ fn is_process_running(process_name: &str) -> bool {
         .processes()
         .values()
         .any(|process| process.name().eq_ignore_ascii_case(process_name))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LaunchResult {
+    success: bool,
+    message: String,
+
+    process_id: Option<u32>, // 添加进程ID字段
+    #[cfg(target_os = "linux")]
+    systemd_scope: Option<String>, // 添加 systemd scope 字段
+}
+#[cfg(target_os = "linux")]
+fn expand_path(path: &str) -> String {
+    if path.starts_with("~") {
+        if let Some(home_dir) = dirs::home_dir() {
+            path.replacen("~", &home_dir.to_string_lossy(), 1)
+        } else {
+            path.to_string()
+        }
+    } else {
+        path.to_string()
+    }
+}
+/// 在 Linux 上检查 systemd scope 的状态，如果是 failed 则重置它
+/// 返回bool值表示scope是否已经存在
+/// # Arguments
+/// * `systemd_unit_name` - systemd 单元名称
+///
+/// # Returns
+/// bool - 如果 scope 已存在则返回 true，否则返回 false
+#[cfg(target_os = "linux")]
+async fn check_scope_or_reset_failed(systemd_unit_name: &str) -> Result<bool, String> {
+    use crate::utils::game_monitor::{get_connection, get_manager_proxy};
+    let proxy = get_manager_proxy().await.map_err(|e| {
+        format!(
+            "连接到 systemd 失败，无法检查或重置单元 {}: {}",
+            systemd_unit_name, e
+        )
+    })?;
+    match proxy.get_unit(systemd_unit_name.to_string()).await {
+        Ok(u) => {
+            let conn = get_connection().await.map_err(|e| {
+                format!(
+                    "连接到 systemd 失败，无法检查或重置单元 {}: {}",
+                    systemd_unit_name, e
+                )
+            })?;
+            match zbus_systemd::systemd1::UnitProxy::new(conn, u).await {
+                Ok(unit_proxy) => {
+                    let active_state = unit_proxy
+                        .active_state()
+                        .await
+                        .map_err(|e| format!("获取单元 {} 状态失败: {}", systemd_unit_name, e))?;
+                    if active_state == "failed" {
+                        // 重置失败状态
+                        proxy
+                            .reset_failed_unit(systemd_unit_name.to_string())
+                            .await
+                            .map_err(|e| {
+                                format!("重置单元 {} 失败状态失败: {}", systemd_unit_name, e)
+                            })?;
+                    }
+                    Ok(true)
+                }
+                Err(e) => Err(format!(
+                    "创建单元代理失败，无法检查或重置单元 {}: {}",
+                    systemd_unit_name, e
+                )),
+            }
+        }
+        Err(e) => {
+            if let zbus::Error::MethodError(name, _, _) = &e {
+                if name.as_str() == "org.freedesktop.systemd1.NoSuchUnit" {
+                    // 单元不存在
+                    Ok(false)
+                } else {
+                    Err(format!(
+                        "检查单元 {} 是否存在时出错: {}",
+                        systemd_unit_name, e
+                    ))
+                }
+            } else {
+                Err(format!(
+                    "检查单元 {} 是否存在时出错: {}",
+                    systemd_unit_name, e
+                ))
+            }
+        }
+    }
 }

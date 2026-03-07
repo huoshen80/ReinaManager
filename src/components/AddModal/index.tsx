@@ -46,7 +46,7 @@ import { useAddGame, useAllGames } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
-import { handleDirectory } from "@/utils";
+import { handleExeFile } from "@/utils";
 import GameSelectDialog from "./GameSelectDialog";
 
 /**
@@ -583,7 +583,7 @@ const AddModal: React.FC = () => {
 						className="w-md"
 						variant="contained"
 						onClick={async () => {
-							const result = await handleDirectory();
+							const result = await handleExeFile();
 							if (result) setAddModalPath(result);
 						}}
 						startIcon={<FileOpenIcon />}
