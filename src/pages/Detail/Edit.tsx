@@ -5,6 +5,7 @@ import { useLocation } from "react-router";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { buildMetadataUpdatePayload } from "@/hooks/features/games/useGameMetadataFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import type { FullGameData, UpdateGameParams } from "@/types";
@@ -33,42 +34,7 @@ export const Edit: React.FC = () => {
 	// 确认更新游戏数据（从数据源）
 	const handleConfirmGameUpdate = async () => {
 		if (gameData) {
-			// 根据新的数据源类型，清除其他数据源的数据
-			const updateData: UpdateGameParams = { ...gameData };
-
-			switch (gameData.id_type) {
-				case "bgm":
-					// 只保留 bgm_data，清除其他数据源
-					updateData.vndb_data = null;
-					updateData.ymgal_data = null;
-					break;
-				case "vndb":
-					// 只保留 vndb_data，清除其他数据源
-					updateData.bgm_data = null;
-					updateData.ymgal_data = null;
-					break;
-				case "ymgal":
-					// 只保留 ymgal_data，清除其他数据源
-					updateData.bgm_data = null;
-					updateData.vndb_data = null;
-					break;
-				case "mixed":
-					// 对于混合模式，如果某个数据源的ID为空，则清除对应的数据和ID
-					if (!gameData.bgm_id) {
-						updateData.bgm_data = null;
-						updateData.bgm_id = null;
-					}
-					if (!gameData.vndb_id) {
-						updateData.vndb_data = null;
-						updateData.vndb_id = null;
-					}
-					if (!gameData.ymgal_id) {
-						updateData.ymgal_data = null;
-						updateData.ymgal_id = null;
-					}
-					break;
-			}
-
+			const updateData: UpdateGameParams = buildMetadataUpdatePayload(gameData);
 			await updateGameMutation.mutateAsync({ gameId: id, updates: updateData });
 			setOpenViewBox(false);
 			snackbar.success(t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"));

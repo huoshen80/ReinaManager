@@ -86,7 +86,6 @@
 			"selectLauncher": "Select Launcher",
 			"singleTab": "Single Add",
 			"timeout": "Request timed out, please try again later",
-			"unknownError": "An unknown error occurred",
 			"viewMore": "View More"
 		},
 		"BulkImportModal": {
@@ -111,6 +110,8 @@
 			"reset": "Reset",
 			"saveNameOnly": "Save Name Only",
 			"search": "Search",
+			"importSummary": "Successfully imported {{success}}/{{total}} games",
+			"importPartialFailed": "{{failed}} games failed to import",
 			"gamesCount_one": "{{count}} game",
 			"gamesCount_other": "{{count}} games"
 		},
@@ -396,14 +397,14 @@
 			"collapseTags": "Collapse Tags",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID or VNDB ID cannot be empty",
+				"bgmOrVndbIdRequired": "Bangumi ID, VNDB ID, or YMGal ID cannot be empty",
 				"customModeWarning": "Custom mode cannot update from data source.",
 				"dataSource": "Data Source",
+				"incompleteYmgalData": "Complete YMGal data was not found.",
 				"invalidIdType": "Invalid ID type",
 				"loading": "Loading...",
 				"noDataFetched": "No data fetched or data source invalid.",
 				"noGameSelected": "No game selected",
-				"unknownError": "Unknown error",
 				"updateFromSource": "Update from data source",
 				"vndbId": "VNDB ID",
 				"ymgalId": "Ymgal ID"

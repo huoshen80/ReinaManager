@@ -161,6 +161,21 @@ pub struct InsertGameData {
     pub custom_data: Option<CustomData>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BatchOperationError {
+    pub index: usize,
+    pub message: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BatchOperationResult {
+    pub total: usize,
+    pub success: usize,
+    pub failed: usize,
+    pub ids: Vec<i32>,
+    pub errors: Vec<BatchOperationError>,
+}
+
 /// 用于更新游戏的数据结构（单表架构）
 ///
 /// 所有字段均为 Option，允许部分更新。

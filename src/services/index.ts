@@ -5,7 +5,11 @@
 
 export type { Collection, GameCollectionLink } from "./collectionService";
 export { collectionService } from "./collectionService";
-export type { BackupResult, ImportResult } from "./fileService";
+export type {
+	BackupResult,
+	ImportResult,
+	MoveBackupFolderResult,
+} from "./fileService";
 export { fileService } from "./fileService";
 // 导出所有服务
 export { gameService } from "./gameService";

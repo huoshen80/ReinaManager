@@ -35,7 +35,6 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useShallow } from "zustand/react/shallow";
 import { snackbar } from "@/components/Snackbar";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
@@ -80,14 +79,7 @@ export const LaunchModal = () => {
 	const { selectedGame, isLoadingSelectedGame } =
 		useSelectedGame(selectedGameId);
 	const { launchGame, stopGame, isGameRunning, getGameRealTimeState } =
-		useGamePlayStore(
-			useShallow((s) => ({
-				launchGame: s.launchGame,
-				stopGame: s.stopGame,
-				isGameRunning: s.isGameRunning,
-				getGameRealTimeState: s.getGameRealTimeState,
-			})),
-		);
+		useGamePlayStore();
 
 	// 用于 elapsed 模式下的前端计时器显示
 	const timerRef = useRef<HTMLSpanElement>(null);

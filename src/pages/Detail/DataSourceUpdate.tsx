@@ -10,12 +10,12 @@ import {
 	type SelectChangeEvent,
 	TextField,
 } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { gameMetadataService } from "@/api";
-import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import { snackbar } from "@/components/Snackbar";
+import { useGameMetadataSearchActions } from "@/hooks/features/games/useGameMetadataFacade";
 import type { FullGameData, GameData } from "@/types";
+import { getErrorMessage } from "@/utils";
 
 interface DataSourceUpdateProps {
 	bgmToken: string;
@@ -35,13 +35,15 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	disabled = false,
 }) => {
 	const { t } = useTranslation();
+	const { fetchMetadataForUpdate, isSearchingMetadata } =
+		useGameMetadataSearchActions();
 
 	// 数据源更新相关状态
 	const [bgmId, setBgmId] = useState<string>(selectedGame?.bgm_id || "");
 	const [vndbId, setVndbId] = useState<string>(selectedGame?.vndb_id || "");
 	const [ymgalId, setYmgalId] = useState<string>(selectedGame?.ymgal_id || "");
 	const [idType, setIdType] = useState<string>(selectedGame?.id_type || "");
-	const [isLoading, setIsLoading] = useState(false);
+	const isLoading = isSearchingMetadata;
 
 	useEffect(() => {
 		setBgmId(selectedGame?.bgm_id || "");
@@ -55,97 +57,47 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 		selectedGame?.id_type,
 	]);
 
-	// 重构的数据获取逻辑
-	const fetchGameData = useCallback(async () => {
+	// 获取并预览游戏数据
+	const handleFetchAndPreview = async () => {
 		if (!selectedGame) {
-			throw new Error(
+			snackbar.error(
 				t("pages.Detail.DataSourceUpdate.noGameSelected", "未选择游戏"),
 			);
+			return;
 		}
 
 		if (idType === "custom") {
-			throw new Error(
+			snackbar.error(
 				t(
 					"pages.Detail.DataSourceUpdate.customModeWarning",
 					"自定义模式无法从数据源更新。",
 				),
 			);
+			return;
 		}
 
-		// 根据idType决定如何调用服务层
-		let apiData: FullGameData | null = null;
-
-		if (idType === "bgm" && bgmId) {
-			// BGM 单一数据源
-			apiData = await gameMetadataService.getGameById(bgmId, idType, bgmToken);
-		} else if (idType === "vndb" && vndbId) {
-			// VNDB 单一数据源
-			apiData = await gameMetadataService.getGameById(vndbId, idType);
-		} else if (idType === "ymgal" && ymgalId) {
-			// YMGal 单一数据源
-			apiData = await gameMetadataService.getGameById(ymgalId, idType);
-		} else if (idType === "mixed") {
-			// Mixed 混合数据源
-			if (!bgmId && !vndbId && !ymgalId) {
-				throw new Error(
-					t(
-						"pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired",
-						"Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
-					),
-				);
-			}
-			apiData = await gameMetadataService.getGameByIds({
-				bgmId: bgmId,
-				vndbId: vndbId,
-				ymgalId: ymgalId,
-				bgmToken,
-			});
-		} else {
-			throw new Error(
-				t("pages.Detail.DataSourceUpdate.invalidIdType", "无效的ID类型"),
-			);
-		}
-
-		if (!apiData) {
-			throw new Error(
+		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId) {
+			snackbar.error(
 				t(
-					"pages.Detail.DataSourceUpdate.noDataFetched",
-					"未获取到数据或数据源无效。",
+					"pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired",
+					"Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
 				),
 			);
+			return;
 		}
 
-		// 检查 YMGal 数据是否完整，如果不完整则重新获取
-		if (apiData.ymgal_id && !isYmgalDataComplete(apiData.ymgal_data)) {
-			// 重新获取完整的 YMGal 数据
-			const completeYmgalData = await gameMetadataService.getGameByIds({
-				ymgalId: apiData.ymgal_id,
-			});
-
-			if (completeYmgalData?.ymgal_data) {
-				// 合并完整的数据
-				apiData.ymgal_data = completeYmgalData.ymgal_data;
-				apiData.date = completeYmgalData.date || apiData.date;
-			}
-		}
-
-		return apiData;
-	}, [idType, bgmId, vndbId, ymgalId, bgmToken, selectedGame, t]);
-
-	// 获取并预览游戏数据
-	const handleFetchAndPreview = async () => {
-		setIsLoading(true);
 		try {
-			const result = await fetchGameData();
+			const result = await fetchMetadataForUpdate({
+				selectedGame,
+				idType,
+				bgmId,
+				vndbId,
+				ymgalId,
+				bgmToken,
+			});
 			onDataFetched(result);
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Detail.DataSourceUpdate.unknownError", "未知错误");
-			snackbar.error(errorMessage);
-		} finally {
-			setIsLoading(false);
+			snackbar.error(getErrorMessage(error));
 		}
 	};
 

@@ -27,21 +27,19 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { gameMetadataService } from "@/api";
-import { useAddGame } from "@/hooks/queries/useGames";
+import { snackbar } from "@/components/Snackbar";
+import {
+	buildBulkImportGameData,
+	useBatchGameAddActions,
+	useGameDirectoryScanActions,
+	useGameMetadataSearchActions,
+} from "@/hooks/features/games/useGameMetadataFacade";
 import { useBgmToken } from "@/hooks/queries/useSettings";
-import type { FullGameData } from "@/types";
-import { handleGetFolder } from "@/utils";
+import type { FullGameData, ScanResult } from "@/types";
+import { getErrorMessage, handleGetFolder } from "@/utils";
 import GameSelectDialog from "./GameSelectDialog";
-
-interface ScanResult {
-	name: string;
-	path: string;
-	executables: string[];
-}
 
 interface ImportItem extends ScanResult {
 	status: "pending" | "matched" | "imported" | "error" | "not found";
@@ -54,12 +52,49 @@ interface BulkImportTabProps {
 	onClose: () => void;
 }
 
-const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
-	const { t } = useTranslation();
-	const { data: bgmToken = "" } = useBgmToken();
-	const addGameMutation = useAddGame();
+function getGameIdentityKeys(
+	payload: Pick<FullGameData, "bgm_id" | "vndb_id" | "ymgal_id">,
+): string[] {
+	return [
+		payload.bgm_id ? `bgm:${payload.bgm_id}` : null,
+		payload.vndb_id ? `vndb:${payload.vndb_id}` : null,
+		payload.ymgal_id ? `ymgal:${payload.ymgal_id}` : null,
+	].filter((value): value is string => Boolean(value));
+}
 
-	const [loading, setLoading] = useState(false);
+function getMatchedGameName(
+	gameData: FullGameData | undefined,
+	language: string,
+): string {
+	if (!gameData) {
+		return "";
+	}
+
+	const useChineseName = language === "zh-CN";
+	return (
+		(useChineseName
+			? gameData.bgm_data?.name_cn ||
+				gameData.vndb_data?.name_cn ||
+				gameData.ymgal_data?.name_cn
+			: undefined) ||
+		gameData.bgm_data?.name ||
+		gameData.vndb_data?.name ||
+		gameData.ymgal_data?.name ||
+		""
+	);
+}
+
+const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
+	const { t, i18n } = useTranslation();
+	const { data: bgmToken = "" } = useBgmToken();
+	const { searchGames } = useGameMetadataSearchActions();
+	const { isScanningDirectories, scanDirectoryForGames } =
+		useGameDirectoryScanActions();
+	const { addGamesBatch, checkGameExists, isBatchAddingGames } =
+		useBatchGameAddActions();
+	const preferredApiSource = bgmToken ? "bgm" : "vndb";
+
+	const [isMatchingMetadata, setIsMatchingMetadata] = useState(false);
 	const [rootPath, setRootPath] = useState("");
 	const [items, setItems] = useState<ImportItem[]>([]);
 	const [editItemPath, setEditItemPath] = useState<string | null>(null);
@@ -73,19 +108,21 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		[],
 	);
 	const [gameSelectLoading, setGameSelectLoading] = useState(false);
+	const loading =
+		isMatchingMetadata || isScanningDirectories || isBatchAddingGames;
 
 	const resetState = useCallback(() => {
-		setLoading(false);
+		setIsMatchingMetadata(false);
 		setRootPath("");
 		setItems([]);
 		setEditItemPath(null);
 		setEditName("");
-		setEditApiSource("bgm");
+		setEditApiSource(preferredApiSource);
 		setEditIsIdSearch(false);
 		setGameSelectOpen(false);
 		setGameSelectResults([]);
 		setGameSelectLoading(false);
-	}, []);
+	}, [preferredApiSource]);
 
 	useEffect(() => {
 		if (!open) {
@@ -98,11 +135,8 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		if (!result) return;
 
 		setRootPath(result);
-		setLoading(true);
 		try {
-			const subdirs = await invoke<ScanResult[]>("scan_directory_for_games", {
-				path: result,
-			});
+			const subdirs = await scanDirectoryForGames(result);
 			setItems(
 				subdirs.map((dir) => ({
 					...dir,
@@ -112,24 +146,21 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 				})),
 			);
 		} catch (error) {
-			console.error("Failed to scan directory", error);
-		} finally {
-			setLoading(false);
+			snackbar.error(getErrorMessage(error));
 		}
 	};
 
 	const handleMatchMetadata = async () => {
-		setLoading(true);
+		setIsMatchingMetadata(true);
 		const nextItems = [...items];
 
 		for (let index = 0; index < nextItems.length; index++) {
 			if (nextItems[index].status !== "pending") continue;
 
 			try {
-				const searchResults = await gameMetadataService.searchGames({
+				const searchResults = await searchGames({
 					query: nextItems[index].name,
-					source: "bgm",
-					bgmToken,
+					source: preferredApiSource,
 				});
 
 				if (searchResults.length > 0) {
@@ -139,7 +170,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 					nextItems[index].status = "not found";
 				}
 			} catch (error) {
-				console.error("Match failed for", nextItems[index].name, error);
+				snackbar.warning(`${nextItems[index].name}: ${getErrorMessage(error)}`);
 				nextItems[index].status = "not found";
 			}
 
@@ -147,51 +178,89 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 			await new Promise((resolve) => setTimeout(resolve, 300));
 		}
 
-		setLoading(false);
+		setIsMatchingMetadata(false);
 	};
 
 	const handleImportAll = async () => {
-		setLoading(true);
 		const nextItems = [...items];
+		const pendingPayloads: Array<{ itemIndex: number; payloadIndex: number }> =
+			[];
+		const payloads = [];
+		const queuedIds = new Set<string>();
 
 		for (let index = 0; index < nextItems.length; index++) {
 			if (nextItems[index].status === "imported") continue;
 
-			try {
-				const matchedData = nextItems[index].matchedData;
-				let id_type = "custom";
-				let custom_data: Record<string, unknown> | undefined = {
-					name: nextItems[index].name,
-				};
-				let bgm_id: string | undefined;
-				let bgm_data: FullGameData["bgm_data"] | undefined;
+			const payload = buildBulkImportGameData(nextItems[index]);
+			const identityKeys = getGameIdentityKeys(payload);
+			const existsInLibrary = checkGameExists(payload);
+			const duplicatedInCurrentBatch = identityKeys.some((key) =>
+				queuedIds.has(key),
+			);
 
-				if (nextItems[index].status === "matched" && matchedData) {
-					id_type = "bgm";
-					bgm_id = matchedData.bgm_id;
-					bgm_data = matchedData.bgm_data;
-					custom_data = undefined;
-				}
-
-				await addGameMutation.mutateAsync({
-					id_type,
-					bgm_id,
-					bgm_data: bgm_data === null ? undefined : bgm_data,
-					custom_data,
-					localpath: nextItems[index].selectedExe
-						? `${nextItems[index].path}\\${nextItems[index].selectedExe}`
-						: nextItems[index].path,
-				});
-				nextItems[index].status = "imported";
-			} catch (error) {
-				console.error("Failed to import game", error);
+			if (existsInLibrary || duplicatedInCurrentBatch) {
 				nextItems[index].status = "error";
+				continue;
 			}
 
-			setItems([...nextItems]);
+			for (const key of identityKeys) {
+				queuedIds.add(key);
+			}
+
+			pendingPayloads.push({ itemIndex: index, payloadIndex: payloads.length });
+			payloads.push(payload);
 		}
 
-		setLoading(false);
+		if (payloads.length === 0) {
+			setItems([...nextItems]);
+			snackbar.info(
+				t("components.BulkImportModal.noGamesFound", "未找到可导入项目"),
+			);
+			return;
+		}
+
+		try {
+			const result = await addGamesBatch(payloads);
+			const failedIndices = new Set(result.errors.map((error) => error.index));
+
+			for (const { itemIndex, payloadIndex } of pendingPayloads) {
+				nextItems[itemIndex].status = failedIndices.has(payloadIndex)
+					? "error"
+					: "imported";
+			}
+
+			if (result.success > 0) {
+				snackbar.success(
+					t(
+						"components.BulkImportModal.importSummary",
+						"成功导入 {{success}}/{{total}} 个游戏",
+						{
+							success: result.success,
+							total: nextItems.length, // 去重逻辑在前端执行
+						},
+					),
+				);
+			}
+
+			if (result.failed > 0) {
+				snackbar.warning(
+					t(
+						"components.BulkImportModal.importPartialFailed",
+						"{{failed}} 个游戏导入失败",
+						{
+							failed: result.failed,
+						},
+					),
+				);
+			}
+		} catch (error) {
+			snackbar.error(getErrorMessage(error));
+			for (const { itemIndex } of pendingPayloads) {
+				nextItems[itemIndex].status = "error";
+			}
+		}
+
+		setItems([...nextItems]);
 	};
 
 	const handleEditRowSearch = async () => {
@@ -200,15 +269,14 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		setGameSelectLoading(true);
 		setGameSelectOpen(true);
 		try {
-			const searchResults = await gameMetadataService.searchGames({
+			const searchResults = await searchGames({
 				query: editName,
-				source: editApiSource === "mixed" ? undefined : editApiSource,
-				bgmToken,
+				source: editApiSource,
 				isIdSearch: editIsIdSearch,
 			});
 			setGameSelectResults(searchResults);
 		} catch (error) {
-			console.error("Manual search failed for", editName, error);
+			snackbar.error(getErrorMessage(error));
 			setGameSelectResults([]);
 		} finally {
 			setGameSelectLoading(false);
@@ -254,7 +322,15 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 
 	return (
 		<>
-			<Stack spacing={2} sx={{ pt: 1 }}>
+			<Stack
+				spacing={2}
+				sx={{
+					pt: 1,
+					height: "100%",
+					minHeight: 0,
+					overflow: "hidden",
+				}}
+			>
 				<Stack
 					direction={{ xs: "column", sm: "row" }}
 					spacing={2}
@@ -289,7 +365,14 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 					)}
 				</Stack>
 
-				<TableContainer sx={{ maxHeight: 400 }}>
+				<TableContainer
+					sx={{
+						flex: "1 1 auto",
+						minHeight: 0,
+						overflowY: "auto",
+						overflowX: "hidden",
+					}}
+				>
 					<Table stickyHeader size="small" sx={{ tableLayout: "fixed" }}>
 						<TableHead>
 							<TableRow>
@@ -336,18 +419,13 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 												overflow: "hidden",
 												textOverflow: "ellipsis",
 											}}
-											title={
-												item.matchedData
-													? item.matchedData.bgm_data?.name_cn ||
-														item.matchedData.bgm_data?.name ||
-														""
-													: ""
-											}
+											title={getMatchedGameName(
+												item.matchedData,
+												i18n.language,
+											)}
 										>
-											{item.matchedData
-												? item.matchedData.bgm_data?.name_cn ||
-													item.matchedData.bgm_data?.name
-												: "-"}
+											{getMatchedGameName(item.matchedData, i18n.language) ||
+												"-"}
 										</TableCell>
 										<TableCell>
 											{item.status === "pending"
@@ -438,7 +516,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 													onClick={() => {
 														setEditItemPath(item.path);
 														setEditName(item.name);
-														setEditApiSource("bgm");
+														setEditApiSource(preferredApiSource);
 														setEditIsIdSearch(false);
 													}}
 													disabled={item.status === "imported"}
@@ -476,7 +554,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 						</Button>
 					</Stack>
 					<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-												<Button variant="outlined" onClick={onClose} disabled={loading}>
+						<Button variant="outlined" onClick={onClose} disabled={loading}>
 							{t("components.BulkImportModal.cancel", "取消")}
 						</Button>
 						<Button
@@ -513,7 +591,10 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 							label={
 								!editIsIdSearch
 									? t("components.AddModal.gameName", "游戏名称")
-									: t("components.AddModal.gameIDTips", "游戏ID(输入BGM、VNDB 或 YMGal ID)")
+									: t(
+											"components.AddModal.gameIDTips",
+											"游戏ID(输入BGM、VNDB 或 YMGal ID)",
+										)
 							}
 							value={editName}
 							onChange={(event) => setEditName(event.target.value)}

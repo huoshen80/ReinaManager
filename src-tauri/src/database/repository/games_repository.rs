@@ -3,7 +3,9 @@
 //! 重构后的 Repository，games 表包含所有元数据（以 JSON 列存储）。
 //! 移除了多表事务代码，简化为单表 CRUD 操作。
 
-use crate::database::dto::{InsertGameData, UpdateGameData};
+use crate::database::dto::{
+    BatchOperationError, BatchOperationResult, InsertGameData, UpdateGameData,
+};
 use crate::entity::prelude::*;
 use crate::entity::{games, savedata};
 use sea_orm::*;
@@ -47,15 +49,8 @@ pub struct GamesRepository;
 impl GamesRepository {
     // ==================== 游戏 CRUD 操作 ====================
 
-    /// 插入游戏数据（单表操作）
-    ///
-    /// 所有元数据通过 JSON 列直接存储，无需多表事务
-    pub async fn insert(db: &DatabaseConnection, game: InsertGameData) -> Result<i32, DbErr> {
-        let game = game.cleaned(); // 清洗空字符串为 NULL
-
-        let now = chrono::Utc::now().timestamp() as i32;
-
-        let game_active = games::ActiveModel {
+    fn build_insert_active_model(game: InsertGameData, now: i32) -> games::ActiveModel {
+        games::ActiveModel {
             id: NotSet,
             bgm_id: Set(game.bgm_id),
             vndb_id: Set(game.vndb_id),
@@ -75,10 +70,51 @@ impl GamesRepository {
             custom_data: Set(game.custom_data),
             created_at: Set(Some(now)),
             updated_at: Set(Some(now)),
-        };
+        }
+    }
+
+    /// 插入游戏数据（单表操作）
+    ///
+    /// 所有元数据通过 JSON 列直接存储，无需多表事务
+    pub async fn insert(db: &DatabaseConnection, game: InsertGameData) -> Result<i32, DbErr> {
+        let game = game.cleaned(); // 清洗空字符串为 NULL
+
+        let now = chrono::Utc::now().timestamp() as i32;
+
+        let game_active = Self::build_insert_active_model(game, now);
 
         let result = game_active.insert(db).await?;
         Ok(result.id)
+    }
+
+    pub async fn insert_batch(
+        db: &DatabaseConnection,
+        games: Vec<InsertGameData>,
+    ) -> BatchOperationResult {
+        let total = games.len();
+        let now = chrono::Utc::now().timestamp() as i32;
+        let mut ids = Vec::with_capacity(total);
+        let mut errors = Vec::new();
+
+        for (index, game) in games.into_iter().enumerate() {
+            let game_active = Self::build_insert_active_model(game.cleaned(), now);
+
+            match game_active.insert(db).await {
+                Ok(result) => ids.push(result.id),
+                Err(error) => errors.push(BatchOperationError {
+                    index,
+                    message: error.to_string(),
+                }),
+            }
+        }
+
+        BatchOperationResult {
+            total,
+            success: ids.len(),
+            failed: errors.len(),
+            ids,
+            errors,
+        }
     }
 
     /// 更新游戏数据（单表操作）

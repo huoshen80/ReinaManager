@@ -10,7 +10,12 @@
  * - FullGameData: 读取游戏数据
  */
 
-import type { FullGameData, InsertGameParams, UpdateGameParams } from "@/types";
+import type {
+	BatchOperationResult,
+	FullGameData,
+	InsertGameParams,
+	UpdateGameParams,
+} from "@/types";
 import { BaseService } from "./base";
 import type { GameType, SortOption, SortOrder } from "./types";
 
@@ -21,6 +26,15 @@ class GameService extends BaseService {
 	 */
 	async insertGame(game: InsertGameParams): Promise<number> {
 		return this.invoke<number>("insert_game", { game });
+	}
+
+	/**
+	 * 批量插入游戏数据
+	 */
+	async insertGamesBatch(
+		games: InsertGameParams[],
+	): Promise<BatchOperationResult> {
+		return this.invoke<BatchOperationResult>("insert_games_batch", { games });
 	}
 
 	/**

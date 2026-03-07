@@ -12,7 +12,11 @@ import {
 import i18next from "i18next";
 import type { GameType, SortOption, SortOrder } from "@/services";
 import { gameService } from "@/services";
-import type { InsertGameParams, UpdateGameParams } from "@/types";
+import type {
+	BatchOperationResult,
+	InsertGameParams,
+	UpdateGameParams,
+} from "@/types";
 
 const listRelevantUpdateFields = new Set<keyof UpdateGameParams>([
 	"bgm_id",
@@ -116,6 +120,26 @@ function useAddGame() {
 	});
 }
 
+function useBatchAddGames() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (games: InsertGameParams[]): Promise<BatchOperationResult> =>
+			gameService.insertGamesBatch(games),
+		onSuccess: (result) => {
+			if (result.success === 0) {
+				return;
+			}
+			queryClient.invalidateQueries({
+				queryKey: gameKeys.all,
+				exact: true,
+			});
+			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: ["collections"] });
+		},
+	});
+}
+
 function useDeleteGame() {
 	const queryClient = useQueryClient();
 
@@ -186,6 +210,7 @@ export {
 	useAllBgmIds,
 	useAllGames,
 	useAllVndbIds,
+	useBatchAddGames,
 	useBatchUpdateGames,
 	useDeleteGame,
 	useGameDetail,

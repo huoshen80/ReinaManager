@@ -86,7 +86,6 @@
 			"selectLauncher": "選擇啟動程序",
 			"singleTab": "單個添加",
 			"timeout": "請求逾時，請稍後再試",
-			"unknownError": "發生未知錯誤",
 			"viewMore": "查看更多"
 		},
 		"BulkImportModal": {
@@ -111,6 +110,8 @@
 			"reset": "重置",
 			"saveNameOnly": "僅保存名稱",
 			"search": "搜尋",
+			"importSummary": "成功匯入 {{success}}/{{total}} 個遊戲",
+			"importPartialFailed": "{{failed}} 個遊戲匯入失敗",
 			"gamesCount_other": "共 {{count}} 個遊戲"
 		},
 		"AlertBox": {
@@ -394,14 +395,14 @@
 			"collapseTags": "折疊標籤",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID 或 VNDB ID 不能為空",
+				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID 或 YMGal ID 不能為空",
 				"customModeWarning": "自定模式無法從數據源更新。",
 				"dataSource": "數據源",
+				"incompleteYmgalData": "未找到完整的 YMGal 數據。",
 				"invalidIdType": "無效的ID類型",
 				"loading": "正在獲取...",
 				"noDataFetched": "未獲取到數據或數據源無效。",
 				"noGameSelected": "未選擇遊戲",
-				"unknownError": "未知錯誤",
 				"updateFromSource": "從數據源更新數據",
 				"vndbId": "VNDB ID",
 				"ymgalId": "Ymgal ID"

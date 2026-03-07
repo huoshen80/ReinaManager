@@ -56,6 +56,7 @@ pub fn run() {
             import_database,
             // 游戏数据相关 commands
             insert_game,
+            insert_games_batch,
             find_game_by_id,
             find_all_games,
             update_game,
