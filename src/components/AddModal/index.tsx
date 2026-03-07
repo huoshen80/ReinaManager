@@ -30,23 +30,29 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { basename, dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { gameMetadataService } from "@/api";
-import { isYmgalDataComplete } from "@/api/gameMetadataService";
+import { useShallow } from "zustand/react/shallow";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
-import { useAddGame, useAllGames } from "@/hooks/queries/useGames";
+import {
+	useGameMetadataSearchActions,
+	useSingleGameAddActions,
+} from "@/hooks/features/games/useGameMetadataFacade";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
-import { handleDirectory } from "@/utils";
+import { getErrorMessage, handleDirectory } from "@/utils";
+import BulkImportTab from "./BulkImportTab";
 import GameSelectDialog from "./GameSelectDialog";
 
 /**
@@ -70,70 +76,7 @@ interface DialogState {
 	};
 }
 
-/**
- * 从游戏数据构建 InsertGameParams
- * @param gameData 游戏数据
- * @param fallbackIdType 备用 id_type
- * @param fallbackDate 备用 date
- * @returns InsertGameParams 对象
- */
-function buildInsertData(
-	gameData: FullGameData,
-	fallbackIdType?: string,
-	fallbackDate?: string,
-): InsertGameParams {
-	return {
-		bgm_id: gameData.bgm_id,
-		vndb_id: gameData.vndb_id,
-		ymgal_id: gameData.ymgal_id,
-		id_type: gameData.id_type || fallbackIdType || "mixed",
-		date: fallbackDate,
-		localpath: gameData.localpath ?? undefined,
-		bgm_data: gameData.bgm_data ?? undefined,
-		vndb_data: gameData.vndb_data ?? undefined,
-		ymgal_data: gameData.ymgal_data ?? undefined,
-		custom_data: gameData.custom_data ?? undefined,
-	};
-}
-
-/**
- * 从 YMGal ID 获取完整数据并与现有数据整合
- * @param ymgalId YMGal ID
- * @param existingData 现有数据
- * @param bgmToken BGM Token
- * @returns 整合后的完整数据，如果获取失败则返回 null
- */
-async function fetchYmgalAndMerge(
-	ymgalId: string | number,
-	existingData: FullGameData,
-	bgmToken?: string,
-): Promise<FullGameData | null> {
-	const results = await gameMetadataService.searchGames({
-		query: ymgalId.toString(),
-		source: "ymgal",
-		bgmToken,
-		isIdSearch: true,
-	});
-
-	if (results.length === 0) {
-		return null;
-	}
-
-	const ymgalData = results[0];
-	// 整合数据：使用已有的 BGM/VNDB 数据 + 新的 YMGal 完整数据
-	return {
-		id_type: "mixed",
-		bgm_id: existingData.bgm_id,
-		bgm_data: existingData.bgm_data ?? undefined,
-		vndb_id: existingData.vndb_id,
-		vndb_data: existingData.vndb_data ?? undefined,
-		ymgal_id: ymgalData.ymgal_id,
-		ymgal_data: ymgalData.ymgal_data,
-		date: existingData.date,
-		localpath: existingData.localpath,
-		custom_data: existingData.custom_data ?? undefined,
-	};
-}
+type AddModalTab = "single" | "bulk";
 
 /**
  * 从文件路径中提取文件夹名称（纯函数，置于组件外以保证稳定引用）
@@ -162,16 +105,29 @@ const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { data: bgmToken = "" } = useBgmToken();
-	const { data: allGames = [] } = useAllGames();
-	const addGameMutation = useAddGame();
+	const { searchGames } = useGameMetadataSearchActions();
+	const { addGameFromMetadata, addPreparedGame, isAddingGame } =
+		useSingleGameAddActions();
 
-	const apiSource = useStore((state) => state.apiSource);
-	const setApiSource = useStore((state) => state.setApiSource);
-	const addModalOpen = useStore((state) => state.addModalOpen);
-	const addModalPath = useStore((state) => state.addModalPath);
-	const openAddModal = useStore((state) => state.openAddModal);
-	const closeAddModal = useStore((state) => state.closeAddModal);
-	const setAddModalPath = useStore((state) => state.setAddModalPath);
+	const {
+		apiSource,
+		setApiSource,
+		addModalOpen,
+		addModalPath,
+		openAddModal,
+		closeAddModal,
+		setAddModalPath,
+	} = useStore(
+		useShallow((s) => ({
+			apiSource: s.apiSource,
+			setApiSource: s.setApiSource,
+			addModalOpen: s.addModalOpen,
+			addModalPath: s.addModalPath,
+			openAddModal: s.openAddModal,
+			closeAddModal: s.closeAddModal,
+			setAddModalPath: s.setAddModalPath,
+		})),
+	);
 
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");
@@ -179,6 +135,7 @@ const AddModal: React.FC = () => {
 	const [customMode, setCustomMode] = useState(false);
 	// 保留 ID 搜索状态
 	const [isID, setisID] = useState(false);
+	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const previousFocus = useRef<HTMLElement | null>(null);
 
 	// 弹窗状态（合并相关状态）
@@ -196,10 +153,11 @@ const AddModal: React.FC = () => {
 
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const isBusy = loading || isAddingGame;
 
 	const { isDragging } = useTauriDragDrop({
 		onValidPath: (selectedPath) => {
-			if (loading) return;
+			if (isBusy) return;
 			openAddModal(selectedPath);
 		},
 	});
@@ -234,65 +192,19 @@ const AddModal: React.FC = () => {
 	 */
 	const resetState = useCallback(() => {
 		setFormText("");
+		setActiveTab("single");
 		setAddModalPath("");
 		setError("");
 		setDialogState({
 			confirm: { open: false, data: null, showViewMore: false },
 			select: { open: false, results: [] },
 		});
+	}, [setAddModalPath]);
+
+	const handleCloseModal = useCallback(() => {
+		if (isBusy) return;
 		closeAddModal();
-	}, [setAddModalPath, closeAddModal]);
-
-	const checkGameExists = useCallback(
-		(gameData: InsertGameParams): boolean => {
-			return allGames.some((game) => {
-				if (gameData.bgm_id && game.bgm_id === gameData.bgm_id) return true;
-				return false;
-			});
-		},
-		[allGames],
-	);
-
-	const finalizeAddGame = useCallback(
-		async (gameData: InsertGameParams) => {
-			const insertData: InsertGameParams = {
-				...gameData,
-				localpath: addModalPath,
-			};
-
-			if (checkGameExists(insertData)) {
-				showError(t("components.AddModal.gameExists"));
-				return;
-			}
-
-			const gameId = await addGameMutation.mutateAsync(insertData);
-			resetState();
-
-			// 显示带跳转按钮的成功提示
-			if (gameId) {
-				snackbar.success(t("components.Snackbar.gameAddedSuccess"), {
-					action: (
-						<Button
-							color="inherit"
-							size="small"
-							onClick={() => navigate(`/libraries/${gameId}`)}
-						>
-							{t("components.Snackbar.viewDetails")}
-						</Button>
-					),
-				});
-			}
-		},
-		[
-			addGameMutation,
-			checkGameExists,
-			addModalPath,
-			t,
-			showError,
-			navigate,
-			resetState,
-		],
-	);
+	}, [closeAddModal, isBusy]);
 
 	/**
 	 * 检查游戏是否已存在
@@ -306,61 +218,39 @@ const AddModal: React.FC = () => {
 		const finaldata = dialogState.confirm.data;
 		if (!finaldata) return;
 
-		// 检查是否需要重新获取完整数据
-		const needsCompleteData =
-			finaldata.id_type === "ymgal" ||
-			(finaldata.id_type === "mixed" &&
-				finaldata.ymgal_id &&
-				!isYmgalDataComplete(finaldata.ymgal_data));
+		try {
+			const gameId = await addGameFromMetadata(finaldata, {
+				localpath: addModalPath,
+				fallbackIdType: finaldata.id_type,
+				fallbackDate: finaldata.date,
+			});
+			closeAddModal();
 
-		if (needsCompleteData) {
-			try {
-				setLoading(true);
-				let result: FullGameData | null = null;
-
-				if (finaldata.id_type === "ymgal") {
-					// 纯 ymgal 类型：重新获取完整数据
-					const results = await gameMetadataService.searchGames({
-						query: finaldata.ymgal_id?.toString() || "",
-						source: "ymgal",
-						bgmToken,
-						defaults: {
-							localpath: finaldata.localpath ?? undefined,
-						},
-					});
-					result = results.length > 0 ? results[0] : null;
-				} else if (finaldata.id_type === "mixed" && finaldata.ymgal_id) {
-					// mixed 类型：只获取 YMGal 的完整数据，保留已有的 BGM/VNDB 数据
-					result = await fetchYmgalAndMerge(
-						finaldata.ymgal_id,
-						finaldata,
-						bgmToken,
-					);
-				}
-
-				if (!result) {
-					showError(t("components.AddModal.noResultsYmgal"));
-					return;
-				}
-
-				// 使用公共函数构建 InsertGameParams 并添加游戏
-				finalizeAddGame(
-					buildInsertData(result, finaldata.id_type, finaldata.date),
-				);
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error
-						? error.message
-						: t("components.AddModal.unknownError");
-				showError(errorMessage);
-			} finally {
-				setLoading(false);
+			if (gameId) {
+				snackbar.success(t("components.Snackbar.gameAddedSuccess"), {
+					action: (
+						<Button
+							color="inherit"
+							size="small"
+							onClick={() => navigate(`/libraries/${gameId}`)}
+						>
+							{t("components.Snackbar.viewDetails")}
+						</Button>
+					),
+				});
 			}
-		} else if (finaldata.id_type) {
-			// 数据已完整，直接添加
-			finalizeAddGame(finaldata as InsertGameParams);
+		} catch (error) {
+			showError(getErrorMessage(error));
 		}
-	}, [finalizeAddGame, dialogState.confirm.data, showError, t, bgmToken]);
+	}, [
+		addGameFromMetadata,
+		addModalPath,
+		closeAddModal,
+		dialogState.confirm.data,
+		navigate,
+		showError,
+		t,
+	]);
 
 	/**
 	 * 处理确认弹窗的取消操作
@@ -378,8 +268,8 @@ const AddModal: React.FC = () => {
 		}
 		abortControllerRef.current = null;
 		setLoading(false);
-		resetState();
-	}, [resetState]);
+		closeAddModal();
+	}, [closeAddModal]);
 
 	/**
 	 * 处理"查看更多"按钮点击
@@ -421,11 +311,9 @@ const AddModal: React.FC = () => {
 		allResults: FullGameData[];
 		canViewMore: boolean;
 	}> => {
-		// 统一使用gameMetadataService.searchGames
-		const searchResults = await gameMetadataService.searchGames({
+		const searchResults = await searchGames({
 			query: formText,
-			source: apiSource === "mixed" ? undefined : apiSource,
-			bgmToken,
+			source: apiSource,
 			isIdSearch: isID,
 			defaults: {
 				localpath: addModalPath,
@@ -470,7 +358,7 @@ const AddModal: React.FC = () => {
 	 * - 名称搜索模式下显示确认弹窗，支持查看更多。
 	 */
 	const handleSubmit = async () => {
-		if (loading) return;
+		if (isBusy) return;
 		const controller = new AbortController();
 		if (abortControllerRef.current) abortControllerRef.current.abort();
 		abortControllerRef.current = controller;
@@ -508,7 +396,21 @@ const AddModal: React.FC = () => {
 						name: formText,
 					},
 				};
-				await finalizeAddGame(customGameData);
+				const gameId = await addPreparedGame(customGameData);
+				closeAddModal();
+				if (gameId) {
+					snackbar.success(t("components.Snackbar.gameAddedSuccess"), {
+						action: (
+							<Button
+								color="inherit"
+								size="small"
+								onClick={() => navigate(`/libraries/${gameId}`)}
+							>
+								{t("components.Snackbar.viewDetails")}
+							</Button>
+						),
+					});
+				}
 				return;
 			}
 
@@ -535,11 +437,7 @@ const AddModal: React.FC = () => {
 			if (error instanceof DOMException && error.name === "AbortError") {
 				return;
 			}
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("components.AddModal.unknownError");
-			showError(errorMessage);
+			showError(getErrorMessage(error));
 		} finally {
 			window.clearTimeout(timeoutId);
 			if (abortControllerRef.current === controller) {
@@ -567,128 +465,188 @@ const AddModal: React.FC = () => {
 				open={addModalOpen}
 				onClose={(_, reason) => {
 					// 加载时防止关闭弹窗
-					if (reason !== "backdropClick" && !loading) {
-						closeAddModal();
+					if (reason !== "backdropClick" && !isBusy) {
+						handleCloseModal();
 					}
 				}}
 				closeAfterTransition={false}
 				aria-labelledby="addgame-dialog-title"
+				fullWidth
+				maxWidth={activeTab === "bulk" ? "lg" : "sm"}
+				slotProps={{
+					paper: {
+						sx:
+							activeTab === "bulk"
+								? {
+										height: "min(88vh, 920px)",
+										display: "flex",
+										flexDirection: "column",
+									}
+								: undefined,
+					},
+					transition: {
+						onExited: resetState,
+					},
+				}}
 			>
 				{/* 错误提示 */}
 				{error && <Alert severity="error">{error}</Alert>}
 				<DialogTitle>{t("components.AddModal.addGame")}</DialogTitle>
-				<DialogContent>
-					{/* 选择本地可执行文件 */}
-					<Button
-						className="w-md"
-						variant="contained"
-						onClick={async () => {
-							const result = await handleDirectory();
-							if (result) setAddModalPath(result);
-						}}
-						startIcon={<FileOpenIcon />}
-					>
-						{t("components.AddModal.selectLauncher")}
-					</Button>
-					<p>
-						<input
-							className="w-md"
-							type="text"
-							value={addModalPath}
-							placeholder={t("components.AddModal.dragHint")}
-							readOnly
-						/>
-					</p>
-					{/* 自定义模式和 API 来源切换 */}
-					<div>
-						<Switch
-							checked={customMode}
-							onChange={() => {
-								setCustomMode(!customMode);
-							}}
-							disabled={loading}
-						/>
-						<span>{t("components.AddModal.enableCustomMode")}</span>
-						<RadioGroup
-							className="ml-2"
-							row
-							value={apiSource}
-							onChange={(e) =>
-								setApiSource(
-									e.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
-								)
-							}
-						>
-							<FormControlLabel
-								value="bgm"
-								control={<Radio />}
-								label="Bangumi"
-								disabled={loading}
-							/>
-							<FormControlLabel
-								value="vndb"
-								control={<Radio />}
-								label="VNDB"
-								disabled={loading}
-							/>
-							<FormControlLabel
-								value="ymgal"
-								control={<Radio />}
-								label="YMGal"
-								disabled={loading}
-							/>
-							<FormControlLabel
-								value="mixed"
-								control={<Radio />}
-								label="Mixed"
-								disabled={loading}
-							/>
-						</RadioGroup>
-						<Switch
-							checked={isID}
-							onChange={() => {
-								setisID(!isID);
-							}}
-							disabled={loading}
-						/>
-						<span>{t("components.AddModal.idSearch")}</span>
-					</div>
-					{/* 游戏名称输入框 */}
-					<TextField
-						required
-						margin="dense"
-						id="name"
-						name="game-name"
-						label={
-							!isID
-								? t("components.AddModal.gameName")
-								: t("components.AddModal.gameIDTips")
-						}
-						type="text"
-						fullWidth
-						variant="standard"
-						autoComplete="off"
-						value={formText}
-						onChange={(event) => setFormText(event.target.value)}
+				<Tabs
+					value={activeTab}
+					onChange={(_, value: AddModalTab) => setActiveTab(value)}
+					variant="fullWidth"
+				>
+					<Tab
+						value="single"
+						label={t("components.AddModal.singleTab", "单个添加")}
+						disabled={isBusy}
 					/>
+					<Tab
+						value="bulk"
+						label={t("components.AddModal.bulkTab", "批量导入")}
+						disabled={isBusy}
+					/>
+				</Tabs>
+				<DialogContent
+					sx={
+						activeTab === "bulk"
+							? {
+									pt: 2,
+									display: "flex",
+									flex: "1 1 auto",
+									minHeight: 0,
+									overflow: "hidden",
+								}
+							: { pt: 2 }
+					}
+				>
+					{activeTab === "single" ? (
+						<Stack spacing={2} sx={{ pt: 1 }}>
+							{/* 选择本地可执行文件 */}
+							<Button
+								fullWidth
+								variant="contained"
+								onClick={async () => {
+									const result = await handleDirectory();
+									if (result) setAddModalPath(result);
+								}}
+								startIcon={<FileOpenIcon />}
+								disabled={isBusy}
+							>
+								{t("components.AddModal.selectLauncher")}
+							</Button>
+							<TextField
+								fullWidth
+								size="small"
+								value={addModalPath}
+								placeholder={t("components.AddModal.dragHint")}
+								InputProps={{ readOnly: true }}
+							/>
+							{/* 自定义模式和 API 来源切换 */}
+							<Stack spacing={1}>
+								<FormControlLabel
+									control={
+										<Switch
+											checked={customMode}
+											onChange={() => {
+												setCustomMode(!customMode);
+											}}
+											disabled={isBusy}
+										/>
+									}
+									label={t("components.AddModal.enableCustomMode")}
+								/>
+								<RadioGroup
+									row
+									value={apiSource}
+									sx={{ gap: 1 }}
+									onChange={(e) =>
+										setApiSource(
+											e.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
+										)
+									}
+								>
+									<FormControlLabel
+										value="bgm"
+										control={<Radio />}
+										label="Bangumi"
+										disabled={isBusy}
+									/>
+									<FormControlLabel
+										value="vndb"
+										control={<Radio />}
+										label="VNDB"
+										disabled={isBusy}
+									/>
+									<FormControlLabel
+										value="ymgal"
+										control={<Radio />}
+										label="YMGal"
+										disabled={isBusy}
+									/>
+									<FormControlLabel
+										value="mixed"
+										control={<Radio />}
+										label="Mixed"
+										disabled={isBusy}
+									/>
+								</RadioGroup>
+								<FormControlLabel
+									control={
+										<Switch
+											checked={isID}
+											onChange={() => {
+												setisID(!isID);
+											}}
+											disabled={isBusy}
+										/>
+									}
+									label={t("components.AddModal.idSearch")}
+								/>
+							</Stack>
+							{/* 游戏名称输入框 */}
+							<TextField
+								required
+								size="small"
+								id="name"
+								name="game-name"
+								label={
+									!isID
+										? t("components.AddModal.gameName")
+										: t("components.AddModal.gameIDTips")
+								}
+								type="text"
+								fullWidth
+								variant="outlined"
+								autoComplete="off"
+								value={formText}
+								onChange={(event) => setFormText(event.target.value)}
+							/>
+						</Stack>
+					) : (
+						<BulkImportTab open={addModalOpen} onClose={handleCloseModal} />
+					)}
 				</DialogContent>
-				<DialogActions>
-					{/* 取消按钮 */}
-					<Button variant="outlined" onClick={cancelOngoingRequest}>
-						{t("components.AddModal.cancel")}
-					</Button>
-					{/* 确认按钮 */}
-					<Button
-						variant="contained"
-						onClick={handleSubmit}
-						disabled={formText === "" || loading}
-						startIcon={loading ? <CircularProgress size={20} /> : null}
-					>
-						{loading
-							? t("components.AddModal.processing")
-							: t("components.AddModal.confirm")}
-					</Button>
-				</DialogActions>
+				{activeTab === "single" && (
+					<DialogActions>
+						{/* 取消按钮 */}
+						<Button variant="outlined" onClick={cancelOngoingRequest}>
+							{t("components.AddModal.cancel")}
+						</Button>
+						{/* 确认按钮 */}
+						<Button
+							variant="contained"
+							onClick={handleSubmit}
+							disabled={formText === "" || isBusy}
+							startIcon={isBusy ? <CircularProgress size={20} /> : null}
+						>
+							{isBusy
+								? t("components.AddModal.processing")
+								: t("components.AddModal.confirm")}
+						</Button>
+					</DialogActions>
+				)}
 			</Dialog>
 
 			{/* 确认游戏信息弹窗 */}
@@ -705,7 +663,7 @@ const AddModal: React.FC = () => {
 					extraButtonColor="primary"
 					extraButtonVariant="outlined"
 					onExtraButtonClick={handleViewMore}
-					isLoading={loading}
+					isLoading={isBusy}
 				/>
 			)}
 			{/* 游戏列表选择弹窗 */}

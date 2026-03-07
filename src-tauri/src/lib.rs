@@ -15,6 +15,7 @@ use utils::{
     },
     launch::{launch_game, stop_game},
     logs::{get_reina_log_level, set_reina_log_level},
+    scan::scan_directory_for_games,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +44,7 @@ pub fn run() {
             launch_game,
             stop_game,
             open_directory,
+            scan_directory_for_games,
             move_backup_folder,
             copy_file,
             create_savedata_backup,
@@ -54,6 +56,7 @@ pub fn run() {
             import_database,
             // 游戏数据相关 commands
             insert_game,
+            insert_games_batch,
             find_game_by_id,
             find_all_games,
             update_game,

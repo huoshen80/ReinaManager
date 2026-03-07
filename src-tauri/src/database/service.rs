@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
 use crate::database::dto::{
-    InsertCollectionData, InsertGameData, UpdateCollectionData, UpdateGameData, UpdateSettingsData,
+    BatchOperationResult, InsertCollectionData, InsertGameData, UpdateCollectionData,
+    UpdateGameData, UpdateSettingsData,
 };
 use crate::database::repository::{
     collections_repository::{CategoryWithCount, CollectionsRepository, GroupWithCategories},
@@ -44,6 +45,14 @@ pub async fn insert_game(
     GamesRepository::insert(&db, game)
         .await
         .map_err(|e| format!("插入游戏数据失败: {}", e))
+}
+
+#[tauri::command]
+pub async fn insert_games_batch(
+    db: State<'_, DatabaseConnection>,
+    games: Vec<InsertGameData>,
+) -> Result<BatchOperationResult, String> {
+    Ok(GamesRepository::insert_batch(&db, games).await)
 }
 
 /// 根据 ID 查询游戏数据

@@ -48,6 +48,7 @@ import { ThemeSwitcher } from "@toolpad/core/DashboardLayout";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
@@ -391,7 +392,12 @@ export const Buttongroup = ({
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const openAddModal = useStore((s) => s.openAddModal);
+	const { openAddModal } = useStore(
+		useShallow((state) => ({
+			selectedGameId: state.selectedGameId,
+			openAddModal: state.openAddModal,
+		})),
+	);
 	const getGameById = useGetGameById();
 
 	return (

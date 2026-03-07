@@ -12,6 +12,38 @@ import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
 import type { FullGameData } from "@/types";
 
+function toError(error: unknown, fallback: string): Error {
+	if (error instanceof Error) {
+		return error;
+	}
+
+	const message = typeof error === "string" ? error : fallback;
+	return new Error(message);
+}
+
+function createMetadataError(
+	scope: string,
+	error: unknown,
+	fallback: string,
+): Error {
+	const normalized = toError(error, fallback);
+	const metadataError = new Error(
+		`${scope}: ${normalized.message}`,
+	) as Error & {
+		cause?: Error;
+	};
+	metadataError.cause = normalized;
+	return metadataError;
+}
+
+function unwrapApiResult<T>(result: T | string, fallback: string): T {
+	if (typeof result === "string") {
+		throw new Error(result || fallback);
+	}
+
+	return result;
+}
+
 /**
  * 检查 YMGal 数据是否完整
  * YMGal 数据完整需要包含 summary 和 aliases 字段
@@ -79,24 +111,12 @@ class GameMetadataService {
 
 		// 使用用户传入的 isIdSearch，若未传入则自动判断
 		const isId = isIdSearch ?? this.isIdQuery(query); // 自动判断预留
-		try {
-			if (source) {
-				// 单数据源搜索
-				return await this.searchSingleSource(
-					query,
-					source,
-					bgmToken,
-					defaults,
-					isId,
-				);
-			} else {
-				// Mixed搜索
-				return await this.searchMixed(query, bgmToken, defaults, isId);
-			}
-		} catch (error) {
-			console.error("Game search failed:", error);
-			return [];
+
+		if (source) {
+			return this.searchSingleSource(query, source, bgmToken, defaults, isId);
 		}
+
+		return this.searchMixed(query, bgmToken, defaults, isId);
 	}
 
 	/**
@@ -124,16 +144,11 @@ class GameMetadataService {
 		isIdSearch: boolean,
 	): Promise<FullGameData[]> {
 		if (isIdSearch) {
-			// ID搜索：返回单个确定游戏
 			const game = await this.getGameById(query, source, bgmToken);
-			if (game) {
-				return [this.applyDefaults(game, defaults)];
-			}
-			return [];
+			return [this.applyDefaults(game, defaults)];
 		} else {
-			// 名称搜索：返回游戏列表
 			const results = await this.searchByName(query, source, bgmToken);
-			return results.games.map((game) => this.applyDefaults(game, defaults));
+			return results.map((game) => this.applyDefaults(game, defaults));
 		}
 	}
 
@@ -148,13 +163,11 @@ class GameMetadataService {
 		isIdSearch: boolean,
 	): Promise<FullGameData[]> {
 		if (isIdSearch) {
-			// 单ID搜索：用ID获取游戏，然后用名称搜索其他源，取第一个结果
 			const result = await this.getMixedGameById(query, bgmToken);
-			return result ? [this.applyDefaults(result, defaults)] : [];
+			return [this.applyDefaults(result, defaults)];
 		} else {
-			// 名称搜索：所有源都取第一个结果
 			const result = await this.getMixedGameByName(query, bgmToken);
-			return result ? [this.applyDefaults(result, defaults)] : [];
+			return [this.applyDefaults(result, defaults)];
 		}
 	}
 
@@ -166,28 +179,36 @@ class GameMetadataService {
 		id: string,
 		source: DataSource,
 		bgmToken?: string,
-	): Promise<FullGameData | null> {
+	): Promise<FullGameData> {
 		try {
 			switch (source) {
 				case "bgm": {
-					if (!bgmToken) return null;
-					const bgmResult = await fetchBgmById(id, bgmToken);
-					return typeof bgmResult === "string" ? null : bgmResult;
+					if (!bgmToken) {
+						throw new Error("BGM Token required");
+					}
+					return unwrapApiResult(
+						await fetchBgmById(id, bgmToken),
+						"BGM数据获取失败",
+					);
 				}
 				case "vndb": {
-					const vndbResult = await fetchVndbById(id);
-					return typeof vndbResult === "string" ? null : vndbResult;
+					return unwrapApiResult(await fetchVndbById(id), "VNDB数据获取失败");
 				}
 				case "ymgal": {
-					const ymgalResult = await fetchYmById(Number(id));
-					return typeof ymgalResult === "string" ? null : ymgalResult;
+					return unwrapApiResult(
+						await fetchYmById(Number(id)),
+						"YMGal数据获取失败",
+					);
 				}
 				default:
-					return null;
+					throw new Error("不支持的数据源");
 			}
 		} catch (error) {
-			console.error(`Get game by ID failed for ${source}:`, error);
-			return null;
+			throw createMetadataError(
+				`按 ID 获取 ${source} 数据失败`,
+				error,
+				"获取游戏数据失败",
+			);
 		}
 	}
 
@@ -199,33 +220,39 @@ class GameMetadataService {
 		name: string,
 		source: DataSource,
 		bgmToken?: string,
-	): Promise<{ games: FullGameData[]; error?: string }> {
+	): Promise<FullGameData[]> {
 		try {
 			switch (source) {
 				case "bgm": {
-					const bgmResult = await fetchBgmByName(name, bgmToken);
-					const fetchError = typeof bgmResult === "string";
-					if (fetchError && !bgmToken)
-						return { games: [], error: "BGM Token required" };
-					return { games: fetchError ? [] : bgmResult };
+					if (!bgmToken) {
+						throw new Error("BGM Token required");
+					}
+					return unwrapApiResult(
+						await fetchBgmByName(name, bgmToken),
+						"BGM数据搜索失败",
+					);
 				}
 				case "vndb": {
-					const vndbResult = await fetchVndbByName(name);
-					return { games: typeof vndbResult === "string" ? [] : vndbResult };
+					return unwrapApiResult(
+						await fetchVndbByName(name),
+						"VNDB数据搜索失败",
+					);
 				}
 				case "ymgal": {
-					const ymgalResult = await fetchYmByName(name);
-					return { games: typeof ymgalResult === "string" ? [] : ymgalResult };
+					return unwrapApiResult(
+						await fetchYmByName(name),
+						"YMGal数据搜索失败",
+					);
 				}
 				default:
-					return { games: [] };
+					throw new Error("不支持的数据源");
 			}
 		} catch (error) {
-			console.error(`Search by name failed for ${source}:`, error);
-			return {
-				games: [],
-				error: error instanceof Error ? error.message : "Unknown error",
-			};
+			throw createMetadataError(
+				`按名称搜索 ${source} 数据失败`,
+				error,
+				"搜索游戏数据失败",
+			);
 		}
 	}
 
@@ -236,11 +263,11 @@ class GameMetadataService {
 	private async getMixedGameById(
 		id: string,
 		bgmToken?: string,
-	): Promise<FullGameData | null> {
+	): Promise<FullGameData> {
 		// 解析ID类型
 		const ids = this.parseGameId(id);
 		if (!ids.bgmId && !ids.vndbId && !ids.ymgalId) {
-			return null;
+			throw new Error("无效的游戏 ID 格式");
 		}
 
 		try {
@@ -276,10 +303,13 @@ class GameMetadataService {
 				mergedGame.date = mergedDate;
 			}
 
+			if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+				throw new Error("未获取到任何数据源结果");
+			}
+
 			return mergedGame;
 		} catch (error) {
-			console.error("Get mixed game by ID failed:", error);
-			return null;
+			throw createMetadataError("Mixed ID 搜索失败", error, "混合数据获取失败");
 		}
 	}
 
@@ -290,7 +320,7 @@ class GameMetadataService {
 	private async getMixedGameByName(
 		name: string,
 		bgmToken?: string,
-	): Promise<FullGameData | null> {
+	): Promise<FullGameData> {
 		try {
 			const result = await fetchMixedData({
 				name: name,
@@ -320,10 +350,17 @@ class GameMetadataService {
 			if (mergedDate) {
 				mergedGame.date = mergedDate;
 			}
+			if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+				throw new Error("未获取到任何数据源结果");
+			}
+
 			return mergedGame;
 		} catch (error) {
-			console.error("Get mixed game by name failed:", error);
-			return null;
+			throw createMetadataError(
+				"Mixed 名称搜索失败",
+				error,
+				"混合数据搜索失败",
+			);
 		}
 	}
 
@@ -369,14 +406,14 @@ class GameMetadataService {
 		ymgalId?: string;
 		bgmToken?: string;
 		defaults?: Partial<FullGameData>;
-	}): Promise<FullGameData | null> {
+	}): Promise<FullGameData> {
 		const { bgmId, vndbId, ymgalId, bgmToken, defaults } = params;
 
 		// 计算有多少个ID被提供
 		const providedIds = [bgmId, vndbId, ymgalId].filter(Boolean).length;
 
 		if (providedIds === 0) {
-			return null;
+			throw new Error("至少需要提供一个数据源 ID");
 		}
 
 		try {
@@ -411,6 +448,10 @@ class GameMetadataService {
 				const mergedDate = mergeDateFromMixedResult(result);
 				if (mergedDate) {
 					mergedGame.date = mergedDate;
+				}
+
+				if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+					throw new Error("未获取到任何数据源结果");
 				}
 
 				return this.applyDefaults(mergedGame, defaults);
@@ -461,11 +502,18 @@ class GameMetadataService {
 					mergedGame.ymgal_data = ymgal.ymgal_data;
 				}
 
+				if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+					throw new Error("未获取到任何数据源结果");
+				}
+
 				return mergedGame;
 			}
 		} catch (error) {
-			console.error("Get game by IDs failed:", error);
-			return null;
+			throw createMetadataError(
+				"按多个 ID 获取游戏数据失败",
+				error,
+				"获取游戏数据失败",
+			);
 		}
 	}
 

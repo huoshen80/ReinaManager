@@ -117,8 +117,11 @@ export const tauriHttp = {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
+			const text = await response.text();
+			const responseData = text ? JSON.parse(text) : null;
+
 			return {
-				data: await response.json(),
+				data: responseData,
 				status: response.status,
 				statusText: response.statusText,
 			};
@@ -153,8 +156,11 @@ export const tauriHttp = {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
+			const text = await response.text();
+			const responseData = text ? JSON.parse(text) : null;
+
 			return {
-				data: await response.json(),
+				data: responseData,
 				status: response.status,
 				statusText: response.statusText,
 			};
@@ -175,6 +181,9 @@ function handleTauriHttpError(error: unknown, allowRetry = false): never {
 			? error.message
 			: i18n.t("api.http.requestError", "请求错误");
 
+	if (errorMessage.includes("404")) {
+		throw new Error(i18n.t("api.http.notFound", "未找到相关信息"));
+	}
 	// 如果允许重试，对于认证错误不直接抛出，让上层处理
 	if (allowRetry && errorMessage.includes("401")) {
 		console.warn("Tauri HTTP 401错误，允许上层重试:", error);

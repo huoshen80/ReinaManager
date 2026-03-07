@@ -20,11 +20,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
 import { useImagePreview } from "@/hooks/common/useImagePreview";
-import type { CustomData, GameData, UpdateGameParams } from "@/types";
+import { buildGameInfoUpdatePayload } from "@/hooks/features/games/useGameMetadataFacade";
+import type { GameData, UpdateGameParams } from "@/types";
 import {
-	getArrayDiff,
-	getBoolDiff,
-	getDiff,
 	getGameCover,
 	getGameDisplayName,
 	getGameNsfwStatus,
@@ -65,125 +63,6 @@ interface GameInfoEditProps {
 	onSave: (data: UpdateGameParams) => Promise<void>;
 	disabled?: boolean;
 }
-
-/**
- * 构建游戏更新 Payload（使用 getDiff 系列函数简化脏检查逻辑）
- *
- * 三态逻辑：
- * - undefined: 没变，不传（后端跳过此字段）
- * - null: 被清空，传 null（后端更新为 NULL）
- * - value: 被修改，传新值（后端更新为新值）
- */
-const buildGameUpdatePayload = (
-	originalGame: GameData,
-	newLocalPath: string,
-	newNote: string,
-	language: string,
-	newImageExt?: string | null, // undefined=不变, null=删除, string=新图片
-	newAliases?: string[],
-	newSummary?: string,
-	newTags?: string[],
-	newDeveloper?: string,
-	newNsfw?: boolean,
-	newDate?: string,
-): UpdateGameParams => {
-	const payload: UpdateGameParams = {};
-
-	// 1. 处理 LocalPath（使用 getDiff）
-	const localPathDiff = getDiff(newLocalPath, originalGame.localpath);
-	if (localPathDiff !== undefined) {
-		payload.localpath = localPathDiff;
-	}
-
-	// 2. 处理 CustomData（嵌套对象需要整体更新）
-	const currentCustomData = originalGame.custom_data || {};
-
-	// 获取展平后的原始值
-	const displayName = getGameDisplayName(originalGame, language);
-	const currentCustomName = currentCustomData.name || displayName;
-	const originalSummary = originalGame.summary ?? "";
-	const originalDeveloper = originalGame.developer ?? "";
-	const originalNsfw = getGameNsfwStatus(originalGame) ?? false;
-	const originalDate = originalGame.date ?? "";
-
-	// 使用浅拷贝作为基础（必须全量更新以防丢失其他字段）
-	const nextCustomData: CustomData = { ...currentCustomData };
-	let customDataChanged = false;
-
-	// 2.1 检查名称变化
-	const nameDiff = getDiff(newNote, currentCustomName);
-	if (nameDiff !== undefined) {
-		nextCustomData.name = nameDiff;
-		customDataChanged = true;
-	}
-
-	// 2.2 检查图片变化
-	if (newImageExt !== undefined) {
-		nextCustomData.image = newImageExt;
-		customDataChanged = true;
-	}
-
-	// 2.3 检查别名变化
-	if (newAliases !== undefined) {
-		const aliasesDiff = getArrayDiff(newAliases, currentCustomData.aliases);
-		if (aliasesDiff !== undefined) {
-			nextCustomData.aliases = aliasesDiff;
-			customDataChanged = true;
-		}
-	}
-
-	// 2.4 检查简介变化
-	if (newSummary !== undefined) {
-		const summaryDiff = getDiff(newSummary, originalSummary);
-		if (summaryDiff !== undefined) {
-			nextCustomData.summary = summaryDiff;
-			customDataChanged = true;
-		}
-	}
-
-	// 2.5 检查标签变化
-	if (newTags !== undefined) {
-		const tagsDiff = getArrayDiff(newTags, currentCustomData.tags);
-		if (tagsDiff !== undefined) {
-			nextCustomData.tags = tagsDiff;
-			customDataChanged = true;
-		}
-	}
-
-	// 2.6 检查开发商变化
-	if (newDeveloper !== undefined) {
-		const developerDiff = getDiff(newDeveloper, originalDeveloper);
-		if (developerDiff !== undefined) {
-			nextCustomData.developer = developerDiff;
-			customDataChanged = true;
-		}
-	}
-
-	// 2.7 检查 NSFW 变化
-	if (newNsfw !== undefined) {
-		const nsfwDiff = getBoolDiff(newNsfw, originalNsfw);
-		if (nsfwDiff !== undefined) {
-			nextCustomData.nsfw = nsfwDiff;
-			customDataChanged = true;
-		}
-	}
-
-	// 2.8 检查日期变化
-	if (newDate !== undefined) {
-		const dateDiff = getDiff(newDate, originalDate);
-		if (dateDiff !== undefined) {
-			nextCustomData.date = dateDiff;
-			customDataChanged = true;
-		}
-	}
-
-	// 只有当 CustomData 真的变化时才放入 Payload
-	if (customDataChanged) {
-		payload.custom_data = nextCustomData;
-	}
-
-	return payload;
-};
 
 export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	selectedGame,
@@ -460,19 +339,18 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			}
 
 			// 2. 纯逻辑：使用纯函数构建 Payload
-			const updateData = buildGameUpdatePayload(
-				selectedGame,
-				localPath,
-				gameNote,
-				i18n.language,
-				uploadedImageExt,
-				aliases,
-				summary,
-				tags,
-				developer,
-				nsfw,
-				releaseDate,
-			);
+			const updateData = buildGameInfoUpdatePayload(selectedGame, {
+				newLocalPath: localPath,
+				newName: gameNote,
+				language: i18n.language,
+				newImageExt: uploadedImageExt,
+				newAliases: aliases,
+				newSummary: summary,
+				newTags: tags,
+				newDeveloper: developer,
+				newNsfw: nsfw,
+				newDate: releaseDate,
+			});
 			// 防御：没有任何字段需要更新时，不发请求
 			if (Object.keys(updateData).length === 0) {
 				return;

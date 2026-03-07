@@ -27,6 +27,25 @@ export type DeepNullable<T> = {
 	[K in keyof T]?: Nullable<T[K]>;
 };
 
+export interface BatchOperationError {
+	index: number;
+	message: string;
+}
+
+export interface BatchOperationResult {
+	total: number;
+	success: number;
+	failed: number;
+	ids?: number[];
+	errors: BatchOperationError[];
+}
+
+export interface ScanResult {
+	name: string;
+	path: string;
+	executables: string[];
+}
+
 // ==================== 元数据结构 ====================
 
 /**

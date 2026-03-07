@@ -3,6 +3,7 @@
  * @description 封装文件系统、目录打开与数据库备份/导入相关后端调用
  */
 
+import type { ScanResult } from "@/types";
 import { BaseService } from "./base";
 
 export interface BackupResult {
@@ -23,6 +24,13 @@ export interface MoveBackupFolderResult {
 }
 
 class FileService extends BaseService {
+	/**
+	 * 扫描目录下的游戏文件夹
+	 */
+	async scanDirectoryForGames(path: string): Promise<ScanResult[]> {
+		return this.invoke<ScanResult[]>("scan_directory_for_games", { path });
+	}
+
 	/**
 	 * 打开目录
 	 */
