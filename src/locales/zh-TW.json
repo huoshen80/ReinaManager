@@ -60,6 +60,7 @@
 	"components": {
 		"AddModal": {
 			"addGame": "添加遊戲",
+			"bulkTab": "批量匯入",
 			"cancel": "取消",
 			"confirm": "確認",
 			"developer": "開發商",
@@ -83,9 +84,34 @@
 			"selectFromFolder": "文件夾中有多個可執行文件，請選擇一個",
 			"selectGame": "選擇遊戲",
 			"selectLauncher": "選擇啟動程序",
+			"singleTab": "單個添加",
 			"timeout": "請求逾時，請稍後再試",
 			"unknownError": "發生未知錯誤",
 			"viewMore": "查看更多"
+		},
+		"BulkImportModal": {
+			"selectRootFolder": "選擇根資料夾",
+			"noFolderSelected": "未選擇資料夾",
+			"folderName": "資料夾名稱",
+			"matchedGame": "匹配的遊戲",
+			"status": "狀態",
+			"executable": "啟動程式",
+			"actions": "操作",
+			"noGamesFound": "未找到遊戲",
+			"statusPending": "待處理",
+			"statusMatched": "已匹配",
+			"statusNotFound": "未找到",
+			"statusImported": "已匯入",
+			"statusError": "錯誤",
+			"selectExe": "請選擇啟動程式",
+			"cancel": "取消",
+			"matchMetadata": "匹配中繼資料",
+			"importAll": "全部匯入",
+			"editMetadata": "編輯遊戲資訊",
+			"reset": "重置",
+			"saveNameOnly": "僅保存名稱",
+			"search": "搜尋",
+			"gamesCount_other": "共 {{count}} 個遊戲"
 		},
 		"AlertBox": {
 			"bgmData": "BGM 資料",

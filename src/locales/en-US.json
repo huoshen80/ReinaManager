@@ -60,6 +60,7 @@
 	"components": {
 		"AddModal": {
 			"addGame": "Add Game",
+			"bulkTab": "Bulk Import",
 			"cancel": "Cancel",
 			"confirm": "Confirm",
 			"developer": "Developer",
@@ -83,9 +84,35 @@
 			"selectFromFolder": "Multiple executables found in folder, please select one",
 			"selectGame": "Select Game",
 			"selectLauncher": "Select Launcher",
+			"singleTab": "Single Add",
 			"timeout": "Request timed out, please try again later",
 			"unknownError": "An unknown error occurred",
 			"viewMore": "View More"
+		},
+		"BulkImportModal": {
+			"selectRootFolder": "Select Root Folder",
+			"noFolderSelected": "No folder selected",
+			"folderName": "Folder Name",
+			"matchedGame": "Matched Game",
+			"status": "Status",
+			"executable": "Executable",
+			"actions": "Actions",
+			"noGamesFound": "No games found",
+			"statusPending": "Pending",
+			"statusMatched": "Matched",
+			"statusNotFound": "Not Found",
+			"statusImported": "Imported",
+			"statusError": "Error",
+			"selectExe": "Select Executable",
+			"cancel": "Cancel",
+			"matchMetadata": "Match Metadata",
+			"importAll": "Import All",
+			"editMetadata": "Edit Game Info",
+			"reset": "Reset",
+			"saveNameOnly": "Save Name Only",
+			"search": "Search",
+			"gamesCount_one": "{{count}} game",
+			"gamesCount_other": "{{count}} games"
 		},
 		"AlertBox": {
 			"bgmData": "BGM Data",

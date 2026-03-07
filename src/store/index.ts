@@ -34,7 +34,6 @@ export interface AppState {
 	selectedGameId: number | null;
 	addModalOpen: boolean;
 	addModalPath: string;
-	bulkImportModalOpen: boolean;
 
 	// 排序选项
 	sortOption: SortOption;
@@ -52,8 +51,6 @@ export interface AppState {
 	openAddModal: (path?: string) => void;
 	closeAddModal: () => void;
 	setAddModalPath: (path: string) => void;
-	openBulkImportModal: () => void;
-	closeBulkImportModal: () => void;
 
 	// 初始化
 	initialize: () => Promise<void>;
@@ -132,7 +129,6 @@ export const useStore = create<AppState>()(
 			selectedGameId: null,
 			addModalOpen: false,
 			addModalPath: "",
-			bulkImportModalOpen: false,
 
 			searchInput: "",
 			searchKeyword: "",
@@ -168,12 +164,6 @@ export const useStore = create<AppState>()(
 			},
 			setAddModalPath: (path: string) => {
 				set({ addModalPath: path });
-			},
-			openBulkImportModal: () => {
-				set({ bulkImportModalOpen: true });
-			},
-			closeBulkImportModal: () => {
-				set({ bulkImportModalOpen: false });
 			},
 
 			// NSFW相关

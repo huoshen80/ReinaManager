@@ -36,7 +36,6 @@ import { Outlet, useLocation } from "react-router-dom";
 import { SearchBox } from "@/components/SearchBox";
 import { Toolbars } from "@/components/Toolbar";
 import AddModal from "../AddModal";
-import BulkImportModal from "../BulkImportModal";
 import { LinkWithScrollSave } from "../LinkWithScrollSave";
 
 /**
@@ -122,7 +121,6 @@ export const Layout: React.FC = () => {
 	return (
 		<>
 			<AddModal />
-			<BulkImportModal />
 			<DashboardLayout
 				slots={{
 					appTitle: AppTitle,

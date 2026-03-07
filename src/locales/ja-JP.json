@@ -60,6 +60,7 @@
 	"components": {
 		"AddModal": {
 			"addGame": "ゲームを追加",
+			"bulkTab": "一括インポート",
 			"cancel": "キャンセル",
 			"confirm": "確認",
 			"developer": "開発者",
@@ -83,9 +84,34 @@
 			"selectFromFolder": "フォルダ内に複数の実行ファイルがあります、1つ選択してください",
 			"selectGame": "ゲームを選択",
 			"selectLauncher": "ランチャーを選択",
+			"singleTab": "単体追加",
 			"timeout": "タイムアウトしました。しばらくしてから再試行してください",
 			"unknownError": "不明なエラーが発生しました",
 			"viewMore": "もっと見る"
+		},
+		"BulkImportModal": {
+			"selectRootFolder": "ルートフォルダを選択",
+			"noFolderSelected": "フォルダが選択されていません",
+			"folderName": "フォルダ名",
+			"matchedGame": "一致したゲーム",
+			"status": "状態",
+			"executable": "実行ファイル",
+			"actions": "操作",
+			"noGamesFound": "ゲームが見つかりません",
+			"statusPending": "未処理",
+			"statusMatched": "一致済み",
+			"statusNotFound": "未検出",
+			"statusImported": "インポート済み",
+			"statusError": "エラー",
+			"selectExe": "起動ファイルを選択",
+			"cancel": "キャンセル",
+			"matchMetadata": "メタデータを照合",
+			"importAll": "すべてインポート",
+			"editMetadata": "ゲーム情報を編集",
+			"reset": "リセット",
+			"saveNameOnly": "名前のみ保存",
+			"search": "検索",
+			"gamesCount_other": "全 {{count}} 件"
 		},
 		"AlertBox": {
 			"bgmData": "BGM データ",

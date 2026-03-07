@@ -18,7 +18,6 @@
  * - @mui/icons-material
  * - @toolpad/core/DashboardLayout
  * - @/components/AddModal
- * - @/components/BulkImportModal
  * - @/components/SortModal
  * - @/components/FilterModal
  * - @/components/LaunchModal
@@ -393,11 +392,10 @@ export const Buttongroup = ({
 }: ButtonGroupProps) => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const { openAddModal, openBulkImportModal } = useStore(
+	const { openAddModal } = useStore(
 		useShallow((state) => ({
 			selectedGameId: state.selectedGameId,
 			openAddModal: state.openAddModal,
-			openBulkImportModal: state.openBulkImportModal,
 		})),
 	);
 	const getGameById = useGetGameById();
@@ -418,9 +416,6 @@ export const Buttongroup = ({
 					<LaunchModal />
 					<Button onClick={() => openAddModal("")} startIcon={<AddIcon />}>
 						{t("components.AddModal.addGame")}
-					</Button>
-					<Button onClick={openBulkImportModal} startIcon={<FolderOpenIcon />}>
-						{t("components.Toolbar.bulkImport", "批量导入")}
 					</Button>
 					<SortModal />
 					<FilterModal />
