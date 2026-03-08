@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useAllGames, useGameList } from "@/hooks/queries/useGames";
-import { useStore } from "@/store";
-import { applyNsfwFilter, getDisplayGameDataList } from "@/utils";
+import { useStore } from "@/store/appStore";
+import { applyNsfwFilter, getDisplayGameDataList } from "@/utils/appUtils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
 
 export function useGameListFacade() {

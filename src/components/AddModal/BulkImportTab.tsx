@@ -30,13 +30,13 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
-import { snackbar } from "@/components/Snackbar";
 import { useGameDuplicateChecker } from "@/hooks/features/games/useGameMetadataFacade";
 import { useBatchAddGames } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
-import { fileService } from "@/services";
+import { snackbar } from "@/providers/snackBar";
+import { fileService } from "@/services/invoke";
 import type { FullGameData, ScanResult } from "@/types";
-import { getErrorMessage, handleGetFolder } from "@/utils";
+import { getErrorMessage, handleGetFolder } from "@/utils/appUtils";
 import { buildBulkImportGameData, getGameIdentityKeys } from "@/utils/metadata";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,

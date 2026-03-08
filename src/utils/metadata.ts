@@ -13,7 +13,7 @@ import {
 	getDiff,
 	getGameDisplayName,
 	getGameNsfwStatus,
-} from "@/utils";
+} from "@/utils/appUtils";
 import i18n from "@/utils/i18n";
 
 export interface GameInfoUpdateDraft {

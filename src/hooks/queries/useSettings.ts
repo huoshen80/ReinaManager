@@ -5,7 +5,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { settingsService } from "@/services";
+import { settingsService } from "@/services/invoke";
 import type { LogLevel } from "@/types";
 
 // ============================================================================

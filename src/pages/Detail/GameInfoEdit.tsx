@@ -18,15 +18,15 @@ import {
 import { basename } from "pathe";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { snackbar } from "@/components/Snackbar";
 import { useImagePreview } from "@/hooks/common/useImagePreview";
+import { snackbar } from "@/providers/snackBar";
 import type { GameData, UpdateGameParams } from "@/types";
 import {
 	getGameCover,
 	getGameDisplayName,
 	getGameNsfwStatus,
 	handleDirectory,
-} from "@/utils";
+} from "@/utils/appUtils";
 import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
 import i18n from "@/utils/i18n";
 import { buildGameInfoUpdatePayload } from "@/utils/metadata";

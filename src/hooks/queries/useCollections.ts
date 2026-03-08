@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getVirtualCategoryGames } from "@/hooks/common/useVirtualCollections";
-import { collectionService } from "@/services";
+import { collectionService } from "@/services/invoke";
 import type { GameData } from "@/types";
-import { applyNsfwFilter } from "@/utils";
+import { applyNsfwFilter } from "@/utils/appUtils";
 
 export const collectionKeys = {
 	all: ["collections"] as const,

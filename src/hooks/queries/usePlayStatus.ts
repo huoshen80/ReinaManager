@@ -10,7 +10,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { gameKeys } from "@/hooks/queries/useGames";
-import { gameService } from "@/services";
+import { gameService } from "@/services/invoke";
 import type { GameData } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { getDisplayGameData } from "@/utils/dataTransform";

@@ -25,18 +25,18 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
-import { snackbar } from "@/components/Snackbar";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
-import { useStore } from "@/store";
+import { snackbar } from "@/providers/snackBar";
+import { useStore } from "@/store/appStore";
 import type { SavedataRecord } from "@/types";
 import {
 	getErrorMessage,
 	handleGetFolder,
 	openGameBackupFolder,
 	openGameSaveDataFolder,
-} from "@/utils";
+} from "@/utils/appUtils";
 
 /** 格式化文件大小 */
 const formatFileSize = (bytes: number): string => {

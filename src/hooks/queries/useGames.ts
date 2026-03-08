@@ -10,8 +10,8 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import i18next from "i18next";
-import type { GameType, SortOption, SortOrder } from "@/services";
-import { gameService } from "@/services";
+import type { GameType, SortOption, SortOrder } from "@/services/invoke";
+import { gameService } from "@/services/invoke";
 import type {
 	BatchOperationResult,
 	InsertGameParams,

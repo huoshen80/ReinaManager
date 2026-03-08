@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { snackbar } from "@/components/Snackbar";
 import { gameKeys } from "@/hooks/queries/useGames";
 import {
 	type UpdatePlayStatusParams,
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
+import { snackbar } from "@/providers/snackBar";
 import type { FullGameData, GameData } from "@/types";
-import { getErrorMessage } from "@/utils";
+import { getErrorMessage } from "@/utils/appUtils";
 
 interface UpdatePlayStatusOptions {
 	invalidateScope?: "game" | "all";

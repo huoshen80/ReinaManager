@@ -26,15 +26,15 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { snackbar } from "@/components/Snackbar";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
 import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import {
 	useCategoryGameIds,
 	useUpdateCategoryGames,
 } from "@/hooks/queries/useCollections";
+import { snackbar } from "@/providers/snackBar";
 import type { GameData } from "@/types";
-import { getGameDisplayName } from "@/utils";
+import { getGameDisplayName } from "@/utils/appUtils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
 
 interface ManageGamesDialogProps {

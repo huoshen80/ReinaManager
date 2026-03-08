@@ -6,9 +6,9 @@ import { SnackbarProvider } from "notistack";
 import { AliveScope } from "react-activation";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
-import { SnackbarUtilsConfigurator } from "@/components/Snackbar";
-import WindowsHandler from "@/components/Window";
-import { appRoutes } from "@/routes"; // 引入新的统一配置
+import WindowsHandler from "@/components/UpdateModal";
+import { SnackbarUtilsConfigurator } from "@/providers/snackBar";
+import { appRoutes } from "@/routes/router"; // 引入新的统一配置
 
 const App: React.FC = () => {
 	const { t } = useTranslation();

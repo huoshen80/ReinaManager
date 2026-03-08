@@ -14,7 +14,7 @@
  * - http: 封装的 HTTP 请求工具
  */
 
-import { useStore } from "@/store";
+import { useStore } from "@/store/appStore";
 import type { FullGameData, VndbData } from "@/types";
 import i18n from "@/utils/i18n";
 import http from "./http";

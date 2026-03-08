@@ -20,15 +20,15 @@
 
 import { create } from "zustand";
 import { gameKeys } from "@/hooks/queries/useGames";
-import { queryClient } from "@/lib/queryClient";
-import { useStore } from "@/store";
+import { queryClient } from "@/providers/queryClient";
+import { useStore } from "@/store/appStore";
 import {
 	type GameLaunchOptions,
 	getErrorMessage,
 	launchGameWithTracking,
 	type StopGameResult,
 	stopGameWithTracking,
-} from "@/utils";
+} from "@/utils/appUtils";
 import { initGameTimeTracking } from "@/utils/gameStats";
 
 /**

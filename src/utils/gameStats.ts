@@ -1,12 +1,12 @@
 import { listen } from "@tauri-apps/api/event";
-import { gameService, statsService } from "@/services";
-import type { DailyStats } from "@/services/types";
-import { useStore } from "@/store";
+import { gameService, statsService } from "@/services/invoke";
+import type { DailyStats } from "@/services/invoke/types";
+import { useStore } from "@/store/appStore";
 import {
 	createGameSavedataBackup,
 	formatPlayTime,
 	getLocalDateString,
-} from "@/utils";
+} from "@/utils/appUtils";
 import type { GameSession, GameStatistics, GameTimeStats } from "../types";
 
 // 类型定义

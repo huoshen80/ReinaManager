@@ -7,7 +7,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 // 假设 handleDroppedPath 是你的业务逻辑（包含弹窗）
-import { handleDroppedPath } from "@/utils";
+import { handleDroppedPath } from "@/utils/appUtils";
 
 interface UseTauriDragDropOptions {
 	onValidPath?: (path: string) => void;

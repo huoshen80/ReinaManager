@@ -11,9 +11,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { join } from "pathe";
-import { savedataService } from "@/services";
+import { savedataService } from "@/services/invoke";
 import type { SavedataRecord } from "@/types";
-import { createGameSavedataBackup, getSavedataBackupPath } from "@/utils";
+import {
+	createGameSavedataBackup,
+	getSavedataBackupPath,
+} from "@/utils/appUtils";
 
 // ============================================================================
 // Key Factory - 统一的 Query Key 前缀

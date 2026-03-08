@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { ManageGamesDialog } from "@/components/Collection";
-import { InputDialog } from "@/components/CommonDialog";
+import { InputDialog } from "@/components/InputDialog";
 import { LaunchModal } from "@/components/LaunchModal";
 import {
 	useCategories,
@@ -26,7 +26,7 @@ import {
 	useCreateGroup,
 	useDeleteGroup,
 } from "@/hooks/queries/useCollections";
-import { useStore } from "@/store";
+import { useStore } from "@/store/appStore";
 
 export const CollectionToolbar: React.FC = () => {
 	const { t } = useTranslation();

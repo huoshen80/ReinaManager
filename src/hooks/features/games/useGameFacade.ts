@@ -2,9 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { gameKeys, useGameDetail } from "@/hooks/queries/useGames";
-import { gameService } from "@/services";
+import { gameService } from "@/services/invoke";
 import type { FullGameData, GameData } from "@/types";
-import { getDisplayGameData } from "@/utils";
+import { getDisplayGameData } from "@/utils/appUtils";
 import { useAllGameListFacade } from "./useGameListFacade";
 
 export function useSelectedGame(gameId: number | null | undefined) {

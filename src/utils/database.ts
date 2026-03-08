@@ -1,5 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { type BackupResult, fileService, type ImportResult } from "@/services";
+import {
+	type BackupResult,
+	fileService,
+	type ImportResult,
+} from "@/services/invoke";
 
 /**
  * 使用 VACUUM INTO 进行数据库热备份

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { getLocalDateString } from "@/utils";
+import { getLocalDateString } from "@/utils/appUtils";
 import {
 	getAllGameStatistics,
 	getFormattedGameStats,

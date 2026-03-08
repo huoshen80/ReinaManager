@@ -16,7 +16,7 @@ import { LineChart } from "@mui/x-charts/LineChart";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameStats } from "@/hooks/queries/useStats";
-import { savedataService } from "@/services";
+import { savedataService } from "@/services/invoke";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameTimeStats } from "@/types";
 

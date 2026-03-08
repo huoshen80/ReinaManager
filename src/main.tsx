@@ -14,15 +14,15 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
-import { routers } from "@/routes";
+import { routers } from "@/routes/router";
 import "virtual:uno.css";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { initTray } from "@/components/Tray";
-import { queryClient } from "@/lib/queryClient";
-import { initPathCache } from "@/utils";
-import { initializeStores } from "./store";
+import { queryClient } from "@/providers/queryClient";
+import { initTray } from "@/services/plugins/trayService";
+import { initPathCache } from "@/utils/appUtils";
+import { initializeStores } from "./store/appStore";
 
 // 创建 Emotion 缓存,确保样式注入顺序正确
 // 根据官方文档: https://github.com/mui/material-ui/blob/master/docs/data/material/integrations/interoperability/interoperability.md

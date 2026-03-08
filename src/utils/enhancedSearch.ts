@@ -9,7 +9,7 @@
 import Fuse, { type FuseResult, type IFuseOptions } from "fuse.js";
 import { pinyin } from "pinyin-pro";
 import type { GameData } from "@/types";
-import { getGameDisplayName } from "./index";
+import { getGameDisplayName } from "./appUtils";
 
 /**
  * 搜索结果接口
