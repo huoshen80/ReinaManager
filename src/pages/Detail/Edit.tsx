@@ -5,11 +5,11 @@ import { useLocation } from "react-router";
 import { ViewGameBox } from "@/components/AlertBox";
 import { snackbar } from "@/components/Snackbar";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
-import { buildMetadataUpdatePayload } from "@/hooks/features/games/useGameMetadataFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import type { FullGameData, UpdateGameParams } from "@/types";
 import { getErrorMessage } from "@/utils";
+import { buildMetadataUpdatePayload } from "@/utils/metadata";
 import { DataSourceUpdate } from "./DataSourceUpdate";
 import { GameInfoEdit } from "./GameInfoEdit";
 
@@ -73,6 +73,7 @@ export const Edit: React.FC = () => {
 				setOpen={setOpenViewBox}
 				onConfirm={handleConfirmGameUpdate}
 				fullgame={gameData}
+				title={t("components.AlertBox.confirmUpdateTitle", "确认更新游戏信息")}
 			/>
 
 			<Stack spacing={4}>

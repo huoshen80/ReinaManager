@@ -27,19 +27,20 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { gameMetadataService } from "@/api";
 import { snackbar } from "@/components/Snackbar";
-import {
-	buildBulkImportGameData,
-	useBatchGameAddActions,
-	useGameDirectoryScanActions,
-	useGameMetadataSearchActions,
-} from "@/hooks/features/games/useGameMetadataFacade";
+import { useGameDuplicateChecker } from "@/hooks/features/games/useGameMetadataFacade";
+import { useBatchAddGames } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
+import { fileService } from "@/services";
 import type { FullGameData, ScanResult } from "@/types";
 import { getErrorMessage, handleGetFolder } from "@/utils";
-import GameSelectDialog from "./GameSelectDialog";
+import { buildBulkImportGameData, getGameIdentityKeys } from "@/utils/metadata";
+import GameSearchResultDialog, {
+	getPrimaryGameSearchResult,
+} from "./GameSearchResultDialog";
 
 interface ImportItem extends ScanResult {
 	status: "pending" | "matched" | "imported" | "error" | "not found";
@@ -52,14 +53,9 @@ interface BulkImportTabProps {
 	onClose: () => void;
 }
 
-function getGameIdentityKeys(
-	payload: Pick<FullGameData, "bgm_id" | "vndb_id" | "ymgal_id">,
-): string[] {
-	return [
-		payload.bgm_id ? `bgm:${payload.bgm_id}` : null,
-		payload.vndb_id ? `vndb:${payload.vndb_id}` : null,
-		payload.ymgal_id ? `ymgal:${payload.ymgal_id}` : null,
-	].filter((value): value is string => Boolean(value));
+interface SearchResultState {
+	open: boolean;
+	results: FullGameData[];
 }
 
 function getMatchedGameName(
@@ -87,13 +83,11 @@ function getMatchedGameName(
 const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 	const { t, i18n } = useTranslation();
 	const { data: bgmToken = "" } = useBgmToken();
-	const { searchGames } = useGameMetadataSearchActions();
-	const { isScanningDirectories, scanDirectoryForGames } =
-		useGameDirectoryScanActions();
-	const { addGamesBatch, checkGameExists, isBatchAddingGames } =
-		useBatchGameAddActions();
+	const batchAddGamesMutation = useBatchAddGames();
+	const { checkGameExists } = useGameDuplicateChecker();
 	const preferredApiSource = bgmToken ? "bgm" : "vndb";
 
+	const [isScanningDirectories, setIsScanningDirectories] = useState(false);
 	const [isMatchingMetadata, setIsMatchingMetadata] = useState(false);
 	const [rootPath, setRootPath] = useState("");
 	const [items, setItems] = useState<ImportItem[]>([]);
@@ -103,15 +97,24 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		"bgm" | "vndb" | "ymgal" | "mixed"
 	>("bgm");
 	const [editIsIdSearch, setEditIsIdSearch] = useState(false);
-	const [gameSelectOpen, setGameSelectOpen] = useState(false);
-	const [gameSelectResults, setGameSelectResults] = useState<FullGameData[]>(
-		[],
+	const [searchResultState, setSearchResultState] = useState<SearchResultState>(
+		{
+			open: false,
+			results: [],
+		},
 	);
-	const [gameSelectLoading, setGameSelectLoading] = useState(false);
+	const [searchResultLoading, setSearchResultLoading] = useState(false);
+	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
 	const loading =
-		isMatchingMetadata || isScanningDirectories || isBatchAddingGames;
+		isMatchingMetadata ||
+		isScanningDirectories ||
+		batchAddGamesMutation.isPending;
 
 	const resetState = useCallback(() => {
+		if (editSearchAbortControllerRef.current) {
+			editSearchAbortControllerRef.current.abort();
+			editSearchAbortControllerRef.current = null;
+		}
 		setIsMatchingMetadata(false);
 		setRootPath("");
 		setItems([]);
@@ -119,9 +122,8 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		setEditName("");
 		setEditApiSource(preferredApiSource);
 		setEditIsIdSearch(false);
-		setGameSelectOpen(false);
-		setGameSelectResults([]);
-		setGameSelectLoading(false);
+		setSearchResultState({ open: false, results: [] });
+		setSearchResultLoading(false);
 	}, [preferredApiSource]);
 
 	useEffect(() => {
@@ -130,13 +132,29 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		}
 	}, [open, resetState]);
 
+	const handleCloseSearchResult = useCallback(() => {
+		setSearchResultState({ open: false, results: [] });
+	}, []);
+
+	const handleCloseEditDialog = useCallback(() => {
+		if (editSearchAbortControllerRef.current) {
+			editSearchAbortControllerRef.current.abort();
+			editSearchAbortControllerRef.current = null;
+		}
+
+		setSearchResultLoading(false);
+		handleCloseSearchResult();
+		setEditItemPath(null);
+	}, [handleCloseSearchResult]);
+
 	const scanFolder = async () => {
 		const result = await handleGetFolder();
 		if (!result) return;
 
 		setRootPath(result);
+		setIsScanningDirectories(true);
 		try {
-			const subdirs = await scanDirectoryForGames(result);
+			const subdirs = await fileService.scanDirectoryForGames(result);
 			setItems(
 				subdirs.map((dir) => ({
 					...dir,
@@ -147,6 +165,8 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 			);
 		} catch (error) {
 			snackbar.error(getErrorMessage(error));
+		} finally {
+			setIsScanningDirectories(false);
 		}
 	};
 
@@ -154,31 +174,36 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		setIsMatchingMetadata(true);
 		const nextItems = [...items];
 
-		for (let index = 0; index < nextItems.length; index++) {
-			if (nextItems[index].status !== "pending") continue;
+		try {
+			for (let index = 0; index < nextItems.length; index++) {
+				if (nextItems[index].status !== "pending") continue;
 
-			try {
-				const searchResults = await searchGames({
-					query: nextItems[index].name,
-					source: preferredApiSource,
-				});
+				try {
+					const searchResults = await gameMetadataService.searchGames({
+						query: nextItems[index].name,
+						source: preferredApiSource,
+						bgmToken,
+					});
 
-				if (searchResults.length > 0) {
-					nextItems[index].matchedData = searchResults[0];
-					nextItems[index].status = "matched";
-				} else {
+					if (searchResults.length > 0) {
+						nextItems[index].matchedData = searchResults[0];
+						nextItems[index].status = "matched";
+					} else {
+						nextItems[index].status = "not found";
+					}
+				} catch (error) {
+					snackbar.warning(
+						`${nextItems[index].name}: ${getErrorMessage(error)}`,
+					);
 					nextItems[index].status = "not found";
 				}
-			} catch (error) {
-				snackbar.warning(`${nextItems[index].name}: ${getErrorMessage(error)}`);
-				nextItems[index].status = "not found";
+
+				setItems([...nextItems]);
+				await new Promise((resolve) => setTimeout(resolve, 300));
 			}
-
-			setItems([...nextItems]);
-			await new Promise((resolve) => setTimeout(resolve, 300));
+		} finally {
+			setIsMatchingMetadata(false);
 		}
-
-		setIsMatchingMetadata(false);
 	};
 
 	const handleImportAll = async () => {
@@ -220,7 +245,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		}
 
 		try {
-			const result = await addGamesBatch(payloads);
+			const result = await batchAddGamesMutation.mutateAsync(payloads);
 			const failedIndices = new Set(result.errors.map((error) => error.index));
 
 			for (const { itemIndex, payloadIndex } of pendingPayloads) {
@@ -266,25 +291,77 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 	const handleEditRowSearch = async () => {
 		if (!editName) return;
 
-		setGameSelectLoading(true);
-		setGameSelectOpen(true);
-		try {
-			const searchResults = await searchGames({
-				query: editName,
-				source: editApiSource,
-				isIdSearch: editIsIdSearch,
+		if (editSearchAbortControllerRef.current) {
+			editSearchAbortControllerRef.current.abort();
+		}
+
+		const controller = new AbortController();
+		editSearchAbortControllerRef.current = controller;
+		const abortPromise = new Promise<never>((_, reject) => {
+			controller.signal.addEventListener("abort", () => {
+				reject(new DOMException("Aborted", "AbortError"));
 			});
-			setGameSelectResults(searchResults);
+		});
+		const withAbort = <T,>(promise: Promise<T>) =>
+			Promise.race([promise, abortPromise]) as Promise<T>;
+
+		setSearchResultLoading(true);
+		try {
+			const searchResults = await withAbort(
+				gameMetadataService.searchGames({
+					query: editName,
+					source: editApiSource === "mixed" ? undefined : editApiSource,
+					bgmToken,
+					isIdSearch: editIsIdSearch,
+				}),
+			);
+
+			if (searchResults.length === 0) {
+				snackbar.info(t("components.AddModal.noResults", "没有找到结果"));
+				handleCloseSearchResult();
+				return;
+			}
+
+			setSearchResultState({
+				open: true,
+				results: searchResults,
+			});
 		} catch (error) {
+			if (error instanceof DOMException && error.name === "AbortError") {
+				return;
+			}
+
 			snackbar.error(getErrorMessage(error));
-			setGameSelectResults([]);
+			handleCloseSearchResult();
 		} finally {
-			setGameSelectLoading(false);
+			if (editSearchAbortControllerRef.current === controller) {
+				editSearchAbortControllerRef.current = null;
+				setSearchResultLoading(false);
+			}
 		}
 	};
 
+	const handleEditRowPreviewConfirm = () => {
+		const previewGameData = getPrimaryGameSearchResult(
+			searchResultState.results,
+		);
+		if (!previewGameData || !editItemPath) return;
+
+		const nextItems = [...items];
+		const itemIndex = nextItems.findIndex((item) => item.path === editItemPath);
+		if (itemIndex !== -1) {
+			nextItems[itemIndex].name = editName;
+			nextItems[itemIndex].matchedData = previewGameData;
+			nextItems[itemIndex].status = "matched";
+			setItems(nextItems);
+		}
+
+		handleCloseSearchResult();
+		setEditItemPath(null);
+	};
+
 	const handleEditRowSelect = (index: number) => {
-		const selectedData = gameSelectResults[index];
+		const selectedData = searchResultState.results[index];
 		if (!selectedData || !editItemPath) return;
 
 		const nextItems = [...items];
@@ -296,7 +373,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 			setItems(nextItems);
 		}
 
-		setGameSelectOpen(false);
+		handleCloseSearchResult();
 		setEditItemPath(null);
 	};
 
@@ -578,7 +655,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 
 			<Dialog
 				open={!!editItemPath}
-				onClose={() => setEditItemPath(null)}
+				onClose={handleCloseEditDialog}
 				maxWidth="sm"
 				fullWidth
 			>
@@ -600,8 +677,9 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 							onChange={(event) => setEditName(event.target.value)}
 							fullWidth
 							size="small"
+							disabled={searchResultLoading}
 							onKeyDown={(event) => {
-								if (event.key === "Enter") {
+								if (event.key === "Enter" && !searchResultLoading) {
 									handleEditRowSearch();
 								}
 							}}
@@ -620,21 +698,25 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 									value="bgm"
 									control={<Radio />}
 									label="Bangumi"
+									disabled={searchResultLoading}
 								/>
 								<FormControlLabel
 									value="vndb"
 									control={<Radio />}
 									label="VNDB"
+									disabled={searchResultLoading}
 								/>
 								<FormControlLabel
 									value="ymgal"
 									control={<Radio />}
 									label="YMGal"
+									disabled={searchResultLoading}
 								/>
 								<FormControlLabel
 									value="mixed"
 									control={<Radio />}
 									label="Mixed"
+									disabled={searchResultLoading}
 								/>
 							</RadioGroup>
 						</FormControl>
@@ -647,6 +729,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 										setEditName("");
 									}}
 									size="small"
+									disabled={searchResultLoading}
 								/>
 							}
 							label={t("components.AddModal.idSearch", "启用ID搜索模式")}
@@ -654,30 +737,48 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 					</Stack>
 				</DialogContent>
 				<DialogActions>
-					<Button onClick={() => setEditItemPath(null)}>
+					<Button onClick={handleCloseEditDialog}>
 						{t("components.BulkImportModal.cancel", "取消")}
 					</Button>
-					<Button onClick={handleEditRowSaveNameOnly}>
+					<Button
+						onClick={handleEditRowSaveNameOnly}
+						disabled={searchResultLoading}
+					>
 						{t("components.BulkImportModal.saveNameOnly", "仅保存名称")}
 					</Button>
 					<Button
 						variant="contained"
-						startIcon={<SearchIcon />}
+						startIcon={
+							searchResultLoading ? (
+								<CircularProgress size={20} color="inherit" />
+							) : (
+								<SearchIcon />
+							)
+						}
 						onClick={handleEditRowSearch}
-						disabled={!editName}
+						disabled={!editName || searchResultLoading}
 					>
-						{t("components.BulkImportModal.search", "搜索")}
+						{searchResultLoading
+							? t("components.AddModal.processing", "处理中")
+							: t("components.BulkImportModal.search", "搜索")}
 					</Button>
 				</DialogActions>
 			</Dialog>
 
-			<GameSelectDialog
-				open={gameSelectOpen}
-				onClose={() => setGameSelectOpen(false)}
-				results={gameSelectResults}
+			<GameSearchResultDialog
+				open={searchResultState.open}
+				onClose={handleCloseSearchResult}
+				results={searchResultState.results}
 				onSelect={handleEditRowSelect}
-				loading={gameSelectLoading}
-				apiSource={editApiSource === "mixed" ? "bgm" : editApiSource}
+				onConfirmPreview={handleEditRowPreviewConfirm}
+				loading={searchResultLoading}
+				apiSource={editApiSource}
+				isIdSearch={editIsIdSearch}
+				previewTitle={t(
+					"components.BulkImportModal.editMetadata",
+					"编辑游戏信息",
+				)}
+				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
 			/>
 		</>
 	);

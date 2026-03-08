@@ -13,9 +13,9 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
-import { useGameMetadataSearchActions } from "@/hooks/features/games/useGameMetadataFacade";
 import type { FullGameData, GameData } from "@/types";
 import { getErrorMessage } from "@/utils";
+import { fetchMetadataForUpdate } from "@/utils/metadata";
 
 interface DataSourceUpdateProps {
 	bgmToken: string;
@@ -35,15 +35,13 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	disabled = false,
 }) => {
 	const { t } = useTranslation();
-	const { fetchMetadataForUpdate, isSearchingMetadata } =
-		useGameMetadataSearchActions();
 
 	// 数据源更新相关状态
 	const [bgmId, setBgmId] = useState<string>(selectedGame?.bgm_id || "");
 	const [vndbId, setVndbId] = useState<string>(selectedGame?.vndb_id || "");
 	const [ymgalId, setYmgalId] = useState<string>(selectedGame?.ymgal_id || "");
 	const [idType, setIdType] = useState<string>(selectedGame?.id_type || "");
-	const isLoading = isSearchingMetadata;
+	const [isLoading, setIsLoading] = useState(false);
 
 	useEffect(() => {
 		setBgmId(selectedGame?.bgm_id || "");
@@ -87,6 +85,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 		}
 
 		try {
+			setIsLoading(true);
 			const result = await fetchMetadataForUpdate({
 				selectedGame,
 				idType,
@@ -98,6 +97,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			onDataFetched(result);
 		} catch (error) {
 			snackbar.error(getErrorMessage(error));
+		} finally {
+			setIsLoading(false);
 		}
 	};
 

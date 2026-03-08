@@ -7,14 +7,6 @@
  *
  * 主要导出：
  * - LaunchModal：游戏启动弹窗组件
- *
- * 依赖：
- * - @mui/material
- * - @mui/icons-material
- * - @/store
- * - @/store/gamePlayStore
- * - @tauri-apps/api/core
- * - react-i18next
  */
 
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";

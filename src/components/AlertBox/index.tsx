@@ -71,12 +71,7 @@ interface ViewGameBoxProps {
 	open: boolean;
 	setOpen: (value: boolean) => void;
 	onConfirm: () => void;
-	// 可选的第三个功能按钮
-	extraButtonText?: string;
-	extraButtonColor?: "primary" | "error" | "success" | "info" | "warning";
-	extraButtonVariant?: "text" | "outlined" | "contained";
-	onExtraButtonClick?: () => void;
-	showExtraButton?: boolean;
+	title: string;
 	isLoading?: boolean;
 }
 
@@ -226,24 +221,17 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 	open,
 	setOpen,
 	onConfirm,
-	extraButtonText,
-	extraButtonColor = "primary",
-	extraButtonVariant = "outlined",
-	onExtraButtonClick,
-	showExtraButton = false,
+	title,
 	isLoading = false,
 }) => {
 	const { t } = useTranslation();
 
 	// 根据 showExtraButton 切换标题：有查看更多按钮时表示添加流程，否则为更新流程
-	const dialogTitle = showExtraButton
-		? t("components.AlertBox.confirmAddTitle", "确认添加游戏")
-		: t("components.AlertBox.confirmUpdateTitle");
 	return (
 		<AlertBox
 			open={open}
 			setOpen={setOpen}
-			title={dialogTitle}
+			title={title}
 			message={
 				fullgame && typeof fullgame !== "string" ? (
 					<Box className="flex gap-2 items-start w-full">
@@ -309,11 +297,6 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 			cancelText={t("components.AlertBox.cancel")}
 			confirmColor="primary"
 			confirmVariant="contained"
-			extraButtonText={extraButtonText}
-			extraButtonColor={extraButtonColor}
-			extraButtonVariant={extraButtonVariant}
-			onExtraButtonClick={onExtraButtonClick}
-			showExtraButton={showExtraButton}
 			isLoading={isLoading}
 		/>
 	);

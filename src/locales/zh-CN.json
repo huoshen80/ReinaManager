@@ -85,8 +85,7 @@
 			"selectGame": "选择游戏",
 			"selectLauncher": "选择启动程序",
 			"singleTab": "单个添加",
-			"timeout": "请求超时，请稍后重试",
-			"viewMore": "查看更多"
+			"timeout": "请求超时，请稍后重试"
 		},
 		"BulkImportModal": {
 			"selectRootFolder": "选择根文件夹",

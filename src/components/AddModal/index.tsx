@@ -1,22 +1,12 @@
 /**
  * @file AddModal 组件
- * @description 用于添加新游戏条目的弹窗组件，支持通过 Bangumi/VNDB API 自动获取信息或自定义添加本地游戏，包含错误提示、加载状态、国际化等功能。
+ * @description 用于添加新游戏条目的弹窗组件，支持通过 Bangumi/VNDB/YMgal API 自动获取信息或自定义添加本地游戏，包含错误提示、加载状态、国际化等功能。
  * @module src/components/AddModal/index
  * @author ReinaManager
  * @copyright AGPL-3.0
  *
  * 主要导出：
  * - AddModal：添加游戏的弹窗组件
- *
- * 依赖：
- * - @mui/material
- * - @tauri-apps/plugin-dialog
- * - @tauri-apps/api/core
- * - @/api/bgm
- * - @/api/vndb
- * - @/store
- * - @/utils
- * - react-i18next
  */
 
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -41,19 +31,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { ViewGameBox } from "@/components/AlertBox";
-import { snackbar } from "@/components/Snackbar";
+import { gameMetadataService } from "@/api";
+import { showGameAddedSuccess } from "@/components/Snackbar/gameFeedback";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
-import {
-	useGameMetadataSearchActions,
-	useSingleGameAddActions,
-} from "@/hooks/features/games/useGameMetadataFacade";
+import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
+import { useAddGame } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import { useStore } from "@/store/";
 import type { FullGameData, InsertGameParams } from "@/types";
 import { getErrorMessage, handleDirectory } from "@/utils";
 import BulkImportTab from "./BulkImportTab";
-import GameSelectDialog from "./GameSelectDialog";
+import GameSearchResultDialog, {
+	getPrimaryGameSearchResult,
+} from "./GameSearchResultDialog";
 
 /**
  * 常量定义
@@ -61,19 +51,9 @@ import GameSelectDialog from "./GameSelectDialog";
 const REQUEST_TIMEOUT_MS = 100000; // 请求超时时间
 const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
 
-/**
- * 弹窗状态类型定义
- */
-interface DialogState {
-	confirm: {
-		open: boolean;
-		data: FullGameData | null;
-		showViewMore: boolean;
-	};
-	select: {
-		open: boolean;
-		results: FullGameData[];
-	};
+interface SearchResultState {
+	open: boolean;
+	results: FullGameData[];
 }
 
 type AddModalTab = "single" | "bulk";
@@ -105,9 +85,8 @@ const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { data: bgmToken = "" } = useBgmToken();
-	const { searchGames } = useGameMetadataSearchActions();
-	const { addGameFromMetadata, addPreparedGame, isAddingGame } =
-		useSingleGameAddActions();
+	const addGameMutation = useAddGame();
+	const { addGameFromMetadata, isAddingGame } = useSingleGameAddActions();
 
 	const {
 		apiSource,
@@ -138,18 +117,12 @@ const AddModal: React.FC = () => {
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const previousFocus = useRef<HTMLElement | null>(null);
 
-	// 弹窗状态（合并相关状态）
-	const [dialogState, setDialogState] = useState<DialogState>({
-		confirm: {
-			open: false,
-			data: null,
-			showViewMore: false,
-		},
-		select: {
+	const [searchResultState, setSearchResultState] = useState<SearchResultState>(
+		{
 			open: false,
 			results: [],
 		},
-	});
+	);
 
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
@@ -191,14 +164,11 @@ const AddModal: React.FC = () => {
 	 * 重置所有状态
 	 */
 	const resetState = useCallback(() => {
+		setSearchResultState({ open: false, results: [] });
 		setFormText("");
 		setActiveTab("single");
 		setAddModalPath("");
 		setError("");
-		setDialogState({
-			confirm: { open: false, data: null, showViewMore: false },
-			select: { open: false, results: [] },
-		});
 	}, [setAddModalPath]);
 
 	const handleCloseModal = useCallback(() => {
@@ -206,61 +176,36 @@ const AddModal: React.FC = () => {
 		closeAddModal();
 	}, [closeAddModal, isBusy]);
 
-	/**
-	 * 检查游戏是否已存在
-	 */
-	// 删除旧实现（已由 useCallback 版本替代）
+	const handleAddGame = useCallback(
+		async (gameData: FullGameData) => {
+			const gameId = await addGameFromMetadata(gameData, {
+				localpath: addModalPath,
+				fallbackIdType: gameData.id_type,
+				fallbackDate: gameData.date,
+			});
+			closeAddModal();
+			showGameAddedSuccess({ gameId, navigate, t });
+		},
+		[addGameFromMetadata, addModalPath, closeAddModal, navigate, t],
+	);
+
+	const handleCloseSearchResult = useCallback(() => {
+		setSearchResultState({ open: false, results: [] });
+	}, []);
 
 	/**
-	 * 处理确认弹窗的确认操作
+	 * 处理预览确认弹窗的确认操作
 	 */
 	const handleConfirmAdd = useCallback(async () => {
-		const finaldata = dialogState.confirm.data;
+		const finaldata = getPrimaryGameSearchResult(searchResultState.results);
 		if (!finaldata) return;
 
 		try {
-			const gameId = await addGameFromMetadata(finaldata, {
-				localpath: addModalPath,
-				fallbackIdType: finaldata.id_type,
-				fallbackDate: finaldata.date,
-			});
-			closeAddModal();
-
-			if (gameId) {
-				snackbar.success(t("components.Snackbar.gameAddedSuccess"), {
-					action: (
-						<Button
-							color="inherit"
-							size="small"
-							onClick={() => navigate(`/libraries/${gameId}`)}
-						>
-							{t("components.Snackbar.viewDetails")}
-						</Button>
-					),
-				});
-			}
+			await handleAddGame(finaldata);
 		} catch (error) {
 			showError(getErrorMessage(error));
 		}
-	}, [
-		addGameFromMetadata,
-		addModalPath,
-		closeAddModal,
-		dialogState.confirm.data,
-		navigate,
-		showError,
-		t,
-	]);
-
-	/**
-	 * 处理确认弹窗的取消操作
-	 */
-	const handleConfirmCancel = useCallback(() => {
-		setDialogState((prev) => ({
-			...prev,
-			confirm: { open: false, data: null, showViewMore: false },
-		}));
-	}, []);
+	}, [handleAddGame, searchResultState.results, showError]);
 
 	const cancelOngoingRequest = useCallback(() => {
 		if (abortControllerRef.current) {
@@ -272,48 +217,39 @@ const AddModal: React.FC = () => {
 	}, [closeAddModal]);
 
 	/**
-	 * 处理"查看更多"按钮点击
-	 */
-	const handleViewMore = useCallback(() => {
-		setDialogState((prev) => ({
-			...prev,
-			confirm: { ...prev.confirm, open: false },
-			select: { ...prev.select, open: true },
-		}));
-	}, []);
-
-	/**
 	 * 处理从列表中选择游戏
 	 */
 	const handleSelectGame = useCallback(
-		(index: number) => {
-			const selectedGame = dialogState.select.results[index];
-			if (selectedGame) {
-				setDialogState((prev) => ({
-					confirm: {
-						open: true,
-						data: selectedGame,
-						showViewMore: prev.confirm.showViewMore,
-					},
-					select: { ...prev.select, open: false },
-				}));
+		async (index: number) => {
+			const selectedGame = searchResultState.results[index];
+			if (!selectedGame || isBusy) {
+				return;
+			}
+
+			try {
+				await handleAddGame(selectedGame);
+			} catch (error) {
+				handleCloseSearchResult();
+				showError(getErrorMessage(error));
 			}
 		},
-		[dialogState.select.results],
+		[
+			handleAddGame,
+			handleCloseSearchResult,
+			isBusy,
+			searchResultState.results,
+			showError,
+		],
 	);
 
 	/**
-	 * 从单一数据源获取游戏数据（通过 ID 或名称搜索）
-	 * @returns { apiData: 第一个结果, allResults: 所有结果, canViewMore: 是否有更多结果 }
+	 * 获取搜索结果，并根据数据源决定使用哪种弹窗
 	 */
-	const fetchFromDataSource = async (): Promise<{
-		apiData: FullGameData | null;
-		allResults: FullGameData[];
-		canViewMore: boolean;
-	}> => {
-		const searchResults = await searchGames({
+	const fetchFromDataSource = async (): Promise<FullGameData[]> => {
+		const searchResults = await gameMetadataService.searchGames({
 			query: formText,
-			source: apiSource,
+			source: apiSource === "mixed" ? undefined : apiSource,
+			bgmToken,
 			isIdSearch: isID,
 			defaults: {
 				localpath: addModalPath,
@@ -343,19 +279,14 @@ const AddModal: React.FC = () => {
 			throw new Error(t("components.AddModal.noResults"));
 		}
 
-		// 返回第一个结果作为主要数据，保留所有结果用于查看更多
-		return {
-			apiData: searchResults[0],
-			allResults: searchResults,
-			canViewMore: searchResults.length > 1,
-		};
+		return searchResults;
 	};
 
 	/**
 	 * 提交表单，处理添加游戏的逻辑。
 	 * - 自定义模式下直接添加本地游戏。
-	 * - ID搜索模式下显示确认弹窗后添加。
-	 * - 名称搜索模式下显示确认弹窗，支持查看更多。
+	 * - mixed 或 ID 搜索使用预览确认弹窗。
+	 * - 单一数据源的名称搜索使用列表选择弹窗，并在选择后直接添加。
 	 */
 	const handleSubmit = async () => {
 		if (isBusy) return;
@@ -396,42 +327,17 @@ const AddModal: React.FC = () => {
 						name: formText,
 					},
 				};
-				const gameId = await addPreparedGame(customGameData);
+				const gameId = await addGameMutation.mutateAsync(customGameData);
 				closeAddModal();
-				if (gameId) {
-					snackbar.success(t("components.Snackbar.gameAddedSuccess"), {
-						action: (
-							<Button
-								color="inherit"
-								size="small"
-								onClick={() => navigate(`/libraries/${gameId}`)}
-							>
-								{t("components.Snackbar.viewDetails")}
-							</Button>
-						),
-					});
-				}
+				showGameAddedSuccess({ gameId, navigate, t });
 				return;
 			}
 
 			// 场景2-4: 通过 API 获取数据
-			const { apiData, allResults, canViewMore } = await withAbort(
-				fetchFromDataSource(),
-			);
-
-			// 保存搜索结果并打开确认弹窗
-			// 现在apiData和allResults已经包含了defaults
-			setDialogState({
-				confirm: {
-					open: true,
-					data: apiData,
-					// 安全锁：防止 UI 出现点击无效的按钮
-					showViewMore: apiSource === "mixed" ? false : canViewMore,
-				},
-				select: {
-					open: false,
-					results: allResults, // allResults中的项目已经包含defaults
-				},
+			const results = await withAbort(fetchFromDataSource());
+			setSearchResultState({
+				open: true,
+				results,
 			});
 		} catch (error) {
 			if (error instanceof DOMException && error.name === "AbortError") {
@@ -631,7 +537,11 @@ const AddModal: React.FC = () => {
 				{activeTab === "single" && (
 					<DialogActions>
 						{/* 取消按钮 */}
-						<Button variant="outlined" onClick={cancelOngoingRequest}>
+						<Button
+							variant="outlined"
+							onClick={loading ? cancelOngoingRequest : handleCloseModal}
+							disabled={isAddingGame}
+						>
 							{t("components.AddModal.cancel")}
 						</Button>
 						{/* 确认按钮 */}
@@ -649,39 +559,18 @@ const AddModal: React.FC = () => {
 				)}
 			</Dialog>
 
-			{/* 确认游戏信息弹窗 */}
-			{dialogState.confirm.open && (
-				<ViewGameBox
-					fullgame={dialogState.confirm.data}
-					open={dialogState.confirm.open}
-					setOpen={(open) => {
-						if (!open) handleConfirmCancel();
-					}}
-					onConfirm={handleConfirmAdd}
-					showExtraButton={dialogState.confirm.showViewMore}
-					extraButtonText={t("components.AddModal.viewMore", "查看更多")}
-					extraButtonColor="primary"
-					extraButtonVariant="outlined"
-					onExtraButtonClick={handleViewMore}
-					isLoading={isBusy}
-				/>
-			)}
-			{/* 游戏列表选择弹窗 */}
-			{dialogState.select.open && apiSource !== "mixed" && (
-				<GameSelectDialog
-					open={dialogState.select.open}
-					onClose={() =>
-						setDialogState((prev) => ({
-							...prev,
-							select: { ...prev.select, open: false },
-						}))
-					}
-					results={dialogState.select.results}
-					onSelect={handleSelectGame}
-					title={t("components.AddModal.selectGame", "选择游戏")}
-					apiSource={apiSource}
-				/>
-			)}
+			<GameSearchResultDialog
+				open={searchResultState.open}
+				onClose={handleCloseSearchResult}
+				results={searchResultState.results}
+				onSelect={handleSelectGame}
+				onConfirmPreview={handleConfirmAdd}
+				loading={isBusy}
+				apiSource={apiSource}
+				isIdSearch={isID}
+				previewTitle={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
+				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
+			/>
 		</>
 	);
 };

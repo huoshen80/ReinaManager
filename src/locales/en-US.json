@@ -85,8 +85,7 @@
 			"selectGame": "Select Game",
 			"selectLauncher": "Select Launcher",
 			"singleTab": "Single Add",
-			"timeout": "Request timed out, please try again later",
-			"viewMore": "View More"
+			"timeout": "Request timed out, please try again later"
 		},
 		"BulkImportModal": {
 			"selectRootFolder": "Select Root Folder",

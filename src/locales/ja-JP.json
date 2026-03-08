@@ -85,8 +85,7 @@
 			"selectGame": "ゲームを選択",
 			"selectLauncher": "ランチャーを選択",
 			"singleTab": "単体追加",
-			"timeout": "タイムアウトしました。しばらくしてから再試行してください",
-			"viewMore": "もっと見る"
+			"timeout": "タイムアウトしました。しばらくしてから再試行してください"
 		},
 		"BulkImportModal": {
 			"selectRootFolder": "ルートフォルダを選択",

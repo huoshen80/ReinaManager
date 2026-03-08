@@ -20,7 +20,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/components/Snackbar";
 import { useImagePreview } from "@/hooks/common/useImagePreview";
-import { buildGameInfoUpdatePayload } from "@/hooks/features/games/useGameMetadataFacade";
 import type { GameData, UpdateGameParams } from "@/types";
 import {
 	getGameCover,
@@ -30,6 +29,7 @@ import {
 } from "@/utils";
 import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
 import i18n from "@/utils/i18n";
+import { buildGameInfoUpdatePayload } from "@/utils/metadata";
 
 // 公共样式常量
 const CHIP_INPUT_BOX_SX = {

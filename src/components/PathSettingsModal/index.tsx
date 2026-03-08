@@ -31,6 +31,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { open as openfile } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -149,8 +150,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 		fileTypes: string[],
 	) => {
 		try {
-			const { open } = await import("@tauri-apps/plugin-dialog");
-			const selectedPath = await open({
+			const selectedPath = await openfile({
 				multiple: false,
 				filters: [
 					{
