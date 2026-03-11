@@ -9,7 +9,7 @@ interface GameSearchResultDialogProps {
 	open: boolean;
 	onClose: () => void;
 	results: FullGameData[];
-	onSelect: (index: number) => void;
+	onSelect: (game: FullGameData, index: number) => void | Promise<void>;
 	onConfirmPreview: () => void;
 	loading?: boolean;
 	apiSource: GameSearchApiSource;

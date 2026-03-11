@@ -220,8 +220,7 @@ const AddModal: React.FC = () => {
 	 * 处理从列表中选择游戏
 	 */
 	const handleSelectGame = useCallback(
-		async (index: number) => {
-			const selectedGame = searchResultState.results[index];
+		async (selectedGame: FullGameData) => {
 			if (!selectedGame || isBusy) {
 				return;
 			}
@@ -229,17 +228,10 @@ const AddModal: React.FC = () => {
 			try {
 				await handleAddGame(selectedGame);
 			} catch (error) {
-				handleCloseSearchResult();
 				showError(getErrorMessage(error));
 			}
 		},
-		[
-			handleAddGame,
-			handleCloseSearchResult,
-			isBusy,
-			searchResultState.results,
-			showError,
-		],
+		[handleAddGame, isBusy, showError],
 	);
 
 	/**

@@ -360,8 +360,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		setEditItemPath(null);
 	};
 
-	const handleEditRowSelect = (index: number) => {
-		const selectedData = searchResultState.results[index];
+	const handleEditRowSelect = (selectedData: FullGameData) => {
 		if (!selectedData || !editItemPath) return;
 
 		const nextItems = [...items];
@@ -373,7 +372,6 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 			setItems(nextItems);
 		}
 
-		handleCloseSearchResult();
 		setEditItemPath(null);
 	};
 

@@ -109,13 +109,13 @@ function useAddGame() {
 	return useMutation({
 		mutationFn: (gameParams: InsertGameParams) =>
 			gameService.insertGame(gameParams),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
 				queryKey: gameKeys.all,
 				exact: true,
 			});
-			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
-			queryClient.invalidateQueries({ queryKey: ["collections"] });
+			await queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
+			await queryClient.invalidateQueries({ queryKey: ["collections"] });
 		},
 	});
 }

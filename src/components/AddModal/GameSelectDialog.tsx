@@ -23,7 +23,7 @@ interface GameSelectDialogProps {
 	open: boolean;
 	onClose: () => void;
 	results: FullGameData[];
-	onSelect: (index: number) => void;
+	onSelect: (game: FullGameData, index: number) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
 	apiSource: "bgm" | "vndb" | "ymgal";
@@ -116,7 +116,10 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 							return (
 								<ListItemButton
 									key={displayInfo.id}
-									onClick={() => onSelect(index)}
+									onClick={() => {
+										onSelect(item, index);
+										onClose();
+									}}
 									className="rounded mb-1"
 								>
 									<ListItemAvatar>
