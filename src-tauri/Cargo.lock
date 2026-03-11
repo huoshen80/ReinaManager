@@ -6276,9 +6276,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-state"
-version = "2.4.1"
+version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73736611e14142408d15353e21e3cca2f12a3cfb523ad0ce85999b6d2ef1a704"
+checksum = "136e5ce5e61edc8eeeaca70080811bbdcdd890cac9c4070cb4db9cc3de1da449"
 dependencies = [
  "bitflags 2.10.0",
  "log",

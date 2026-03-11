@@ -160,6 +160,7 @@
 			"selectFolder": "选择文件夹",
 			"setLocalPathTitle": "设置本地路径",
 			"stopFailed": "游戏停止失败:",
+			"stoppingGame": "停止游戏中...",
 			"syncLocalPath": "同步本地"
 		},
 		"PathSettingsModal": {
@@ -277,7 +278,8 @@
 			"ymgallink": "月幕Gal页面"
 		},
 		"Tray": {
-			"exit": "退出"
+			"exit": "退出",
+			"open": "打开主窗口"
 		},
 		"Window": {
 			"closeDialog": {
@@ -554,6 +556,17 @@
 				"openModal": "打开路径设置",
 				"title": "路径设置"
 			},
+			"linuxLaunchCommand": {
+				"title": "Linux 启动命令",
+				"description": "设置 Linux 上启动 Windows 可执行文件（.exe）时使用的命令。支持 wine、proton 或其他兼容层命令，也可以是 PATH 中的可执行文件或脚本的完整路径。",
+				"commandLabel": "启动命令",
+				"helperText": "例如: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+				"resetTooltip": "重置为默认值 (wine)",
+				"saveBtn": "保存",
+				"saveSuccess": "Linux 启动命令已保存",
+				"saveError": "保存失败",
+				"note": "注意：更改此设置后，需要重新启动游戏才能生效。"
+			},
 			"portableMode": {
 				"confirmDisableMessage": "关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
 				"confirmEnableMessage": "启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
@@ -606,7 +619,8 @@
 		},
 		"handleDirectory": {
 			"allFiles": "所有文件",
-			"executable": "可执行文件"
+			"executable": "可执行文件",
+			"folder": "文件夹"
 		},
 		"relativetime": {
 			"daysAgo": "{{count}}天前",

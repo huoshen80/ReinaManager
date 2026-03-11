@@ -188,9 +188,8 @@ pub async fn stop_game_session(game_id: u32) -> Result<u32, String> {
 /// # Arguments
 /// * `app_handle` - Tauri 应用句柄，用于发送事件到前端
 /// * `game_id` - 游戏的唯一标识符
-/// * `process_id` - 要开始监控的游戏进程的初始 PID (仅 Windows)
-/// * `executable_path` - 游戏主可执行文件的完整路径，用于在进程重启或切换后重新查找 (仅 Windows)
-/// * `systemd_unit_name` - Linux 平台下的 systemd user scope 名称 (仅 Linux)
+/// * `process_id` - 要开始监控的游戏进程的初始 PID
+/// * `executable_path` - 游戏主可执行文件的完整路径，用于在进程重启或切换后重新查找
 ///
 /// # 工作流程
 /// 1. 创建 System 实例用于进程查询
@@ -203,8 +202,8 @@ pub async fn monitor_game<R: Runtime>(
     executable_path: String,
 ) {
     let app_handle_clone = app_handle.clone();
-
     let mut sys = System::new();
+
     tauri::async_runtime::spawn(async move {
         if let Err(e) = run_game_monitor(
             app_handle_clone,
@@ -254,7 +253,7 @@ async fn run_game_monitor<R: Runtime>(
     game_id: u32,
     initial_pid: u32,
     executable_path: String,
-    #[allow(unused_variables)] sys: &mut System,
+    sys: &mut System,
 ) -> Result<(), String> {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();

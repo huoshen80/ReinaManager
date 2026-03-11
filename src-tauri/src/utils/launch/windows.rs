@@ -13,6 +13,22 @@ use {
     tokio::time,
 };
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LaunchResult {
+    success: bool,
+    message: String,
+
+    process_id: Option<u32>, // 添加进程ID字段
+}
+
+/// 停止游戏结果
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StopResult {
+    success: bool,
+    message: String,
+    terminated_count: u32,
+}
+
 // ================= Windows键盘模拟支持 =================
 #[cfg(target_os = "windows")]
 mod keyboard_simulator {
@@ -317,14 +333,6 @@ pub async fn launch_game<R: Runtime>(
     }
 }
 
-/// 停止游戏结果
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StopResult {
-    success: bool,
-    message: String,
-    terminated_count: u32,
-}
-
 /// 停止游戏
 ///
 /// # Arguments
@@ -424,12 +432,4 @@ fn is_process_running(process_name: &str) -> bool {
         .processes()
         .values()
         .any(|process| process.name().eq_ignore_ascii_case(process_name))
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LaunchResult {
-    success: bool,
-    message: String,
-
-    process_id: Option<u32>, // 添加进程ID字段
 }

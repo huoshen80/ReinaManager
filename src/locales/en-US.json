@@ -162,6 +162,7 @@
 			"selectFolder": "Select Folder",
 			"setLocalPathTitle": "Set Local Path",
 			"stopFailed": "Failed to stop game:",
+			"stoppingGame": "Stopping game...",
 			"syncLocalPath": "Sync Local"
 		},
 		"PathSettingsModal": {
@@ -279,7 +280,8 @@
 			"ymgallink": "View Ymgal Page"
 		},
 		"Tray": {
-			"exit": "Exit"
+			"exit": "Exit",
+			"open": "Open Main Window"
 		},
 		"Window": {
 			"closeDialog": {
@@ -556,6 +558,17 @@
 				"openModal": "Open Path Settings",
 				"title": "Path Settings"
 			},
+			"linuxLaunchCommand": {
+				"title": "Linux Launch Command",
+				"description": "Set the command used to launch Windows executable files (.exe) on Linux. Supports wine, proton, or other compatibility-layer commands, and can also be a full path to an executable or script available in PATH.",
+				"commandLabel": "Launch Command",
+				"helperText": "For example: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+				"resetTooltip": "Reset to default (wine)",
+				"saveBtn": "Save",
+				"saveSuccess": "Linux launch command saved",
+				"saveError": "Save failed",
+				"note": "Note: You need to restart the game for this setting to take effect."
+			},
 			"portableMode": {
 				"confirmDisableMessage": "After disabling portable mode, the database and backups will be migrated to the system application data directory. The application will restart automatically after successful operation.",
 				"confirmEnableMessage": "After enabling portable mode, the database and backups will be migrated to the program installation directory. The application will restart automatically after successful operation.",
@@ -610,7 +623,8 @@
 		},
 		"handleDirectory": {
 			"allFiles": "All Files",
-			"executable": "Executable File"
+			"executable": "Executable File",
+			"folder": "Folder"
 		},
 		"relativetime": {
 			"daysAgo_one": "{{count}} day ago",

@@ -17,7 +17,6 @@
  * - react-i18next
  */
 
-
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import BackupIcon from "@mui/icons-material/Backup";
 import BugReportIcon from "@mui/icons-material/BugReport";
@@ -29,21 +28,21 @@ import RestorePageIcon from "@mui/icons-material/RestorePage";
 import SaveIcon from "@mui/icons-material/Save";
 import UpdateIcon from "@mui/icons-material/Update";
 import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Checkbox,
-    CircularProgress,
-    Divider,
-    FormControlLabel,
-    IconButton,
-    InputAdornment,
-    Link,
-    Radio,
-    RadioGroup,
-    Switch,
-    Tooltip,
-    Typography,
+	Accordion,
+	AccordionDetails,
+	AccordionSummary,
+	Checkbox,
+	CircularProgress,
+	Divider,
+	FormControlLabel,
+	IconButton,
+	InputAdornment,
+	Link,
+	Radio,
+	RadioGroup,
+	Switch,
+	Tooltip,
+	Typography,
 } from "@mui/material";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";

@@ -1,15 +1,3 @@
-import { useImagePreview } from "@/hooks/common/useImagePreview";
-import { snackbar } from "@/providers/snackBar";
-import type { GameData, UpdateGameParams } from "@/types";
-import {
-	getGameCover,
-	getGameDisplayName,
-	getGameNsfwStatus,
-	handleExeFile,
-} from "@/utils/appUtils";
-import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
-import i18n from "@/utils/i18n";
-import { buildGameInfoUpdatePayload } from "@/utils/metadata";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
@@ -30,6 +18,18 @@ import {
 import { basename } from "pathe";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useImagePreview } from "@/hooks/common/useImagePreview";
+import { snackbar } from "@/providers/snackBar";
+import type { GameData, UpdateGameParams } from "@/types";
+import {
+	getGameCover,
+	getGameDisplayName,
+	getGameNsfwStatus,
+	handleExeFile,
+} from "@/utils/appUtils";
+import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
+import i18n from "@/utils/i18n";
+import { buildGameInfoUpdatePayload } from "@/utils/metadata";
 
 // 公共样式常量
 const CHIP_INPUT_BOX_SX = {

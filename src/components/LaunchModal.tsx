@@ -9,11 +9,6 @@
  * - LaunchModal：游戏启动弹窗组件
  */
 
-import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
-import { useUpdateGame } from "@/hooks/queries/useGames";
-import { snackbar } from "@/providers/snackBar";
-import { useStore } from "@/store/appStore";
-import { useGamePlayStore } from "@/store/gamePlayStore";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
@@ -32,6 +27,11 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useUpdateGame } from "@/hooks/queries/useGames";
+import { snackbar } from "@/providers/snackBar";
+import { useStore } from "@/store/appStore";
+import { useGamePlayStore } from "@/store/gamePlayStore";
 
 import type { UpdateGameParams } from "@/types";
 import { handleFolder } from "@/utils/appUtils";
