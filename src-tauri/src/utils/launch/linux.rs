@@ -4,7 +4,7 @@ use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use tauri::{command, AppHandle, Runtime};
+use tauri::{command, AppHandle, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
 
 #[derive(Debug, Serialize, Deserialize)]
