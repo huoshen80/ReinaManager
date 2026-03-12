@@ -160,6 +160,7 @@
 			"selectFolder": "フォルダを選択",
 			"setLocalPathTitle": "ローカルパスを設定",
 			"stopFailed": "ゲーム停止に失敗しました:",
+			"stoppingGame": "ゲームを停止中...",
 			"syncLocalPath": "ローカル同期"
 		},
 		"PathSettingsModal": {
@@ -277,7 +278,8 @@
 			"ymgallink": "Ymgalページを見る"
 		},
 		"Tray": {
-			"exit": "終了"
+			"exit": "終了",
+			"open": "メインウィンドウを開く"
 		},
 		"Window": {
 			"closeDialog": {
@@ -554,6 +556,17 @@
 				"openModal": "パス設定を開く",
 				"title": "パス設定"
 			},
+			"linuxLaunchCommand": {
+				"title": "Linux 起動コマンド",
+				"description": "Linux で Windows 実行ファイル（.exe）を起動する際に使用するコマンドを設定します。wine、proton などの互換レイヤーコマンド、または PATH 上の実行ファイル/スクリプトのフルパスを指定できます。",
+				"commandLabel": "起動コマンド",
+				"helperText": "例: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+				"resetTooltip": "デフォルト値 (wine) にリセット",
+				"saveBtn": "保存",
+				"saveSuccess": "Linux 起動コマンドを保存しました",
+				"saveError": "保存に失敗しました",
+				"note": "注意: この設定を変更した後は、ゲームを再起動すると有効になります。"
+			},
 			"portableMode": {
 				"confirmDisableMessage": "ポータブルモードを無効にすると、データベースとバックアップがシステムアプリケーションデータディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
 				"confirmEnableMessage": "ポータブルモードを有効にすると、データベースとバックアップがプログラムインストールディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
@@ -606,7 +619,8 @@
 		},
 		"handleDirectory": {
 			"allFiles": "すべてのファイル",
-			"executable": "実行ファイル"
+			"executable": "実行ファイル",
+			"folder": "フォルダ"
 		},
 		"relativetime": {
 			"daysAgo_other": "{{count}}日前",

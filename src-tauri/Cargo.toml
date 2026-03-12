@@ -38,6 +38,8 @@ tauri-plugin-single-instance = "~2.4.0"
 tauri-plugin-updater = "~2.10.0"
 tauri-plugin-process = "~2.3.1"
 tauri-plugin-window-state = "=2.2.3"
+tauri-plugin-store = "2"
+
 
 # System / utilities
 sysinfo = "0.38.1"
@@ -72,6 +74,11 @@ windows = { version = "0.62.2", features = [
     "Win32_UI_Input_KeyboardAndMouse",
 ] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+xcb = "1.6.0"
+zbus = "5.12.0"
+zbus_systemd = { version = "0.25800.0", features = ["systemd1"] }
+
 
 [profile.dev]
 incremental = true # 以较小的步骤编译您的二进制文件。
@@ -81,4 +88,4 @@ codegen-units = 1 # 允许 LLVM 执行更好的优化。
 lto = true        # 启用链接时优化。
 opt-level = "z"   # 优先考虑小的二进制文件大小。如果您更喜欢速度，请使用 `3`。
 panic = "abort"   # 通过禁用 panic 处理程序来提高性能。
-strip = true      # 确保移除调试符号。
+# strip = true      # 确保移除调试符号。

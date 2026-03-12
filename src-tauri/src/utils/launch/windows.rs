@@ -1,13 +1,33 @@
 use crate::database::dto::GameLaunchOptions;
-use crate::utils::fs::PathManager;
 use crate::utils::game_monitor::{monitor_game, stop_game_session};
-use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use sysinfo::{ProcessRefreshKind, RefreshKind, System};
-use tauri::{command, AppHandle, Manager, Runtime};
-use tokio::time;
+use tauri::{command, AppHandle, Runtime};
+#[cfg(target_os = "windows")]
+use {
+    crate::utils::fs::PathManager,
+    log::{error, info},
+    sysinfo::{ProcessRefreshKind, RefreshKind, System},
+    tauri::Manager,
+    tokio::time,
+};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LaunchResult {
+    success: bool,
+    message: String,
+
+    process_id: Option<u32>, // 添加进程ID字段
+}
+
+/// 停止游戏结果
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StopResult {
+    success: bool,
+    message: String,
+    terminated_count: u32,
+}
 
 // ================= Windows键盘模拟支持 =================
 #[cfg(target_os = "windows")]
@@ -58,13 +78,6 @@ mod keyboard_simulator {
                 ))
             }
         }
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-mod keyboard_simulator {
-    pub fn simulate_win_shift_a() -> Result<(), String> {
-        Err("键盘模拟仅在Windows系统上支持".to_string())
     }
 }
 
@@ -144,25 +157,6 @@ mod win_elevated_launch {
         }
         Ok(pid)
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-mod win_elevated_launch {
-    use std::path::Path;
-    pub fn shell_execute_runas(
-        _path: &str,
-        _args: Option<&[String]>,
-        _work_dir: &Path,
-    ) -> Result<u32, String> {
-        Err("Elevated launch is only supported on Windows".to_string())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LaunchResult {
-    success: bool,
-    message: String,
-    process_id: Option<u32>, // 添加进程ID字段
 }
 
 /// 启动游戏
@@ -295,7 +289,6 @@ pub async fn launch_game<R: Runtime>(
                 } else {
                     (game_path.clone(), args_clone)
                 };
-
                 match win_elevated_launch::shell_execute_runas(
                     &exec_path,
                     exec_args.as_deref(),
@@ -340,14 +333,6 @@ pub async fn launch_game<R: Runtime>(
     }
 }
 
-/// 停止游戏结果
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StopResult {
-    success: bool,
-    message: String,
-    terminated_count: u32,
-}
-
 /// 停止游戏
 ///
 /// # Arguments
@@ -358,8 +343,8 @@ pub struct StopResult {
 ///
 /// 停止结果，包含成功标志、消息和终止的进程数量
 #[command]
-pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
-    match stop_game_session(game_id) {
+pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
+    match stop_game_session(game_id).await {
         Ok(terminated_count) => Ok(StopResult {
             success: true,
             message: format!(
@@ -373,6 +358,7 @@ pub fn stop_game(game_id: u32) -> Result<StopResult, String> {
 }
 
 /// 为游戏启动Magpie放大
+#[cfg(target_os = "windows")]
 async fn start_magpie_for_game(
     _game_path: &str,
     app_handle: &AppHandle<impl Runtime>,

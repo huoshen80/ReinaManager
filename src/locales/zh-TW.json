@@ -160,6 +160,7 @@
 			"selectFolder": "選擇文件夾",
 			"setLocalPathTitle": "設置本地路徑",
 			"stopFailed": "遊戲停止失敗:",
+			"stoppingGame": "正在停止遊戲...",
 			"syncLocalPath": "同步本地"
 		},
 		"PathSettingsModal": {
@@ -277,7 +278,8 @@
 			"ymgallink": "查看Ymgal頁面"
 		},
 		"Tray": {
-			"exit": "退出"
+			"exit": "退出",
+			"open": "開啟主視窗"
 		},
 		"Window": {
 			"closeDialog": {
@@ -554,6 +556,17 @@
 				"openModal": "打開路徑設置",
 				"title": "路徑設置"
 			},
+			"linuxLaunchCommand": {
+				"title": "Linux 啟動命令",
+				"description": "設定 Linux 上啟動 Windows 可執行檔（.exe）時使用的命令。支援 wine、proton 或其他相容層命令，也可以是 PATH 中可執行檔或腳本的完整路徑。",
+				"commandLabel": "啟動命令",
+				"helperText": "例如: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+				"resetTooltip": "重設為預設值 (wine)",
+				"saveBtn": "儲存",
+				"saveSuccess": "Linux 啟動命令已儲存",
+				"saveError": "儲存失敗",
+				"note": "注意：變更此設定後，需要重新啟動遊戲才能生效。"
+			},
 			"portableMode": {
 				"confirmDisableMessage": "停用攜帶式模式後，應用程式將自動重新啟動。確定要繼續嗎？",
 				"confirmEnableMessage": "啟用攜帶式模式後，應用程式將自動重新啟動。確定要繼續嗎？",
@@ -606,7 +619,8 @@
 		},
 		"handleDirectory": {
 			"allFiles": "所有檔案",
-			"executable": "可執行檔"
+			"executable": "可執行檔",
+			"folder": "資料夾"
 		},
 		"relativetime": {
 			"daysAgo_other": "{{count}}天前",

@@ -37,6 +37,7 @@
 		"@tauri-apps/plugin-http": "~2.5.7",
 		"@tauri-apps/plugin-process": "~2.3.1",
 		"@tauri-apps/plugin-shell": "~2.3.5",
+		"@tauri-apps/plugin-store": "~2",
 		"@tauri-apps/plugin-updater": "~2.10.0",
 		"@tauri-apps/plugin-window-state": "=2.2.3",
 		"@toolpad/core": "^0.16.0",
@@ -47,6 +48,7 @@
 		"i18next-browser-languagedetector": "^8.2.0",
 		"marked": "^17.0.1",
 		"notistack": "^3.0.2",
+		"path-browserify": "^1.0.1",
 		"pathe": "^2.0.3",
 		"pinyin-pro": "^3.28.0",
 		"react": "^18.3.1",
@@ -58,7 +60,7 @@
 		"zustand": "^5.0.11"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.14",
+		"@biomejs/biome": "^2.4.6",
 		"@tauri-apps/cli": "~2.10.0",
 		"@types/node": "^24.10.11",
 		"@types/react": "^18.3.28",

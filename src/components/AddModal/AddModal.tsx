@@ -39,7 +39,7 @@ import { useBgmToken } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { FullGameData, InsertGameParams } from "@/types";
-import { getErrorMessage, handleDirectory } from "@/utils/appUtils";
+import { getErrorMessage, handleFolder } from "@/utils/appUtils";
 import BulkImportTab from "./BulkImportTab";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
@@ -426,7 +426,7 @@ const AddModal: React.FC = () => {
 								fullWidth
 								variant="contained"
 								onClick={async () => {
-									const result = await handleDirectory();
+									const result = await handleFolder();
 									if (result) setAddModalPath(result);
 								}}
 								startIcon={<FileOpenIcon />}

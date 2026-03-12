@@ -301,9 +301,9 @@ export const Detail: React.FC = () => {
 							<Stack direction="row" className="flex-wrap gap-1">
 								{translateTags(selectedGame.tags || [], tagTranslation)
 									.slice(0, showAllTags ? undefined : 40) // 根据折叠状态显示标签数量
-									.map((tag, index) => (
+									.map((tag) => (
 										<Chip
-											key={`${selectedGame.tags?.[index] || tag}-${index}`}
+											key={tag}
 											label={tag}
 											size="small"
 											variant="outlined"
