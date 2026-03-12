@@ -51,7 +51,7 @@ pub async fn launch_game<R: Runtime>(
             .and_then(|store| store.get("linux_launch_command"))
             .and_then(|v| v.as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "wine".to_string());
-        let linux_launch_command = expand_path(&linux_launch_command);
+        let linux_launch_command = expand_path(&app_handle, &linux_launch_command);
         debug!("使用的 Linux 启动命令: {:?}", linux_launch_command);
 
         let mut cmd = Command::new("systemd-run");
@@ -114,10 +114,11 @@ pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
     }
 }
 
-fn expand_path(path: &str) -> String {
-    if path.starts_with("~") {
-        if let Some(home_dir) = dirs::home_dir() {
-            path.replacen("~", &home_dir.to_string_lossy(), 1)
+fn expand_path<R: Runtime>(app_handle: &AppHandle<R>, path: &str) -> String {
+    if path.starts_with('~') {
+        // 使用 Tauri 提供的内置路径解析
+        if let Ok(home_dir) = app_handle.path().home_dir() {
+            path.replacen('~', &home_dir.to_string_lossy(), 1)
         } else {
             path.to_string()
         }

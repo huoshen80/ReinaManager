@@ -7,7 +7,6 @@ name = "ReinaManager"
 version = "0.16.3"
 dependencies = [
  "chrono",
- "dirs 6.0.0",
  "log",
  "migration",
  "parking_lot",

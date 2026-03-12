@@ -1007,7 +1007,7 @@ export {
 
 /**
  * 从目录名中移除括号内容，提取搜索用的游戏名
- * 例如: "[社团名] 游戏名 (版本)" -> "游戏名"
+ * 例如: "[社团名] 游戏名 (版本)" -> "游戏名" (暂时无用)
  */
 export function trimDirnameToSearchName(dirName: string): string {
 	/**
