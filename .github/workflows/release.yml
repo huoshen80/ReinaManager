@@ -24,7 +24,6 @@ jobs:
       changelog: ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
     steps:
       - name: Checkout repository
-
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -51,12 +50,71 @@ jobs:
           fi
           rm -f "$CHANGELOG_FILE"
 
-  build-and-upload:
-    name: Build and Upload
+  build-linux:
+    name: Build Linux
+    runs-on: ${{ matrix.os }}
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04-arm
+            rust_target: aarch64-unknown-linux-gnu
+    environment: TAURI_KEY
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          key: ${{ matrix.rust_target }}
+          shared-key: "reina-manager-build"
+      - name: Install Mold
+        uses: rui314/setup-mold@v1
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libsoup-3.0-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf clang
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build and Upload to Draft Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_UPDATER_ACTIVE: true
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: ${{ github.ref_name }}
+          releaseBody: ${{ needs.prepare.outputs.changelog }}
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          includeRelease: true
+          tauriScript: pnpm tauri
+          args: --target ${{ matrix.rust_target }}
+
+  build-windows:
+    name: Build Windows
     runs-on: windows-latest
     needs: prepare
     strategy:
-      # 控制上传顺序：将 x86_64 放在前面
       matrix:
         rust_target: [ x86_64-pc-windows-msvc, aarch64-pc-windows-msvc ]
     environment: TAURI_KEY
@@ -72,13 +130,6 @@ jobs:
         with:
           version: 10
           run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-store
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -89,8 +140,6 @@ jobs:
           workspaces: "./src-tauri -> target"
           shared-key: ${{ matrix.rust_target }}
           save-if: false
-
-      # 配置 Windows lld 链接器
       - name: Configure Rust linker (Windows lld)
         shell: bash
         run: |
@@ -126,9 +175,9 @@ jobs:
   finalize-release:
     name: Finalize Release
     runs-on: ubuntu-latest
-    needs: [prepare, build-and-upload] # 等待所有构建和上传完成
+    needs: [prepare, build-linux, build-windows]
     permissions:
-      contents: write # 需要权限来编辑 release
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -153,15 +202,18 @@ jobs:
           # 从 GitHub API 获取草稿 release 的所有资源文件名
           ASSETS_JSON=$(gh release view "$TAG_NAME" --json assets --jq '.assets | .[] | .name')
           
-          # 查找 MSI 和 EXE 文件
+          # 解析 Windows 产物
           X64_MSI=$(echo "$ASSETS_JSON" | grep -E "_x64_.*\.msi$" || echo "")
           ARM64_MSI=$(echo "$ASSETS_JSON" | grep -E "_arm64_.*\.msi$" || echo "")
           
+          # 解析 Linux 产物 (AppImage & deb)
+          X64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.AppImage$" || echo "")
+          X64_DEB=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.deb$" || echo "")
+          
           CHANGELOG="${{ needs.prepare.outputs.changelog }}"
           
-          # 为所有文件创建 URL
-          X64_MSI_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/$X64_MSI"
-          ARM64_MSI_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/$ARM64_MSI"
+          # 构建下载链接
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
           
           DOWNLOAD_SECTION=$(cat <<EOF
           ---
@@ -169,15 +221,19 @@ jobs:
           ![Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/$TAG_NAME/total)
           
           **Windows** (不支持 Win7)
-            - [**64位 (x64)**]($X64_MSI_URL)
-            - [**ARM64**]($ARM64_MSI_URL)
+          - [**64位 (x64)**]($BASE_URL/$X64_MSI)
+          - [**ARM64**]($BASE_URL/$ARM64_MSI)
+          
+          **Linux**
+          - [**AppImage (x64)**]($BASE_URL/$X64_APPIMAGE)
+          - [**Debian/Ubuntu (.deb x64)**]($BASE_URL/$X64_DEB)
           
           ### ⚠️ **安装提醒 (Installation Notice)**
-          不建议安装在 **C:\\Program Files** 目录下。该目录需要以管理员权限运行软件才能正常使用以下功能：
+          不建议安装在 **C:\Program Files** 目录下。该目录需要以管理员权限运行软件才能正常使用以下功能：
           - 自定义游戏封面
           - 便携模式
           ---
-          It is **NOT recommended** to install in **C:\\Program Files**. This directory requires administrator privileges for the following features:
+          It is **NOT recommended** to install in **C:\Program Files**. This directory requires administrator privileges for the following features:
           - Custom game covers
           - Portable mode
           EOF
@@ -238,4 +294,3 @@ jobs:
           
           gh release upload $TAG_NAME "latest.json" --clobber
           echo "Successfully updated latest.json with CDN URLs"
-
