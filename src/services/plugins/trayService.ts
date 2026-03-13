@@ -8,29 +8,52 @@ import i18n from "i18next";
 
 let trayInstance: TrayIcon | null = null;
 
+const showUI = async () => {
+	const window = getCurrentWindow();
+	try {
+		await window.show();
+		await window.unminimize();
+		await window.setFocus();
+	} catch (error) {
+		console.error("Failed to show window:", error);
+	}
+};
+
+const createTrayMenu = async () => {
+	const window = getCurrentWindow();
+
+	// 1. 创建“打开”菜单项
+	const openItem = await MenuItem.new({
+		id: "open",
+		text: i18n.t("components.Tray.open"),
+		action: async () => {
+			await showUI();
+		},
+	});
+
+	// 2. 创建“退出”菜单项
+	const quitItem = await MenuItem.new({
+		id: "exit",
+		text: i18n.t("components.Tray.exit"),
+		action: async () => {
+			console.log("Exiting application...");
+			await window.destroy();
+		},
+	});
+
+	// 3. 组合成菜单
+	return await Menu.new({
+		items: [openItem, quitItem],
+	});
+};
+
 /**
  * 更新托盘菜单语言
  */
 export const updateTrayLanguage = async () => {
 	if (!trayInstance) return;
-
 	try {
-		// 创建新的退出菜单项，使用新的语言
-		const quitItem = await MenuItem.new({
-			id: "exit",
-			text: i18n.t("components.Tray.exit"),
-			action: async () => {
-				console.log("Exiting application...");
-				const window = getCurrentWindow();
-				await window.destroy();
-			},
-		});
-
-		// 更新菜单
-		const menu = await Menu.new({
-			items: [quitItem],
-		});
-
+		const menu = await createTrayMenu();
 		await trayInstance.setMenu(menu);
 	} catch (error) {
 		console.error("Failed to update tray menu:", error);
@@ -42,39 +65,10 @@ export const updateTrayLanguage = async () => {
  */
 export const initTray = async () => {
 	try {
-		// 创建退出菜单项
-		const quitItem = await MenuItem.new({
-			id: "exit",
-			text: i18n.t("components.Tray.exit"),
-			action: async () => {
-				console.log("Exiting application...");
-				const window = getCurrentWindow();
-				await window.destroy();
-			},
-		});
-		const openItem = await MenuItem.new({
-			id: "open",
-			text: i18n.t("components.Tray.open"),
-			action: async () => {
-				const window = getCurrentWindow();
-				try {
-					await window.show();
-					await window.unminimize();
-					await window.setFocus();
-				} catch (error) {
-					console.error("Failed to open window from tray:", error);
-				}
-			},
-		});
-		// 创建菜单
-		const menu = await Menu.new({
-			items: [openItem, quitItem],
-		});
-
-		// 获取默认窗口图标
+		const menu = await createTrayMenu();
 		const windowIcon = await defaultWindowIcon();
 		const tooltipText = `ReinaManager v${version}`;
-		// 创建托盘图标
+
 		const tray = await TrayIcon.new({
 			id: "main",
 			icon: windowIcon ?? undefined,
@@ -83,27 +77,17 @@ export const initTray = async () => {
 			showMenuOnLeftClick: false, // 左键不显示菜单
 
 			action: async (event: TrayIconEvent) => {
-				// 处理托盘图标点击事件
 				if (
 					event.type === "Click" &&
 					event.button === "Left" &&
 					event.buttonState === "Up"
-				) {
-					const window = getCurrentWindow();
-					try {
-						await window.show();
-						await window.unminimize();
-						await window.setFocus();
-					} catch (error) {
-						console.error("Failed to toggle window visibility:", error);
-					}
-				}
+				)
+					await showUI();
 			},
 		});
 
 		trayInstance = tray;
-
-		// 监听语言切换事件
+		i18n.off("languageChanged", updateTrayLanguage); // 避免重复监听
 		i18n.on("languageChanged", updateTrayLanguage);
 
 		return tray;
