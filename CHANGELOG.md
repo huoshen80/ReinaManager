@@ -1,3 +1,47 @@
+## [0.17.0](https://github.com/huoshen80/ReinaManager/compare/v0.16.3...v0.17.0) (2026-03-13)
+
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+* 补全数据库与 pathmanager 的日志，并格式化后端代码 ([1eb2677](https://github.com/huoshen80/ReinaManager/commit/1eb267722c07e3b71b377f39e7ff87c0225e9d42))
+
+### 新功能
+* 新增目录名清理函数用于提取游戏名，并将可取消的异步操作逻辑抽离到 utils ([3a5679a](https://github.com/huoshen80/ReinaManager/commit/3a5679ab227cae805fdf3bfe2f207f6f34ff3223))
+* 在游戏详情页新增跳转到对应开发商分类的链接 ([e5892d9](https://github.com/huoshen80/ReinaManager/commit/e5892d9cbfd57840322c564328700b848dd3a5b6))
+* 新增主题跟随系统的选项 ([d83a3de](https://github.com/huoshen80/ReinaManager/commit/d83a3debe9e3a5424708ad94b147877717419526))
+* 新增批量导入功能 ([8a50540](https://github.com/huoshen80/ReinaManager/commit/8a505401105af87398920a40834a6063d1b89f24))
+* **批量导入:** 元数据匹配可取消，修复 YMgal 数据获取不完整的问题 ([6f4a34d](https://github.com/huoshen80/ReinaManager/commit/6f4a34dbf1b4922cc97ab453c746f3f0edc166f2))
+
+### 性能改进
+* 优化添加游戏的 UI 与交互体验 ([4c318e7](https://github.com/huoshen80/ReinaManager/commit/4c318e74bb8b709d657ec92119e58387ee9d6272))
+* **存档:** 优化备份逻辑的 UI 与交互体验 ([3f002e9](https://github.com/huoshen80/ReinaManager/commit/3f002e9e4852b56e07c2ca7eb30492bbc2d5cb00))
+
+</details>
+
+
+### Bug Fixes
+
+* missing db and pathmanager logs,fmt backend code ([1eb2677](https://github.com/huoshen80/ReinaManager/commit/1eb267722c07e3b71b377f39e7ff87c0225e9d42))
+
+
+### Features
+
+* add a directory name cleaning fn to extract game names, and extract cancellable async operation logic to utils ([3a5679a](https://github.com/huoshen80/ReinaManager/commit/3a5679ab227cae805fdf3bfe2f207f6f34ff3223))
+* add a link on the game details page that can jump to the corresponding developer category ([e5892d9](https://github.com/huoshen80/ReinaManager/commit/e5892d9cbfd57840322c564328700b848dd3a5b6))
+* add an option to follow the system for the theme ([d83a3de](https://github.com/huoshen80/ReinaManager/commit/d83a3debe9e3a5424708ad94b147877717419526))
+* add bulkimport fn ([8a50540](https://github.com/huoshen80/ReinaManager/commit/8a505401105af87398920a40834a6063d1b89f24))
+* **bulkimport:** matching metadata can be canceled and  fix the problem of incomplete YMgal data retrieval ([6f4a34d](https://github.com/huoshen80/ReinaManager/commit/6f4a34dbf1b4922cc97ab453c746f3f0edc166f2))
+
+
+### Performance Improvements
+
+* optimize the UI and UX for adding games ([4c318e7](https://github.com/huoshen80/ReinaManager/commit/4c318e74bb8b709d657ec92119e58387ee9d6272))
+* **savedata:** optimize the UI and UX of backup logic ([3f002e9](https://github.com/huoshen80/ReinaManager/commit/3f002e9e4852b56e07c2ca7eb30492bbc2d5cb00))
+
+
+
 ## [0.16.3](https://github.com/huoshen80/ReinaManager/compare/v0.16.2...v0.16.3) (2026-02-25)
 
 <details>
