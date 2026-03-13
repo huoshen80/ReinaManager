@@ -62,6 +62,43 @@ const EXCLUDED_EXE_PATTERNS: &[&str] = &[
     "unitycrashandler",
 ];
 
+fn trim_dirname_to_search_name(dir_name: &str) -> String {
+    let mut result = String::with_capacity(dir_name.len());
+    let mut square_depth = 0_u32;
+    let mut round_depth = 0_u32;
+    let mut corner_depth = 0_u32;
+    let mut fullwidth_round_depth = 0_u32;
+
+    for ch in dir_name.chars() {
+        match ch {
+            '[' => square_depth += 1,
+            ']' => square_depth = square_depth.saturating_sub(1),
+            '(' => round_depth += 1,
+            ')' => round_depth = round_depth.saturating_sub(1),
+            '【' => corner_depth += 1,
+            '】' => corner_depth = corner_depth.saturating_sub(1),
+            '（' => fullwidth_round_depth += 1,
+            '）' => fullwidth_round_depth = fullwidth_round_depth.saturating_sub(1),
+            _ => {
+                if square_depth == 0
+                    && round_depth == 0
+                    && corner_depth == 0
+                    && fullwidth_round_depth == 0
+                {
+                    result.push(ch);
+                }
+            }
+        }
+    }
+
+    let trimmed = result.split_whitespace().collect::<Vec<_>>().join(" ");
+    if trimmed.is_empty() {
+        dir_name.trim().to_string()
+    } else {
+        trimmed
+    }
+}
+
 fn is_excluded_dir(name: &str) -> bool {
     let lower = name.to_lowercase();
     EXCLUDED_DIRS.iter().any(|&d| lower == d)
@@ -204,7 +241,8 @@ fn scan_games_blocking(
             if file_count_by_dir.get(&game_dir).copied().unwrap_or(0) <= 3 {
                 return None;
             }
-            let name = game_dir.file_name()?.to_string_lossy().to_string();
+            let raw_name = game_dir.file_name()?.to_string_lossy().to_string();
+            let name = trim_dirname_to_search_name(&raw_name);
             let lower_name = name.to_lowercase();
 
             let mut executables: Vec<String> = exes
@@ -249,4 +287,26 @@ fn scan_games_blocking(
 
     results.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(results)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::trim_dirname_to_search_name;
+
+    #[test]
+    fn trim_dirname_removes_common_tags() {
+        assert_eq!(
+            trim_dirname_to_search_name("[社团名] 游戏名 (完整版)"),
+            "游戏名"
+        );
+        assert_eq!(
+            trim_dirname_to_search_name("【品牌】 游戏名 （初回版）"),
+            "游戏名"
+        );
+    }
+
+    #[test]
+    fn trim_dirname_falls_back_when_everything_is_removed() {
+        assert_eq!(trim_dirname_to_search_name("[社团名]"), "[社团名]");
+    }
 }

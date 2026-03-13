@@ -39,7 +39,13 @@ import { useBgmToken } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { FullGameData, InsertGameParams } from "@/types";
-import { getErrorMessage, handleFolder } from "@/utils/appUtils";
+import {
+	createAbortableRunner,
+	getErrorMessage,
+	handleExeFile,
+	isAbortError,
+	trimDirnameToSearchName,
+} from "@/utils/appUtils";
 import BulkImportTab from "./BulkImportTab";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
@@ -59,14 +65,14 @@ interface SearchResultState {
 type AddModalTab = "single" | "bulk";
 
 /**
- * 从文件路径中提取文件夹名称（纯函数，置于组件外以保证稳定引用）
+ * 从文件路径中提取文件夹名称并清洗（纯函数，置于组件外以保证稳定引用）
  * @param path 文件路径
- * @returns 文件夹名称
+ * @returns 搜索名称（从文件夹名提取并清洗后的结果）
  */
 function extractFolderName(path: string): string {
 	// 使用 pathe 的 dirname 获取父目录，然后获取文件夹名
 	const parentDir = dirname(path);
-	return basename(parentDir);
+	return trimDirnameToSearchName(basename(parentDir));
 }
 
 /**
@@ -282,18 +288,9 @@ const AddModal: React.FC = () => {
 	 */
 	const handleSubmit = async () => {
 		if (isBusy) return;
-		const controller = new AbortController();
+		const { controller, withAbort } = createAbortableRunner();
 		if (abortControllerRef.current) abortControllerRef.current.abort();
 		abortControllerRef.current = controller;
-
-		const abortPromise = new Promise<never>((_, reject) => {
-			controller.signal.addEventListener("abort", () => {
-				reject(new DOMException("Aborted", "AbortError"));
-			});
-		});
-
-		const withAbort = <T,>(promise: Promise<T>) =>
-			Promise.race([promise, abortPromise]) as Promise<T>;
 
 		const timeoutId = window.setTimeout(() => {
 			controller.abort();
@@ -332,7 +329,7 @@ const AddModal: React.FC = () => {
 				results,
 			});
 		} catch (error) {
-			if (error instanceof DOMException && error.name === "AbortError") {
+			if (isAbortError(error)) {
 				return;
 			}
 			showError(getErrorMessage(error));
@@ -426,7 +423,7 @@ const AddModal: React.FC = () => {
 								fullWidth
 								variant="contained"
 								onClick={async () => {
-									const result = await handleFolder();
+									const result = await handleExeFile();
 									if (result) setAddModalPath(result);
 								}}
 								startIcon={<FileOpenIcon />}

@@ -187,6 +187,36 @@ export const getErrorMessage = (error: unknown): string => {
 	return error instanceof Error ? error.message : String(error);
 };
 
+export interface AbortableRunner {
+	controller: AbortController;
+	withAbort: <T>(promise: Promise<T>) => Promise<T>;
+}
+
+export const createAbortableRunner = (): AbortableRunner => {
+	const controller = new AbortController();
+	const abortPromise = new Promise<never>((_, reject) => {
+		controller.signal.addEventListener(
+			"abort",
+			() => {
+				reject(new DOMException("Aborted", "AbortError"));
+			},
+			{ once: true },
+		);
+	});
+
+	const withAbort = <T>(promise: Promise<T>) =>
+		Promise.race([promise, abortPromise]) as Promise<T>;
+
+	return {
+		controller,
+		withAbort,
+	};
+};
+
+export const isAbortError = (error: unknown): boolean => {
+	return error instanceof DOMException && error.name === "AbortError";
+};
+
 export const handleOpenFolder = async ({
 	id,
 	getGameById,
@@ -999,51 +1029,66 @@ export function getBoolDiff(
 	return current; // 被修改
 }
 
+/**
+ * 从目录名中移除括号内容，提取搜索用的游戏名
+ * 例如: "[社团名] 游戏名 (版本)" -> "游戏名"
+ */
+export function trimDirnameToSearchName(dirName: string): string {
+	let result = "";
+	let squareDepth = 0;
+	let roundDepth = 0;
+	let cornerDepth = 0;
+	let fullwidthRoundDepth = 0;
+
+	// 遍历每一个字符
+	for (const ch of dirName) {
+		switch (ch) {
+			case "[":
+				squareDepth++;
+				break;
+			case "]":
+				squareDepth = Math.max(0, squareDepth - 1);
+				break; // 类似 Rust 的 saturating_sub
+			case "(":
+				roundDepth++;
+				break;
+			case ")":
+				roundDepth = Math.max(0, roundDepth - 1);
+				break;
+			case "【":
+				cornerDepth++;
+				break;
+			case "】":
+				cornerDepth = Math.max(0, cornerDepth - 1);
+				break;
+			case "（":
+				fullwidthRoundDepth++;
+				break;
+			case "）":
+				fullwidthRoundDepth = Math.max(0, fullwidthRoundDepth - 1);
+				break;
+			default:
+				// 只有当所有括号深度都为 0 时，才保留该字符
+				if (
+					squareDepth === 0 &&
+					roundDepth === 0 &&
+					cornerDepth === 0 &&
+					fullwidthRoundDepth === 0
+				) {
+					result += ch;
+				}
+		}
+	}
+
+	// 清理多余的连续空格，并去除首尾空格
+	const trimmed = result.replace(/\s+/g, " ").trim();
+
+	// 如果全被清空了（比如全都是括号），就返回原始名称的 trim 结果
+	return trimmed || dirName.trim();
+}
+
 // 导出数据转换工具
 export {
 	getDisplayGameData,
 	getDisplayGameDataList,
 } from "./dataTransform";
-
-/**
- * 从目录名中移除括号内容，提取搜索用的游戏名
- * 例如: "[社团名] 游戏名 (版本)" -> "游戏名" (暂时无用)
- */
-export function trimDirnameToSearchName(dirName: string): string {
-	/**
-	 * 尝试移除一对括号及其内容
-	 */
-	function trimOnce(name: string, open: string, close: string): string {
-		const trimmed = name.trim();
-		if (trimmed.startsWith(open)) {
-			const pos = trimmed.indexOf(close);
-			if (pos !== -1) {
-				return trimmed.slice(pos + close.length).trim();
-			}
-		}
-		return trimmed;
-	}
-
-	/**
-	 * 循环移除所有括号直到没有变化
-	 */
-	function trim(name: string): string {
-		let currentName = name;
-
-		while (true) {
-			let trimmed = trimOnce(currentName, "[", "]");
-			trimmed = trimOnce(trimmed, "(", ")");
-			trimmed = trimOnce(trimmed, "【", "】");
-
-			// 如果没有变化则退出循环
-			if (trimmed === currentName) {
-				break;
-			}
-			currentName = trimmed;
-		}
-
-		return currentName.trim();
-	}
-
-	return trim(dirName);
-}
