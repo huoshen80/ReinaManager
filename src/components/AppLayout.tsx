@@ -30,7 +30,7 @@ import {
 } from "@toolpad/core/DashboardLayout";
 import { PageContainer } from "@toolpad/core/PageContainer";
 import { useCallback, useMemo } from "react";
-import KeepAlive from "react-activation";
+import { KeepAlive } from "react-activation";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation } from "react-router-dom";
 import AddModal from "@/components/AddModal";
