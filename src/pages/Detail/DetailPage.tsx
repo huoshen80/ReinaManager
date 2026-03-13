@@ -28,11 +28,22 @@ import {
 } from "@mui/material";
 import { PageContainer } from "@toolpad/core/PageContainer";
 import { useActivePage } from "@toolpad/core/useActivePage";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
+import { useVirtualCategories } from "@/hooks/common/useVirtualCollections";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
+import { DefaultGroup } from "@/types/collection";
 import { getGameCover, getGameDisplayName } from "@/utils/appUtils";
 import i18n from "@/utils/i18n";
 import { translateTags } from "@/utils/tagTranslation";
@@ -81,9 +92,23 @@ const TabPanel = (props: TabPanelProps) => {
 export const Detail: React.FC = () => {
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const setSelectedGameId = useStore((s) => s.setSelectedGameId);
-	const tagTranslation = useStore((s) => s.tagTranslation);
+	const navigate = useNavigate();
+	const {
+		tagTranslation,
+		setSelectedGameId,
+		setCurrentGroup,
+		setSelectedCategory,
+	} = useStore(
+		useShallow((s) => ({
+			tagTranslation: s.tagTranslation,
+			setSelectedGameId: s.setSelectedGameId,
+			setCurrentGroup: s.setCurrentGroup,
+			setSelectedCategory: s.setSelectedCategory,
+		})),
+	);
 	const { selectedGame, isLoadingSelectedGame } = useSelectedGame(id);
+	const displayAllGames = useAllGameListFacade();
+	const virtualCategories = useVirtualCategories(displayAllGames);
 	const [tabIndex, setTabIndex] = useState(0);
 	const [showAllTags, setShowAllTags] = useState(false); // 控制标签折叠状态
 
@@ -94,6 +119,50 @@ export const Detail: React.FC = () => {
 	const handleToggleTags = () => {
 		setShowAllTags((prev) => !prev);
 	};
+
+	const handleDeveloperClick = useCallback(
+		(developerName: string) => {
+			const match = virtualCategories.developerCategories.find(
+				(category) => category.name === developerName,
+			);
+			setCurrentGroup(DefaultGroup.DEVELOPER);
+			if (match) {
+				setSelectedCategory(match.id, developerName);
+			} else {
+				setSelectedCategory(null);
+			}
+			navigate("/collection");
+		},
+		[
+			navigate,
+			setCurrentGroup,
+			setSelectedCategory,
+			virtualCategories.developerCategories,
+		],
+	);
+
+	const developerChips = useMemo(() => {
+		if (!selectedGame) return [];
+		const developerStr =
+			selectedGame.developer || t("category.unknownDeveloper");
+		const developers = developerStr
+			.split("/")
+			.map((dev) => dev.trim())
+			.filter((dev) => dev.length > 0);
+		const normalized =
+			developers.length > 0 ? developers : [t("category.unknownDeveloper")];
+		return normalized.map((developer) => (
+			<Chip
+				key={developer}
+				label={developer}
+				size="small"
+				variant="outlined"
+				clickable
+				onClick={() => handleDeveloperClick(developer)}
+				className="mr-1"
+			/>
+		));
+	}, [selectedGame, t, handleDeveloperClick]);
 
 	const activePage = useActivePage();
 	const location = useLocation();
@@ -214,9 +283,13 @@ export const Detail: React.FC = () => {
 								>
 									{t("pages.Detail.gameDeveloper")}
 								</Typography>
-								<Typography component="div">
-									{selectedGame.developer || "-"}
-								</Typography>
+								<Box className="flex flex-wrap items-center">
+									{developerChips.length > 0 ? (
+										developerChips
+									) : (
+										<Typography component="div">-</Typography>
+									)}
+								</Box>
 							</Box>
 							<Box>
 								<Typography
