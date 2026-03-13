@@ -30,22 +30,29 @@
  */
 
 import AddIcon from "@mui/icons-material/Add";
+import BrightnessAutoIcon from "@mui/icons-material/BrightnessAuto";
 import CallMadeIcon from "@mui/icons-material/CallMade";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import LightModeIcon from "@mui/icons-material/LightMode";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import TurnRightIcon from "@mui/icons-material/TurnRight";
 import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
+import { useColorScheme } from "@mui/material/styles";
+import Tooltip from "@mui/material/Tooltip";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openurl } from "@tauri-apps/plugin-shell";
-import { ThemeSwitcher } from "@toolpad/core/DashboardLayout";
-import { useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
@@ -68,6 +75,120 @@ import type { HanleGamesProps } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
 import { CollectionToolbar } from "./Collection";
+
+type ThemeMode = "light" | "dark" | "system";
+
+/**
+ * 主题切换组件（亮色 / 暗色 / 跟随系统）
+ */
+const ThemeSwitcher = () => {
+	const { t } = useTranslation();
+	const { mode, setMode, systemMode, allColorSchemes } = useColorScheme();
+	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+	const menuOpen = Boolean(anchorEl);
+
+	const currentMode = (mode ?? "system") as ThemeMode;
+	const resolvedMode = useMemo<"light" | "dark">(() => {
+		if (currentMode === "system") return systemMode ?? "light";
+		return currentMode;
+	}, [currentMode, systemMode]);
+	const isDualTheme = allColorSchemes.length > 1;
+
+	const updateWindowTheme = useCallback(async (nextMode: ThemeMode) => {
+		try {
+			if (nextMode === "system") {
+				await getCurrentWindow().setTheme(null);
+				return;
+			}
+			await getCurrentWindow().setTheme(nextMode);
+		} catch (error) {
+			console.warn("更新窗口主题失败:", error);
+		}
+	}, []);
+
+	useEffect(() => {
+		updateWindowTheme(currentMode);
+	}, [currentMode, updateWindowTheme]);
+
+	const handleOpenMenu = (event: MouseEvent<HTMLButtonElement>) => {
+		setAnchorEl(event.currentTarget);
+	};
+
+	const handleCloseMenu = () => {
+		setAnchorEl(null);
+	};
+
+	const handleSelectMode = async (nextMode: ThemeMode) => {
+		setMode(nextMode);
+		handleCloseMenu();
+	};
+
+	const currentIcon =
+		currentMode === "system" ? (
+			<BrightnessAutoIcon />
+		) : resolvedMode === "dark" ? (
+			<DarkModeIcon />
+		) : (
+			<LightModeIcon />
+		);
+
+	if (!isDualTheme) return null;
+
+	return (
+		<>
+			<Tooltip title={t("components.Toolbar.theme", "主题")} enterDelay={1000}>
+				<IconButton
+					aria-label={t("components.Toolbar.theme", "主题")}
+					onClick={handleOpenMenu}
+					color="primary"
+					size="small"
+				>
+					{currentIcon}
+				</IconButton>
+			</Tooltip>
+			<Menu
+				anchorEl={anchorEl}
+				open={menuOpen}
+				onClose={handleCloseMenu}
+				transitionDuration={0}
+			>
+				<MenuItem
+					selected={currentMode === "light"}
+					onClick={() => handleSelectMode("light")}
+				>
+					<ListItemIcon>
+						<LightModeIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>
+						{t("components.Toolbar.themeLight", "浅色")}
+					</ListItemText>
+				</MenuItem>
+				<MenuItem
+					selected={currentMode === "dark"}
+					onClick={() => handleSelectMode("dark")}
+				>
+					<ListItemIcon>
+						<DarkModeIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>
+						{t("components.Toolbar.themeDark", "深色")}
+					</ListItemText>
+				</MenuItem>
+				<MenuItem
+					selected={currentMode === "system"}
+					onClick={() => handleSelectMode("system")}
+				>
+					<ListItemIcon>
+						<BrightnessAutoIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>
+						{t("components.Toolbar.themeSystem", "跟随系统")}
+					</ListItemText>
+				</MenuItem>
+			</Menu>
+		</>
+	);
+};
 
 /**
  * 按钮组属性类型

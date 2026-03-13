@@ -28,6 +28,7 @@
 		"core:window:allow-close",
 		"core:window:allow-hide",
 		"core:window:allow-destroy",
+		"core:window:allow-set-theme",
 		"http:allow-fetch",
 		"http:default",
 		"updater:default",

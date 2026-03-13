@@ -275,6 +275,10 @@
 			"changePlayStatus": "修改游戏状态",
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
+			"theme": "主题",
+			"themeDark": "深色",
+			"themeLight": "浅色",
+			"themeSystem": "跟随系统",
 			"vndblink": "查看Vndb页面",
 			"ymgallink": "月幕Gal页面"
 		},

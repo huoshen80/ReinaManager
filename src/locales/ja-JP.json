@@ -275,6 +275,10 @@
 			"changePlayStatus": "プレイ状態を変更",
 			"more": "その他",
 			"openGameFolder": "ゲームフォルダを開く",
+			"theme": "テーマ",
+			"themeDark": "ダーク",
+			"themeLight": "ライト",
+			"themeSystem": "システムに従う",
 			"vndblink": "Vndbページを見る",
 			"ymgallink": "Ymgalページを見る"
 		},

@@ -277,6 +277,10 @@
 			"changePlayStatus": "Change Play Status",
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
+			"theme": "Theme",
+			"themeDark": "Dark",
+			"themeLight": "Light",
+			"themeSystem": "System",
 			"vndblink": "View Vndb Page",
 			"ymgallink": "View Ymgal Page"
 		},

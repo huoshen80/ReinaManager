@@ -275,6 +275,10 @@
 			"changePlayStatus": "修改遊戲狀態",
 			"more": "更多",
 			"openGameFolder": "開啟遊戲目錄",
+			"theme": "主題",
+			"themeDark": "深色",
+			"themeLight": "淺色",
+			"themeSystem": "跟隨系統",
 			"vndblink": "查看Vndb頁面",
 			"ymgallink": "查看Ymgal頁面"
 		},
