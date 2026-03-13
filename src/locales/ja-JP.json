@@ -90,7 +90,7 @@
 		"BulkImportModal": {
 			"selectRootFolder": "ルートフォルダを選択",
 			"noFolderSelected": "フォルダが選択されていません",
-			"folderName": "フォルダ名",
+			"searchName": "検索名",
 			"matchedGame": "一致したゲーム",
 			"status": "状態",
 			"executable": "実行ファイル",
@@ -111,7 +111,8 @@
 			"search": "検索",
 			"importSummary": "{{total}} 件中 {{success}} 件のゲームをインポートしました",
 			"importPartialFailed": "{{failed}} 件のゲームのインポートに失敗しました",
-			"gamesCount_other": "全 {{count}} 件"
+			"gamesCount_other": "全 {{count}} 件",
+			"matchCancelled": "マッチングタスクをキャンセルしました"
 		},
 		"AlertBox": {
 			"bgmData": "BGM データ",

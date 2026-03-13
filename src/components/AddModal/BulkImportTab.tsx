@@ -30,14 +30,17 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
-import { useGameDuplicateChecker } from "@/hooks/features/games/useGameMetadataFacade";
-import { useBatchAddGames } from "@/hooks/queries/useGames";
+import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
 import type { FullGameData, ScanResult } from "@/types";
-import { getErrorMessage, handleGetFolder } from "@/utils/appUtils";
-import { buildBulkImportGameData, getGameIdentityKeys } from "@/utils/metadata";
+import {
+	createAbortableRunner,
+	getErrorMessage,
+	handleGetFolder,
+	isAbortError,
+} from "@/utils/appUtils";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
 } from "./GameSearchResultDialog";
@@ -83,8 +86,7 @@ function getMatchedGameName(
 const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 	const { t, i18n } = useTranslation();
 	const { data: bgmToken = "" } = useBgmToken();
-	const batchAddGamesMutation = useBatchAddGames();
-	const { checkGameExists } = useGameDuplicateChecker();
+	const { addGamesFromBulkImport, isAddingGames } = useBulkGameAddActions();
 	const preferredApiSource = bgmToken ? "bgm" : "vndb";
 
 	const [isScanningDirectories, setIsScanningDirectories] = useState(false);
@@ -105,15 +107,16 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 	);
 	const [searchResultLoading, setSearchResultLoading] = useState(false);
 	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
-	const loading =
-		isMatchingMetadata ||
-		isScanningDirectories ||
-		batchAddGamesMutation.isPending;
-
+	const matchAbortControllerRef = useRef<AbortController | null>(null);
+	const loading = isMatchingMetadata || isScanningDirectories || isAddingGames;
 	const resetState = useCallback(() => {
 		if (editSearchAbortControllerRef.current) {
 			editSearchAbortControllerRef.current.abort();
 			editSearchAbortControllerRef.current = null;
+		}
+		if (matchAbortControllerRef.current) {
+			matchAbortControllerRef.current.abort();
+			matchAbortControllerRef.current = null;
 		}
 		setIsMatchingMetadata(false);
 		setRootPath("");
@@ -147,6 +150,18 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		setEditItemPath(null);
 	}, [handleCloseSearchResult]);
 
+	const handleCancel = useCallback(() => {
+		if (isMatchingMetadata && matchAbortControllerRef.current) {
+			matchAbortControllerRef.current.abort();
+			snackbar.info(
+				t("components.BulkImportModal.matchCancelled", "已取消匹配任务"),
+			);
+			return;
+		}
+
+		onClose();
+	}, [isMatchingMetadata, onClose, t]);
+
 	const scanFolder = async () => {
 		const result = await handleGetFolder();
 		if (!result) return;
@@ -171,19 +186,32 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 	};
 
 	const handleMatchMetadata = async () => {
+		if (matchAbortControllerRef.current) {
+			matchAbortControllerRef.current.abort();
+		}
+
+		const { controller, withAbort } = createAbortableRunner();
+		matchAbortControllerRef.current = controller;
+
 		setIsMatchingMetadata(true);
 		const nextItems = [...items];
 
 		try {
 			for (let index = 0; index < nextItems.length; index++) {
+				if (controller.signal.aborted) {
+					break;
+				}
+
 				if (nextItems[index].status !== "pending") continue;
 
 				try {
-					const searchResults = await gameMetadataService.searchGames({
-						query: nextItems[index].name,
-						source: preferredApiSource,
-						bgmToken,
-					});
+					const searchResults = await withAbort(
+						gameMetadataService.searchGames({
+							query: nextItems[index].name,
+							source: preferredApiSource,
+							bgmToken,
+						}),
+					);
 
 					if (searchResults.length > 0) {
 						nextItems[index].matchedData = searchResults[0];
@@ -192,6 +220,10 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 						nextItems[index].status = "not found";
 					}
 				} catch (error) {
+					if (isAbortError(error)) {
+						break;
+					}
+
 					snackbar.warning(
 						`${nextItems[index].name}: ${getErrorMessage(error)}`,
 					);
@@ -202,41 +234,30 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 				await new Promise((resolve) => setTimeout(resolve, 300));
 			}
 		} finally {
+			if (matchAbortControllerRef.current === controller) {
+				matchAbortControllerRef.current = null;
+			}
 			setIsMatchingMetadata(false);
 		}
 	};
 
 	const handleImportAll = async () => {
 		const nextItems = [...items];
-		const pendingPayloads: Array<{ itemIndex: number; payloadIndex: number }> =
-			[];
-		const payloads = [];
-		const queuedIds = new Set<string>();
 
-		for (let index = 0; index < nextItems.length; index++) {
-			if (nextItems[index].status === "imported") continue;
+		const result = await addGamesFromBulkImport(nextItems);
 
-			const payload = buildBulkImportGameData(nextItems[index]);
-			const identityKeys = getGameIdentityKeys(payload);
-			const existsInLibrary = checkGameExists(payload);
-			const duplicatedInCurrentBatch = identityKeys.some((key) =>
-				queuedIds.has(key),
-			);
-
-			if (existsInLibrary || duplicatedInCurrentBatch) {
-				nextItems[index].status = "error";
-				continue;
-			}
-
-			for (const key of identityKeys) {
-				queuedIds.add(key);
-			}
-
-			pendingPayloads.push({ itemIndex: index, payloadIndex: payloads.length });
-			payloads.push(payload);
+		for (const index of result.duplicateItemIndices) {
+			nextItems[index].status = "error";
 		}
 
-		if (payloads.length === 0) {
+		for (const preparationError of result.preparationErrors) {
+			nextItems[preparationError.itemIndex].status = "error";
+			snackbar.warning(
+				`${nextItems[preparationError.itemIndex].name}: ${preparationError.message}`,
+			);
+		}
+
+		if (!result.batchResult && !result.mutationError) {
 			setItems([...nextItems]);
 			snackbar.info(
 				t("components.BulkImportModal.noGamesFound", "未找到可导入项目"),
@@ -244,43 +265,46 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 			return;
 		}
 
-		try {
-			const result = await batchAddGamesMutation.mutateAsync(payloads);
-			const failedIndices = new Set(result.errors.map((error) => error.index));
+		if (result.batchResult) {
+			const failedIndices = new Set(
+				result.batchResult.errors.map((error) => error.index),
+			);
 
-			for (const { itemIndex, payloadIndex } of pendingPayloads) {
+			for (const { itemIndex, payloadIndex } of result.pendingPayloads) {
 				nextItems[itemIndex].status = failedIndices.has(payloadIndex)
 					? "error"
 					: "imported";
 			}
 
-			if (result.success > 0) {
+			if (result.batchResult.success > 0) {
 				snackbar.success(
 					t(
 						"components.BulkImportModal.importSummary",
 						"成功导入 {{success}}/{{total}} 个游戏",
 						{
-							success: result.success,
+							success: result.batchResult.success,
 							total: nextItems.length, // 去重逻辑在前端执行
 						},
 					),
 				);
 			}
 
-			if (result.failed > 0) {
+			if (result.batchResult.failed > 0) {
 				snackbar.warning(
 					t(
 						"components.BulkImportModal.importPartialFailed",
 						"{{failed}} 个游戏导入失败",
 						{
-							failed: result.failed,
+							failed: result.batchResult.failed,
 						},
 					),
 				);
 			}
-		} catch (error) {
-			snackbar.error(getErrorMessage(error));
-			for (const { itemIndex } of pendingPayloads) {
+		}
+
+		if (result.mutationError) {
+			snackbar.error(result.mutationError);
+			for (const { itemIndex } of result.pendingPayloads) {
 				nextItems[itemIndex].status = "error";
 			}
 		}
@@ -295,15 +319,8 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 			editSearchAbortControllerRef.current.abort();
 		}
 
-		const controller = new AbortController();
+		const { controller, withAbort } = createAbortableRunner();
 		editSearchAbortControllerRef.current = controller;
-		const abortPromise = new Promise<never>((_, reject) => {
-			controller.signal.addEventListener("abort", () => {
-				reject(new DOMException("Aborted", "AbortError"));
-			});
-		});
-		const withAbort = <T,>(promise: Promise<T>) =>
-			Promise.race([promise, abortPromise]) as Promise<T>;
 
 		setSearchResultLoading(true);
 		try {
@@ -327,7 +344,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 				results: searchResults,
 			});
 		} catch (error) {
-			if (error instanceof DOMException && error.name === "AbortError") {
+			if (isAbortError(error)) {
 				return;
 			}
 
@@ -452,7 +469,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 						<TableHead>
 							<TableRow>
 								<TableCell sx={{ width: "25%" }}>
-									{t("components.BulkImportModal.folderName", "文件夹名称")}
+									{t("components.BulkImportModal.searchName", "搜索名称")}
 								</TableCell>
 								<TableCell sx={{ width: "25%" }}>
 									{t("components.BulkImportModal.matchedGame", "匹配的游戏")}
@@ -553,7 +570,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 															}
 														}}
 														displayEmpty
-														disabled={item.status === "imported"}
+														disabled={item.status === "imported" || loading}
 														renderValue={(selected) => (
 															<Typography
 																variant="body2"
@@ -594,14 +611,14 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 														setEditApiSource(preferredApiSource);
 														setEditIsIdSearch(false);
 													}}
-													disabled={item.status === "imported"}
+													disabled={item.status === "imported" || loading}
 												>
 													<EditIcon fontSize="small" />
 												</IconButton>
 												<IconButton
 													size="small"
 													onClick={() => handleDeleteItem(item.path)}
-													disabled={item.status === "imported"}
+													disabled={item.status === "imported" || loading}
 												>
 													<DeleteIcon fontSize="small" />
 												</IconButton>
@@ -629,7 +646,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 						</Button>
 					</Stack>
 					<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-						<Button variant="outlined" onClick={onClose} disabled={loading}>
+						<Button variant="outlined" onClick={handleCancel}>
 							{t("components.BulkImportModal.cancel", "取消")}
 						</Button>
 						<Button

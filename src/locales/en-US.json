@@ -90,7 +90,7 @@
 		"BulkImportModal": {
 			"selectRootFolder": "Select Root Folder",
 			"noFolderSelected": "No folder selected",
-			"folderName": "Folder Name",
+			"searchName": "Search Name",
 			"matchedGame": "Matched Game",
 			"status": "Status",
 			"executable": "Executable",
@@ -112,7 +112,8 @@
 			"importSummary": "Successfully imported {{success}}/{{total}} games",
 			"importPartialFailed": "{{failed}} games failed to import",
 			"gamesCount_one": "{{count}} game",
-			"gamesCount_other": "{{count}} games"
+			"gamesCount_other": "{{count}} games",
+			"matchCancelled": "Match task cancelled"
 		},
 		"AlertBox": {
 			"bgmData": "BGM Data",

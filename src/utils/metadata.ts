@@ -48,12 +48,10 @@ interface SourceUpdateParams {
 async function fetchYmgalAndMerge(
 	ymgalId: string | number,
 	existingData: FullGameData,
-	bgmToken?: string,
 ): Promise<FullGameData | null> {
 	const results = await gameMetadataService.searchGames({
 		query: ymgalId.toString(),
 		source: "ymgal",
-		bgmToken,
 		isIdSearch: true,
 	});
 
@@ -78,7 +76,6 @@ async function fetchYmgalAndMerge(
 
 export async function ensureCompleteMetadata(
 	gameData: FullGameData,
-	bgmToken?: string,
 ): Promise<FullGameData> {
 	const needsCompleteData =
 		gameData.id_type === "ymgal" ||
@@ -94,7 +91,6 @@ export async function ensureCompleteMetadata(
 		const results = await gameMetadataService.searchGames({
 			query: gameData.ymgal_id?.toString() || "",
 			source: "ymgal",
-			bgmToken,
 			isIdSearch: true,
 			defaults: {
 				localpath: gameData.localpath ?? undefined,
@@ -114,11 +110,7 @@ export async function ensureCompleteMetadata(
 	}
 
 	if (gameData.ymgal_id) {
-		const merged = await fetchYmgalAndMerge(
-			gameData.ymgal_id,
-			gameData,
-			bgmToken,
-		);
+		const merged = await fetchYmgalAndMerge(gameData.ymgal_id, gameData);
 		if (merged) {
 			return merged;
 		}
@@ -185,7 +177,7 @@ export async function fetchMetadataForUpdate({
 		);
 	}
 
-	return ensureCompleteMetadata(apiData, bgmToken);
+	return ensureCompleteMetadata(apiData);
 }
 
 export function buildInsertGameData(
@@ -204,6 +196,56 @@ export function buildInsertGameData(
 		vndb_data: gameData.vndb_data ?? undefined,
 		ymgal_data: gameData.ymgal_data ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
+	};
+}
+
+export interface PrepareInsertGameDataOptions {
+	localpath?: string;
+	fallbackIdType?: string;
+	fallbackDate?: string;
+}
+
+function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
+	return item.selectedExe ? `${item.path}\\${item.selectedExe}` : item.path;
+}
+
+export async function prepareInsertGameDataFromMetadata(
+	gameData: FullGameData,
+	options?: PrepareInsertGameDataOptions,
+): Promise<InsertGameParams> {
+	const completeData = await ensureCompleteMetadata(gameData);
+	const insertData = buildInsertGameData(
+		completeData,
+		options?.fallbackIdType,
+		options?.fallbackDate,
+	);
+
+	if (options?.localpath !== undefined) {
+		insertData.localpath = options.localpath;
+	}
+
+	return insertData;
+}
+
+export async function prepareBulkImportInsertGameData(
+	item: BatchImportGameCandidate,
+): Promise<InsertGameParams> {
+	const localpath = getBatchImportLocalPath(item);
+
+	if (item.matchedData) {
+		return prepareInsertGameDataFromMetadata(item.matchedData, {
+			localpath,
+			fallbackIdType: item.matchedData.id_type,
+			fallbackDate: item.matchedData.date,
+		});
+	}
+
+	return {
+		id_type: "custom",
+		custom_data: {
+			name: item.name,
+		},
+		localpath,
 	};
 }
 
@@ -343,9 +385,7 @@ export function buildBulkImportGameData(
 				item.matchedData.id_type,
 				item.matchedData.date,
 			),
-			localpath: item.selectedExe
-				? `${item.path}\\${item.selectedExe}`
-				: item.path,
+			localpath: getBatchImportLocalPath(item),
 		};
 	}
 
@@ -354,9 +394,7 @@ export function buildBulkImportGameData(
 		custom_data: {
 			name: item.name,
 		},
-		localpath: item.selectedExe
-			? `${item.path}\\${item.selectedExe}`
-			: item.path,
+		localpath: getBatchImportLocalPath(item),
 	};
 }
 

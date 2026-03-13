@@ -90,7 +90,7 @@
 		"BulkImportModal": {
 			"selectRootFolder": "选择根文件夹",
 			"noFolderSelected": "未选择文件夹",
-			"folderName": "文件夹名称",
+			"searchName": "搜索名称",
 			"matchedGame": "匹配的游戏",
 			"status": "状态",
 			"executable": "启动程序",
@@ -111,7 +111,8 @@
 			"search": "搜索",
 			"importSummary": "成功导入 {{success}}/{{total}} 个游戏",
 			"importPartialFailed": "{{failed}} 个游戏导入失败",
-			"gamesCount": "共 {{count}} 个游戏"
+			"gamesCount": "共 {{count}} 个游戏",
+			"matchCancelled": "已取消匹配任务"
 		},
 		"AlertBox": {
 			"bgmData": "BGM 数据",
