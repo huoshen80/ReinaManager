@@ -25,9 +25,8 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { GameType } from "@/services/invoke/types";
 import { useStore } from "@/store/appStore";
-
-export type GameFilterType = "all" | "local" | "online" | "noclear" | "clear";
 
 /**
  * FilterModal 组件用于筛选游戏类型。
@@ -42,7 +41,7 @@ export const FilterModal: React.FC = () => {
 	const setGameFilterType = useStore((s) => s.setGameFilterType);
 
 	const [open, setOpen] = useState(false);
-	const [filterValue, setFilterValue] = useState<GameFilterType>(
+	const [filterValue, setFilterValue] = useState<GameType>(
 		gameFilterType || "all",
 	);
 
@@ -60,7 +59,7 @@ export const FilterModal: React.FC = () => {
 	 * 切换筛选类型
 	 * @param event React.ChangeEvent<HTMLInputElement>
 	 */
-	const handleChange = (event: { target: { value: GameFilterType } }) => {
+	const handleChange = (event: { target: { value: GameType } }) => {
 		setFilterValue(event.target.value);
 	};
 
@@ -95,6 +94,9 @@ export const FilterModal: React.FC = () => {
 						</MenuItem>
 						<MenuItem value="online">
 							{t("components.FilterModal.onlineGames")}
+						</MenuItem>
+						<MenuItem value="iscustom">
+							{t("components.FilterModal.customGames", "自定义游戏")}
 						</MenuItem>
 						<MenuItem value="noclear">
 							{t("components.FilterModal.noclearGames")}

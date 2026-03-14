@@ -21,7 +21,7 @@
 import type { Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { SortOption, SortOrder } from "@/services/invoke/types";
+import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
@@ -64,10 +64,8 @@ export interface AppState {
 	setSearchKeyword: (keyword: string) => void;
 
 	// 筛选相关
-	gameFilterType: "all" | "local" | "online" | "noclear" | "clear";
-	setGameFilterType: (
-		type: "all" | "local" | "online" | "noclear" | "clear",
-	) => void;
+	gameFilterType: GameType;
+	setGameFilterType: (type: GameType) => void;
 
 	// 数据来源选择
 	apiSource: "bgm" | "vndb" | "ymgal" | "mixed";
@@ -239,9 +237,7 @@ export const useStore = create<AppState>()(
 			},
 
 			// 筛选偏好更新（数据刷新由 React Query 参数驱动）
-			setGameFilterType: (
-				type: "all" | "local" | "online" | "noclear" | "clear",
-			) => {
+			setGameFilterType: (type: GameType) => {
 				const prevType = get().gameFilterType;
 
 				// 如果类型没变，不做任何操作

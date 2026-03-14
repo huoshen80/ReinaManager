@@ -6,7 +6,13 @@
 /**
  * 游戏类型筛选（小写，匹配后端 Rust 枚举）
  */
-export type GameType = "all" | "local" | "online" | "noclear" | "clear";
+export type GameType =
+	| "all"
+	| "local"
+	| "online"
+	| "iscustom"
+	| "noclear"
+	| "clear";
 
 /**
  * 排序选项（小写，匹配后端 Rust 枚举）
