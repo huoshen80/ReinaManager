@@ -600,6 +600,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 							fullWidth
 							multiline
 							minRows={4}
+							maxRows={12}
 							value={summary}
 							onChange={(e) => setSummary(e.target.value)}
 							disabled={isLoading || disabled || !selectedGame}
