@@ -1,3 +1,21 @@
+## [0.17.1](https://github.com/huoshen80/ReinaManager/compare/v0.17.0...v0.17.1) (2026-03-14)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+* 游戏库滚动条状态会继承到详情页的问题 ([791b726](https://github.com/huoshen80/ReinaManager/commit/791b7268db95ba9b9c1474fbfead3fdb856de0fc))
+* 同步本地按钮无法选择本地可执行文件的问题 ([daa98d8](https://github.com/huoshen80/ReinaManager/commit/daa98d8854396be841cce1c4f0b03f3a4e18e4e1))
+
+</details>
+
+### Bug Fixes
+
+* carry over the scrollbar state of the game library to the detail page ([791b726](https://github.com/huoshen80/ReinaManager/commit/791b7268db95ba9b9c1474fbfead3fdb856de0fc))
+* the issue of sync local button cannot select local executable file ([daa98d8](https://github.com/huoshen80/ReinaManager/commit/daa98d8854396be841cce1c4f0b03f3a4e18e4e1))
+
+
+
 ## [0.17.0](https://github.com/huoshen80/ReinaManager/compare/v0.16.3...v0.17.0) (2026-03-13)
 
 

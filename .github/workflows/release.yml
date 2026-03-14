@@ -209,6 +209,8 @@ jobs:
           # 解析 Linux 产物 (AppImage & deb)
           X64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.AppImage$" || echo "")
           X64_DEB=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.deb$" || echo "")
+          ARM64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "arm64.*\.AppImage$" || echo "")
+          ARM64_DEB=$(echo "$ASSETS_JSON" | grep -E "arm64.*\.deb$" || echo "")
           
           CHANGELOG="${{ needs.prepare.outputs.changelog }}"
           
@@ -227,6 +229,8 @@ jobs:
           **Linux**
           - [**AppImage (x64)**]($BASE_URL/$X64_APPIMAGE)
           - [**Debian/Ubuntu (.deb x64)**]($BASE_URL/$X64_DEB)
+          - [**AppImage (ARM64)**]($BASE_URL/$ARM64_APPIMAGE)
+          - [**Debian/Ubuntu (.deb ARM64)**]($BASE_URL/$ARM64_DEB)
           
           ### ⚠️ **安装提醒 (Installation Notice)**
           不建议安装在 **C:\Program Files** 目录下。该目录需要以管理员权限运行软件才能正常使用以下功能：
