@@ -274,9 +274,17 @@ export function useScrollRestore(
 
 	// KeepAlive 失活时清理
 	useUnactivate(() => {
-		if (useKeepAlive && cleanupRef.current) {
+		if (!useKeepAlive) return;
+
+		if (cleanupRef.current) {
 			cleanupRef.current();
 			cleanupRef.current = null;
+		}
+
+		// KeepAlive 页面失活时将共享滚动容器归零，避免下一页继承旧滚动位置。
+		const container = document.querySelector<HTMLElement>(containerSelector);
+		if (container) {
+			container.scrollTop = 0;
 		}
 	});
 }

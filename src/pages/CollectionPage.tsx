@@ -13,7 +13,7 @@ import Box from "@mui/material/Box";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import Cards from "@/components/Cards";
@@ -38,6 +38,16 @@ import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { Category as CategoryType } from "@/types/collection";
 import { DefaultGroup } from "@/types/collection";
+
+const SCROLL_CONTAINER_SELECTOR = "main";
+
+const getScrollContainer = () =>
+	document.querySelector<HTMLElement>(SCROLL_CONTAINER_SELECTOR);
+
+type CollectionScrollNavIntent =
+	| { type: "forward" }
+	| { type: "back"; targetKey: string }
+	| null;
 
 // 原本的 GroupCard/CategoryCard 已被通用 EntityCard 取代
 
@@ -105,6 +115,24 @@ export const Collection: React.FC = () => {
 		id: string | number;
 		name: string;
 	} | null>(null);
+	const levelScrollMapRef = useRef<Record<string, number>>({});
+	const navIntentRef = useRef<CollectionScrollNavIntent>(null);
+
+	const getLevelKey = (
+		groupId: string | null,
+		categoryId: number | null,
+	): string => {
+		if (!groupId) return "groups";
+		if (categoryId === null) return `categories:${groupId}`;
+		return `games:${groupId}:${categoryId}`;
+	};
+
+	const saveCurrentLevelScroll = () => {
+		const container = getScrollContainer();
+		if (!container) return;
+		const currentKey = getLevelKey(currentGroupId, selectedCategoryId);
+		levelScrollMapRef.current[currentKey] = container.scrollTop;
+	};
 
 	// 当在分组列表页时，计算所有分组的游戏数量
 	useEffect(() => {
@@ -132,6 +160,8 @@ export const Collection: React.FC = () => {
 	 * 处理分组点击事件 - 设置当前分组
 	 */
 	const handleGroupClick = (groupIdToNavigate: string) => {
+		saveCurrentLevelScroll();
+		navIntentRef.current = { type: "forward" };
 		setCurrentGroup(groupIdToNavigate);
 	};
 
@@ -140,6 +170,9 @@ export const Collection: React.FC = () => {
 	 */
 	const handleCategoryClick = (category: CategoryType) => {
 		if (!currentGroupId) return;
+
+		saveCurrentLevelScroll();
+		navIntentRef.current = { type: "forward" };
 
 		// 对于虚拟分类，需要设置分类名称
 		if (virtualCategories.isVirtual(category.id)) {
@@ -298,15 +331,44 @@ export const Collection: React.FC = () => {
 	 * 处理面包屑导航点击
 	 */
 	const handleBreadcrumbClick = (level: "root" | "group") => {
+		saveCurrentLevelScroll();
+
 		if (level === "root") {
+			navIntentRef.current = { type: "back", targetKey: "groups" };
 			// 返回分组选择页面 - 清除所有选择
 			setCurrentGroup(null);
 			setSelectedCategory(null);
 		} else if (level === "group") {
+			if (!currentGroupId) return;
+			navIntentRef.current = {
+				type: "back",
+				targetKey: `categories:${currentGroupId}`,
+			};
 			// 返回分类列表页面 - 清除分类选择
 			setSelectedCategory(null);
 		}
 	};
+
+	const currentLevelKey = getLevelKey(currentGroupId, selectedCategoryId);
+
+	useEffect(() => {
+		const intent = navIntentRef.current;
+		if (!intent || !currentLevelKey) return;
+
+		const container = getScrollContainer();
+		if (!container) {
+			navIntentRef.current = null;
+			return;
+		}
+
+		if (intent.type === "forward") {
+			container.scrollTop = 0;
+		} else {
+			container.scrollTop = levelScrollMapRef.current[intent.targetKey] ?? 0;
+		}
+
+		navIntentRef.current = null;
+	}, [currentLevelKey]);
 
 	/**
 	 * 获取当前分组的名称
