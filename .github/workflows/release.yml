@@ -209,7 +209,7 @@ jobs:
           # 解析 Linux 产物 (AppImage & deb)
           X64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.AppImage$" || echo "")
           X64_DEB=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.deb$" || echo "")
-          ARM64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "arm64.*\.AppImage$" || echo "")
+          ARM64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "aarch64.*\.AppImage$" || echo "")
           ARM64_DEB=$(echo "$ASSETS_JSON" | grep -E "arm64.*\.deb$" || echo "")
           
           CHANGELOG="${{ needs.prepare.outputs.changelog }}"
