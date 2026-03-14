@@ -48,7 +48,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 - 📚 **Collection Management** - Organize games with hierarchical groups and categories for better library management, support drag and drop sorting
 - 🎮 **Play Time Tracking** - Automatic gameplay session recording with detailed play time statistics and history
 - 🎨 **Customization** - Set custom metadata for games such as covers, names, tags, etc., to create a personalized game library
-- 🔄 **Batch Operations** - Bulk update game metadata from APIs 
+- 🔄 **Batch Operations** - Bulk import, add and update game metadata from APIs 
 - 🌍 **Multi-language Support** - Complete i18n support with multiple language interfaces, including Chinese (Simplified, Traditional), English, Japanese, etc.
 - 🔒 **NSFW Filter** - Hide or cover NSFW content with a simple toggle
 - 💾 **Auto Savedata Backup** - Configurable automatic backup to protect your game savedata
@@ -57,13 +57,10 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 ## Todo
 
-- [x] More custom data fields for games
+- [x] Bulk import games from folders
+- [x] Basic support for the Linux platform
 - [ ] Beautify individual pages
 - [ ] Sync game status with Bangumi and VNDB
-- [ ] Bulk import games from folders
-- [x] Better game adding module
-- [x] Game savedata restore, and maximum backup count setting
-- [x] Ymgal data source support
 
 ## Migration
 
