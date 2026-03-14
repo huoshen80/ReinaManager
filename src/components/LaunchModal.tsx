@@ -34,7 +34,7 @@ import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 
 import type { UpdateGameParams } from "@/types";
-import { handleFolder } from "@/utils/appUtils";
+import { handleExeFile } from "@/utils/appUtils";
 
 /**
  * 格式化游戏时长显示
@@ -198,11 +198,11 @@ export const LaunchModal = () => {
 	};
 
 	/**
-	 * 选择文件夹
+	 * 选择可执行文件
 	 */
-	const handleSelectFolder = async () => {
+	const handleSelectExecutable = async () => {
 		try {
-			const selectedPath = await handleFolder();
+			const selectedPath = await handleExeFile();
 			if (selectedPath) {
 				setLocalPath(selectedPath);
 			}
@@ -335,7 +335,7 @@ export const LaunchModal = () => {
 							}}
 						/>
 						<IconButton
-							onClick={handleSelectFolder}
+							onClick={handleSelectExecutable}
 							disabled={isSaving}
 							color="primary"
 						>
