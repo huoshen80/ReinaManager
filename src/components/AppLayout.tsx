@@ -1,40 +1,22 @@
-/**
- * @file Layout 组件
- * @description 应用主布局组件，集成侧边栏、顶部工具栏、页面容器等，支持自定义标题、国际化和响应式布局。
- * @module src/components/Layout/index
- * @author ReinaManager
- * @copyright AGPL-3.0
- *
- * 主要导出：
- * - Layout：应用主布局组件
- *
- * 依赖：
- * - @mui/material
- * - @toolpad/core
- * - @toolpad/core/DashboardLayout
- * - @/components/Toolbar
- * - @/components/SearchBox
- * - react-router
- * - react-i18next
- */
-
-import { Avatar } from "@mui/material";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import { Avatar, Link } from "@mui/material";
+import AppBar from "@mui/material/AppBar";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
+import Toolbar from "@mui/material/Toolbar";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import type { NavigationPageItem } from "@toolpad/core/AppProvider";
 import {
+	type DashboardHeaderProps,
 	DashboardLayout,
-	DashboardSidebarPageItem,
-	type SidebarFooterProps,
 } from "@toolpad/core/DashboardLayout";
 import { PageContainer } from "@toolpad/core/PageContainer";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { KeepAlive } from "react-activation";
 import { useTranslation } from "react-i18next";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AddModal from "@/components/AddModal";
-import { LinkWithScrollSave } from "@/components/LinkWithScrollSave";
 import { SearchBox } from "@/components/SearchBox";
 import { Toolbars } from "@/components/Toolbar";
 
@@ -43,22 +25,27 @@ import { Toolbars } from "@/components/Toolbar";
  */
 interface CustomAppTitleProps {
 	isLibraries: boolean;
+	currentPath: string;
 }
 
 /**
  * 侧边栏底部信息组件
- * @param {SidebarFooterProps} props
  * @returns {JSX.Element}
  */
-function SidebarFooter({ mini }: SidebarFooterProps) {
+function SidebarFooter() {
 	return (
 		<Typography
 			variant="caption"
 			className="absolute bottom-0 left-0 right-0 w-full text-center border-t whitespace-nowrap overflow-hidden select-none"
 		>
-			{mini
-				? `© ${new Date().getFullYear()}`
-				: `© ${new Date().getFullYear()} Made by huoshen80`}
+			<Link
+				href="https://github.com/huoshen80"
+				target="_blank"
+				color="textPrimary"
+				underline="hover"
+			>
+				© huoshen80
+			</Link>
 		</Typography>
 	);
 }
@@ -68,7 +55,11 @@ function SidebarFooter({ mini }: SidebarFooterProps) {
  * @param {CustomAppTitleProps} props
  * @returns {JSX.Element}
  */
-const CustomAppTitle = ({ isLibraries }: CustomAppTitleProps) => {
+const CustomAppTitle = ({ isLibraries, currentPath }: CustomAppTitleProps) => {
+	const navigate = useNavigate();
+	const { t } = useTranslation();
+	const canBack = currentPath !== "/";
+
 	return (
 		<Stack
 			direction="row"
@@ -76,6 +67,18 @@ const CustomAppTitle = ({ isLibraries }: CustomAppTitleProps) => {
 			spacing={2}
 			className="select-none"
 		>
+			<Tooltip title={t("components.AppLayout.back", "返回")} enterDelay={1000}>
+				<span>
+					<IconButton
+						aria-label={t("components.AppLayout.back", "返回")}
+						onClick={() => navigate(-1)}
+						size="large"
+						disabled={!canBack}
+					>
+						<ArrowBackRoundedIcon />
+					</IconButton>
+				</span>
+			</Tooltip>
 			<Avatar
 				alt="Reina"
 				src="/images/reina.png"
@@ -96,43 +99,66 @@ const CustomAppTitle = ({ isLibraries }: CustomAppTitleProps) => {
  * @returns {JSX.Element} 应用主布局
  */
 export const Layout: React.FC = () => {
-	const { i18n } = useTranslation();
-	const isja_JP = i18n.language === "ja-JP";
 	const path = useLocation().pathname;
 	const isLibraries = path === "/libraries";
 	const AppTitle = useMemo(() => {
-		return () => <CustomAppTitle isLibraries={isLibraries} />;
-	}, [isLibraries]);
-
-	const handleRenderPageItem = useCallback((item: NavigationPageItem) => {
-		const to = `/${item.segment || ""}`;
-		// 外层不渲染 <a>，而是使用可访问的 span 进行编程式导航，
-		// 在导航前 LinkWithScrollSave 会保存滚动位置，避免嵌套 <a>。
-		return (
-			<LinkWithScrollSave
-				to={to}
-				style={{ textDecoration: "none", color: "inherit" }}
-			>
-				<DashboardSidebarPageItem item={item} />
-			</LinkWithScrollSave>
+		return () => (
+			<CustomAppTitle isLibraries={isLibraries} currentPath={path} />
 		);
-	}, []);
+	}, [isLibraries, path]);
+	const Header = useMemo(() => {
+		return (_props: DashboardHeaderProps) => (
+			<AppBar
+				color="inherit"
+				position="absolute"
+				className="print:hidden border-0 border-b border-solid shadow-none"
+				sx={{
+					borderColor: "divider",
+					zIndex: (theme) => theme.zIndex.drawer + 1,
+				}}
+			>
+				<Toolbar
+					className="bg-inherit"
+					sx={{
+						mx: {
+							xs: -0.75,
+							sm: -1,
+						},
+					}}
+				>
+					<Stack
+						direction="row"
+						justifyContent="space-between"
+						alignItems="center"
+						className="w-full flex-wrap"
+					>
+						<AppTitle />
+						<Stack
+							direction="row"
+							alignItems="center"
+							spacing={1}
+							className="ml-auto"
+						>
+							<Toolbars />
+						</Stack>
+					</Stack>
+				</Toolbar>
+			</AppBar>
+		);
+	}, [AppTitle]);
 
 	return (
 		<>
 			<AddModal />
 			<DashboardLayout
 				slots={{
-					appTitle: AppTitle,
-					toolbarActions: Toolbars,
+					header: Header,
 					sidebarFooter: SidebarFooter,
 				}}
-				sidebarExpandedWidth={isja_JP ? 250 : 220}
 				defaultSidebarCollapsed={true}
-				renderPageItem={handleRenderPageItem}
 			>
 				{isLibraries ? (
-					<PageContainer sx={{ maxWidth: "100% !important" }}>
+					<PageContainer className="max-w-full">
 						<KeepAlive
 							name="libraries"
 							cacheKey="libraries"

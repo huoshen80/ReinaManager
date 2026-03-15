@@ -37,7 +37,6 @@
 			"collection": "Collection",
 			"gameLibrary": "Game Library ",
 			"home": "Home",
-			"menu": "Menu",
 			"settings": "Settings"
 		}
 	},
@@ -242,6 +241,9 @@
 			"sort": "Sort",
 			"sortMethod": "Sort Method:",
 			"vndbRank": "VNDB Rank"
+		},
+		"AppLayout": {
+			"back": "Back"
 		},
 		"Toolbar": {
 			"bgmlink": "View Bangumi Page",

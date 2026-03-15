@@ -37,7 +37,6 @@
 			"collection": "收藏夹",
 			"gameLibrary": "游戏仓库 ",
 			"home": "主页",
-			"menu": "菜单",
 			"settings": "设置"
 		}
 	},
@@ -240,6 +239,9 @@
 			"sort": "排序",
 			"sortMethod": "排序方法：",
 			"vndbRank": "VNDB 排名"
+		},
+		"AppLayout": {
+			"back": "返回"
 		},
 		"Toolbar": {
 			"bgmlink": "查看Bangumi页面",

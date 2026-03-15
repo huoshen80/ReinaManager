@@ -37,7 +37,6 @@
 			"collection": "コレクション",
 			"gameLibrary": "ゲームライブラリ ",
 			"home": "ホーム",
-			"menu": "メニュー",
 			"settings": "設定"
 		}
 	},
@@ -240,6 +239,9 @@
 			"sort": "並べ替え",
 			"sortMethod": "並べ替え方法：",
 			"vndbRank": "VNDBランキング"
+		},
+		"AppLayout": {
+			"back": "戻る"
 		},
 		"Toolbar": {
 			"bgmlink": "Bangumiページを見る",
