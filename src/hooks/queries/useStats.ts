@@ -1,11 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { statsService } from "@/services/invoke";
 import { getLocalDateString } from "@/utils/appUtils";
-import {
-	getAllGameStatistics,
-	getFormattedGameStats,
-	getGameSessions,
-} from "@/utils/gameStats";
+import { getAllGameStatistics, getFormattedGameStats } from "@/utils/gameStats";
 
 export const statsKeys = {
 	all: ["stats"] as const,
@@ -100,7 +97,7 @@ function useGameSessions(gameId: number | null, limit = 10) {
 				return [];
 			}
 
-			return getGameSessions(gameId, limit);
+			return statsService.getGameSessions(gameId, limit);
 		},
 		enabled: gameId !== null,
 	});

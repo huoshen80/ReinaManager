@@ -258,15 +258,6 @@ export async function getAllGameStatistics(): Promise<
 	}
 }
 
-// 获取游戏会话历史 - 使用后端服务
-export async function getGameSessions(
-	gameId: number,
-	limit = 10,
-	offset = 0,
-): Promise<GameSession[]> {
-	return statsService.getGameSessions(gameId, limit, offset);
-}
-
 // 优化：一次性获取所有游戏的最近会话记录 - 使用后端服务
 export async function getRecentSessionsForAllGames(
 	gameIds: number[],
