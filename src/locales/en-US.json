@@ -299,6 +299,11 @@
 				"minimizeToTray": "Minimize to tray",
 				"title": "Close Application"
 			},
+			"runningExitDialog": {
+				"exitApp": "Exit Anyway",
+				"message": "{{count}} game(s) are still running. Exiting the app will not close those games, but the recorded playtime for this session will be lost. Do you still want to exit?",
+				"title": "Exit Reminder"
+			},
 			"UpdateModal": {
 				"cancel": "Cancel",
 				"changelog": "Changelog",

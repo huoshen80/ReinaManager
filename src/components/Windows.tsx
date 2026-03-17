@@ -29,6 +29,7 @@ import {
 	type UpdateProgress,
 } from "@/services/plugins/updateService";
 import { useStore } from "@/store/appStore";
+import { destroyCurrentWindow, getRunningGameCount } from "@/utils/appExit";
 
 // 配置 marked 支持 GFM 和换行
 marked.setOptions({
@@ -255,6 +256,7 @@ const WindowsHandler: React.FC = () => {
 	const {
 		showUpdateModal,
 		pendingUpdate,
+		skipCloseRemind,
 		setDefaultCloseAction,
 		setSkipCloseRemind,
 		setShowUpdateModal,
@@ -263,6 +265,7 @@ const WindowsHandler: React.FC = () => {
 		useShallow((s) => ({
 			showUpdateModal: s.showUpdateModal,
 			pendingUpdate: s.pendingUpdate,
+			skipCloseRemind: s.skipCloseRemind,
 			setDefaultCloseAction: s.setDefaultCloseAction,
 			setSkipCloseRemind: s.setSkipCloseRemind,
 			setShowUpdateModal: s.setShowUpdateModal,
@@ -271,6 +274,7 @@ const WindowsHandler: React.FC = () => {
 	);
 	const { t } = useTranslation();
 	const [open, setOpen] = useState(false);
+	const [runningExitOpen, setRunningExitOpen] = useState(false);
 
 	useEffect(() => {
 		const w = getCurrentWindow();
@@ -288,7 +292,11 @@ const WindowsHandler: React.FC = () => {
 				if (currentDefaultAction === "hide") {
 					w.hide();
 				} else {
-					w.destroy();
+					if (getRunningGameCount() > 0) {
+						setRunningExitOpen(true);
+					} else {
+						await destroyCurrentWindow();
+					}
 				}
 			} else {
 				setOpen(true);
@@ -341,10 +349,23 @@ const WindowsHandler: React.FC = () => {
 		setOpen(false);
 		getCurrentWindow().hide();
 	};
-	const handleClose = () => {
+	const handleClose = async () => {
 		setDefaultCloseAction("close");
 		setOpen(false);
-		getCurrentWindow().destroy();
+
+		if (getRunningGameCount() > 0) {
+			setRunningExitOpen(true);
+			return;
+		}
+
+		await destroyCurrentWindow();
+	};
+	const handleCancelRunningExit = () => {
+		setRunningExitOpen(false);
+	};
+	const handleConfirmRunningExit = async () => {
+		setRunningExitOpen(false);
+		await destroyCurrentWindow();
 	};
 
 	return (
@@ -358,7 +379,7 @@ const WindowsHandler: React.FC = () => {
 					<FormControlLabel
 						control={
 							<Checkbox
-								checked={useStore.getState().skipCloseRemind}
+								checked={skipCloseRemind}
 								onChange={(e) => {
 									setSkipCloseRemind(e.target.checked);
 								}}
@@ -372,8 +393,31 @@ const WindowsHandler: React.FC = () => {
 					<Button onClick={handleHide}>
 						{t("components.Window.closeDialog.minimizeToTray")}
 					</Button>
-					<Button onClick={handleClose} color="primary">
+					<Button onClick={() => handleClose()} color="primary">
 						{t("components.Window.closeDialog.exitApp")}
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			<Dialog open={runningExitOpen} onClose={handleCancelRunningExit}>
+				<DialogTitle>
+					{t("components.Window.runningExitDialog.title", "退出提醒")}
+				</DialogTitle>
+				<DialogContent>
+					<Typography variant="body1">
+						{t(
+							"components.Window.runningExitDialog.message",
+							"当前仍有 {{count}} 个游戏正在运行。退出应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要退出应用吗？",
+							{ count: getRunningGameCount() },
+						)}
+					</Typography>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={handleCancelRunningExit}>
+						{t("common.cancel", "取消")}
+					</Button>
+					<Button onClick={() => handleConfirmRunningExit()} color="warning">
+						{t("components.Window.runningExitDialog.exitApp", "仍然退出")}
 					</Button>
 				</DialogActions>
 			</Dialog>

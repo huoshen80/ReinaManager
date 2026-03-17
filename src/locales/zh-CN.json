@@ -297,6 +297,11 @@
 				"minimizeToTray": "最小化到托盘",
 				"title": "关闭应用"
 			},
+			"runningExitDialog": {
+				"exitApp": "仍然退出",
+				"message": "当前仍有 {{count}} 个游戏正在运行。退出应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要退出应用吗？",
+				"title": "退出提醒"
+			},
 			"UpdateModal": {
 				"cancel": "取消",
 				"changelog": "更新说明",

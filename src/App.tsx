@@ -4,7 +4,7 @@ import { SnackbarProvider } from "notistack";
 import { AliveScope } from "react-activation";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
-import WindowsHandler from "@/components/UpdateModal";
+import WindowsHandler from "@/components/Windows";
 import { SnackbarUtilsConfigurator } from "@/providers/snackBar";
 import { ToolpadReactRouterAppProvider } from "@/providers/ToolpadReactRouterAppProvider";
 import { appRoutes } from "@/routes/router"; // 引入新的统一配置

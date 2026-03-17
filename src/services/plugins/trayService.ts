@@ -5,6 +5,7 @@ import type { TrayIconEvent } from "@tauri-apps/api/tray";
 import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import i18n from "i18next";
+import { exitCurrentWindowFromTray } from "@/utils/appExit";
 
 let trayInstance: TrayIcon | null = null;
 
@@ -20,8 +21,6 @@ const showUI = async () => {
 };
 
 const createTrayMenu = async () => {
-	const window = getCurrentWindow();
-
 	// 1. 创建“打开”菜单项
 	const openItem = await MenuItem.new({
 		id: "open",
@@ -37,7 +36,7 @@ const createTrayMenu = async () => {
 		text: i18n.t("components.Tray.exit"),
 		action: async () => {
 			console.log("Exiting application...");
-			await window.destroy();
+			await exitCurrentWindowFromTray();
 		},
 	});
 

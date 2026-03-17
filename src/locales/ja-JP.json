@@ -297,6 +297,11 @@
 				"minimizeToTray": "トレイに最小化",
 				"title": "アプリを閉じる"
 			},
+			"runningExitDialog": {
+				"exitApp": "そのまま終了",
+				"message": "現在 {{count}} 件のゲームが実行中です。アプリを終了してもゲーム自体は閉じませんが、このセッションのプレイ時間記録は失われます。それでも終了しますか？",
+				"title": "終了の確認"
+			},
 			"UpdateModal": {
 				"cancel": "キャンセル",
 				"changelog": "変更履歴",
