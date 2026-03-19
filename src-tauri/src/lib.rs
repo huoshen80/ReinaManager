@@ -88,6 +88,8 @@ pub fn run() {
             // 用户设置相关 commands
             get_bgm_token,
             set_bgm_token,
+            get_vndb_token,
+            set_vndb_token,
             get_save_root_path,
             set_save_root_path,
             get_db_backup_path,

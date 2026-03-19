@@ -5,6 +5,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchCurrentUserProfile } from "@/api/bgm";
+import { fetchVndbCurrentUserProfile } from "@/api/vndb";
 import { settingsService } from "@/services/invoke";
 import type { LogLevel } from "@/types";
 
@@ -15,6 +17,15 @@ import type { LogLevel } from "@/types";
 export const settingsKeys = {
 	all: ["settings"] as const,
 	bgmToken: () => [...settingsKeys.all, "bgmToken"] as const,
+	bgmCurrentUserProfile: () =>
+		[...settingsKeys.all, "bgmCurrentUserProfile"] as const,
+	bgmCurrentUserProfileByToken: (token: string) =>
+		[...settingsKeys.bgmCurrentUserProfile(), token] as const,
+	vndbToken: () => [...settingsKeys.all, "vndbToken"] as const,
+	vndbCurrentUserProfile: () =>
+		[...settingsKeys.all, "vndbCurrentUserProfile"] as const,
+	vndbCurrentUserProfileByToken: (token: string) =>
+		[...settingsKeys.vndbCurrentUserProfile(), token] as const,
 	logLevel: () => [...settingsKeys.all, "logLevel"] as const,
 	saveRootPath: () => [...settingsKeys.all, "saveRootPath"] as const,
 	dbBackupPath: () => [...settingsKeys.all, "dbBackupPath"] as const,
@@ -24,6 +35,7 @@ export const settingsKeys = {
 };
 
 type BgmToken = string;
+type VndbToken = string;
 type SettingPath = string;
 type SettingsQueryOptions = {
 	enabled?: boolean;
@@ -41,6 +53,43 @@ export function useBgmToken(options?: SettingsQueryOptions) {
 		queryKey: settingsKeys.bgmToken(),
 		queryFn: () => settingsService.getBgmToken(),
 		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取当前 BGM Token 对应的用户资料
+ */
+export function useBgmCurrentUserProfile(options?: SettingsQueryOptions) {
+	const { data: bgmToken = "" } = useBgmToken(options);
+
+	return useQuery({
+		queryKey: settingsKeys.bgmCurrentUserProfileByToken(bgmToken),
+		queryFn: () => fetchCurrentUserProfile(bgmToken),
+		enabled: (options?.enabled ?? true) && Boolean(bgmToken),
+	});
+}
+
+/**
+ * 获取 VNDB Token
+ */
+export function useVndbToken(options?: SettingsQueryOptions) {
+	return useQuery({
+		queryKey: settingsKeys.vndbToken(),
+		queryFn: () => settingsService.getVndbToken(),
+		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取当前 VNDB Token 对应的用户资料
+ */
+export function useVndbCurrentUserProfile(options?: SettingsQueryOptions) {
+	const { data: vndbToken = "" } = useVndbToken(options);
+
+	return useQuery({
+		queryKey: settingsKeys.vndbCurrentUserProfileByToken(vndbToken),
+		queryFn: () => fetchVndbCurrentUserProfile(vndbToken),
+		enabled: (options?.enabled ?? true) && Boolean(vndbToken),
 	});
 }
 
@@ -125,6 +174,28 @@ export function useSetBgmToken() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: settingsKeys.bgmToken(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.bgmCurrentUserProfile(),
+			});
+		},
+	});
+}
+
+/**
+ * 设置 VNDB Token
+ */
+export function useSetVndbToken() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (token: VndbToken) => settingsService.setVndbToken(token),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.vndbToken(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.vndbCurrentUserProfile(),
 			});
 		},
 	});

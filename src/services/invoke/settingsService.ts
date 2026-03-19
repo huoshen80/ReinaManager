@@ -8,6 +8,7 @@ import { BaseService } from "./base";
 
 export interface UserSettings {
 	bgm_token?: string | null;
+	vndb_token?: string | null;
 	save_root_path?: string | null;
 	db_backup_path?: string | null;
 	portable_mode?: number | null;
@@ -35,6 +36,20 @@ class SettingsService extends BaseService {
 	 */
 	async setBgmToken(token: string): Promise<void> {
 		return this.invoke<void>("set_bgm_token", { token });
+	}
+
+	/**
+	 * 获取 VNDB Token
+	 */
+	async getVndbToken(): Promise<string> {
+		return this.invoke<string>("get_vndb_token");
+	}
+
+	/**
+	 * 设置 VNDB Token
+	 */
+	async setVndbToken(token: string): Promise<void> {
+		return this.invoke<void>("set_vndb_token", { token });
 	}
 
 	/**
@@ -135,11 +150,13 @@ class SettingsService extends BaseService {
 	 */
 	async updateSettings(
 		bgmToken?: string | null,
+		vndbToken?: string | null,
 		saveRootPath?: string | null,
 		dbBackupPath?: string | null,
 	): Promise<void> {
 		return this.invoke<void>("update_settings", {
 			bgmToken,
+			vndbToken,
 			saveRootPath,
 			dbBackupPath,
 		});

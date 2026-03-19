@@ -93,6 +93,12 @@ export interface AppState {
 	tagTranslation: boolean;
 	setTagTranslation: (enabled: boolean) => void;
 
+	// 收藏同步开关
+	syncBgmCollection: boolean;
+	setSyncBgmCollection: (enabled: boolean) => void;
+	syncVndbCollection: boolean;
+	setSyncVndbCollection: (enabled: boolean) => void;
+
 	// 剧透等级
 	spoilerLevel: number;
 	setSpoilerLevel: (level: number) => void;
@@ -196,6 +202,16 @@ export const useStore = create<AppState>()(
 			tagTranslation: false,
 			setTagTranslation: (enabled: boolean) => {
 				set({ tagTranslation: enabled });
+			},
+
+			// 收藏同步开关（默认关闭）
+			syncBgmCollection: false,
+			setSyncBgmCollection: (enabled: boolean) => {
+				set({ syncBgmCollection: enabled });
+			},
+			syncVndbCollection: false,
+			setSyncVndbCollection: (enabled: boolean) => {
+				set({ syncVndbCollection: enabled });
 			},
 
 			// 剧透等级
@@ -317,6 +333,9 @@ export const useStore = create<AppState>()(
 				longPressLaunch: state.longPressLaunch,
 				// VNDB标签翻译
 				tagTranslation: state.tagTranslation,
+				// 收藏同步开关
+				syncBgmCollection: state.syncBgmCollection,
+				syncVndbCollection: state.syncVndbCollection,
 				// 剧透等级
 				spoilerLevel: state.spoilerLevel,
 				// 计时模式：playtime 或 elapsed

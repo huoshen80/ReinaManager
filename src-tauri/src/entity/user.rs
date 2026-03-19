@@ -10,6 +10,8 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(column_name = "BGM_TOKEN", column_type = "Text", nullable)]
     pub bgm_token: Option<String>,
+    #[sea_orm(column_name = "VNDB_TOKEN", column_type = "Text", nullable)]
+    pub vndb_token: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub save_root_path: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]

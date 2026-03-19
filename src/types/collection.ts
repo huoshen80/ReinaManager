@@ -50,8 +50,8 @@ export enum DefaultGroup {
  */
 export enum PlayStatus {
 	WISH = 1, // 想玩
-	PLAYING = 2, // 在玩
-	PLAYED = 3, // 玩过
+	PLAYED = 2, // 玩过
+	PLAYING = 3, // 在玩
 	ON_HOLD = 4, // 搁置
 	DROPPED = 5, // 弃坑
 }

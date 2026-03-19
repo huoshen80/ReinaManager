@@ -11,7 +11,7 @@
 			"notFound": "BGMデータが見つかりません"
 		},
 		"http": {
-			"authFailed": "認証に失敗しました、BGM_TOKENが正しいか確認してください",
+			"authFailed": "認証に失敗しました。TOKEN が正しいか、必要な権限があるか確認してください",
 			"networkError": "リクエストエラー、ネットワーク接続を確認してください",
 			"notFound": "HTTPリクエストが失敗しました",
 			"requestError": "リクエストエラー"
@@ -510,6 +510,8 @@
 			"bgmToken": "BGMトークン",
 			"bgmTokenSettings": {
 				"clearToken": "トークンをクリア",
+				"loadingProfile": "現在の Bangumi アカウント情報を取得中...",
+				"profileUnavailable": "現在の BGM Token ではユーザー情報を取得できません。トークンが有効か確認してください。",
 				"saveError": "BGM Token の保存に失敗しました",
 				"saveSuccess": "BGM Token の保存が成功しました"
 			},
@@ -525,6 +527,14 @@
 			"closeApp": "アプリを終了",
 			"closeSettings": "終了設定",
 			"closeToTray": "トレイに最小化",
+			"collectionSync": {
+				"bgmDescription": "ゲーム追加時に BGM のコレクション状態を読み取り、ローカルで状態を変更したときに BGM に同期します。",
+				"bgmTitle": "Bangumi コレクション同期を有効化",
+				"syncFailed": "ローカル状態は更新されましたが、{{source}} へのクラウド同期に失敗しました",
+				"title": "コレクション同期",
+				"vndbDescription": "ゲーム追加時に VNDB のコレクション状態を読み取り、ローカルで状態を変更したときに VNDB に同期します。",
+				"vndbTitle": "VNDB コレクション同期を有効化"
+			},
 			"databaseBackup": {
 				"backing": "バックアップ中...",
 				"backup": "データベースをバックアップ",
@@ -612,6 +622,17 @@
 				"title": "ゲーム計時モード"
 			},
 			"tokenPlaceholder": "BGM_TOKENを入力してください",
+			"vndbToken": "VNDB Token",
+			"vndbTokenPlaceholder": "VNDB Token を入力してください",
+			"vndbTokenSettings": {
+				"clearToken": "トークンをクリア",
+				"loadingProfile": "現在の VNDB アカウント情報を取得中...",
+				"permissions": "権限: {{permissions}}",
+				"profileUnavailable": "現在の VNDB Token ではユーザー情報を取得できません。トークンまたは権限が有効か確認してください。",
+				"saveError": "VNDB Token の保存に失敗しました",
+				"saveSuccess": "VNDB Token を保存しました",
+				"userId": "ユーザー ID: {{id}}"
+			},
 			"vndbData": {
 				"title": "VNDBデータ設定"
 			}

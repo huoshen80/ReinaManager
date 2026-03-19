@@ -15,5 +15,12 @@ export type {
 } from "./gameMetadataService";
 export { gameMetadataService } from "./gameMetadataService";
 export { fetchMixedData } from "./mixed";
-export { fetchVndbById, fetchVndbByName } from "./vndb";
+export {
+	fetchVndbById,
+	fetchVndbByName,
+	fetchVndbCurrentUserProfile,
+	fetchVndbUserCollection,
+	fetchVndbUserLabels,
+	updateVndbUserCollection,
+} from "./vndb";
 export { fetchYmById, fetchYmByName } from "./ymgal";

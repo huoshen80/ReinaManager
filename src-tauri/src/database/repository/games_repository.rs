@@ -50,6 +50,9 @@ pub struct GamesRepository;
 impl GamesRepository {
     // ==================== 游戏 CRUD 操作 ====================
 
+    /// 缺省游戏状态：想玩 / WISH
+    const DEFAULT_PLAY_STATUS: i32 = 1;
+
     fn build_insert_active_model(game: InsertGameData, now: i32) -> games::ActiveModel {
         games::ActiveModel {
             id: NotSet,
@@ -62,7 +65,7 @@ impl GamesRepository {
             savepath: NotSet,
             autosave: NotSet,
             maxbackups: NotSet,
-            clear: Set(Some(1)), // 数据库迁移默认值麻烦，临时设定默认值为 1
+            clear: Set(Some(game.clear.unwrap_or(Self::DEFAULT_PLAY_STATUS))),
             le_launch: NotSet,
             magpie: NotSet,
             vndb_data: Set(game.vndb_data),

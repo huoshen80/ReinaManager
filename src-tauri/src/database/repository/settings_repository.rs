@@ -15,6 +15,7 @@ impl SettingsRepository {
             let user = user::ActiveModel {
                 id: Set(1),
                 bgm_token: Set(None),
+                vndb_token: Set(None),
                 save_root_path: Set(None),
                 db_backup_path: Set(None),
                 le_path: Set(None),
@@ -51,6 +52,34 @@ impl SettingsRepository {
         let mut active: user::ActiveModel = user.into();
         // 清洗空字符串为 NULL
         active.bgm_token = Set(Some(token).filter(|s| !s.trim().is_empty()));
+
+        active.update(db).await?;
+        Ok(())
+    }
+
+    /// 获取 VNDB Token
+    pub async fn get_vndb_token(db: &DatabaseConnection) -> Result<String, DbErr> {
+        Self::ensure_user_exists(db).await?;
+
+        let user = User::find_by_id(1)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
+
+        Ok(user.vndb_token.unwrap_or_default())
+    }
+
+    /// 设置 VNDB Token
+    pub async fn set_vndb_token(db: &DatabaseConnection, token: String) -> Result<(), DbErr> {
+        Self::ensure_user_exists(db).await?;
+
+        let user = User::find_by_id(1)
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
+
+        let mut active: user::ActiveModel = user.into();
+        active.vndb_token = Set(Some(token).filter(|s| !s.trim().is_empty()));
 
         active.update(db).await?;
         Ok(())
@@ -200,6 +229,10 @@ impl SettingsRepository {
 
         if let Some(token) = data.bgm_token {
             active.bgm_token = Set(Some(token));
+        }
+
+        if let Some(token) = data.vndb_token {
+            active.vndb_token = Set(Some(token));
         }
 
         if let Some(path) = data.save_root_path {

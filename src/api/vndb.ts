@@ -17,7 +17,30 @@
 import { useStore } from "@/store/appStore";
 import type { FullGameData, VndbData } from "@/types";
 import i18n from "@/utils/i18n";
-import http from "./http";
+import http, { tauriHttp } from "./http";
+
+const VNDB_API_BASE = "https://api.vndb.org/kana";
+const VNDB_JSON_HEADERS = {
+	Accept: "application/json",
+	"Content-Type": "application/json",
+} as const;
+
+function buildVndbHeaders() {
+	return {
+		headers: {
+			...VNDB_JSON_HEADERS,
+		},
+	};
+}
+
+function buildVndbAuthHeaders(token: string) {
+	return {
+		headers: {
+			...VNDB_JSON_HEADERS,
+			Authorization: `Token ${token}`,
+		},
+	};
+}
 
 /**
  * VNDB 标题对象接口。
@@ -42,6 +65,61 @@ interface RawVNDBData {
 	description: string;
 	developers: { name: string }[];
 	length_minutes: number;
+}
+
+export interface VndbAuthInfo {
+	id: string;
+	username: string;
+	permissions: string[];
+}
+
+export interface VndbUserLabel {
+	id: number;
+	label: string;
+	private: boolean;
+	count?: number;
+}
+
+export interface VndbUserCollectionLabel {
+	id: number;
+	label: string;
+}
+
+export interface VndbUserCollectionRelease {
+	id: string;
+	list_status: number;
+}
+
+export interface VndbUserCollectionItem {
+	id: string;
+	added: number;
+	voted: number | null;
+	lastmod: number;
+	vote: number | null;
+	started: string | null;
+	finished: string | null;
+	notes: string | null;
+	labels: VndbUserCollectionLabel[];
+	releases?: VndbUserCollectionRelease[];
+}
+
+export interface UpdateVndbUserCollectionPayload {
+	vote?: number | null;
+	notes?: string | null;
+	started?: string | null;
+	finished?: string | null;
+	labels?: number[];
+	labels_set?: number[];
+	labels_unset?: number[];
+}
+
+async function resolveVndbUserId(token: string, userId?: string) {
+	if (userId) {
+		return userId;
+	}
+
+	const authInfo = await fetchVndbCurrentUserProfile(token);
+	return authInfo?.id ?? null;
 }
 
 /**
@@ -133,12 +211,7 @@ export async function fetchVndbByName(
 
 		// 调用 VNDB API
 		const rawResults = (
-			await http.post("https://api.vndb.org/kana/vn", requestBody, {
-				headers: {
-					Accept: "application/json",
-					"Content-Type": "application/json",
-				},
-			})
+			await http.post(`${VNDB_API_BASE}/vn`, requestBody, buildVndbHeaders())
 		).data.results as RawVNDBData[];
 		if (!rawResults || rawResults.length === 0)
 			return i18n.t(
@@ -222,14 +295,9 @@ export async function fetchVNDBByIds(ids: string[]) {
 
 				// 调用 VNDB API
 				const response = await http.post(
-					"https://api.vndb.org/kana/vn",
+					`${VNDB_API_BASE}/vn`,
 					requestBody,
-					{
-						headers: {
-							Accept: "application/json",
-							"Content-Type": "application/json",
-						},
-					},
+					buildVndbHeaders(),
 				);
 
 				const results = response.data.results;
@@ -272,5 +340,121 @@ export async function fetchVNDBByIds(ids: string[]) {
 			console.error("错误消息:", error.message);
 		}
 		return i18n.t("api.vndb.fetchFailed", "获取数据失败，请稍后重试");
+	}
+}
+
+/**
+ * 获取当前认证用户信息。
+ *
+ * VNDB 使用 `GET /authinfo` 返回当前 token 对应的用户资料与权限。
+ */
+export async function fetchVndbCurrentUserProfile(
+	token: string,
+): Promise<VndbAuthInfo | null> {
+	if (!token) return null;
+
+	try {
+		const response = await http.get(
+			`${VNDB_API_BASE}/authinfo`,
+			buildVndbAuthHeaders(token),
+		);
+		return response.data as VndbAuthInfo;
+	} catch (error) {
+		console.error("获取 VNDB 当前用户信息失败:", error);
+		return null;
+	}
+}
+
+/**
+ * 获取用户的 VNDB 收藏标签列表。
+ *
+ * @param token VNDB API Token，需要具备 `listread` 权限
+ * @param userId 可选，目标用户 ID，格式如 `u1`
+ */
+export async function fetchVndbUserLabels(
+	token: string,
+	userId?: string,
+): Promise<VndbUserLabel[]> {
+	if (!token) return [];
+
+	try {
+		const response = await http.get(`${VNDB_API_BASE}/ulist_labels`, {
+			...buildVndbAuthHeaders(token),
+			params: userId ? { user: userId, fields: "count" } : { fields: "count" },
+		});
+		return Array.isArray(response.data?.labels)
+			? (response.data.labels as VndbUserLabel[])
+			: [];
+	} catch (error) {
+		console.error("获取 VNDB 收藏标签失败:", error);
+		return [];
+	}
+}
+
+/**
+ * 获取某个 VN 在用户列表中的收藏信息。
+ *
+ * @param vndbId VNDB 条目 ID，如 `v17`
+ * @param token VNDB API Token，需要具备 `listread` 权限
+ * @param userId 可选，目标用户 ID；不传时会通过 token 自动解析当前用户
+ */
+export async function fetchVndbUserCollection(
+	vndbId: string,
+	token: string,
+	userId?: string,
+): Promise<VndbUserCollectionItem | null> {
+	if (!token || !vndbId) return null;
+
+	try {
+		const resolvedUserId = await resolveVndbUserId(token, userId);
+		if (!resolvedUserId) return null;
+
+		const response = await http.post(
+			`${VNDB_API_BASE}/ulist`,
+			{
+				user: resolvedUserId,
+				filters: ["id", "=", vndbId],
+				fields:
+					"id, added, voted, lastmod, vote, started, finished, notes, labels.id, labels.label, releases.id, releases.list_status",
+				results: 1,
+			},
+			buildVndbAuthHeaders(token),
+		);
+
+		const results = Array.isArray(response.data?.results)
+			? (response.data.results as VndbUserCollectionItem[])
+			: [];
+
+		return results[0] ?? null;
+	} catch (error) {
+		console.error(`获取 VNDB 收藏状态失败 (vndbId: ${vndbId}):`, error);
+		return null;
+	}
+}
+
+/**
+ * 更新当前用户的 VNDB 收藏状态。
+ *
+ * @param vndbId VNDB 条目 ID，如 `v17`
+ * @param payload 支持 vote、notes、started、finished、labels 等字段
+ * @param token VNDB API Token，需要具备 `listwrite` 权限
+ */
+export async function updateVndbUserCollection(
+	vndbId: string,
+	payload: UpdateVndbUserCollectionPayload,
+	token: string,
+): Promise<boolean> {
+	if (!token || !vndbId) return false;
+
+	try {
+		await tauriHttp.patch(
+			`${VNDB_API_BASE}/ulist/${vndbId}`,
+			payload,
+			buildVndbAuthHeaders(token),
+		);
+		return true;
+	} catch (error) {
+		console.error(`更新 VNDB 收藏状态失败 (vndbId: ${vndbId}):`, error);
+		return false;
 	}
 }

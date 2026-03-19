@@ -114,6 +114,7 @@ impl UpdateCollectionData {
 #[serde(default)]
 pub struct UpdateSettingsData {
     pub bgm_token: Option<String>,
+    pub vndb_token: Option<String>,
     pub save_root_path: Option<String>,
     pub db_backup_path: Option<String>,
     pub le_path: Option<String>,
@@ -125,6 +126,7 @@ impl UpdateSettingsData {
     /// 返回清洗后的数据，将空字符串转换为 None
     pub fn cleaned(mut self) -> Self {
         self.bgm_token = self.bgm_token.filter(|s| !s.trim().is_empty());
+        self.vndb_token = self.vndb_token.filter(|s| !s.trim().is_empty());
         self.save_root_path = self.save_root_path.filter(|s| !s.trim().is_empty());
         self.db_backup_path = self.db_backup_path.filter(|s| !s.trim().is_empty());
         self.le_path = self.le_path.filter(|s| !s.trim().is_empty());

@@ -14,6 +14,7 @@ import {
 	getGameDisplayName,
 	getGameNsfwStatus,
 } from "@/utils/appUtils";
+import { resolveCloudPlayStatus } from "@/utils/cloudCollectionSync";
 import i18n from "@/utils/i18n";
 
 export interface GameInfoUpdateDraft {
@@ -180,12 +181,12 @@ export async function fetchMetadataForUpdate({
 	return ensureCompleteMetadata(apiData);
 }
 
-export function buildInsertGameData(
+export async function buildInsertGameData(
 	gameData: FullGameData,
 	fallbackIdType?: string,
 	fallbackDate?: string,
-): InsertGameParams {
-	return {
+): Promise<InsertGameParams> {
+	const insertData: InsertGameParams = {
 		bgm_id: gameData.bgm_id,
 		vndb_id: gameData.vndb_id,
 		ymgal_id: gameData.ymgal_id,
@@ -196,6 +197,16 @@ export function buildInsertGameData(
 		vndb_data: gameData.vndb_data ?? undefined,
 		ymgal_data: gameData.ymgal_data ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
+	};
+	const cloudStatus = await resolveCloudPlayStatus(insertData);
+
+	if (cloudStatus === undefined) {
+		return insertData;
+	}
+
+	return {
+		...insertData,
+		clear: cloudStatus,
 	};
 }
 
@@ -214,7 +225,7 @@ export async function prepareInsertGameDataFromMetadata(
 	options?: PrepareInsertGameDataOptions,
 ): Promise<InsertGameParams> {
 	const completeData = await ensureCompleteMetadata(gameData);
-	const insertData = buildInsertGameData(
+	const insertData = await buildInsertGameData(
 		completeData,
 		options?.fallbackIdType,
 		options?.fallbackDate,
@@ -230,23 +241,7 @@ export async function prepareInsertGameDataFromMetadata(
 export async function prepareBulkImportInsertGameData(
 	item: BatchImportGameCandidate,
 ): Promise<InsertGameParams> {
-	const localpath = getBatchImportLocalPath(item);
-
-	if (item.matchedData) {
-		return prepareInsertGameDataFromMetadata(item.matchedData, {
-			localpath,
-			fallbackIdType: item.matchedData.id_type,
-			fallbackDate: item.matchedData.date,
-		});
-	}
-
-	return {
-		id_type: "custom",
-		custom_data: {
-			name: item.name,
-		},
-		localpath,
-	};
+	return await buildBulkImportGameData(item);
 }
 
 export function buildMetadataUpdatePayload(
@@ -375,16 +370,16 @@ export function buildGameInfoUpdatePayload(
 	return payload;
 }
 
-export function buildBulkImportGameData(
+export async function buildBulkImportGameData(
 	item: BatchImportGameCandidate,
-): InsertGameParams {
+): Promise<InsertGameParams> {
 	if (item.matchedData) {
 		return {
-			...buildInsertGameData(
+			...(await buildInsertGameData(
 				item.matchedData,
 				item.matchedData.id_type,
 				item.matchedData.date,
-			),
+			)),
 			localpath: getBatchImportLocalPath(item),
 		};
 	}

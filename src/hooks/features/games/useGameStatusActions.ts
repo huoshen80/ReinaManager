@@ -8,6 +8,7 @@ import {
 import { snackbar } from "@/providers/snackBar";
 import type { FullGameData, GameData } from "@/types";
 import { getErrorMessage } from "@/utils/appUtils";
+import { syncPlayStatusToCloud } from "@/utils/cloudCollectionSync";
 
 interface UpdatePlayStatusOptions {
 	invalidateScope?: "game" | "all";
@@ -68,7 +69,25 @@ export function useGameStatusActions() {
 		updateMutation.mutate(
 			{ ...params, invalidateScope },
 			{
-				onSuccess: (updatedGame, variables) => {
+				onSuccess: async (updatedGame, variables) => {
+					const failedSources = await syncPlayStatusToCloud(
+						updatedGame,
+						variables.newStatus,
+					);
+
+					if (failedSources.length > 0) {
+						const sourceLabel = failedSources
+							.map((source) => source.toUpperCase())
+							.join(" / ");
+						snackbar.warning(
+							t(
+								"pages.Settings.collectionSync.syncFailed",
+								`本地状态已更新，但 ${sourceLabel} 云端同步失败`,
+								{ source: sourceLabel },
+							),
+						);
+					}
+
 					options?.onSuccess?.(updatedGame, variables);
 				},
 				onError: (error, variables) => {

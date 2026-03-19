@@ -375,6 +375,25 @@ pub async fn set_bgm_token(db: State<'_, DatabaseConnection>, token: String) -> 
         .map_err(|e| format!("设置 BGM Token 失败: {}", e))
 }
 
+/// 获取 VNDB Token
+#[tauri::command]
+pub async fn get_vndb_token(db: State<'_, DatabaseConnection>) -> Result<String, String> {
+    SettingsRepository::get_vndb_token(&db)
+        .await
+        .map_err(|e| format!("获取 VNDB Token 失败: {}", e))
+}
+
+/// 设置 VNDB Token
+#[tauri::command]
+pub async fn set_vndb_token(
+    db: State<'_, DatabaseConnection>,
+    token: String,
+) -> Result<(), String> {
+    SettingsRepository::set_vndb_token(&db, token)
+        .await
+        .map_err(|e| format!("设置 VNDB Token 失败: {}", e))
+}
+
 /// 获取存档根路径
 #[tauri::command]
 pub async fn get_save_root_path(db: State<'_, DatabaseConnection>) -> Result<String, String> {
@@ -495,6 +514,7 @@ pub async fn update_settings(
     app: AppHandle,
     db: State<'_, DatabaseConnection>,
     bgm_token: Option<String>,
+    vndb_token: Option<String>,
     save_root_path: Option<String>,
     db_backup_path: Option<String>,
 ) -> Result<(), String> {
@@ -502,6 +522,7 @@ pub async fn update_settings(
 
     let data = UpdateSettingsData {
         bgm_token,
+        vndb_token,
         save_root_path,
         db_backup_path,
         ..Default::default()

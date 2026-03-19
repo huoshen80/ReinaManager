@@ -45,7 +45,7 @@ export const createHttp = () => {
 					new Error(
 						i18n.t(
 							"api.http.authFailed",
-							"认证失败，请检查你的BGM_TOKEN是否正确",
+							"认证失败，请检查TOKEN是否正确以及有无权限",
 						),
 					),
 				);
@@ -139,12 +139,51 @@ export const tauriHttp = {
 	 */
 	async post(
 		url: string,
-		data?: Record<string, unknown>,
+		data?: unknown,
 		options?: { headers?: Record<string, string>; allowRetry?: boolean },
 	) {
 		try {
 			const response = await tauriFetch(url, {
 				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...options?.headers,
+				},
+				body: data ? JSON.stringify(data) : undefined,
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+
+			const text = await response.text();
+			const responseData = text ? JSON.parse(text) : null;
+
+			return {
+				data: responseData,
+				status: response.status,
+				statusText: response.statusText,
+			};
+		} catch (error) {
+			return handleTauriHttpError(error, options?.allowRetry);
+		}
+	},
+
+	/**
+	 * 发送 PATCH 请求
+	 * @param url 请求 URL
+	 * @param data 请求体数据
+	 * @param options 请求选项，包含 headers 等
+	 * @returns Promise<any> 响应数据
+	 */
+	async patch(
+		url: string,
+		data?: unknown,
+		options?: { headers?: Record<string, string>; allowRetry?: boolean },
+	) {
+		try {
+			const response = await tauriFetch(url, {
+				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",
 					...options?.headers,
@@ -191,7 +230,12 @@ function handleTauriHttpError(error: unknown, allowRetry = false): never {
 	}
 
 	if (errorMessage.includes("401")) {
-		throw new Error(i18n.t("api.http.authFailed", "认证失败"));
+		throw new Error(
+			i18n.t(
+				"api.http.authFailed",
+				"认证失败，请检查TOKEN是否正确以及有无权限",
+			),
+		);
 	}
 	if (errorMessage.includes("400")) {
 		throw new Error(

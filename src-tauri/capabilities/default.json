@@ -56,6 +56,9 @@
 				},
 				{
 					"url": "https://www.ymgal.games"
+				},
+				{
+					"url": "https://api.vndb.org"
 				}
 			]
 		}

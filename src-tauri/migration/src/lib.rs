@@ -8,6 +8,7 @@ mod m20251229_000004_hybrid_single_table;
 mod m20260104_000005_add_le_magpie_fields;
 mod m20260131_000006_migrate_clear_to_play_status;
 mod m20260201_000007_clean_empty_strings;
+mod m20260318_000008_add_vndb_token_and_collection_sync;
 
 pub struct Migrator;
 
@@ -22,6 +23,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260104_000005_add_le_magpie_fields::Migration),
             Box::new(m20260131_000006_migrate_clear_to_play_status::Migration),
             Box::new(m20260201_000007_clean_empty_strings::Migration),
+            Box::new(m20260318_000008_add_vndb_token_and_collection_sync::Migration),
         ]
     }
 }

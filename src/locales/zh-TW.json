@@ -11,7 +11,7 @@
 			"notFound": "未找到BGM數據"
 		},
 		"http": {
-			"authFailed": "認證失敗，請檢查你的BGM_TOKEN是否正確",
+			"authFailed": "認證失敗，請檢查 TOKEN 是否正確以及是否有權限",
 			"networkError": "請求錯誤，請檢查你的網絡連接",
 			"notFound": "HTTP請求失敗",
 			"requestError": "請求錯誤"
@@ -510,6 +510,8 @@
 			"bgmToken": "BGM令牌",
 			"bgmTokenSettings": {
 				"clearToken": "清除令牌",
+				"loadingProfile": "正在取得目前 Bangumi 帳號資訊...",
+				"profileUnavailable": "目前的 BGM Token 無法取得使用者資訊，請檢查令牌是否有效。",
 				"saveError": "BGM Token 儲存失敗",
 				"saveSuccess": "BGM Token 儲存成功"
 			},
@@ -525,6 +527,14 @@
 			"closeApp": "直接退出應用",
 			"closeSettings": "關閉設定",
 			"closeToTray": "最小化到系統匣",
+			"collectionSync": {
+				"bgmDescription": "新增遊戲時會嘗試讀取 BGM 收藏狀態，本地修改狀態時會同步回 BGM。",
+				"bgmTitle": "啟用 Bangumi 收藏同步",
+				"syncFailed": "本地狀態已更新，但 {{source}} 雲端同步失敗",
+				"title": "收藏狀態同步",
+				"vndbDescription": "新增遊戲時會嘗試讀取 VNDB 收藏狀態，本地修改狀態時會同步回 VNDB。",
+				"vndbTitle": "啟用 VNDB 收藏同步"
+			},
 			"databaseBackup": {
 				"backing": "備份中...",
 				"backup": "備份資料庫",
@@ -612,6 +622,17 @@
 				"title": "遊戲計時模式"
 			},
 			"tokenPlaceholder": "請填寫你的BGM_TOKEN",
+			"vndbToken": "VNDB Token",
+			"vndbTokenPlaceholder": "請填寫你的 VNDB Token",
+			"vndbTokenSettings": {
+				"clearToken": "清除令牌",
+				"loadingProfile": "正在取得目前 VNDB 帳號資訊...",
+				"permissions": "權限: {{permissions}}",
+				"profileUnavailable": "目前的 VNDB Token 無法取得使用者資訊，請檢查令牌或權限是否有效。",
+				"saveError": "VNDB Token 儲存失敗",
+				"saveSuccess": "VNDB Token 儲存成功",
+				"userId": "使用者 ID: {{id}}"
+			},
 			"vndbData": {
 				"title": "VNDB資料設定"
 			}

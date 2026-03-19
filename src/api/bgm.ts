@@ -18,6 +18,21 @@ import type { BgmData, FullGameData } from "@/types";
 import i18n from "@/utils/i18n";
 import http, { tauriHttp } from "./http";
 
+const BGM_USER_AGENT = `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`;
+const BGM_JSON_HEADERS = {
+	Accept: "application/json",
+	"User-Agent": BGM_USER_AGENT,
+} as const;
+
+function buildBgmAuthHeaders(token: string) {
+	return {
+		headers: {
+			...BGM_JSON_HEADERS,
+			Authorization: `Bearer ${token}`,
+		},
+	};
+}
+
 /**
  * 过滤掉包含敏感关键词的标签。
  *
@@ -102,17 +117,12 @@ const transformBgmData = (BGMdata: any): FullGameData => {
  */
 export async function fetchBgmById(id: string, BGM_TOKEN: string) {
 	// 使用 Tauri HTTP 客户端，支持自定义 User-Agent
-	const BGM_HEADER = {
-		headers: {
-			Accept: "application/json",
-			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
-			...(BGM_TOKEN ? { Authorization: `Bearer ${BGM_TOKEN}` } : {}),
-		},
-	};
-
 	try {
 		const BGMdata = (
-			await tauriHttp.get(`https://api.bgm.tv/v0/subjects/${id}`, BGM_HEADER)
+			await tauriHttp.get(
+				`https://api.bgm.tv/v0/subjects/${id}`,
+				buildBgmAuthHeaders(BGM_TOKEN),
+			)
 		).data;
 
 		if (!BGMdata?.id) {
@@ -142,18 +152,10 @@ export async function fetchBgmById(id: string, BGM_TOKEN: string) {
  */
 export async function fetchBgmByName(
 	name: string,
-	BGM_TOKEN: string | undefined,
+	BGM_TOKEN: string,
 	limit = 25,
 ): Promise<FullGameData[] | string> {
 	// 使用 Tauri HTTP 客户端，支持自定义 User-Agent
-	const BGM_HEADER = {
-		headers: {
-			Accept: "application/json",
-			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
-			...(BGM_TOKEN ? { Authorization: `Bearer ${BGM_TOKEN}` } : {}),
-		},
-	};
-
 	try {
 		const keyword = name.trim();
 		const resp = (
@@ -166,7 +168,7 @@ export async function fetchBgmByName(
 					},
 					limit: limit,
 				},
-				BGM_HEADER,
+				buildBgmAuthHeaders(BGM_TOKEN),
 			)
 		).data;
 
@@ -220,12 +222,6 @@ export async function fetchBgmByIds(ids: string[], BGM_TOKEN?: string) {
 		if (!BGM_TOKEN) {
 			return i18n.t("api.bgm.missingToken", "缺少 BGM_TOKEN，无法获取数据");
 		}
-		const BGM_HEADER = {
-			headers: {
-				Accept: "application/json",
-				Authorization: `Bearer ${BGM_TOKEN}`,
-			},
-		};
 
 		const allResults: FullGameData[] = [];
 
@@ -241,7 +237,10 @@ export async function fetchBgmByIds(ids: string[], BGM_TOKEN?: string) {
 				}
 
 				const BGMdata = (
-					await http.get(`https://api.bgm.tv/v0/subjects/${id}`, BGM_HEADER)
+					await http.get(
+						`https://api.bgm.tv/v0/subjects/${id}`,
+						buildBgmAuthHeaders(BGM_TOKEN),
+					)
 				).data;
 
 				if (BGMdata?.id) {
@@ -273,15 +272,11 @@ export async function fetchBgmByIds(ids: string[], BGM_TOKEN?: string) {
  */
 export async function fetchCurrentUserProfile(token: string) {
 	if (!token) return null;
-	const BGM_HEADER = {
-		headers: {
-			Accept: "application/json",
-			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
-			Authorization: `Bearer ${token}`,
-		},
-	};
 	try {
-		const res = await tauriHttp.get("https://api.bgm.tv/v0/me", BGM_HEADER);
+		const res = await tauriHttp.get(
+			"https://api.bgm.tv/v0/me",
+			buildBgmAuthHeaders(token),
+		);
 		return res.data as {
 			username: string;
 			nickname: string;
@@ -305,18 +300,10 @@ export async function fetchUserCollection(
 	subjectId: string,
 	token: string,
 ) {
-	if (!token || !username) return null;
-	const BGM_HEADER = {
-		headers: {
-			Accept: "application/json",
-			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
-			Authorization: `Bearer ${token}`,
-		},
-	};
 	try {
 		const res = await tauriHttp.get(
 			`https://api.bgm.tv/v0/users/${username}/collections/${subjectId}`,
-			BGM_HEADER,
+			buildBgmAuthHeaders(token),
 		);
 		return res.data as { type: number; rate?: number; comment?: string };
 	} catch (error) {
@@ -339,22 +326,11 @@ export async function updateUserCollection(
 	token: string,
 ): Promise<boolean> {
 	if (!token || !username) return false;
-	const BGM_HEADER = {
-		headers: {
-			Accept: "application/json",
-			"User-Agent": `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`,
-			Authorization: `Bearer ${token}`,
-		},
-	};
 	try {
-		console.log(BGM_HEADER);
-		console.log(
-			`https://api.bgm.tv/v0/users/${username}/collections/${subjectId}`,
-		);
 		await tauriHttp.post(
 			`https://api.bgm.tv/v0/users/-/collections/${subjectId}`,
 			{ type },
-			BGM_HEADER,
+			buildBgmAuthHeaders(token),
 		);
 		// HTTP 204 does not return response body (但是官方api调试文档返回的是202(?))
 		return true;

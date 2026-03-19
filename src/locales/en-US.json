@@ -11,7 +11,7 @@
 			"notFound": "No related entries found, please check the game name and try again, or BGM_TOKEN is not set"
 		},
 		"http": {
-			"authFailed": "Authentication failed, please check your BGM_TOKEN",
+			"authFailed": "Authentication failed. Please check whether the token is correct and has the required permissions",
 			"networkError": "Request error, please check your network connection",
 			"notFound": "No related entries found, please check the ID or game name and try again",
 			"requestError": "Request error"
@@ -512,6 +512,8 @@
 			"bgmToken": "BGM Token",
 			"bgmTokenSettings": {
 				"clearToken": "Clear token",
+				"loadingProfile": "Loading current Bangumi account info...",
+				"profileUnavailable": "Unable to fetch user info with the current BGM Token. Please check whether the token is valid.",
 				"saveError": "Failed to save BGM Token",
 				"saveSuccess": "BGM Token saved successfully"
 			},
@@ -527,6 +529,14 @@
 			"closeApp": "Exit application",
 			"closeSettings": "Close Settings",
 			"closeToTray": "Minimize to tray",
+			"collectionSync": {
+				"bgmDescription": "Try to read the BGM collection status when adding a game, and sync local status changes back to BGM.",
+				"bgmTitle": "Enable Bangumi collection sync",
+				"syncFailed": "Local status was updated, but failed to sync to {{source}}",
+				"title": "Collection Sync",
+				"vndbDescription": "Try to read the VNDB collection status when adding a game, and sync local status changes back to VNDB.",
+				"vndbTitle": "Enable VNDB collection sync"
+			},
 			"databaseBackup": {
 				"backing": "Backing up...",
 				"backup": "Backup Database",
@@ -614,6 +624,17 @@
 				"title": "Game Time Tracking Mode"
 			},
 			"tokenPlaceholder": "Please enter your BGM_TOKEN",
+			"vndbToken": "VNDB Token",
+			"vndbTokenPlaceholder": "Please enter your VNDB Token",
+			"vndbTokenSettings": {
+				"clearToken": "Clear token",
+				"loadingProfile": "Loading current VNDB account info...",
+				"permissions": "Permissions: {{permissions}}",
+				"profileUnavailable": "Unable to fetch user info with the current VNDB Token. Please check whether the token and permissions are valid.",
+				"saveError": "Failed to save VNDB Token",
+				"saveSuccess": "VNDB Token saved successfully",
+				"userId": "User ID: {{id}}"
+			},
 			"vndbData": {
 				"title": "VNDB Data Settings"
 			}
