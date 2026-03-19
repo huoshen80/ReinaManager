@@ -1,0 +1,59 @@
+name: Bug Report 🐛
+description: 创建 Bug 报告以帮助我们改进 / Create a report to help us improve
+title: 🐛[BUG]
+assignees: 
+  - huoshen80
+labels: bug
+body:
+  - type: textarea
+    attributes:
+      label: 🐛 描述(Description)
+      description: >-
+        详细地描述 bug，让大家都能理解/Describe the bug in detail so that everyone can
+        understand it
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 📷 复现步骤(Steps to Reproduce)
+      description: >-
+        清晰描述复现步骤，让别人也能看到问题/Clearly describe the reproduction steps so that
+        others can see the problem
+      value: |-
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: ' 📄 [异常/日志]信息([Exception/Log] Information)'
+      description: 如报错等其他信息可以贴在这里/Other information such as crash can be posted here
+      render: Shell
+  - type: markdown
+    attributes:
+      value: '## 🚑 **基本信息(Basic Information)**'
+  - type: input
+    attributes:
+      label: 程序版本(Program version)
+      description: >-
+        请填写当前程序的版本号、哈希号 / Please enter the version number/hash number of the
+        current program
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: 系统(OS)
+      description: 在哪些系统中出现此问题/In which systems does this problem occur
+      multiple: true
+      options:
+        - Windows10~+
+        - Windows7~-
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: ' 🖼 截图(Screenshots)'
+      description: 截图可以贴在这里/Screenshots can be posted here
