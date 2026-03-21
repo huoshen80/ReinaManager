@@ -1,6 +1,6 @@
 /**
  * @file 游戏元数据服务层
- * @description 统一管理所有游戏数据源的搜索和获取逻辑，封装API调用细节
+ * @description 统一管理所有游戏数据源的搜索和获取逻辑，封装 API 调用细节
  * @module src/api/gameMetadataService
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -11,37 +11,40 @@ import { fetchMixedData } from "@/api/mixed";
 import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
 import type { FullGameData } from "@/types";
+import { AppError, toError } from "@/utils/errors";
 
-function toError(error: unknown, fallback: string): Error {
-	if (error instanceof Error) {
-		return error;
-	}
-
-	const message = typeof error === "string" ? error : fallback;
-	return new Error(message);
+interface MixedSourceResult {
+	bgm_data?: FullGameData | null;
+	vndb_data?: FullGameData | null;
+	ymgal_data?: FullGameData | null;
 }
 
 function createMetadataError(
 	scope: string,
 	error: unknown,
 	fallback: string,
-): Error {
-	const normalized = toError(error, fallback);
-	const metadataError = new Error(
-		`${scope}: ${normalized.message}`,
-	) as Error & {
-		cause?: Error;
-	};
-	metadataError.cause = normalized;
-	return metadataError;
-}
-
-function unwrapApiResult<T>(result: T | string, fallback: string): T {
-	if (typeof result === "string") {
-		throw new Error(result || fallback);
+): AppError {
+	if (error instanceof AppError) {
+		return error;
 	}
 
-	return result;
+	const normalized = toError(error, fallback);
+	return new AppError({
+		code: "metadata_request_failed",
+		message: `${scope}: ${normalized.message}`,
+		cause: normalized,
+		name: "MetadataError",
+	});
+}
+
+function createStableError(
+	code: "bgm_token_required" | "invalid_game_id" | "unsupported_source",
+	message: string,
+): AppError {
+	return new AppError({
+		code,
+		message,
+	});
 }
 
 /**
@@ -57,23 +60,62 @@ export function isYmgalDataComplete(
 /**
  * 从多个数据源的结果中合并日期信息
  * 优先级：BGM > VNDB > YMGal
- * @param result fetchMixedData 的返回结果
- * @returns 合并后的日期字符串或 undefined
  */
-function mergeDateFromMixedResult(result: {
-	bgm_data?: FullGameData | null;
-	vndb_data?: FullGameData | null;
-	ymgal_data?: FullGameData | null;
-}): string | undefined {
+function mergeDateFromMixedResult(
+	result: MixedSourceResult,
+): string | undefined {
 	// 合并日期信息，优先级：BGM > VNDB > YMGal
 	if (result.bgm_data?.bgm_data?.date) {
 		return result.bgm_data.bgm_data.date;
-	} else if (result.vndb_data?.vndb_data?.date) {
+	}
+	if (result.vndb_data?.vndb_data?.date) {
 		return result.vndb_data.vndb_data.date;
-	} else if (result.ymgal_data?.ymgal_data?.date) {
+	}
+	if (result.ymgal_data?.ymgal_data?.date) {
 		return result.ymgal_data.ymgal_data.date;
 	}
 	return undefined;
+}
+
+function mergeMixedResult(result: MixedSourceResult): FullGameData | null {
+	const mergedGame: FullGameData = {
+		id_type: "mixed",
+	};
+
+	if (result.bgm_data) {
+		mergedGame.bgm_id = result.bgm_data.bgm_id;
+		mergedGame.bgm_data = result.bgm_data.bgm_data;
+	}
+	if (result.vndb_data) {
+		mergedGame.vndb_id = result.vndb_data.vndb_id;
+		mergedGame.vndb_data = result.vndb_data.vndb_data;
+	}
+	if (result.ymgal_data) {
+		mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
+		mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
+	}
+
+	const mergedDate = mergeDateFromMixedResult(result);
+	if (mergedDate) {
+		mergedGame.date = mergedDate;
+	}
+
+	if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+		return null;
+	}
+
+	return mergedGame;
+}
+
+function ensureMixedResult(result: FullGameData | null): FullGameData {
+	if (!result) {
+		throw new AppError({
+			code: "metadata_not_found",
+			message: "No metadata result returned from mixed sources",
+		});
+	}
+
+	return result;
 }
 
 /**
@@ -83,7 +125,7 @@ export type DataSource = "bgm" | "vndb" | "ymgal";
 
 /**
  * 游戏搜索参数
- * 新的设计：添加游戏只能输入单id、游戏名称两种
+ * 新的设计：添加游戏只能输入单 id、游戏名称两种
  */
 export interface GameSearchParams {
 	query: string; // 搜索关键词（可以是ID或名称）
@@ -100,11 +142,8 @@ export interface GameSearchParams {
 class GameMetadataService {
 	/**
 	 * 游戏搜索主入口
-	 * 根据新的设计思路：
-	 * - source指定：单数据源搜索（id返回单个游戏，名称返回列表）
-	 * - source不指定：mixed搜索（id返回单个结果，名称返回各源第一个结果）
-	 * @param params 搜索参数
-	 * @returns 游戏数据数组
+	 * - source 指定：单数据源搜索（id 返回单个游戏，名称返回列表）
+	 * - source 未指定：mixed 搜索（id 返回单个结果，名称返回各源第一个结果）
 	 */
 	async searchGames(params: GameSearchParams): Promise<FullGameData[]> {
 		const { query, source, bgmToken, defaults, isIdSearch } = params;
@@ -120,11 +159,9 @@ class GameMetadataService {
 	}
 
 	/**
-	 * 判断查询字符串是否为ID
-	 * @private
+	 * 判断查询字符串是否为 ID
 	 */
 	private isIdQuery(query: string): boolean {
-		// 检查是否匹配任何已知ID格式
 		return (
 			/^\d+$/.test(query) || // BGM ID (纯数字)
 			/^v\d+$/i.test(query) || // VNDB ID (v开头+数字)
@@ -134,7 +171,6 @@ class GameMetadataService {
 
 	/**
 	 * 单数据源搜索
-	 * @private
 	 */
 	private async searchSingleSource(
 		query: string,
@@ -146,15 +182,14 @@ class GameMetadataService {
 		if (isIdSearch) {
 			const game = await this.getGameById(query, source, bgmToken);
 			return [this.applyDefaults(game, defaults)];
-		} else {
-			const results = await this.searchByName(query, source, bgmToken);
-			return results.map((game) => this.applyDefaults(game, defaults));
 		}
+
+		const results = await this.searchByName(query, source, bgmToken);
+		return results.map((game) => this.applyDefaults(game, defaults));
 	}
 
 	/**
-	 * Mixed搜索
-	 * @private
+	 * Mixed 搜索
 	 */
 	private async searchMixed(
 		query: string,
@@ -165,15 +200,18 @@ class GameMetadataService {
 		if (isIdSearch) {
 			const result = await this.getMixedGameById(query, bgmToken);
 			return [this.applyDefaults(result, defaults)];
-		} else {
-			const result = await this.getMixedGameByName(query, bgmToken);
-			return [this.applyDefaults(result, defaults)];
 		}
+
+		const result = await this.getMixedGameByName(query, bgmToken);
+		if (!result) {
+			return [];
+		}
+
+		return [this.applyDefaults(result, defaults)];
 	}
 
 	/**
-	 * 根据ID获取单个数据源的游戏
-	 *
+	 * 根据 ID 获取单个数据源的游戏
 	 */
 	async getGameById(
 		id: string,
@@ -182,39 +220,35 @@ class GameMetadataService {
 	): Promise<FullGameData> {
 		try {
 			switch (source) {
-				case "bgm": {
+				case "bgm":
 					if (!bgmToken) {
-						throw new Error("BGM Token required");
+						throw createStableError(
+							"bgm_token_required",
+							"Bangumi token is required for Bangumi lookup",
+						);
 					}
-					return unwrapApiResult(
-						await fetchBgmById(id, bgmToken),
-						"BGM数据获取失败",
-					);
-				}
-				case "vndb": {
-					return unwrapApiResult(await fetchVndbById(id), "VNDB数据获取失败");
-				}
-				case "ymgal": {
-					return unwrapApiResult(
-						await fetchYmById(Number(id)),
-						"YMGal数据获取失败",
-					);
-				}
+					return await fetchBgmById(id, bgmToken);
+				case "vndb":
+					return await fetchVndbById(id);
+				case "ymgal":
+					return await fetchYmById(Number(id));
 				default:
-					throw new Error("不支持的数据源");
+					throw createStableError(
+						"unsupported_source",
+						`Unsupported metadata source: ${source}`,
+					);
 			}
 		} catch (error) {
 			throw createMetadataError(
-				`按 ID 获取 ${source} 数据失败`,
+				`Failed to fetch ${source} metadata by id`,
 				error,
-				"获取游戏数据失败",
+				`Metadata request failed for ${source} id lookup`,
 			);
 		}
 	}
 
 	/**
 	 * 根据名称搜索单个数据源
-	 * @private
 	 */
 	private async searchByName(
 		name: string,
@@ -223,55 +257,43 @@ class GameMetadataService {
 	): Promise<FullGameData[]> {
 		try {
 			switch (source) {
-				case "bgm": {
-					if (!bgmToken) {
-						throw new Error("BGM Token required");
-					}
-					return unwrapApiResult(
-						await fetchBgmByName(name, bgmToken),
-						"BGM数据搜索失败",
-					);
-				}
-				case "vndb": {
-					return unwrapApiResult(
-						await fetchVndbByName(name),
-						"VNDB数据搜索失败",
-					);
-				}
-				case "ymgal": {
-					return unwrapApiResult(
-						await fetchYmByName(name),
-						"YMGal数据搜索失败",
-					);
-				}
+				case "bgm":
+					return await fetchBgmByName(name, bgmToken);
+				case "vndb":
+					return await fetchVndbByName(name);
+				case "ymgal":
+					return await fetchYmByName(name);
 				default:
-					throw new Error("不支持的数据源");
+					throw createStableError(
+						"unsupported_source",
+						`Unsupported metadata source: ${source}`,
+					);
 			}
 		} catch (error) {
 			throw createMetadataError(
-				`按名称搜索 ${source} 数据失败`,
+				`Failed to search ${source} metadata by name`,
 				error,
-				"搜索游戏数据失败",
+				`Metadata request failed for ${source} name search`,
 			);
 		}
 	}
 
 	/**
-	 * 根据单个ID获取mixed游戏数据
-	 * @private
+	 * 根据单个 ID 获取 mixed 游戏数据
 	 */
 	private async getMixedGameById(
 		id: string,
 		bgmToken?: string,
 	): Promise<FullGameData> {
-		// 解析ID类型
 		const ids = this.parseGameId(id);
 		if (!ids.bgmId && !ids.vndbId && !ids.ymgalId) {
-			throw new Error("无效的游戏 ID 格式");
+			throw createStableError(
+				"invalid_game_id",
+				`Invalid mixed game id format: ${id}`,
+			);
 		}
 
 		try {
-			// 调用fetchMixedData
 			const result = await fetchMixedData({
 				bgm_id: ids.bgmId,
 				vndb_id: ids.vndbId,
@@ -279,94 +301,41 @@ class GameMetadataService {
 				BGM_TOKEN: bgmToken,
 			});
 
-			// 合并为单个游戏对象
-			const mergedGame: FullGameData = {
-				id_type: "mixed",
-			};
-
-			if (result.bgm_data) {
-				mergedGame.bgm_id = result.bgm_data.bgm_id;
-				mergedGame.bgm_data = result.bgm_data.bgm_data;
-			}
-			if (result.vndb_data) {
-				mergedGame.vndb_id = result.vndb_data.vndb_id;
-				mergedGame.vndb_data = result.vndb_data.vndb_data;
-			}
-			if (result.ymgal_data) {
-				mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
-				mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
-			}
-
-			// 合并日期信息
-			const mergedDate = mergeDateFromMixedResult(result);
-			if (mergedDate) {
-				mergedGame.date = mergedDate;
-			}
-
-			if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
-				throw new Error("未获取到任何数据源结果");
-			}
-
-			return mergedGame;
+			return ensureMixedResult(mergeMixedResult(result));
 		} catch (error) {
-			throw createMetadataError("Mixed ID 搜索失败", error, "混合数据获取失败");
+			throw createMetadataError(
+				"Failed to fetch mixed metadata by id",
+				error,
+				"Mixed metadata lookup failed",
+			);
 		}
 	}
 
 	/**
-	 * 根据名称获取mixed游戏数据（各源第一个结果）
-	 * @private
+	 * 根据名称获取 mixed 游戏数据（各源第一个结果）
 	 */
 	private async getMixedGameByName(
 		name: string,
 		bgmToken?: string,
-	): Promise<FullGameData> {
+	): Promise<FullGameData | null> {
 		try {
 			const result = await fetchMixedData({
-				name: name,
+				name,
 				BGM_TOKEN: bgmToken,
 			});
 
-			// 合并为单个游戏对象
-			const mergedGame: FullGameData = {
-				id_type: "mixed",
-			};
-
-			if (result.bgm_data) {
-				mergedGame.bgm_id = result.bgm_data.bgm_id;
-				mergedGame.bgm_data = result.bgm_data.bgm_data;
-			}
-			if (result.vndb_data) {
-				mergedGame.vndb_id = result.vndb_data.vndb_id;
-				mergedGame.vndb_data = result.vndb_data.vndb_data;
-			}
-			if (result.ymgal_data) {
-				mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
-				mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
-			}
-
-			// 合并日期信息
-			const mergedDate = mergeDateFromMixedResult(result);
-			if (mergedDate) {
-				mergedGame.date = mergedDate;
-			}
-			if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
-				throw new Error("未获取到任何数据源结果");
-			}
-
-			return mergedGame;
+			return mergeMixedResult(result);
 		} catch (error) {
 			throw createMetadataError(
-				"Mixed 名称搜索失败",
+				"Failed to search mixed metadata by name",
 				error,
-				"混合数据搜索失败",
+				"Mixed metadata search failed",
 			);
 		}
 	}
 
 	/**
 	 * 应用默认值到游戏数据
-	 * @private
 	 */
 	private applyDefaults(
 		game: FullGameData,
@@ -377,28 +346,23 @@ class GameMetadataService {
 	}
 
 	/**
-	 * 验证游戏ID格式
-	 * @param id 游戏ID
-	 * @param source 数据源类型
-	 * @returns 是否为有效格式
+	 * 验证游戏 ID 格式
 	 */
 	isValidGameId(id: string, source: DataSource): boolean {
 		switch (source) {
 			case "bgm":
-				return /^\d+$/.test(id); // BGM: 纯数字
+				return /^\d+$/.test(id);
 			case "vndb":
-				return /^v\d+$/i.test(id); // VNDB: v开头加数字
+				return /^v\d+$/i.test(id);
 			case "ymgal":
-				return /^ga\d+$/i.test(id) || /^\d+$/.test(id); // YMGal: ga开头或纯数字
+				return /^ga\d+$/i.test(id) || /^\d+$/.test(id);
 			default:
 				return false;
 		}
 	}
 
 	/**
-	 * 根据多个ID获取游戏数据（用于更新场景）
-	 * @param params 多ID参数
-	 * @returns 游戏数据
+	 * 根据多个 ID 获取游戏数据（用于更新场景）
 	 */
 	async getGameByIds(params: {
 		bgmId?: string;
@@ -408,17 +372,17 @@ class GameMetadataService {
 		defaults?: Partial<FullGameData>;
 	}): Promise<FullGameData> {
 		const { bgmId, vndbId, ymgalId, bgmToken, defaults } = params;
-
-		// 计算有多少个ID被提供
 		const providedIds = [bgmId, vndbId, ymgalId].filter(Boolean).length;
 
 		if (providedIds === 0) {
-			throw new Error("至少需要提供一个数据源 ID");
+			throw createStableError(
+				"invalid_game_id",
+				"At least one metadata source id is required",
+			);
 		}
 
 		try {
 			if (providedIds === 1) {
-				// 单个ID：使用fetchMixedData的逻辑获取多个数据源的数据
 				const result = await fetchMixedData({
 					bgm_id: bgmId,
 					vndb_id: vndbId,
@@ -426,125 +390,92 @@ class GameMetadataService {
 					BGM_TOKEN: bgmToken,
 				});
 
-				// 合并为单个游戏对象
-				const mergedGame: FullGameData = {
-					id_type: "mixed",
-				};
-
-				if (result.bgm_data) {
-					mergedGame.bgm_id = result.bgm_data.bgm_id;
-					mergedGame.bgm_data = result.bgm_data.bgm_data;
-				}
-				if (result.vndb_data) {
-					mergedGame.vndb_id = result.vndb_data.vndb_id;
-					mergedGame.vndb_data = result.vndb_data.vndb_data;
-				}
-				if (result.ymgal_data) {
-					mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
-					mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
-				}
-
-				// 合并日期信息
-				const mergedDate = mergeDateFromMixedResult(result);
-				if (mergedDate) {
-					mergedGame.date = mergedDate;
-				}
-
-				if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
-					throw new Error("未获取到任何数据源结果");
-				}
-
-				return this.applyDefaults(mergedGame, defaults);
-			} else {
-				// 多个ID：并行获取所有数据源，然后合并
-				const promises: Promise<FullGameData | null>[] = [];
-
-				if (bgmId && bgmToken) {
-					promises.push(this.getGameById(bgmId, "bgm", bgmToken));
-				} else {
-					promises.push(Promise.resolve(null));
-				}
-
-				if (vndbId) {
-					promises.push(this.getGameById(vndbId, "vndb"));
-				} else {
-					promises.push(Promise.resolve(null));
-				}
-
-				if (ymgalId) {
-					promises.push(this.getGameById(ymgalId, "ymgal"));
-				} else {
-					promises.push(Promise.resolve(null));
-				}
-
-				const [bgm, vndb, ymgal] = await Promise.all(promises);
-
-				// 合并结果
-				const mergedGame: FullGameData = {
-					...defaults,
-					id_type: this.determineIdType({
-						bgm_id: bgmId,
-						vndb_id: vndbId,
-						ymgal_id: ymgalId,
-					}),
-				};
-
-				if (bgm) {
-					mergedGame.bgm_id = bgm.bgm_id;
-					mergedGame.bgm_data = bgm.bgm_data;
-				}
-				if (vndb) {
-					mergedGame.vndb_id = vndb.vndb_id;
-					mergedGame.vndb_data = vndb.vndb_data;
-				}
-				if (ymgal) {
-					mergedGame.ymgal_id = ymgal.ymgal_id;
-					mergedGame.ymgal_data = ymgal.ymgal_data;
-				}
-
-				if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
-					throw new Error("未获取到任何数据源结果");
-				}
-
-				return mergedGame;
+				return this.applyDefaults(
+					ensureMixedResult(mergeMixedResult(result)),
+					defaults,
+				);
 			}
+
+			const promises: Promise<FullGameData | null>[] = [];
+
+			if (bgmId && bgmToken) {
+				promises.push(this.getGameById(bgmId, "bgm", bgmToken));
+			} else {
+				promises.push(Promise.resolve(null));
+			}
+
+			if (vndbId) {
+				promises.push(this.getGameById(vndbId, "vndb"));
+			} else {
+				promises.push(Promise.resolve(null));
+			}
+
+			if (ymgalId) {
+				promises.push(this.getGameById(ymgalId, "ymgal"));
+			} else {
+				promises.push(Promise.resolve(null));
+			}
+
+			const [bgm, vndb, ymgal] = await Promise.all(promises);
+
+			const mergedGame: FullGameData = {
+				...defaults,
+				id_type: this.determineIdType({
+					bgm_id: bgmId,
+					vndb_id: vndbId,
+					ymgal_id: ymgalId,
+				}),
+			};
+
+			if (bgm) {
+				mergedGame.bgm_id = bgm.bgm_id;
+				mergedGame.bgm_data = bgm.bgm_data;
+			}
+			if (vndb) {
+				mergedGame.vndb_id = vndb.vndb_id;
+				mergedGame.vndb_data = vndb.vndb_data;
+			}
+			if (ymgal) {
+				mergedGame.ymgal_id = ymgal.ymgal_id;
+				mergedGame.ymgal_data = ymgal.ymgal_data;
+			}
+
+			if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+				throw new AppError({
+					code: "metadata_not_found",
+					message: "No metadata result returned from requested sources",
+				});
+			}
+
+			return mergedGame;
 		} catch (error) {
 			throw createMetadataError(
-				"按多个 ID 获取游戏数据失败",
+				"Failed to fetch metadata by multiple ids",
 				error,
-				"获取游戏数据失败",
+				"Metadata request failed for multi-id lookup",
 			);
 		}
 	}
 
 	/**
-	 * 根据游戏数据确定ID类型
-	 * 只要有任意2个id就应该归为mixed
-	 * @private
-	 * @param game 游戏数据
-	 * @returns ID类型
+	 * 根据游戏数据确定 ID 类型
+	 * 只要有任意 2 个 id 就应归为 mixed
 	 */
 	private determineIdType(game: Partial<FullGameData>): string {
 		const hasBgm = !!game.bgm_id;
 		const hasVndb = !!game.vndb_id;
 		const hasYmgal = !!game.ymgal_id;
-
-		// 计算有多少个ID存在
 		const idCount = (hasBgm ? 1 : 0) + (hasVndb ? 1 : 0) + (hasYmgal ? 1 : 0);
 
-		// 只要有2个或以上ID，就认为是mixed
 		if (idCount >= 2) return "mixed";
 		if (hasYmgal) return "ymgal";
 		if (hasVndb) return "vndb";
 		if (hasBgm) return "bgm";
-
 		return "unknown";
 	}
 
 	/**
-	 * 解析复合游戏ID，返回各数据源的ID
-	 * @param input 用户输入的ID字符串
-	 * @returns 各数据源的ID映射
+	 * 解析复合游戏 ID，返回各数据源的 ID
 	 */
 	parseGameId(input: string): {
 		bgmId?: string;
@@ -553,16 +484,11 @@ class GameMetadataService {
 	} {
 		const result: { bgmId?: string; vndbId?: string; ymgalId?: string } = {};
 
-		// VNDB ID格式：v + 数字
 		if (/^v\d+$/i.test(input)) {
 			result.vndbId = input;
-		}
-		// YMGal ID格式：ga + 数字（去除ga前缀，只返回数字部分）
-		else if (/^ga\d+$/i.test(input)) {
+		} else if (/^ga\d+$/i.test(input)) {
 			result.ymgalId = input.replace(/^ga/i, "");
-		}
-		// BGM ID格式：纯数字
-		else if (/^\d+$/.test(input)) {
+		} else if (/^\d+$/.test(input)) {
 			result.bgmId = input;
 		}
 
@@ -570,6 +496,5 @@ class GameMetadataService {
 	}
 }
 
-// 导出单例实例
 export const gameMetadataService = new GameMetadataService();
 export default gameMetadataService;

@@ -44,11 +44,13 @@ import {
 	useSetMagpiePath,
 	useSetSaveRootPath,
 } from "@/hooks/queries/useSettings";
+import { snackbar } from "@/providers/snackBar";
 import {
 	getAppDataDirPath,
 	handleGetFolder,
 	moveBackupFolder,
 } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 
 /**
  * 路径设置弹窗组件属性
@@ -142,7 +144,15 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 				setter(selectedPath);
 			}
 		} catch (error) {
-			console.error("选择文件夹失败:", error);
+			snackbar.error(
+				t(
+					"components.PathSettingsModal.selectFolderError",
+					"选择目录失败：{{error}}",
+					{
+						error: getUserErrorMessage(error, t),
+					},
+				),
+			);
 		}
 	};
 
@@ -167,7 +177,15 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 				setter(selectedPath);
 			}
 		} catch (error) {
-			console.error("选择文件失败:", error);
+			snackbar.error(
+				t(
+					"components.PathSettingsModal.selectFileError",
+					"选择文件失败：{{error}}",
+					{
+						error: getUserErrorMessage(error, t),
+					},
+				),
+			);
 		}
 	};
 
@@ -190,13 +208,29 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 						setSavePathOriginal(savePath);
 					}
 				} catch (moveError) {
-					console.warn("移动备份文件夹失败:", moveError);
+					snackbar.warning(
+						t(
+							"components.PathSettingsModal.savePath.moveBackupWarning",
+							"备份路径已保存，但迁移旧备份失败：{{error}}",
+							{
+								error: getUserErrorMessage(moveError, t),
+							},
+						),
+					);
 				}
 			} else {
 				setSavePathOriginal(savePath);
 			}
 		} catch (error) {
-			console.error("保存游戏存档备份路径失败:", error);
+			snackbar.error(
+				t(
+					"components.PathSettingsModal.savePath.saveError",
+					"保存游戏存档备份路径失败：{{error}}",
+					{
+						error: getUserErrorMessage(error, t),
+					},
+				),
+			);
 		} finally {
 			setSavePathLoading(false);
 		}
@@ -211,7 +245,15 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 			await setLePathMutation.mutateAsync(lePath);
 			setLePathOriginal(lePath);
 		} catch (error) {
-			console.error("保存LE转区软件路径失败:", error);
+			snackbar.error(
+				t(
+					"components.PathSettingsModal.lePath.saveError",
+					"保存 LE 路径失败：{{error}}",
+					{
+						error: getUserErrorMessage(error, t),
+					},
+				),
+			);
 		} finally {
 			setLePathLoading(false);
 		}
@@ -226,7 +268,15 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 			await setMagpiePathMutation.mutateAsync(magpiePath);
 			setMagpiePathOriginal(magpiePath);
 		} catch (error) {
-			console.error("保存Magpie软件路径失败:", error);
+			snackbar.error(
+				t(
+					"components.PathSettingsModal.magpiePath.saveError",
+					"保存 Magpie 路径失败：{{error}}",
+					{
+						error: getUserErrorMessage(error, t),
+					},
+				),
+			);
 		} finally {
 			setMagpiePathLoading(false);
 		}
@@ -241,7 +291,15 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 			await setDbBackupPathMutation.mutateAsync(dbBackupPath);
 			setDbBackupPathOriginal(dbBackupPath);
 		} catch (error) {
-			console.error("保存数据库备份路径失败:", error);
+			snackbar.error(
+				t(
+					"components.PathSettingsModal.dbBackupPath.saveError",
+					"保存数据库备份路径失败：{{error}}",
+					{
+						error: getUserErrorMessage(error, t),
+					},
+				),
+			);
 		} finally {
 			setDbBackupPathLoading(false);
 		}

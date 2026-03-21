@@ -83,8 +83,9 @@ import { fileService } from "@/services/invoke";
 import { toggleAutostart } from "@/services/plugins/autoStartService";
 import { checkForUpdates } from "@/services/plugins/updateService";
 import { useStore } from "@/store/appStore";
-import { getErrorMessage, openDatabaseBackupFolder } from "@/utils/appUtils";
+import { openDatabaseBackupFolder } from "@/utils/appUtils";
 import { backupDatabase, importDatabase } from "@/utils/database";
+import { getUserErrorMessage } from "@/utils/errors";
 
 /**
  * LanguageSelect 组件
@@ -598,9 +599,11 @@ const LogLevelSettings = () => {
 			const logDir = join(AppLocalData, "logs");
 			await fileService.openDirectory(logDir);
 		} catch (error) {
-			const errorMessage =
-				getErrorMessage(error) ||
-				t("pages.Settings.logLevel.openFolderFailed", "打开文件夹失败");
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t("pages.Settings.logLevel.openFolderFailed", "打开文件夹失败"),
+			);
 			snackbar.error(
 				t("pages.Settings.logLevel.openFolderError", { error: errorMessage }),
 			);
@@ -925,10 +928,11 @@ const DatabaseBackupSettings = () => {
 				);
 			}
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.databaseBackup.backupFailed", "备份失败");
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t("pages.Settings.databaseBackup.backupFailed", "备份失败"),
+			);
 			snackbar.error(
 				t("pages.Settings.databaseBackup.backupError", { error: errorMessage }),
 			);
@@ -941,13 +945,11 @@ const DatabaseBackupSettings = () => {
 		try {
 			await openDatabaseBackupFolder();
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t(
-							"pages.Settings.databaseBackup.openFolderFailed",
-							"打开文件夹失败",
-						);
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t("pages.Settings.databaseBackup.openFolderFailed", "打开文件夹失败"),
+			);
 			snackbar.error(
 				t("pages.Settings.databaseBackup.openFolderError", {
 					error: errorMessage,
@@ -981,10 +983,11 @@ const DatabaseBackupSettings = () => {
 				}
 			}
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.databaseBackup.importFailed", "导入失败");
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t("pages.Settings.databaseBackup.importFailed", "导入失败"),
+			);
 			snackbar.error(
 				t("pages.Settings.databaseBackup.importError", { error: errorMessage }),
 			);
@@ -1131,8 +1134,11 @@ const PortableModeSettings = () => {
 
 			// 使用多行显示错误信息
 			snackbar.error(
-				getErrorMessage(error) ||
+				getUserErrorMessage(
+					error,
+					t,
 					t("pages.Settings.portableMode.toggleError", "切换失败"),
+				),
 			);
 		} finally {
 			setIsLoading(false);
@@ -1281,27 +1287,47 @@ const AboutSection: React.FC = () => {
 	const triggerUpdateModal = useStore((s) => s.triggerUpdateModal);
 	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");
+	const [isUpdateStatusError, setIsUpdateStatusError] = useState(false);
 
 	const handleCheckUpdate = async () => {
 		setIsCheckingUpdate(true);
 		setUpdateStatus("");
+		setIsUpdateStatusError(false);
 
 		try {
 			await checkForUpdates({
 				onUpdateFound: (update) => {
-					setUpdateStatus(`发现新版本: ${update.version}`);
+					setUpdateStatus(
+						t("pages.Settings.about.updateFound", "发现新版本：{{version}}", {
+							version: update.version,
+						}),
+					);
+					setIsUpdateStatusError(false);
 					// 触发全局更新窗口显示
 					triggerUpdateModal(update);
 				},
 				onNoUpdate: () => {
-					setUpdateStatus("当前已是最新版本");
+					setUpdateStatus(
+						t("pages.Settings.about.noUpdate", "当前已是最新版本"),
+					);
+					setIsUpdateStatusError(false);
 				},
 				onError: (error) => {
-					setUpdateStatus(`检查更新失败: ${error}`);
+					setUpdateStatus(
+						t("pages.Settings.about.checkFailed", "检查更新失败：{{error}}", {
+							error: getUserErrorMessage(error, t),
+						}),
+					);
+					setIsUpdateStatusError(true);
 				},
 			});
 		} catch (error) {
-			setUpdateStatus(`检查更新出错: ${error}`);
+			setUpdateStatus(
+				t("pages.Settings.about.checkFailed", "检查更新失败：{{error}}", {
+					error: getUserErrorMessage(error, t),
+				}),
+			);
+			setIsUpdateStatusError(true);
 		} finally {
 			setIsCheckingUpdate(false);
 		}
@@ -1350,11 +1376,7 @@ const AboutSection: React.FC = () => {
 				{updateStatus && (
 					<Typography
 						variant="body2"
-						color={
-							updateStatus.includes("失败") || updateStatus.includes("出错")
-								? "error"
-								: "primary"
-						}
+						color={isUpdateStatusError ? "error" : "primary"}
 					>
 						{updateStatus}
 					</Typography>
@@ -1496,10 +1518,11 @@ const BatchUpdateSettings: React.FC = () => {
 				snackbar.info(noGamesMessage);
 			}
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.batchUpdate.failed", "批量更新失败");
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t("pages.Settings.batchUpdate.failed", "批量更新失败"),
+			);
 			setUpdateStatus(errorMessage);
 			snackbar.error(
 				t("pages.Settings.batchUpdate.error", { message: errorMessage }),
@@ -1522,12 +1545,15 @@ const BatchUpdateSettings: React.FC = () => {
 			);
 
 			if (bgmToken.trim() === "") {
-				throw new Error(
-					t(
-						"pages.Settings.batchUpdate.noBgmToken",
-						"更新失败：未设置 BGM Token",
-					),
+				const errorMessage = t(
+					"pages.Settings.batchUpdate.noBgmToken",
+					"更新失败：未设置 BGM Token",
 				);
+				setUpdateStatus(errorMessage);
+				snackbar.error(
+					t("pages.Settings.batchUpdate.errorBgm", { message: errorMessage }),
+				);
+				return;
 			}
 			const result = await batchUpdateBgmData(bgmToken);
 
@@ -1562,10 +1588,11 @@ const BatchUpdateSettings: React.FC = () => {
 				snackbar.info(noGamesMessage);
 			}
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: t("pages.Settings.batchUpdate.failed", "批量更新失败");
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t("pages.Settings.batchUpdate.failed", "批量更新失败"),
+			);
 			setUpdateStatus(errorMessage);
 			snackbar.error(
 				t("pages.Settings.batchUpdate.errorBgm", { message: errorMessage }),

@@ -18,6 +18,7 @@ import {
 } from "@/services/invoke";
 import type { BgmData, GameData, HanleGamesProps, VndbData } from "@/types";
 import { getDisplayGameData } from "./dataTransform";
+import { toError } from "./errors";
 
 /**
  * 停止游戏结果类型
@@ -180,13 +181,6 @@ export const getLocalDateString = (timestamp?: number): string => {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
-/**
- * 提取错误对象中的可展示消息
- */
-export const getErrorMessage = (error: unknown): string => {
-	return error instanceof Error ? error.message : String(error);
-};
-
 export interface AbortableRunner {
 	controller: AbortController;
 	withAbort: <T>(promise: Promise<T>) => Promise<T>;
@@ -264,9 +258,7 @@ export async function launchGameWithTracking(
 
 		return result;
 	} catch (error) {
-		const errorMessage =
-			typeof error === "string" ? error : "Unknown error occurred";
-		throw new Error(errorMessage);
+		throw toError(error, "Failed to launch game");
 	}
 }
 
@@ -278,9 +270,7 @@ export async function stopGameWithTracking(
 		const result = await statsService.stopGame(gameId);
 		return result;
 	} catch (error) {
-		const errorMessage =
-			typeof error === "string" ? error : "Unknown error occurred";
-		throw new Error(errorMessage);
+		throw toError(error, "Failed to stop game");
 	}
 }
 
@@ -691,11 +681,9 @@ export async function moveBackupFolder(
 		};
 	} catch (error) {
 		console.error("移动备份文件夹失败:", error);
-		const errorMessage =
-			error instanceof Error ? error.message : "移动备份文件夹时发生未知错误";
 		return {
 			moved: false,
-			message: errorMessage,
+			message: toError(error, "Failed to move backup folder").message,
 		};
 	}
 }
@@ -769,13 +757,12 @@ async function batchUpdateCommon(
 		ids: string[],
 		token?: string,
 	) => Promise<
-		| string
-		| Array<{
-				bgm_id?: string | null;
-				vndb_id?: string | null;
-				bgm_data?: BgmData | null;
-				vndb_data?: VndbData | null;
-		  }>
+		Array<{
+			bgm_id?: string | null;
+			vndb_id?: string | null;
+			bgm_data?: BgmData | null;
+			vndb_data?: VndbData | null;
+		}>
 	>,
 	getAllIdsFunction: () => Promise<Array<[number, string]>>,
 	updateKeyName: "vndb_data" | "bgm_data",
@@ -784,7 +771,6 @@ async function batchUpdateCommon(
 	total: number;
 	success: number;
 	failed: number;
-	errors: string[];
 }> {
 	try {
 		// 1. 获取所有游戏的对应 ID
@@ -796,12 +782,6 @@ async function batchUpdateCommon(
 				total: 0,
 				success: 0,
 				failed: 0,
-				errors: [
-					i18next.t(
-						`utils.batchUpdate.no${type.charAt(0).toUpperCase() + type.slice(1)}Games`,
-						`没有找到包含 ${type.toUpperCase()} ID 的游戏`,
-					),
-				],
 			};
 		}
 
@@ -812,18 +792,6 @@ async function batchUpdateCommon(
 		const resultsTemp = token
 			? await fetchFunction(ids, token)
 			: await fetchFunction(ids);
-
-		// 如果返回的是错误消息字符串
-		if (typeof resultsTemp === "string") {
-			return {
-				total: idPairs.length,
-				success: 0,
-				failed: idPairs.length,
-				errors: [resultsTemp],
-			};
-		}
-
-		const errors: string[] = [];
 
 		// 4. 构建更新数据
 		const updates: Array<
@@ -840,13 +808,6 @@ async function batchUpdateCommon(
 
 			if (data?.[updateKeyName]) {
 				updates.push([gameId, { [updateKeyName]: data[updateKeyName] }]);
-			} else {
-				errors.push(
-					i18next.t(
-						`utils.batchUpdate.${type}NotFound`,
-						`游戏 ID ${gameId} (${type.toUpperCase()}: ${apiId}) 未找到数据`,
-					),
-				);
 			}
 		}
 
@@ -859,15 +820,10 @@ async function batchUpdateCommon(
 			total: idPairs.length,
 			success: updates.length,
 			failed: idPairs.length - updates.length,
-			errors,
 		};
 	} catch (error) {
-		const errorMessage =
-			error instanceof Error
-				? error.message
-				: i18next.t("utils.batchUpdate.unknownError", "未知错误");
 		console.error(`批量更新 ${type.toUpperCase()} 数据失败:`, error);
-		throw new Error(errorMessage);
+		throw toError(error, i18next.t("errors.unknownError", "未知错误"));
 	}
 }
 
@@ -879,7 +835,6 @@ export async function batchUpdateVndbData(): Promise<{
 	total: number;
 	success: number;
 	failed: number;
-	errors: string[];
 }> {
 	return batchUpdateCommon(
 		"vndb",
@@ -898,7 +853,6 @@ export async function batchUpdateBgmData(bgmToken?: string): Promise<{
 	total: number;
 	success: number;
 	failed: number;
-	errors: string[];
 }> {
 	return batchUpdateCommon(
 		"bgm",

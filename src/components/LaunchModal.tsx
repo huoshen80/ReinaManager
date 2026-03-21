@@ -32,9 +32,9 @@ import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
-
 import type { UpdateGameParams } from "@/types";
 import { handleExeFile } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 
 /**
  * 格式化游戏时长显示
@@ -136,32 +136,39 @@ export const LaunchModal = () => {
 
 		try {
 			if (!selectedGame || !selectedGame.localpath) {
-				console.error(t("components.LaunchModal.gamePathNotFound"));
+				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}
 
 			// 使用游戏启动函数，传递启动选项
-			await launchGame(selectedGame.localpath, selectedGameId, {
+			const result = await launchGame(selectedGame.localpath, selectedGameId, {
 				le_launch: selectedGame.le_launch === 1,
 				magpie: selectedGame.magpie === 1,
 			});
+			if (!result.success) {
+				snackbar.error(result.message);
+			}
 		} catch (error) {
-			console.error(t("components.LaunchModal.launchFailed"), error);
+			snackbar.error(
+				`${t("components.LaunchModal.launchFailed")}: ${getUserErrorMessage(error, t)}`,
+			);
 		}
 	};
 	const handleStopGame = async () => {
 		if (!selectedGameId) return;
 
+		setStopping(true);
 		try {
-			// 使用游戏停止函数
-			setStopping(true);
 			const res = await stopGame(selectedGameId);
-			setStopping(false);
-			if (!res) {
-				console.error(t("components.LaunchModal.stopFailed"));
+			if (!res.success) {
+				snackbar.error(res.message || t("components.LaunchModal.stopFailed"));
 			}
 		} catch (error) {
-			console.error(t("components.LaunchModal.stopFailed"), error);
+			snackbar.error(
+				`${t("components.LaunchModal.stopFailed")}: ${getUserErrorMessage(error, t)}`,
+			);
+		} finally {
+			setStopping(false);
 		}
 	};
 	// 渲染不同状态的按钮
@@ -208,7 +215,7 @@ export const LaunchModal = () => {
 			}
 		} catch (error) {
 			snackbar.error(
-				`${t("components.LaunchModal.selectFolder")}: ${error instanceof Error ? error.message : "Unknown error"}`,
+				`${t("components.LaunchModal.selectFolder")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -236,7 +243,7 @@ export const LaunchModal = () => {
 			handleClosePathDialog();
 		} catch (error) {
 			snackbar.error(
-				`${t("components.LaunchModal.pathSaveFailed")}: ${error instanceof Error ? error.message : "Unknown error"}`,
+				`${t("components.LaunchModal.pathSaveFailed")}: ${getUserErrorMessage(error, t)}`,
 			);
 		} finally {
 			setIsSaving(false);

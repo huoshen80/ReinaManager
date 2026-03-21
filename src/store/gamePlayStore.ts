@@ -24,11 +24,11 @@ import { queryClient } from "@/providers/queryClient";
 import { useStore } from "@/store/appStore";
 import {
 	type GameLaunchOptions,
-	getErrorMessage,
 	launchGameWithTracking,
 	type StopGameResult,
 	stopGameWithTracking,
 } from "@/utils/appUtils";
+import { toError } from "@/utils/errors";
 import { initGameTimeTracking } from "@/utils/gameStats";
 
 /**
@@ -197,7 +197,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				};
 			});
 
-			const errorMessage = getErrorMessage(error);
+			const errorMessage = toError(error, "Failed to launch game").message;
 			return { success: false, message: errorMessage };
 		}
 	},
@@ -238,7 +238,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 			return result;
 		} catch (error) {
-			const errorMessage = getErrorMessage(error);
+			const errorMessage = toError(error, "Failed to stop game").message;
 			return {
 				success: false,
 				message: errorMessage,
@@ -312,7 +312,10 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 			return cleanup;
 		} catch (error) {
-			console.error("初始化游戏时间跟踪失败:", getErrorMessage(error));
+			console.error(
+				"初始化游戏时间跟踪失败:",
+				toError(error, "Failed to initialize game time tracking").message,
+			);
 		}
 	},
 

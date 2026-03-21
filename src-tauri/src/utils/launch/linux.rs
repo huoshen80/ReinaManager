@@ -31,6 +31,10 @@ pub async fn launch_game<R: Runtime>(
     args: Option<Vec<String>>,
     _launch_options: Option<GameLaunchOptions>,
 ) -> Result<LaunchResult, String> {
+    if !Path::new(&game_path).exists() {
+        return Err(format!("游戏可执行文件不存在: {}", game_path));
+    }
+
     let game_dir = match Path::new(&game_path).parent() {
         Some(dir) => dir,
         None => return Err("无法获取游戏目录路径".to_string()),

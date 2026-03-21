@@ -30,6 +30,7 @@ import {
 } from "@/services/plugins/updateService";
 import { useStore } from "@/store/appStore";
 import { destroyCurrentWindow, getRunningGameCount } from "@/utils/appExit";
+import { getUserErrorMessage } from "@/utils/errors";
 
 // 配置 marked 支持 GFM 和换行
 marked.setOptions({
@@ -113,12 +114,12 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 					// 下载完成，应用即将重启
 				},
 				onError: (error) => {
-					setDownloadError(error);
+					setDownloadError(getUserErrorMessage(error, t));
 					setIsDownloading(false);
 				},
 			});
 		} catch (error) {
-			setDownloadError(error instanceof Error ? error.message : "更新失败");
+			setDownloadError(getUserErrorMessage(error, t));
 			setIsDownloading(false);
 		}
 	};

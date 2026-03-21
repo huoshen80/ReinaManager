@@ -39,11 +39,13 @@ import {
 } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame } from "@/hooks/queries/useGames";
+import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 import { BaseRightMenu } from "./BaseRightMenu";
 import { PlayStatusSubmenu } from "./PlayStatusSubmenu";
 
@@ -130,15 +132,20 @@ const RightMenu: React.FC<RightMenuProps> = ({
 		try {
 			const game = await getGameById(id);
 			if (!game || !game.localpath) {
-				console.error(t("components.LaunchModal.gamePathNotFound"));
+				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}
-			await launchGame(game.localpath, id, {
+			const result = await launchGame(game.localpath, id, {
 				le_launch: game.le_launch === 1,
 				magpie: game.magpie === 1,
 			});
+			if (!result.success) {
+				snackbar.error(result.message);
+			}
 		} catch (error) {
-			console.error(t("components.LaunchModal.launchFailed"), error);
+			snackbar.error(
+				`${t("components.LaunchModal.launchFailed")}: ${getUserErrorMessage(error, t)}`,
+			);
 		}
 	};
 

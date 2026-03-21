@@ -7,8 +7,8 @@ import {
 } from "@/hooks/queries/usePlayStatus";
 import { snackbar } from "@/providers/snackBar";
 import type { FullGameData, GameData } from "@/types";
-import { getErrorMessage } from "@/utils/appUtils";
 import { syncPlayStatusToCloud } from "@/utils/cloudCollectionSync";
+import { getUserErrorMessage } from "@/utils/errors";
 
 interface UpdatePlayStatusOptions {
 	invalidateScope?: "game" | "all";
@@ -98,7 +98,7 @@ export function useGameStatusActions() {
 						);
 					}
 					snackbar.error(
-						`${t("errors.updatePlayStatusFailed", "更新游戏状态失败")}: ${getErrorMessage(error)}`,
+						`${t("errors.updatePlayStatusFailed", "更新游戏状态失败")}: ${getUserErrorMessage(error, t)}`,
 					);
 					options?.onError?.(error, variables);
 				},

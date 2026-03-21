@@ -1,36 +1,19 @@
 {
 	"errors": {
+		"authFailed": "認證失敗，請檢查憑證或權限",
+		"badRequest": "請求參數有誤，請檢查後再試",
+		"bgmTokenRequired": "缺少 BGM Token，請先完成設定後再試",
+		"invalidGameId": "遊戲 ID 格式無效",
+		"invokeFailed": "應用內部呼叫失敗，請稍後再試",
+		"metadataNotFound": "找不到對應的中繼資料",
+		"metadataRequestFailed": "取得中繼資料失敗，請稍後再試",
+		"mixedSourcesFailed": "所有資料來源請求都失敗了",
+		"notFound": "找不到相關內容",
+		"requestFailed": "請求失敗，請稍後再試",
+		"responseParseFailed": "回應解析失敗，請稍後再試",
+		"unknownError": "未知錯誤",
+		"unsupportedSource": "不支援的資料來源",
 		"updatePlayStatusFailed": "更新遊戲狀態失敗"
-	},
-	"api": {
-		"bgm": {
-			"fetchByIdFailed": "根據ID獲取BGM數據失敗",
-			"fetchByNameFailed": "根據名稱獲取BGM數據失敗",
-			"fetchFailed": "獲取BGM數據失敗",
-			"missingToken": "未設置 BGM Token，請先設置後重試",
-			"notFound": "未找到BGM數據"
-		},
-		"http": {
-			"authFailed": "認證失敗，請檢查 TOKEN 是否正確以及是否有權限",
-			"networkError": "請求錯誤，請檢查你的網絡連接",
-			"notFound": "HTTP請求失敗",
-			"requestError": "請求錯誤"
-		},
-		"mixed": {
-			"noDataFromAnySource": "所有數據源均未獲取到數據",
-			"noParameterProvided": "必須提供 BGM ID、VNDB ID 或遊戲名稱"
-		},
-		"vndb": {
-			"apiCallFailed": "VNDB API 調用失敗",
-			"fetchFailed": "獲取數據失敗，請稍後重試",
-			"notFound": "未找到VNDB數據"
-		},
-		"ym": {
-			"fetchByIdFailed": "根據ID獲取YM數據失敗",
-			"fetchFailed": "獲取YM數據失敗",
-			"notFound": "未找到YM數據",
-			"tokenFailed": "YM Token驗證失敗"
-		}
 	},
 	"app": {
 		"NAVIGATION": {
@@ -170,6 +153,7 @@
 				"note": "設置數據庫備份文件的保存路徑，留空將使用默認路徑（AppData/data/backups），或攜帶式模式下的程式目錄",
 				"pathLabel": "備份保存路徑",
 				"pathPlaceholder": "留空使用默認路徑",
+				"saveError": "儲存資料庫備份路徑失敗：{{error}}",
 				"selectBtn": "選擇目錄",
 				"title": "數據庫備份路徑"
 			},
@@ -177,6 +161,7 @@
 				"note": "設置LE轉區軟體的可執行文件路徑，用於遊戲啟動時的轉區功能",
 				"pathLabel": "LE轉區軟體路徑",
 				"pathPlaceholder": "選擇LE轉區軟體的可執行文件",
+				"saveError": "儲存 LE 路徑失敗：{{error}}",
 				"selectBtn": "選擇文件",
 				"title": "LE轉區軟體路徑"
 			},
@@ -184,17 +169,22 @@
 				"note": "設置Magpie軟體的可執行文件路徑，用於遊戲畫面的放大功能",
 				"pathLabel": "Magpie軟體路徑",
 				"pathPlaceholder": "選擇Magpie軟體的可執行文件",
+				"saveError": "儲存 Magpie 路徑失敗：{{error}}",
 				"selectBtn": "選擇文件",
 				"title": "Magpie軟體路徑"
 			},
 			"saveBtn": "儲存",
 			"savePath": {
+				"moveBackupWarning": "備份路徑已儲存，但遷移舊備份失敗：{{error}}",
 				"note": "設置遊戲存檔的備份根目錄路徑，留空將使用默認路徑",
 				"pathLabel": "備份根目錄路徑",
 				"pathPlaceholder": "留空使用默認路徑",
+				"saveError": "儲存遊戲存檔備份路徑失敗：{{error}}",
 				"selectBtn": "選擇目錄",
 				"title": "遊戲存檔備份路徑"
 			},
+			"selectFileError": "選擇文件失敗：{{error}}",
+			"selectFolderError": "選擇目錄失敗：{{error}}",
 			"saving": "保存中...",
 			"title": "路徑設置"
 		},
@@ -354,7 +344,8 @@
 			"errors": {
 				"cannotDeleteDefaultGroup": "默認分組不能刪除",
 				"deleteCategoryFailed": "刪除分類失敗，請重試",
-				"deleteGroupFailed": "刪除分組失敗，請重試"
+				"deleteGroupFailed": "刪除分組失敗，請重試",
+				"renameFailed": "重新命名失敗：{{error}}"
 			},
 			"gamesCount": "個遊戲",
 			"noCategoriesHint": "當前分組下沒有分類",
@@ -424,7 +415,6 @@
 			"Edit": {
 				"dataSourceUpdate": "數據源更新",
 				"gameInfoEdit": "遊戲資料編輯",
-				"unknownError": "未知錯誤",
 				"updateSuccess": "遊戲資訊已成功更新"
 			},
 			"editPart": "編輯",
@@ -462,8 +452,7 @@
 				"summary": "簡介",
 				"summaryHelperText": "遊戲的簡短描述或劇情概要",
 				"summaryPlaceholder": "輸入遊戲簡介...",
-				"tags": "標籤",
-				"unknownError": "未知錯誤"
+				"tags": "標籤"
 			},
 			"gameRanking": "遊戲排行",
 			"gameScore": "遊戲評分",
@@ -482,12 +471,15 @@
 			"about": {
 				"author": "作者",
 				"blog": "作者部落格",
+				"checkFailed": "檢查更新失敗：{{error}}",
 				"checking": "檢查中...",
 				"checkUpdate": "檢查更新",
+				"noUpdate": "目前已是最新版本",
 				"docs": "使用文件",
 				"feedback": "問題回饋",
 				"github": "專案倉庫",
 				"title": "關於",
+				"updateFound": "發現新版本：{{version}}",
 				"version": "版本"
 			},
 			"autoStart": "開機自啟",
@@ -639,13 +631,6 @@
 		}
 	},
 	"utils": {
-		"batchUpdate": {
-			"bgmNotFound": "遊戲 ID {{gameId}} (BGM: {{bgmId}}) 未找到資料",
-			"noBgmGames": "沒有找到包含 BGM ID 的遊戲",
-			"noVndbGames": "沒有找到包含 VNDB ID 的遊戲",
-			"unknownError": "未知錯誤",
-			"vndbNotFound": "遊戲 ID {{gameId}} (VNDB: {{vndbId}}) 未找到資料"
-		},
 		"formatPlayTime": {
 			"hours_other": "{{count}}小時",
 			"hoursAndMinutes": "{{hours}}小時{{minutes}}分鐘",

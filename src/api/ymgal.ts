@@ -15,7 +15,7 @@
  */
 // 注意认证失败重试机制未生效
 import type { FullGameData, YmgalData } from "@/types";
-import i18n from "@/utils/i18n";
+import { AppError, isHttpStatus, toError } from "@/utils/errors";
 import { tauriHttp } from "./http";
 
 /**
@@ -37,6 +37,17 @@ interface TokenCache {
 
 let tokenCache: TokenCache | null = null;
 
+interface YmTokenResponse {
+	access_token: string;
+}
+
+interface YmApiEnvelope<T> {
+	success: boolean;
+	code: number;
+	msg?: string;
+	data: T;
+}
+
 /**
  * 获取 YMGal Access Token
  * @returns {Promise<string>} Access Token
@@ -45,7 +56,7 @@ async function getAccessToken(forceRefresh = false): Promise<string> {
 	if (!forceRefresh && tokenCache?.token) return tokenCache.token;
 
 	try {
-		const response = await tauriHttp.get(
+		const response = await tauriHttp.get<YmTokenResponse>(
 			`${YMGAL_CONFIG.baseUrl}/oauth/token`,
 			{
 				params: {
@@ -65,8 +76,11 @@ async function getAccessToken(forceRefresh = false): Promise<string> {
 
 		return access_token;
 	} catch (error) {
-		console.error("YMGal获取Access Token失败:", error);
-		throw new Error(i18n.t("api.ym.tokenFailed", "YMGal认证失败，请稍后重试"));
+		throw new AppError({
+			code: "metadata_request_failed",
+			message: "YMGal access token request failed",
+			cause: toError(error, "YMGal access token request failed"),
+		});
 	}
 }
 
@@ -77,25 +91,28 @@ async function getAccessToken(forceRefresh = false): Promise<string> {
  * @param {number} maxRetries 最大重试次数
  * @returns {Promise<any>} API 响应数据
  */
-async function ymApiRequest(
+async function ymApiRequest<T>(
 	path: string,
 	params: Record<string, unknown> = {},
 	maxRetries = 2,
-) {
+): Promise<T> {
 	let lastError: unknown;
 
 	for (let attempt = 0; attempt <= maxRetries; attempt++) {
 		try {
 			const token = await getAccessToken(attempt > 0); // 第一次尝试使用缓存，失败后强制刷新
-			const response = await tauriHttp.get(`${YMGAL_CONFIG.baseUrl}${path}`, {
-				params,
-				headers: {
-					Accept: "application/json;charset=utf-8",
-					Authorization: `Bearer ${token}`,
-					version: "1",
+			const response = await tauriHttp.get<YmApiEnvelope<T>>(
+				`${YMGAL_CONFIG.baseUrl}${path}`,
+				{
+					params,
+					headers: {
+						Accept: "application/json;charset=utf-8",
+						Authorization: `Bearer ${token}`,
+						version: "1",
+					},
+					allowRetry: true, // 允许上层处理重试
 				},
-				allowRetry: true, // 允许上层处理重试
-			});
+			);
 
 			// 接口异常码 401/403 也视为需要重取 token 的信号
 			if (!response.data.success || response.data.code !== 0) {
@@ -104,28 +121,28 @@ async function ymApiRequest(
 						tokenCache = null; // 清空token缓存，强制重新获取
 						continue; // 重试
 					}
-					throw new Error(
-						i18n.t("api.ym.tokenFailed", "YMGal认证失败，请稍后重试"),
-					);
+					throw new AppError({
+						code: "metadata_request_failed",
+						message: "YMGal authentication failed after retry",
+					});
 				}
-				throw new Error(response.data.msg || "API调用失败");
+				throw new AppError({
+					code: "metadata_request_failed",
+					message: response.data.msg
+						? `YMGal API returned code ${response.data.code}: ${response.data.msg}`
+						: `YMGal API returned code ${response.data.code}`,
+				});
 			}
 
 			return response.data.data;
 		} catch (error: unknown) {
 			lastError = error;
 
-			// 检查是否是认证错误且还有重试次数
-			const errorMessage = error instanceof Error ? error.message : "";
-			const isAuthError =
-				errorMessage.includes("401") || errorMessage.includes("403");
-
-			if (isAuthError && attempt < maxRetries) {
+			if (
+				(isHttpStatus(error, 401) || isHttpStatus(error, 403)) &&
+				attempt < maxRetries
+			) {
 				tokenCache = null; // 清空token缓存
-				console.warn(
-					`YMGal API请求失败，重试 ${attempt + 1}/${maxRetries}:`,
-					error,
-				);
 				continue; // 重试
 			}
 
@@ -134,8 +151,7 @@ async function ymApiRequest(
 		}
 	}
 
-	console.error("YMGal API请求失败，已达到最大重试次数:", lastError);
-	throw lastError;
+	throw toError(lastError, "YMGal API请求失败");
 }
 
 /**
@@ -146,7 +162,9 @@ async function fetchOrganizationName(
 ): Promise<string | undefined> {
 	if (!orgId) return undefined;
 	try {
-		const data = await ymApiRequest("/open/archive", { orgId });
+		const data = await ymApiRequest<{
+			org?: { chineseName?: string; name?: string };
+		}>("/open/archive", { orgId });
 		const org = data?.org;
 		return org?.chineseName || org?.name || undefined;
 	} catch {
@@ -257,96 +275,97 @@ function transformYmData(
  * @param {string} name 游戏名称
  * @param {number} pageNum 页号，从 1 开始
  * @param {number} pageSize 每页数量，范围 1-20
- * @returns {Promise<FullGameData[] | string>} 游戏列表或错误信息
+ * @returns {Promise<FullGameData[]>} 游戏列表
  */
 export async function fetchYmByName(
 	name: string,
 	pageNum = 1,
 	pageSize = 20,
-): Promise<FullGameData[] | string> {
-	try {
-		const data = await ymApiRequest("/open/archive/search-game", {
+): Promise<FullGameData[]> {
+	const data = await ymApiRequest<{ result?: YmGameListItem[] }>(
+		"/open/archive/search-game",
+		{
 			mode: "list",
 			keyword: name.trim(),
 			pageNum: pageNum,
 			pageSize: pageSize,
-		});
+		},
+	);
 
-		if (!data?.result || data.result.length === 0) {
-			return i18n.t("api.ym.notFound", "未找到相关条目，请确认游戏名字后重试");
-		}
-
-		// 将列表数据转换为统一格式（不包含详细信息）
-		return data.result.map((item: YmGameListItem): FullGameData => {
-			const ymgal_data: YmgalData = {
-				image: item.mainImg,
-				name: item.name,
-				name_cn: item.chineseName,
-				developer: item.orgName,
-				nsfw: item.restricted,
-			};
-
-			return {
-				ymgal_id: String(item.id),
-				id_type: "ymgal",
-				date: item.releaseDate,
-				ymgal_data,
-			};
-		});
-	} catch (error) {
-		console.error("YMGal搜索失败:", error);
-		return i18n.t("api.ym.fetchFailed", "获取数据失败，请稍后重试");
+	if (!data?.result || data.result.length === 0) {
+		return [];
 	}
+
+	// 将列表数据转换为统一格式（不包含详细信息）
+	return data.result.map((item: YmGameListItem): FullGameData => {
+		const ymgal_data: YmgalData = {
+			image: item.mainImg,
+			name: item.name,
+			name_cn: item.chineseName,
+			developer: item.orgName,
+			nsfw: item.restricted,
+		};
+
+		return {
+			ymgal_id: String(item.id),
+			id_type: "ymgal",
+			date: item.releaseDate,
+			ymgal_data,
+		};
+	});
 }
 
 /**
  * 通过 YMGal 游戏 ID 获取游戏详细信息
  *
  * @param {number} gid YMGal 游戏 ID
- * @returns {Promise<FullGameData | string>} 游戏详细信息或错误信息
+ * @returns {Promise<FullGameData>} 游戏详细信息
  */
-export async function fetchYmById(gid: number): Promise<FullGameData | string> {
-	try {
-		const data = await ymApiRequest("/open/archive", {
-			gid,
+export async function fetchYmById(gid: number): Promise<FullGameData> {
+	const data = await ymApiRequest<{
+		game?: YmGameDetail;
+	}>("/open/archive", {
+		gid,
+	});
+
+	if (!data?.game) {
+		throw new AppError({
+			code: "metadata_not_found",
+			message: `YMGal entry not found: ${gid}`,
 		});
+	}
 
-		if (!data?.game) {
-			return i18n.t("api.ym.notFound", "未找到相关条目，请确认游戏ID后重试");
-		}
-
-		const result = transformYmData(data.game);
-		if (result.ymgal_data) {
-			result.ymgal_data.developer = await fetchOrganizationName(
-				data.game?.developerId,
-			);
-		}
-
-		return result;
-	} catch (error) {
-		console.error("YMGal获取游戏详情失败:", error);
-		return i18n.t(
-			"api.ym.fetchByIdFailed",
-			"YMGal数据获取失败，请检查ID或网络连接",
+	const result = transformYmData(data.game);
+	if (result.ymgal_data) {
+		result.ymgal_data.developer = await fetchOrganizationName(
+			data.game?.developerId,
 		);
 	}
+
+	return result;
 }
 
 /**
  * 批量获取 YMGal 游戏信息（通过 gid 数组）
  *
  * @param {number[]} gids YMGal 游戏 ID 数组
- * @returns {Promise<Array<FullGameData | string>>} 游戏信息数组
+ * @returns {Promise<FullGameData[]>} 游戏信息数组
  */
-export async function fetchYmByIds(
-	gids: number[],
-): Promise<Array<FullGameData | string>> {
+export async function fetchYmByIds(gids: number[]): Promise<FullGameData[]> {
 	const results = await Promise.allSettled(gids.map((gid) => fetchYmById(gid)));
+	const fulfilledResults = results
+		.filter(
+			(result): result is PromiseFulfilledResult<FullGameData> =>
+				result.status === "fulfilled",
+		)
+		.map((result) => result.value);
 
-	return results.map((result) => {
-		if (result.status === "fulfilled") {
-			return result.value;
-		}
-		return i18n.t("api.ym.fetchFailed", "获取数据失败");
-	});
+	if (fulfilledResults.length === 0 && gids.length > 0) {
+		throw new AppError({
+			code: "metadata_request_failed",
+			message: `YMGal batch fetch failed for ${gids.length} ids`,
+		});
+	}
+
+	return fulfilledResults;
 }

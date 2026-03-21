@@ -42,6 +42,7 @@ import { useShallow } from "zustand/react/shallow";
 import RightMenu from "@/components/RightMenu";
 import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useUpdateCategoryGames } from "@/hooks/queries/useCollections";
+import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData } from "@/types";
@@ -51,6 +52,7 @@ import {
 	getGameNsfwStatus,
 	saveScrollPosition,
 } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 
 // ============================================================================
 // 类型定义
@@ -488,16 +490,19 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			if (doubleClickLaunch && card.localpath) {
 				setSelectedGameId(cardId);
 				try {
-					await launchGame(card.localpath, cardId, {
+					const result = await launchGame(card.localpath, cardId, {
 						le_launch: card.le_launch === 1,
 						magpie: card.magpie === 1,
 					});
+					if (!result.success) {
+						snackbar.error(result.message);
+					}
 				} catch (error) {
-					console.error("启动游戏失败:", error);
+					snackbar.error(getUserErrorMessage(error, i18n.t.bind(i18n)));
 				}
 			}
 		},
-		[doubleClickLaunch, launchGame, setSelectedGameId],
+		[doubleClickLaunch, launchGame, setSelectedGameId, i18n],
 	);
 
 	const handleCardLongPress = useCallback(
@@ -505,16 +510,19 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			if (longPressLaunch && card.localpath) {
 				setSelectedGameId(cardId);
 				try {
-					await launchGame(card.localpath, cardId, {
+					const result = await launchGame(card.localpath, cardId, {
 						le_launch: card.le_launch === 1,
 						magpie: card.magpie === 1,
 					});
+					if (!result.success) {
+						snackbar.error(result.message);
+					}
 				} catch (error) {
-					console.error("长按启动游戏失败:", error);
+					snackbar.error(getUserErrorMessage(error, i18n.t.bind(i18n)));
 				}
 			}
 		},
-		[longPressLaunch, launchGame, setSelectedGameId],
+		[longPressLaunch, launchGame, setSelectedGameId, i18n],
 	);
 
 	const handleContextMenu = useCallback(

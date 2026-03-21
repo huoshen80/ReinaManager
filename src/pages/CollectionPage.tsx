@@ -38,6 +38,7 @@ import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { Category as CategoryType } from "@/types/collection";
 import { DefaultGroup } from "@/types/collection";
+import { getUserErrorMessage } from "@/utils/errors";
 
 const SCROLL_CONTAINER_SELECTOR = "main";
 
@@ -323,7 +324,12 @@ export const Collection: React.FC = () => {
 				await renameCategoryMutation.mutateAsync({ categoryId, newName });
 			}
 		} catch (error) {
-			console.error("重命名失败:", error);
+			snackbar.error(
+				t("pages.Collection.errors.renameFailed", {
+					defaultValue: "重命名失败：{{error}}",
+					error: getUserErrorMessage(error, t),
+				}),
+			);
 		}
 	};
 

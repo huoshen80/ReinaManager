@@ -1,36 +1,19 @@
 {
 	"errors": {
+		"authFailed": "认证失败，请检查凭证或权限",
+		"badRequest": "请求参数有误，请检查后重试",
+		"bgmTokenRequired": "缺少 BGM Token，请先配置后重试",
+		"invalidGameId": "游戏 ID 格式无效",
+		"invokeFailed": "应用内部调用失败，请稍后重试",
+		"metadataNotFound": "未找到对应的元数据",
+		"metadataRequestFailed": "获取元数据失败，请稍后重试",
+		"mixedSourcesFailed": "所有数据源请求均失败",
+		"notFound": "未找到相关内容",
+		"requestFailed": "请求失败，请稍后重试",
+		"responseParseFailed": "响应解析失败，请稍后重试",
+		"unknownError": "未知错误",
+		"unsupportedSource": "不支持的数据源",
 		"updatePlayStatusFailed": "更新游戏状态失败"
-	},
-	"api": {
-		"bgm": {
-			"fetchByIdFailed": "BGM数据获取失败，请检查ID或网络连接",
-			"fetchByNameFailed": "BGM数据搜索失败，请检查游戏名称或网络连接",
-			"fetchFailed": "获取数据失败，请稍后重试",
-			"missingToken": "未设置 BGM Token，请先设置后重试",
-			"notFound": "未找到相关条目，请确认游戏名字后重试，或未设置BGM_TOKEN"
-		},
-		"http": {
-			"authFailed": "认证失败，请检查TOKEN是否正确以及有无权限",
-			"networkError": "请求错误，请检查你的网络连接",
-			"notFound": "未找到相关条目,请确认ID或游戏名字后重试",
-			"requestError": "请求错误"
-		},
-		"mixed": {
-			"noDataFromAnySource": "所有数据源均未获取到数据",
-			"noParameterProvided": "必须提供 BGM ID、VNDB ID 或游戏名称"
-		},
-		"vndb": {
-			"apiCallFailed": "VNDB API 调用失败",
-			"fetchFailed": "获取数据失败，请稍后重试",
-			"notFound": "未找到相关条目，请确认ID或游戏名字后重试"
-		},
-		"ym": {
-			"fetchByIdFailed": "YMGal数据获取失败，请检查ID或网络连接",
-			"fetchFailed": "获取数据失败，请稍后重试",
-			"notFound": "未找到相关条目，请确认游戏名字后重试",
-			"tokenFailed": "YMGal认证失败，请稍后重试"
-		}
 	},
 	"app": {
 		"NAVIGATION": {
@@ -170,6 +153,7 @@
 				"note": "设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
 				"pathLabel": "备份保存路径",
 				"pathPlaceholder": "留空使用默认路径",
+				"saveError": "保存数据库备份路径失败：{{error}}",
 				"selectBtn": "选择目录",
 				"title": "数据库备份路径"
 			},
@@ -177,6 +161,7 @@
 				"note": "设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
 				"pathLabel": "LE转区软件路径",
 				"pathPlaceholder": "选择LE转区软件的可执行文件",
+				"saveError": "保存 LE 路径失败：{{error}}",
 				"selectBtn": "选择文件",
 				"title": "LE转区软件路径"
 			},
@@ -184,17 +169,22 @@
 				"note": "设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
 				"pathLabel": "Magpie软件路径",
 				"pathPlaceholder": "选择Magpie软件的可执行文件",
+				"saveError": "保存 Magpie 路径失败：{{error}}",
 				"selectBtn": "选择文件",
 				"title": "Magpie软件路径"
 			},
 			"saveBtn": "保存",
 			"savePath": {
+				"moveBackupWarning": "备份路径已保存，但迁移旧备份失败：{{error}}",
 				"note": "设置游戏存档的备份根目录路径，留空将使用默认路径",
 				"pathLabel": "备份根目录路径",
 				"pathPlaceholder": "留空使用默认路径",
+				"saveError": "保存游戏存档备份路径失败：{{error}}",
 				"selectBtn": "选择目录",
 				"title": "游戏存档备份路径"
 			},
+			"selectFileError": "选择文件失败：{{error}}",
+			"selectFolderError": "选择目录失败：{{error}}",
 			"saving": "保存中...",
 			"title": "路径设置"
 		},
@@ -354,7 +344,8 @@
 			"errors": {
 				"cannotDeleteDefaultGroup": "默认分组不能删除",
 				"deleteCategoryFailed": "删除分类失败，请重试",
-				"deleteGroupFailed": "删除分组失败，请重试"
+				"deleteGroupFailed": "删除分组失败，请重试",
+				"renameFailed": "重命名失败：{{error}}"
 			},
 			"gamesCount": "个游戏",
 			"noCategoriesHint": "当前分组下没有分类",
@@ -424,7 +415,6 @@
 			"Edit": {
 				"dataSourceUpdate": "数据源更新",
 				"gameInfoEdit": "游戏资料编辑",
-				"unknownError": "未知错误",
 				"updateSuccess": "游戏信息已成功更新"
 			},
 			"editPart": "编辑",
@@ -462,8 +452,7 @@
 				"summary": "游戏简介",
 				"summaryHelperText": "游戏的详细介绍（可拖动右下角调整大小）",
 				"summaryPlaceholder": "请输入游戏简介",
-				"tags": "标签",
-				"unknownError": "未知错误"
+				"tags": "标签"
 			},
 			"gameRanking": "游戏排行",
 			"gameScore": "游戏评分",
@@ -482,12 +471,15 @@
 			"about": {
 				"author": "作者",
 				"blog": "作者博客",
+				"checkFailed": "检查更新失败：{{error}}",
 				"checking": "检查中...",
 				"checkUpdate": "检查更新",
+				"noUpdate": "当前已是最新版本",
 				"docs": "使用文档",
 				"feedback": "问题反馈",
 				"github": "项目地址",
 				"title": "关于",
+				"updateFound": "发现新版本：{{version}}",
 				"version": "版本"
 			},
 			"autoStart": "开机自启",
@@ -639,13 +631,6 @@
 		}
 	},
 	"utils": {
-		"batchUpdate": {
-			"bgmNotFound": "游戏 ID {{gameId}} (BGM: {{bgmId}}) 未找到数据",
-			"noBgmGames": "没有找到包含 BGM ID 的游戏",
-			"noVndbGames": "没有找到包含 VNDB ID 的游戏",
-			"unknownError": "未知错误",
-			"vndbNotFound": "游戏 ID {{gameId}} (VNDB: {{vndbId}}) 未找到数据"
-		},
 		"formatPlayTime": {
 			"hours": "{{count}}小时",
 			"hoursAndMinutes": "{{hours}}小时{{minutes}}分钟",

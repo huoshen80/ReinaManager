@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/providers/snackBar";
 import type { FullGameData, GameData } from "@/types";
-import { getErrorMessage } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 import { fetchMetadataForUpdate } from "@/utils/metadata";
 
 interface DataSourceUpdateProps {
@@ -96,7 +96,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			});
 			onDataFetched(result);
 		} catch (error) {
-			snackbar.error(getErrorMessage(error));
+			snackbar.error(getUserErrorMessage(error, t));
 		} finally {
 			setIsLoading(false);
 		}

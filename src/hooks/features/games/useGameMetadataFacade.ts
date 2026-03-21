@@ -10,6 +10,7 @@ import type {
 	FullGameData,
 	InsertGameParams,
 } from "@/types";
+import { getUserErrorMessage } from "@/utils/errors";
 import i18n from "@/utils/i18n";
 import {
 	type BatchImportGameCandidate,
@@ -135,8 +136,11 @@ export function useBulkGameAddActions() {
 					try {
 						payload = await prepareBulkImportInsertGameData(items[index]);
 					} catch (error) {
-						const message =
-							error instanceof Error ? error.message : String(error);
+						const message = getUserErrorMessage(
+							error,
+							i18n.t.bind(i18n),
+							i18n.t("errors.unknownError", "未知错误"),
+						);
 						preparationErrors.push({
 							itemIndex: index,
 							message,
@@ -183,8 +187,11 @@ export function useBulkGameAddActions() {
 						batchResult,
 					};
 				} catch (error) {
-					const mutationError =
-						error instanceof Error ? error.message : String(error);
+					const mutationError = getUserErrorMessage(
+						error,
+						i18n.t.bind(i18n),
+						i18n.t("errors.unknownError", "未知错误"),
+					);
 					return {
 						pendingPayloads,
 						duplicateItemIndices,

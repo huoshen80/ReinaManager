@@ -15,7 +15,7 @@
 
 import { version } from "@pkg";
 import type { BgmData, FullGameData } from "@/types";
-import i18n from "@/utils/i18n";
+import { AppError } from "@/utils/errors";
 import http, { tauriHttp } from "./http";
 
 const BGM_USER_AGENT = `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`;
@@ -24,11 +24,20 @@ const BGM_JSON_HEADERS = {
 	"User-Agent": BGM_USER_AGENT,
 } as const;
 
-function buildBgmAuthHeaders(token: string) {
+interface BgmSubjectResponse {
+	id?: number;
+	date?: string;
+}
+
+interface BgmSearchResponse {
+	data?: unknown[];
+}
+
+function buildBgmAuthHeaders(token?: string) {
 	return {
 		headers: {
 			...BGM_JSON_HEADERS,
-			Authorization: `Bearer ${token}`,
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
 		},
 	};
 }
@@ -113,33 +122,27 @@ const transformBgmData = (BGMdata: any): FullGameData => {
  *
  * @param id Bangumi 条目 ID
  * @param BGM_TOKEN Bangumi API 访问令牌
- * @returns 返回游戏详细信息对象，若失败则返回错误提示字符串
+ * @returns 返回游戏详细信息对象
  */
-export async function fetchBgmById(id: string, BGM_TOKEN: string) {
-	// 使用 Tauri HTTP 客户端，支持自定义 User-Agent
-	try {
-		const BGMdata = (
-			await tauriHttp.get(
-				`https://api.bgm.tv/v0/subjects/${id}`,
-				buildBgmAuthHeaders(BGM_TOKEN),
-			)
-		).data;
+export async function fetchBgmById(
+	id: string,
+	BGM_TOKEN?: string,
+): Promise<FullGameData> {
+	const BGMdata = (
+		await tauriHttp.get<BgmSubjectResponse>(
+			`https://api.bgm.tv/v0/subjects/${id}`,
+			buildBgmAuthHeaders(BGM_TOKEN),
+		)
+	).data;
 
-		if (!BGMdata?.id) {
-			return i18n.t("api.bgm.notFound", "未找到相关条目，请确认游戏ID后重试");
-		}
-
-		const transformed = transformBgmData(BGMdata);
-		return {
-			...transformed,
-		};
-	} catch (error) {
-		console.error("BGM API调用失败:", error);
-		return i18n.t(
-			"api.bgm.fetchByIdFailed",
-			"BGM数据获取失败，请检查ID或网络连接",
-		);
+	if (!BGMdata?.id) {
+		throw new AppError({
+			code: "metadata_not_found",
+			message: `Bangumi subject not found: ${id}`,
+		});
 	}
+
+	return transformBgmData(BGMdata);
 }
 
 /**
@@ -148,54 +151,32 @@ export async function fetchBgmById(id: string, BGM_TOKEN: string) {
  * @param name 游戏名称
  * @param BGM_TOKEN Bangumi API 访问令牌
  * @param limit 最多返回结果数量，默认 25
- * @returns 返回游戏详细信息数组，若失败则返回错误提示字符串
+ * @returns 返回游戏详细信息数组
  */
 export async function fetchBgmByName(
 	name: string,
-	BGM_TOKEN: string,
+	BGM_TOKEN?: string,
 	limit = 25,
-): Promise<FullGameData[] | string> {
-	// 使用 Tauri HTTP 客户端，支持自定义 User-Agent
-	try {
-		const keyword = name.trim();
-		const resp = (
-			await tauriHttp.post(
-				"https://api.bgm.tv/v0/search/subjects",
-				{
-					keyword: keyword,
-					filter: {
-						type: [4], // 4 = 游戏类型
-					},
-					limit: limit,
+): Promise<FullGameData[]> {
+	const keyword = name.trim();
+	const resp = (
+		await tauriHttp.post<BgmSearchResponse>(
+			"https://api.bgm.tv/v0/search/subjects",
+			{
+				keyword: keyword,
+				filter: {
+					type: [4], // 4 = 游戏类型
 				},
-				buildBgmAuthHeaders(BGM_TOKEN),
-			)
-		).data;
+				limit: limit,
+			},
+			buildBgmAuthHeaders(BGM_TOKEN),
+		)
+	).data;
 
-		const rawResults = Array.isArray(resp.data) ? resp.data : [];
+	const rawResults = Array.isArray(resp.data) ? resp.data : [];
 
-		if (rawResults.length === 0) {
-			return i18n.t(
-				"api.bgm.notFound",
-				"未找到相关条目，请确认游戏名字后重试，或未设置BGM_TOKEN",
-			);
-		}
-
-		// 转换全部结果为 FullGameData 数组
-		// biome-ignore lint/suspicious/noExplicitAny: external API has dynamic shape
-		return rawResults.map((item: any) => {
-			const transformed = transformBgmData(item);
-			return {
-				...transformed,
-			};
-		});
-	} catch (error) {
-		console.error("BGM API调用失败:", error);
-		return i18n.t(
-			"api.bgm.fetchByNameFailed",
-			"BGM数据搜索失败，请检查游戏名称或网络连接",
-		);
-	}
+	// biome-ignore lint/suspicious/noExplicitAny: external API has dynamic shape
+	return rawResults.map((item: any) => transformBgmData(item));
 }
 
 /**
@@ -206,63 +187,67 @@ export async function fetchBgmByName(
  *
  * @param ids BGM 游戏 ID 数组（如 ["123", "456", "789", ...]，支持任意数量）
  * @param BGM_TOKEN Bangumi API 访问令牌
- * @returns 包含游戏详细信息的对象数组，未找到的项返回 null
+ * @returns 包含游戏详细信息的对象数组
  *
  * @example
  * // 获取 50 个游戏（自动控制请求频率）
  * const results = await fetchBgmByIds(idArray, token);
  * // 返回: [{ game, bgm_data, ... }, { game, bgm_data, ... }, ...]
  */
-export async function fetchBgmByIds(ids: string[], BGM_TOKEN?: string) {
-	try {
-		// 校验 ID 数量
-		if (ids.length === 0) {
-			return [];
-		}
-		if (!BGM_TOKEN) {
-			return i18n.t("api.bgm.missingToken", "缺少 BGM_TOKEN，无法获取数据");
-		}
-
-		const allResults: FullGameData[] = [];
-
-		// 逐个请求，避免频繁调用 API
-		// BGM API 对频率有限制，建议间隔 1 秒
-		for (let i = 0; i < ids.length; i++) {
-			const id = ids[i];
-
-			try {
-				// 每 10 个请求后延迟 2 秒，避免触发频率限制
-				if (i > 0 && i % 10 === 0) {
-					await new Promise((resolve) => setTimeout(resolve, 2000));
-				}
-
-				const BGMdata = (
-					await http.get(
-						`https://api.bgm.tv/v0/subjects/${id}`,
-						buildBgmAuthHeaders(BGM_TOKEN),
-					)
-				).data;
-
-				if (BGMdata?.id) {
-					allResults.push(transformBgmData(BGMdata));
-				}
-
-				// 每个请求之间延迟 200ms
-				await new Promise((resolve) => setTimeout(resolve, 200));
-			} catch (error) {
-				console.error(`获取 BGM ID ${id} 失败:`, error);
-			}
-		}
-
-		if (allResults.length === 0) {
-			return i18n.t("api.bgm.notFound", "未找到相关条目，请确认ID后重试");
-		}
-
-		return allResults;
-	} catch (error) {
-		console.error("BGM 批量获取失败:", error);
-		return i18n.t("api.bgm.fetchFailed", "获取数据失败，请稍后重试");
+export async function fetchBgmByIds(
+	ids: string[],
+	BGM_TOKEN?: string,
+): Promise<FullGameData[]> {
+	if (ids.length === 0) {
+		return [];
 	}
+	if (!BGM_TOKEN) {
+		throw new AppError({
+			code: "bgm_token_required",
+			message: "Bangumi token is required for batch fetch",
+		});
+	}
+
+	const allResults: FullGameData[] = [];
+	let hasRequestFailure = false;
+
+	// 逐个请求，避免频繁调用 API
+	// BGM API 对频率有限制，建议间隔 1 秒
+	for (let i = 0; i < ids.length; i++) {
+		const id = ids[i];
+
+		try {
+			// 每 10 个请求后延迟 2 秒，避免触发频率限制
+			if (i > 0 && i % 10 === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+			}
+
+			const BGMdata = (
+				await http.get(
+					`https://api.bgm.tv/v0/subjects/${id}`,
+					buildBgmAuthHeaders(BGM_TOKEN),
+				)
+			).data;
+
+			if (BGMdata?.id) {
+				allResults.push(transformBgmData(BGMdata));
+			}
+
+			// 每个请求之间延迟 200ms
+			await new Promise((resolve) => setTimeout(resolve, 200));
+		} catch {
+			hasRequestFailure = true;
+		}
+	}
+
+	if (allResults.length === 0 && hasRequestFailure) {
+		throw new AppError({
+			code: "metadata_request_failed",
+			message: `Bangumi batch fetch failed for ${ids.length} ids`,
+		});
+	}
+
+	return allResults;
 }
 
 /**
@@ -282,8 +267,7 @@ export async function fetchCurrentUserProfile(token: string) {
 			nickname: string;
 			avatar: { large: string; medium: string; small: string };
 		};
-	} catch (error) {
-		console.error("获取用户Profile失败:", error);
+	} catch {
 		return null;
 	}
 }
@@ -306,8 +290,7 @@ export async function fetchUserCollection(
 			buildBgmAuthHeaders(token),
 		);
 		return res.data as { type: number; rate?: number; comment?: string };
-	} catch (error) {
-		console.error(`获取用户收藏状态失败 (subjectId: ${subjectId}):`, error);
+	} catch {
 		return null;
 	}
 }
@@ -334,8 +317,7 @@ export async function updateUserCollection(
 		);
 		// HTTP 204 does not return response body (但是官方api调试文档返回的是202(?))
 		return true;
-	} catch (error) {
-		console.error(`更新用户收藏状态失败 (subjectId: ${subjectId}):`, error);
+	} catch {
 		return false;
 	}
 }

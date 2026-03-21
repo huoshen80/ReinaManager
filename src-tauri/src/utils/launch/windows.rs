@@ -180,6 +180,10 @@ pub async fn launch_game<R: Runtime>(
     args: Option<Vec<String>>,
     launch_options: Option<GameLaunchOptions>,
 ) -> Result<LaunchResult, String> {
+    if !Path::new(&game_path).exists() {
+        return Err(format!("游戏可执行文件不存在: {}", game_path));
+    }
+
     // 处理启动选项
     let use_le = launch_options
         .as_ref()

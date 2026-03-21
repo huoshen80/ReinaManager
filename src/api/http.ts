@@ -14,10 +14,21 @@
  * - axios
  * - @tauri-apps/plugin-http
  */
-
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import axios, { type AxiosError } from "axios";
-import i18n from "@/utils/i18n";
+import { AppError, HttpResponseError, toError } from "@/utils/errors";
+
+interface TauriHttpOptions {
+	headers?: Record<string, string>;
+	params?: Record<string, unknown>;
+	allowRetry?: boolean;
+}
+
+interface TauriHttpResponse<T = unknown> {
+	data: T;
+	status: number;
+	statusText: string;
+}
 
 /**
  * 创建一个带有响应拦截器的 Axios 实例。
@@ -30,48 +41,93 @@ import i18n from "@/utils/i18n";
 export const createHttp = () => {
 	const http = axios.create({});
 
-	// 添加响应拦截器，处理常见的 HTTP 错误
 	http.interceptors.response.use(
 		(response) => response,
-		/**
-		 * 响应错误处理拦截器
-		 * @param {AxiosError} error - Axios 错误对象
-		 * @returns {string|void} 错误提示字符串或控制台输出
-		 */
-		(error: AxiosError) => {
-			if (error.response?.status === 401) {
-				// 抛出自定义错误对象
-				return Promise.reject(
-					new Error(
-						i18n.t(
-							"api.http.authFailed",
-							"认证失败，请检查TOKEN是否正确以及有无权限",
-						),
-					),
-				);
-			}
-			if (error.response?.status === 400) {
-				// 抛出自定义错误对象
-				return Promise.reject(
-					new Error(
-						i18n.t(
-							"api.http.notFound",
-							"未找到相关条目,请确认ID或游戏名字后重试",
-						),
-					),
-				);
-			}
-			// 其他错误
-			return Promise.reject(
-				new Error(
-					i18n.t("api.http.networkError", "请求错误，请检查你的网络连接"),
-				),
-			);
-		},
+		(error: AxiosError) =>
+			Promise.reject(toError(error, "HTTP request failed")),
 	);
 
 	return http;
 };
+
+function buildUrlWithParams(
+	url: string,
+	params?: Record<string, unknown>,
+): string {
+	if (!params) {
+		return url;
+	}
+
+	const searchParams = new URLSearchParams();
+	for (const [key, value] of Object.entries(params)) {
+		if (value !== undefined && value !== null) {
+			searchParams.append(key, String(value));
+		}
+	}
+
+	const queryString = searchParams.toString();
+	if (!queryString) {
+		return url;
+	}
+
+	return `${url}${url.includes("?") ? "&" : "?"}${queryString}`;
+}
+
+async function parseTauriResponse<T>(
+	response: Response,
+	method: string,
+	url: string,
+): Promise<T> {
+	const text = await response.text();
+	if (!text) {
+		return null as T;
+	}
+
+	try {
+		return JSON.parse(text) as T;
+	} catch (error) {
+		throw new AppError({
+			code: "http_response_parse_failed",
+			message: `Failed to parse HTTP response: ${method} ${url}`,
+			cause: toError(error, "Failed to parse HTTP response"),
+		});
+	}
+}
+
+async function requestTauriHttp<T>(
+	method: "GET" | "POST" | "PATCH",
+	url: string,
+	options?: TauriHttpOptions,
+	data?: unknown,
+): Promise<TauriHttpResponse<T>> {
+	const fullUrl =
+		method === "GET" ? buildUrlWithParams(url, options?.params) : url;
+
+	const response = await tauriFetch(fullUrl, {
+		method,
+		headers: {
+			...(method === "GET" ? {} : { "Content-Type": "application/json" }),
+			...options?.headers,
+		},
+		body:
+			method === "GET" || data === undefined ? undefined : JSON.stringify(data),
+	});
+
+	if (!response.ok) {
+		throw new HttpResponseError({
+			method,
+			url: fullUrl,
+			status: response.status,
+			statusText: response.statusText,
+		});
+	}
+
+	return {
+		data: await parseTauriResponse<T>(response, method, fullUrl),
+		status: response.status,
+		statusText: response.statusText,
+	};
+}
 
 /**
  * Tauri HTTP 客户端
@@ -84,50 +140,8 @@ export const tauriHttp = {
 	 * @param options 请求选项，包含 headers 和 params 等
 	 * @returns Promise<any> 响应数据
 	 */
-	async get(
-		url: string,
-		options?: {
-			headers?: Record<string, string>;
-			params?: Record<string, unknown>;
-			allowRetry?: boolean;
-		},
-	) {
-		try {
-			// 处理查询参数
-			let fullUrl = url;
-			if (options?.params) {
-				const searchParams = new URLSearchParams();
-				for (const [key, value] of Object.entries(options.params)) {
-					if (value !== undefined && value !== null) {
-						searchParams.append(key, String(value));
-					}
-				}
-				const queryString = searchParams.toString();
-				if (queryString) {
-					fullUrl = `${url}${url.includes("?") ? "&" : "?"}${queryString}`;
-				}
-			}
-
-			const response = await tauriFetch(fullUrl, {
-				method: "GET",
-				headers: options?.headers || {},
-			});
-
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-
-			const text = await response.text();
-			const responseData = text ? JSON.parse(text) : null;
-
-			return {
-				data: responseData,
-				status: response.status,
-				statusText: response.statusText,
-			};
-		} catch (error) {
-			return handleTauriHttpError(error, options?.allowRetry);
-		}
+	async get<T = unknown>(url: string, options?: TauriHttpOptions) {
+		return requestTauriHttp<T>("GET", url, options);
 	},
 
 	/**
@@ -137,36 +151,12 @@ export const tauriHttp = {
 	 * @param options 请求选项，包含 headers 等
 	 * @returns Promise<any> 响应数据
 	 */
-	async post(
+	async post<T = unknown>(
 		url: string,
 		data?: unknown,
-		options?: { headers?: Record<string, string>; allowRetry?: boolean },
+		options?: TauriHttpOptions,
 	) {
-		try {
-			const response = await tauriFetch(url, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...options?.headers,
-				},
-				body: data ? JSON.stringify(data) : undefined,
-			});
-
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-
-			const text = await response.text();
-			const responseData = text ? JSON.parse(text) : null;
-
-			return {
-				data: responseData,
-				status: response.status,
-				statusText: response.statusText,
-			};
-		} catch (error) {
-			return handleTauriHttpError(error, options?.allowRetry);
-		}
+		return requestTauriHttp<T>("POST", url, options, data);
 	},
 
 	/**
@@ -176,77 +166,14 @@ export const tauriHttp = {
 	 * @param options 请求选项，包含 headers 等
 	 * @returns Promise<any> 响应数据
 	 */
-	async patch(
+	async patch<T = unknown>(
 		url: string,
 		data?: unknown,
-		options?: { headers?: Record<string, string>; allowRetry?: boolean },
+		options?: TauriHttpOptions,
 	) {
-		try {
-			const response = await tauriFetch(url, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					...options?.headers,
-				},
-				body: data ? JSON.stringify(data) : undefined,
-			});
-
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-
-			const text = await response.text();
-			const responseData = text ? JSON.parse(text) : null;
-
-			return {
-				data: responseData,
-				status: response.status,
-				statusText: response.statusText,
-			};
-		} catch (error) {
-			return handleTauriHttpError(error, options?.allowRetry);
-		}
+		return requestTauriHttp<T>("PATCH", url, options, data);
 	},
 };
-
-/**
- * 处理 Tauri HTTP 请求错误
- * @param error 错误对象
- * @param allowRetry 是否允许重试（某些API如YMGal需要自己的重试机制）
- */
-function handleTauriHttpError(error: unknown, allowRetry = false): never {
-	const errorMessage =
-		error instanceof Error
-			? error.message
-			: i18n.t("api.http.requestError", "请求错误");
-
-	if (errorMessage.includes("404")) {
-		throw new Error(i18n.t("api.http.notFound", "未找到相关信息"));
-	}
-	// 如果允许重试，对于认证错误不直接抛出，让上层处理
-	if (allowRetry && errorMessage.includes("401")) {
-		console.warn("Tauri HTTP 401错误，允许上层重试:", error);
-		throw error; // 重新抛出原始错误，让上层处理
-	}
-
-	if (errorMessage.includes("401")) {
-		throw new Error(
-			i18n.t(
-				"api.http.authFailed",
-				"认证失败，请检查TOKEN是否正确以及有无权限",
-			),
-		);
-	}
-	if (errorMessage.includes("400")) {
-		throw new Error(
-			i18n.t("api.http.notFound", "未找到相关条目,请确认ID或游戏名字后重试"),
-		);
-	}
-	console.error("Tauri HTTP 请求失败:", error);
-	throw new Error(
-		i18n.t("api.http.networkError", "请求错误，请检查你的网络连接"),
-	);
-}
 
 /**
  * 默认导出带拦截器的 Axios 实例。

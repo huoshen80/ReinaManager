@@ -41,11 +41,11 @@ import { useStore } from "@/store/appStore";
 import type { FullGameData, InsertGameParams } from "@/types";
 import {
 	createAbortableRunner,
-	getErrorMessage,
 	handleExeFile,
 	isAbortError,
 	trimDirnameToSearchName,
 } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 import BulkImportTab from "./BulkImportTab";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
@@ -209,9 +209,9 @@ const AddModal: React.FC = () => {
 		try {
 			await handleAddGame(finaldata);
 		} catch (error) {
-			showError(getErrorMessage(error));
+			showError(getUserErrorMessage(error, t));
 		}
-	}, [handleAddGame, searchResultState.results, showError]);
+	}, [handleAddGame, searchResultState.results, showError, t]);
 
 	const cancelOngoingRequest = useCallback(() => {
 		if (abortControllerRef.current) {
@@ -234,10 +234,10 @@ const AddModal: React.FC = () => {
 			try {
 				await handleAddGame(selectedGame);
 			} catch (error) {
-				showError(getErrorMessage(error));
+				showError(getUserErrorMessage(error, t));
 			}
 		},
-		[handleAddGame, isBusy, showError],
+		[handleAddGame, isBusy, showError, t],
 	);
 
 	/**
@@ -332,7 +332,7 @@ const AddModal: React.FC = () => {
 			if (isAbortError(error)) {
 				return;
 			}
-			showError(getErrorMessage(error));
+			showError(getUserErrorMessage(error, t));
 		} finally {
 			window.clearTimeout(timeoutId);
 			if (abortControllerRef.current === controller) {

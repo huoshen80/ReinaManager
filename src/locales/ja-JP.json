@@ -1,36 +1,19 @@
 {
 	"errors": {
+		"authFailed": "認証に失敗しました。資格情報または権限を確認してください",
+		"badRequest": "リクエスト内容が不正です。確認して再試行してください",
+		"bgmTokenRequired": "BGM Token が必要です。先に設定してください",
+		"invalidGameId": "ゲーム ID の形式が不正です",
+		"invokeFailed": "アプリ内部コマンドの呼び出しに失敗しました。後でもう一度お試しください",
+		"metadataNotFound": "対応するメタデータが見つかりませんでした",
+		"metadataRequestFailed": "メタデータの取得に失敗しました。後でもう一度お試しください",
+		"mixedSourcesFailed": "すべてのデータソースへのリクエストに失敗しました",
+		"notFound": "対象の内容が見つかりませんでした",
+		"requestFailed": "リクエストに失敗しました。後でもう一度お試しください",
+		"responseParseFailed": "レスポンスの解析に失敗しました。後でもう一度お試しください",
+		"unknownError": "不明なエラー",
+		"unsupportedSource": "サポートされていないデータソースです",
 		"updatePlayStatusFailed": "プレイ状態の更新に失敗しました"
-	},
-	"api": {
-		"bgm": {
-			"fetchByIdFailed": "IDによるBGMデータの取得に失敗しました",
-			"fetchByNameFailed": "名前によるBGMデータの取得に失敗しました",
-			"fetchFailed": "BGMデータの取得に失敗しました",
-			"missingToken": "BGM Tokenが設定されていません。先に設定してからもう一度お試しください",
-			"notFound": "BGMデータが見つかりません"
-		},
-		"http": {
-			"authFailed": "認証に失敗しました。TOKEN が正しいか、必要な権限があるか確認してください",
-			"networkError": "リクエストエラー、ネットワーク接続を確認してください",
-			"notFound": "HTTPリクエストが失敗しました",
-			"requestError": "リクエストエラー"
-		},
-		"mixed": {
-			"noDataFromAnySource": "いずれのデータソースからもデータを取得できませんでした",
-			"noParameterProvided": "BGM ID、VNDB ID またはゲーム名を指定する必要があります"
-		},
-		"vndb": {
-			"apiCallFailed": "VNDB API の呼び出しに失敗しました",
-			"fetchFailed": "データの取得に失敗しました、しばらくしてからもう一度お試しください",
-			"notFound": "VNDBデータが見つかりません"
-		},
-		"ym": {
-			"fetchByIdFailed": "IDによるYMデータの取得に失敗しました",
-			"fetchFailed": "YMデータの取得に失敗しました",
-			"notFound": "YMデータが見つかりません",
-			"tokenFailed": "YM Token認証に失敗しました"
-		}
 	},
 	"app": {
 		"NAVIGATION": {
@@ -170,6 +153,7 @@
 				"note": "データベースバックアップファイルの保存パスを設定します。空のままにするとデフォルトパス（AppData/data/backups）、またはポータブルモードのプログラムディレクトリが使用されます",
 				"pathLabel": "バックアップ保存パス",
 				"pathPlaceholder": "空のままにするとデフォルトパスを使用",
+				"saveError": "データベースバックアップパスの保存に失敗しました：{{error}}",
 				"selectBtn": "ディレクトリを選択",
 				"title": "データベースバックアップパス"
 			},
@@ -177,6 +161,7 @@
 				"note": "ゲーム起動時の地域切り替えに使用するLE地域切り替えソフトウェアの実行ファイルパスを設定します",
 				"pathLabel": "LE地域ソフトウェアパス",
 				"pathPlaceholder": "LE地域ソフトウェアの実行ファイルを選択",
+				"saveError": "LE パスの保存に失敗しました：{{error}}",
 				"selectBtn": "ファイルを選択",
 				"title": "LE地域ソフトウェアパス"
 			},
@@ -184,17 +169,22 @@
 				"note": "ゲーム画面の拡大機能に使用するMagpieソフトウェアの実行ファイルパスを設定します",
 				"pathLabel": "Magpieソフトウェアパス",
 				"pathPlaceholder": "Magpieソフトウェアの実行ファイルを選択",
+				"saveError": "Magpie パスの保存に失敗しました：{{error}}",
 				"selectBtn": "ファイルを選択",
 				"title": "Magpieソフトウェアパス"
 			},
 			"saveBtn": "保存",
 			"savePath": {
+				"moveBackupWarning": "バックアップパスは保存されましたが、古いバックアップの移行に失敗しました：{{error}}",
 				"note": "ゲームセーブデータのバックアップルートディレクトリパスを設定します。空のままにするとデフォルトパスが使用されます",
 				"pathLabel": "バックアップルートパス",
 				"pathPlaceholder": "空のままにするとデフォルトパスを使用",
+				"saveError": "ゲームセーブバックアップパスの保存に失敗しました：{{error}}",
 				"selectBtn": "ディレクトリを選択",
 				"title": "ゲームセーブバックアップパス"
 			},
+			"selectFileError": "ファイルの選択に失敗しました：{{error}}",
+			"selectFolderError": "ディレクトリの選択に失敗しました：{{error}}",
 			"saving": "保存中...",
 			"title": "パス設定"
 		},
@@ -354,7 +344,8 @@
 			"errors": {
 				"cannotDeleteDefaultGroup": "デフォルトグループは削除できません",
 				"deleteCategoryFailed": "カテゴリの削除に失敗しました。もう一度お試しください",
-				"deleteGroupFailed": "グループの削除に失敗しました。もう一度お試しください"
+				"deleteGroupFailed": "グループの削除に失敗しました。もう一度お試しください",
+				"renameFailed": "名前の変更に失敗しました：{{error}}"
 			},
 			"gamesCount": "ゲーム",
 			"noCategoriesHint": "現在のグループにカテゴリがありません",
@@ -424,7 +415,6 @@
 			"Edit": {
 				"dataSourceUpdate": "データソース更新",
 				"gameInfoEdit": "ゲーム情報編集",
-				"unknownError": "不明なエラー",
 				"updateSuccess": "ゲーム情報が正常に更新されました"
 			},
 			"editPart": "編集",
@@ -462,8 +452,7 @@
 				"summary": "概要",
 				"summaryHelperText": "ゲームの短い説明またはストーリー概要",
 				"summaryPlaceholder": "ゲーム概要を入力...",
-				"tags": "タグ",
-				"unknownError": "不明なエラー"
+				"tags": "タグ"
 			},
 			"gameRanking": "ゲームランキング",
 			"gameScore": "ゲームスコア",
@@ -482,12 +471,15 @@
 			"about": {
 				"author": "作者",
 				"blog": "作者のブログ",
+				"checkFailed": "アップデートの確認に失敗しました: {{error}}",
 				"checking": "確認中...",
 				"checkUpdate": "アップデートを確認",
+				"noUpdate": "現在のバージョンは最新です",
 				"docs": "ドキュメント",
 				"feedback": "問題を報告",
 				"github": "プロジェクトリポジトリ",
 				"title": "について",
+				"updateFound": "新しいバージョンを検出しました: {{version}}",
 				"version": "バージョン"
 			},
 			"autoStart": "自動起動",
@@ -639,13 +631,6 @@
 		}
 	},
 	"utils": {
-		"batchUpdate": {
-			"bgmNotFound": "ゲームID {{gameId}} (BGM: {{bgmId}}) のデータが見つかりませんでした",
-			"noBgmGames": "BGM IDを持つゲームが見つかりませんでした",
-			"noVndbGames": "VNDB IDを持つゲームが見つかりませんでした",
-			"unknownError": "不明なエラー",
-			"vndbNotFound": "ゲームID {{gameId}} (VNDB: {{vndbId}}) のデータが見つかりませんでした"
-		},
 		"formatPlayTime": {
 			"hours_other": "{{count}}時間",
 			"hoursAndMinutes": "{{hours}}時間{{minutes}}分",

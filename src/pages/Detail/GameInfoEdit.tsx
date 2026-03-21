@@ -28,6 +28,7 @@ import {
 	handleExeFile,
 } from "@/utils/appUtils";
 import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
+import { getUserErrorMessage } from "@/utils/errors";
 import i18n from "@/utils/i18n";
 import { buildGameInfoUpdatePayload } from "@/utils/metadata";
 
@@ -201,7 +202,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			}
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.GameInfoEdit.selectPathFailed", "选择路径失败")}: ${error instanceof Error ? error.message : t("pages.Detail.GameInfoEdit.unknownError", "未知错误")}`,
+				`${t("pages.Detail.GameInfoEdit.selectPathFailed", "选择路径失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -227,7 +228,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			selectImage(imagePath);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.GameInfoEdit.selectImageFailed", "选择图片失败")}: ${error instanceof Error ? error.message : error}`,
+				`${t("pages.Detail.GameInfoEdit.selectImageFailed", "选择图片失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -383,7 +384,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			}, 100);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.GameInfoEdit.saveGameInfoFailed", "保存游戏信息失败")}: ${error instanceof Error ? error.message : t("pages.Detail.GameInfoEdit.unknownError", "未知错误")}`,
+				`${t("pages.Detail.GameInfoEdit.saveGameInfoFailed", "保存游戏信息失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		} finally {
 			setIsLoading(false);

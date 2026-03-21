@@ -16,7 +16,7 @@
 
 import { useStore } from "@/store/appStore";
 import type { FullGameData, VndbData } from "@/types";
-import i18n from "@/utils/i18n";
+import { AppError } from "@/utils/errors";
 import http, { tauriHttp } from "./http";
 
 const VNDB_API_BASE = "https://api.vndb.org/kana";
@@ -188,59 +188,52 @@ function transformVndbData(
  * 从 VNDB API 获取游戏信息。
  *
  * 该函数根据游戏名称或 VNDB 游戏 ID，调用 VNDB API 获取游戏详细信息。
- * 若未找到条目，则返回错误提示字符串。返回数据结构与 Bangumi 保持一致，便于统一处理。
+ * 若未找到条目，则返回空数组。返回数据结构与 Bangumi 保持一致，便于统一处理。
  *
  * @param {string} name 游戏名称，用于搜索 VNDB 条目。
  * @param {string} [id] 可选，VNDB 游戏 ID，若提供则优先通过 ID 查询。
  * @param {number} [limit=25] 可选，返回的最大结果数量，默认 25。
- * @returns {Promise<FullGameData[] | string>} 包含游戏详细信息的数组，若未找到则返回错误提示字符串。
+ * @returns {Promise<FullGameData[]>} 包含游戏详细信息的数组。
  */
 export async function fetchVndbByName(
 	name: string,
 	id?: string,
 	limit = 25,
-): Promise<FullGameData[] | string> {
-	try {
-		// 构建 API 请求体
-		const requestBody = {
-			filters: id ? ["id", "=", id] : ["search", "=", name],
-			fields:
-				"id, titles.title, titles.lang, titles.main, aliases, image.url, released, rating, tags.name,tags.rating,tags.spoiler,description,developers.name,length_minutes",
-			results: limit,
-		};
+): Promise<FullGameData[]> {
+	// 构建 API 请求体
+	const requestBody = {
+		filters: id ? ["id", "=", id] : ["search", "=", name],
+		fields:
+			"id, titles.title, titles.lang, titles.main, aliases, image.url, released, rating, tags.name,tags.rating,tags.spoiler,description,developers.name,length_minutes",
+		results: limit,
+	};
 
-		// 调用 VNDB API
-		const rawResults = (
-			await http.post(`${VNDB_API_BASE}/vn`, requestBody, buildVndbHeaders())
-		).data.results as RawVNDBData[];
-		if (!rawResults || rawResults.length === 0)
-			return i18n.t(
-				"api.vndb.notFound",
-				"未找到相关条目，请确认ID或游戏名字后重试",
-			);
-		return rawResults.map((VNDBdata) => transformVndbData(VNDBdata));
-	} catch (error) {
-		Promise.reject(
-			new Error(i18n.t("api.vndb.apiCallFailed", "VNDB API 调用失败")),
-		);
-		if (error instanceof Error) {
-			console.error("错误消息:", error.message);
-		}
-		return i18n.t("api.vndb.fetchFailed", "获取数据失败，请稍后重试");
+	// 调用 VNDB API
+	const rawResults = (
+		await http.post(`${VNDB_API_BASE}/vn`, requestBody, buildVndbHeaders())
+	).data.results as RawVNDBData[];
+
+	if (!rawResults || rawResults.length === 0) {
+		return [];
 	}
+
+	return rawResults.map((VNDBdata) => transformVndbData(VNDBdata));
 }
 
 /**
  * 通过 ID 直接获取 VNDB 游戏信息。
  *
  * @param {string} id VNDB 游戏 ID（如 "v17"）。
- * @returns {Promise<FullGameData | string>} 包含游戏详细信息的对象，若未找到则返回错误提示字符串。
+ * @returns {Promise<FullGameData>} 包含游戏详细信息的对象。
  */
-export async function fetchVndbById(
-	id: string,
-): Promise<FullGameData | string> {
+export async function fetchVndbById(id: string): Promise<FullGameData> {
 	const result = await fetchVndbByName("", id);
-	if (typeof result === "string") return result;
+	if (result.length === 0) {
+		throw new AppError({
+			code: "metadata_not_found",
+			message: `VNDB entry not found: ${id}`,
+		});
+	}
 	return result[0];
 }
 
@@ -251,7 +244,7 @@ export async function fetchVndbById(
  * 根据 VNDB API 限制，单次请求最多包含 100 个 ID，函数会自动分批。
  *
  * @param {string[]} ids VNDB 游戏 ID 数组（如 ["v1", "v2", "v3", ...]，支持任意数量）。
- * @returns {Promise<Array<object | string>>} 包含游戏详细信息的对象数组，未找到的项返回错误提示字符串。
+ * @returns {Promise<FullGameData[]>} 包含游戏详细信息的对象数组。
  *
  * @example
  * // 获取 250 个游戏（自动分 3 批：100 + 100 + 50）
@@ -259,88 +252,71 @@ export async function fetchVndbById(
  * // 返回: [{ game, vndb_data, ... }, { game, vndb_data, ... }, ...]
  */
 export async function fetchVNDBByIds(ids: string[]) {
-	try {
-		// 校验 ID 数量
-		if (ids.length === 0) {
-			return [];
-		}
+	if (ids.length === 0) {
+		return [];
+	}
 
-		// 分批处理，每批最多 100 个 ID
-		const batchSize = 100;
-		const batches: string[][] = [];
+	// 分批处理，每批最多 100 个 ID
+	const batchSize = 100;
+	const batches: string[][] = [];
 
-		for (let i = 0; i < ids.length; i += batchSize) {
-			batches.push(ids.slice(i, i + batchSize));
-		}
+	for (let i = 0; i < ids.length; i += batchSize) {
+		batches.push(ids.slice(i, i + batchSize));
+	}
 
-		// 并发请求所有批次
-		const allResults: FullGameData[] = [];
+	const allResults: FullGameData[] = [];
+	let hasRequestFailure = false;
 
-		// 使用 Promise.all 并发请求所有批次
-		const batchPromises = batches.map(async (batch) => {
-			try {
-				// 构建 OR 过滤器：["or", ["id", "=", "v1"], ["id", "=", "v2"], ...]
-				const filters: (string | string[])[] = ["or"];
-				for (const id of batch) {
-					filters.push(["id", "=", id]);
-				}
+	const batchPromises = batches.map(async (batch) => {
+		try {
+			// 构建 OR 过滤器：["or", ["id", "=", "v1"], ["id", "=", "v2"], ...]
+			const filters: (string | string[])[] = ["or"];
+			for (const id of batch) {
+				filters.push(["id", "=", id]);
+			}
 
-				// 构建 API 请求体
-				const requestBody = {
-					filters,
-					fields:
-						"id, titles.title, titles.lang, titles.main, aliases, image.url, released, rating, tags.name,tags.rating,tags.spoiler,description,developers.name,length_minutes",
-					results: Math.min(batch.length, 100), // 最多请求 100 条结果
-				};
+			const requestBody = {
+				filters,
+				fields:
+					"id, titles.title, titles.lang, titles.main, aliases, image.url, released, rating, tags.name,tags.rating,tags.spoiler,description,developers.name,length_minutes",
+				results: Math.min(batch.length, 100),
+			};
 
-				// 调用 VNDB API
-				const response = await http.post(
-					`${VNDB_API_BASE}/vn`,
-					requestBody,
-					buildVndbHeaders(),
-				);
+			const response = await http.post(
+				`${VNDB_API_BASE}/vn`,
+				requestBody,
+				buildVndbHeaders(),
+			);
 
-				const results = response.data.results;
+			const results = response.data.results;
 
-				if (!results || results.length === 0) {
-					return [];
-				}
-
-				// 转换所有结果数据
-				return results.map((vndbData: RawVNDBData) =>
-					transformVndbData(vndbData, true),
-				);
-			} catch (error) {
-				console.error(`批次请求失败:`, error);
+			if (!results || results.length === 0) {
 				return [];
 			}
-		});
 
-		// 等待所有批次完成
-		const batchResults = await Promise.all(batchPromises);
-
-		// 合并所有结果
-		for (const batch of batchResults) {
-			allResults.push(...batch);
-		}
-
-		if (allResults.length === 0) {
-			return i18n.t(
-				"api.vndb.notFound",
-				"未找到相关条目，请确认ID或游戏名字后重试",
+			return results.map((vndbData: RawVNDBData) =>
+				transformVndbData(vndbData, true),
 			);
+		} catch {
+			hasRequestFailure = true;
+			return [];
 		}
+	});
 
-		return allResults;
-	} catch (error) {
-		Promise.reject(
-			new Error(i18n.t("api.vndb.apiCallFailed", "VNDB API 调用失败")),
-		);
-		if (error instanceof Error) {
-			console.error("错误消息:", error.message);
-		}
-		return i18n.t("api.vndb.fetchFailed", "获取数据失败，请稍后重试");
+	const batchResults = await Promise.all(batchPromises);
+
+	for (const batch of batchResults) {
+		allResults.push(...batch);
 	}
+
+	if (allResults.length === 0 && hasRequestFailure) {
+		throw new AppError({
+			code: "metadata_request_failed",
+			message: `VNDB batch fetch failed for ${ids.length} ids`,
+		});
+	}
+
+	return allResults;
 }
 
 /**
@@ -359,8 +335,7 @@ export async function fetchVndbCurrentUserProfile(
 			buildVndbAuthHeaders(token),
 		);
 		return response.data as VndbAuthInfo;
-	} catch (error) {
-		console.error("获取 VNDB 当前用户信息失败:", error);
+	} catch {
 		return null;
 	}
 }
@@ -385,8 +360,7 @@ export async function fetchVndbUserLabels(
 		return Array.isArray(response.data?.labels)
 			? (response.data.labels as VndbUserLabel[])
 			: [];
-	} catch (error) {
-		console.error("获取 VNDB 收藏标签失败:", error);
+	} catch {
 		return [];
 	}
 }
@@ -426,8 +400,7 @@ export async function fetchVndbUserCollection(
 			: [];
 
 		return results[0] ?? null;
-	} catch (error) {
-		console.error(`获取 VNDB 收藏状态失败 (vndbId: ${vndbId}):`, error);
+	} catch {
 		return null;
 	}
 }
@@ -453,8 +426,7 @@ export async function updateVndbUserCollection(
 			buildVndbAuthHeaders(token),
 		);
 		return true;
-	} catch (error) {
-		console.error(`更新 VNDB 收藏状态失败 (vndbId: ${vndbId}):`, error);
+	} catch {
 		return false;
 	}
 }

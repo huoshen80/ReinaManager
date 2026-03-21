@@ -11,7 +11,7 @@ export interface UpdateCallbacks {
 	onUpdateFound?: (update: Update) => void;
 	onProgress?: (progress: UpdateProgress) => void;
 	onDownloadComplete?: () => void;
-	onError?: (error: string) => void;
+	onError?: (error: unknown) => void;
 	onNoUpdate?: () => void;
 }
 
@@ -27,9 +27,7 @@ export const checkForUpdates = async (callbacks?: UpdateCallbacks) => {
 			return null;
 		}
 	} catch (error) {
-		const errorMessage =
-			error instanceof Error ? error.message : "检查更新失败";
-		callbacks?.onError?.(errorMessage);
+		callbacks?.onError?.(error);
 		return null;
 	}
 };
@@ -72,9 +70,7 @@ export const downloadAndInstallUpdate = async (
 
 		// 注意：在 Windows 上，应用会自动退出并重启
 	} catch (error) {
-		const errorMessage =
-			error instanceof Error ? error.message : "下载/安装更新失败";
-		callbacks?.onError?.(errorMessage);
+		callbacks?.onError?.(error);
 	}
 };
 

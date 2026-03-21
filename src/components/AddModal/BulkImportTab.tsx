@@ -37,10 +37,10 @@ import { fileService } from "@/services/invoke";
 import type { FullGameData, ScanResult } from "@/types";
 import {
 	createAbortableRunner,
-	getErrorMessage,
 	handleGetFolder,
 	isAbortError,
 } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
 } from "./GameSearchResultDialog";
@@ -179,7 +179,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 				})),
 			);
 		} catch (error) {
-			snackbar.error(getErrorMessage(error));
+			snackbar.error(getUserErrorMessage(error, t));
 		} finally {
 			setIsScanningDirectories(false);
 		}
@@ -225,7 +225,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 					}
 
 					snackbar.warning(
-						`${nextItems[index].name}: ${getErrorMessage(error)}`,
+						`${nextItems[index].name}: ${getUserErrorMessage(error, t)}`,
 					);
 					nextItems[index].status = "not found";
 				}
@@ -348,7 +348,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 				return;
 			}
 
-			snackbar.error(getErrorMessage(error));
+			snackbar.error(getUserErrorMessage(error, t));
 			handleCloseSearchResult();
 		} finally {
 			if (editSearchAbortControllerRef.current === controller) {

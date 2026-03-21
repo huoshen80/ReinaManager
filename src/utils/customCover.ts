@@ -8,6 +8,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { basename, join } from "pathe";
 import { fileService } from "@/services/invoke";
 import { getcustomCoverFolder } from "./appUtils";
+import { toError } from "./errors";
 
 /**
  * 获取文件扩展名
@@ -86,7 +87,9 @@ export const uploadSelectedImage = async (
 		// 返回版本化的文件标识符，存储到数据库
 		return versionedFileName;
 	} catch (error) {
-		throw new Error(`上传图片失败: ${error}`);
+		throw new Error(
+			`Custom cover upload failed: ${toError(error, "Custom cover upload failed").message}`,
+		);
 	}
 };
 
@@ -118,7 +121,9 @@ export const selectAndUploadCustomCover = async (
 		// 然后上传
 		return await uploadSelectedImage(gameId, imagePath);
 	} catch (error) {
-		throw new Error(`选择并上传自定义封面失败: ${error}`);
+		throw new Error(
+			`Custom cover select and upload failed: ${toError(error, "Custom cover select and upload failed").message}`,
+		);
 	}
 };
 
@@ -147,6 +152,8 @@ export const deleteCustomCoverFile = async (
 		// 删除物理文件
 		await fileService.deleteFile(targetPath);
 	} catch (error) {
-		throw new Error(`删除自定义封面失败: ${error}`);
+		throw new Error(
+			`Custom cover delete failed: ${toError(error, "Custom cover delete failed").message}`,
+		);
 	}
 };

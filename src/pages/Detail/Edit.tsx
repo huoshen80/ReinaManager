@@ -8,7 +8,7 @@ import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import type { FullGameData, UpdateGameParams } from "@/types";
-import { getErrorMessage } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 import { buildMetadataUpdatePayload } from "@/utils/metadata";
 import { DataSourceUpdate } from "./DataSourceUpdate";
 import { GameInfoEdit } from "./GameInfoEdit";
@@ -57,10 +57,7 @@ export const Edit: React.FC = () => {
 				t("pages.Detail.Edit.updateSuccess", "游戏信息已成功更新"),
 			);
 		} catch (error) {
-			const errorMsg =
-				getErrorMessage(error) ||
-				t("pages.Detail.Edit.unknownError", "未知错误");
-			snackbar.error(errorMsg);
+			snackbar.error(getUserErrorMessage(error, t));
 			throw error; // 重新抛出错误，让子组件知道操作失败
 		}
 	};

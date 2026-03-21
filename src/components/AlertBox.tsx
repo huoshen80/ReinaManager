@@ -67,7 +67,7 @@ interface AlertConfirmBoxProps {
 
 // 定义 ViewGameBoxProps 接口
 interface ViewGameBoxProps {
-	fullgame: FullGameData | string | null;
+	fullgame: FullGameData | null;
 	open: boolean;
 	setOpen: (value: boolean) => void;
 	onConfirm: () => void;
@@ -233,7 +233,7 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 			setOpen={setOpen}
 			title={title}
 			message={
-				fullgame && typeof fullgame !== "string" ? (
+				fullgame ? (
 					<Box className="flex gap-2 items-start w-full">
 						{fullgame.bgm_data && (
 							<Box className="text-left">

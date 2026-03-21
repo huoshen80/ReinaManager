@@ -32,11 +32,11 @@ import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { SavedataRecord } from "@/types";
 import {
-	getErrorMessage,
 	handleGetFolder,
 	openGameBackupFolder,
 	openGameSaveDataFolder,
 } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 
 /** 格式化文件大小 */
 const formatFileSize = (bytes: number): string => {
@@ -133,7 +133,7 @@ export const Backup: React.FC = () => {
 			);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.Backup.settingsSaveFailed", "备份设置保存失败")}: ${getErrorMessage(error)}`,
+				`${t("pages.Detail.Backup.settingsSaveFailed", "备份设置保存失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -163,7 +163,7 @@ export const Backup: React.FC = () => {
 			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.Backup.backupFailed", "备份失败")}: ${getErrorMessage(error)}`,
+				`${t("pages.Detail.Backup.backupFailed", "备份失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -176,7 +176,7 @@ export const Backup: React.FC = () => {
 			await openGameBackupFolder(selectedGame.id);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.Backup.openBackupFolderFailed", "打开备份文件夹失败")}: ${error}`,
+				`${t("pages.Detail.Backup.openBackupFolderFailed", "打开备份文件夹失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -194,7 +194,7 @@ export const Backup: React.FC = () => {
 			await openGameSaveDataFolder(selectedGame.savepath);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${error}`,
+				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -221,7 +221,7 @@ export const Backup: React.FC = () => {
 				},
 				onError: (error) => {
 					snackbar.error(
-						`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${getErrorMessage(error)}`,
+						`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${getUserErrorMessage(error, t)}`,
 					);
 				},
 				onSettled: () => {
@@ -259,7 +259,7 @@ export const Backup: React.FC = () => {
 			setBackupToRestore(null);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.Backup.restoreFailed", "恢复失败")}: ${getErrorMessage(error)}`,
+				`${t("pages.Detail.Backup.restoreFailed", "恢复失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
