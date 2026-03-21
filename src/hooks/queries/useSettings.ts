@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCurrentUserProfile } from "@/api/bgm";
 import { fetchVndbCurrentUserProfile } from "@/api/vndb";
 import { settingsService } from "@/services/invoke";
-import type { LogLevel } from "@/types";
+import type { LogLevel, UpdateSettingsParams } from "@/types";
 
 // ============================================================================
 // Key Factory - 统一的 Query Key 前缀
@@ -16,6 +16,7 @@ import type { LogLevel } from "@/types";
 
 export const settingsKeys = {
 	all: ["settings"] as const,
+	allSettings: () => [...settingsKeys.all, "allSettings"] as const,
 	bgmToken: () => [...settingsKeys.all, "bgmToken"] as const,
 	bgmCurrentUserProfile: () =>
 		[...settingsKeys.all, "bgmCurrentUserProfile"] as const,
@@ -112,6 +113,18 @@ export function usePortableMode(options?: SettingsQueryOptions) {
 		queryKey: settingsKeys.portableMode(),
 		queryFn: () => settingsService.getPortableMode(),
 		enabled: options?.enabled,
+	});
+}
+
+/**
+ * 获取所有设置
+ */
+export function useAllSettings(options?: SettingsQueryOptions) {
+	return useQuery({
+		queryKey: settingsKeys.allSettings(),
+		queryFn: () => settingsService.getAllSettings(),
+		enabled: options?.enabled,
+		refetchOnWindowFocus: false,
 	});
 }
 
@@ -293,6 +306,65 @@ export function useSetMagpiePath() {
 			queryClient.invalidateQueries({
 				queryKey: settingsKeys.magpiePath(),
 			});
+		},
+	});
+}
+
+/**
+ * 批量更新设置
+ */
+export function useUpdateSettings() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (updates: UpdateSettingsParams) =>
+			settingsService.updateSettings(updates),
+		onSuccess: (_data, updates) => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.allSettings(),
+			});
+
+			if (updates.bgmToken !== undefined) {
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.bgmToken(),
+				});
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.bgmCurrentUserProfile(),
+				});
+			}
+
+			if (updates.vndbToken !== undefined) {
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.vndbToken(),
+				});
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.vndbCurrentUserProfile(),
+				});
+			}
+
+			if (updates.saveRootPath !== undefined) {
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.saveRootPath(),
+				});
+			}
+
+			if (updates.dbBackupPath !== undefined) {
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.dbBackupPath(),
+				});
+			}
+
+			if (updates.lePath !== undefined) {
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.lePath(),
+				});
+			}
+
+			if (updates.magpiePath !== undefined) {
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.magpiePath(),
+				});
+			}
 		},
 	});
 }

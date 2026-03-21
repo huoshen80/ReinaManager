@@ -228,27 +228,27 @@ impl SettingsRepository {
         let mut active: user::ActiveModel = user.into();
 
         if let Some(token) = data.bgm_token {
-            active.bgm_token = Set(Some(token));
+            active.bgm_token = Set(token);
         }
 
         if let Some(token) = data.vndb_token {
-            active.vndb_token = Set(Some(token));
+            active.vndb_token = Set(token);
         }
 
         if let Some(path) = data.save_root_path {
-            active.save_root_path = Set(Some(path));
+            active.save_root_path = Set(path);
         }
 
         if let Some(path) = data.db_backup_path {
-            active.db_backup_path = Set(Some(path));
+            active.db_backup_path = Set(path);
         }
 
         if let Some(path) = data.le_path {
-            active.le_path = Set(Some(path));
+            active.le_path = Set(path);
         }
 
         if let Some(path) = data.magpie_path {
-            active.magpie_path = Set(Some(path));
+            active.magpie_path = Set(path);
         }
 
         active.update(db).await?;

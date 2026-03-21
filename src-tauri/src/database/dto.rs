@@ -111,26 +111,32 @@ impl UpdateCollectionData {
 
 /// 用于更新设置的数据结构
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, rename_all = "camelCase")]
 pub struct UpdateSettingsData {
-    pub bgm_token: Option<String>,
-    pub vndb_token: Option<String>,
-    pub save_root_path: Option<String>,
-    pub db_backup_path: Option<String>,
-    pub le_path: Option<String>,
-    pub magpie_path: Option<String>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub bgm_token: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub vndb_token: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub save_root_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub db_backup_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub le_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub magpie_path: Option<Option<String>>,
 }
 
 /// 清洗 UpdateSettingsData 中的空字符串
 impl UpdateSettingsData {
     /// 返回清洗后的数据，将空字符串转换为 None
     pub fn cleaned(mut self) -> Self {
-        self.bgm_token = self.bgm_token.filter(|s| !s.trim().is_empty());
-        self.vndb_token = self.vndb_token.filter(|s| !s.trim().is_empty());
-        self.save_root_path = self.save_root_path.filter(|s| !s.trim().is_empty());
-        self.db_backup_path = self.db_backup_path.filter(|s| !s.trim().is_empty());
-        self.le_path = self.le_path.filter(|s| !s.trim().is_empty());
-        self.magpie_path = self.magpie_path.filter(|s| !s.trim().is_empty());
+        self.bgm_token = clean_double_option_string(self.bgm_token);
+        self.vndb_token = clean_double_option_string(self.vndb_token);
+        self.save_root_path = clean_double_option_string(self.save_root_path);
+        self.db_backup_path = clean_double_option_string(self.db_backup_path);
+        self.le_path = clean_double_option_string(self.le_path);
+        self.magpie_path = clean_double_option_string(self.magpie_path);
         self
     }
 }

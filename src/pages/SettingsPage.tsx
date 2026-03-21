@@ -1426,7 +1426,9 @@ const AboutSection: React.FC = () => {
 						color="secondary"
 						startIcon={<BugReportIcon />}
 						onClick={() =>
-							openurl("https://github.com/huoshen80/ReinaManager/issues/new")
+							openurl(
+								"https://github.com/huoshen80/ReinaManager/issues/new/choose",
+							)
 						}
 						size="small"
 					>

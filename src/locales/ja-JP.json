@@ -1,652 +1,650 @@
 {
-	"errors": {
-		"authFailed": "認証に失敗しました。資格情報または権限を確認してください",
-		"badRequest": "リクエスト内容が不正です。確認して再試行してください",
-		"bgmTokenRequired": "BGM Token が必要です。先に設定してください",
-		"invalidGameId": "ゲーム ID の形式が不正です",
-		"invokeFailed": "アプリ内部コマンドの呼び出しに失敗しました。後でもう一度お試しください",
-		"metadataNotFound": "対応するメタデータが見つかりませんでした",
-		"metadataRequestFailed": "メタデータの取得に失敗しました。後でもう一度お試しください",
-		"mixedSourcesFailed": "すべてのデータソースへのリクエストに失敗しました",
-		"notFound": "対象の内容が見つかりませんでした",
-		"requestFailed": "リクエストに失敗しました。後でもう一度お試しください",
-		"responseParseFailed": "レスポンスの解析に失敗しました。後でもう一度お試しください",
-		"unknownError": "不明なエラー",
-		"unsupportedSource": "サポートされていないデータソースです",
-		"updatePlayStatusFailed": "プレイ状態の更新に失敗しました"
-	},
-	"app": {
-		"NAVIGATION": {
-			"collection": "コレクション",
-			"gameLibrary": "ゲームライブラリ ",
-			"home": "ホーム",
-			"settings": "設定"
-		}
-	},
-	"category": {
-		"playStatus": {
-			"dropped": "中断",
-			"onHold": "保留中",
-			"played": "プレイ済み",
-			"playing": "プレイ中",
-			"wish": "プレイしたい"
-		},
-		"unknownDeveloper": "不明な開発者"
-	},
-	"common": {
-		"cancel": "キャンセル",
-		"confirm": "確認",
-		"locale": "ja-JP",
-		"saving": "保存中..."
-	},
-	"components": {
-		"AddModal": {
-			"addGame": "ゲームを追加",
-			"bulkTab": "一括インポート",
-			"cancel": "キャンセル",
-			"confirm": "確認",
-			"developer": "開発者",
-			"enableCustomMode": "カスタムモードを有効化",
-			"gameExists": "ゲームはすでに存在します",
-			"gameIDTips": "ゲームID（BGM、VNDB または YMGal IDを入力）",
-			"gameName": "ゲーム名",
-			"idSearch": "ID検索モードを有効化",
-			"noBgmToken": "BGM_TOKENが設定されていません、データを取得できません",
-			"noExecutableSelected": "実行ファイルが選択されていません",
-			"noResults": "結果が見つかりませんでした",
-			"noResultsBgm": "Bangumiでゲームが見つかりません、別の名前を試すかIDを確認してください",
-			"noResultsMixed": "いずれのデータソースでもゲームが見つかりませんでした",
-			"noResultsVndb": "VNDBでゲームが見つかりません、別の名前を試すかIDを確認してください",
-			"noResultsYmgal": "YMGalでゲームが見つかりません、別の名前を試すかIDを確認してください",
-			"processing": "処理中...",
-			"dragHint": "実行ファイルまたはフォルダを選択またはドラッグしてください",
-			"dragDropHere": "ファイルをここにドロップ",
-			"invalidFile": "有効な実行ファイル（.exe/.bat/.cmd）またはフォルダをドラッグしてください",
-			"emptyFolder": "このフォルダに実行ファイルが見つかりません",
-			"selectFromFolder": "フォルダ内に複数の実行ファイルがあります、1つ選択してください",
-			"selectGame": "ゲームを選択",
-			"selectLauncher": "ランチャーを選択",
-			"singleTab": "単体追加",
-			"timeout": "タイムアウトしました。しばらくしてから再試行してください"
-		},
-		"BulkImportModal": {
-			"selectRootFolder": "ルートフォルダを選択",
-			"noFolderSelected": "フォルダが選択されていません",
-			"searchName": "検索名",
-			"matchedGame": "一致したゲーム",
-			"status": "状態",
-			"executable": "実行ファイル",
-			"actions": "操作",
-			"noGamesFound": "ゲームが見つかりません",
-			"statusPending": "未処理",
-			"statusMatched": "一致済み",
-			"statusNotFound": "未検出",
-			"statusImported": "インポート済み",
-			"statusError": "エラー",
-			"selectExe": "起動ファイルを選択",
-			"cancel": "キャンセル",
-			"matchMetadata": "メタデータを照合",
-			"importAll": "すべてインポート",
-			"editMetadata": "ゲーム情報を編集",
-			"reset": "リセット",
-			"saveNameOnly": "名前のみ保存",
-			"search": "検索",
-			"importSummary": "{{total}} 件中 {{success}} 件のゲームをインポートしました",
-			"importPartialFailed": "{{failed}} 件のゲームのインポートに失敗しました",
-			"gamesCount_other": "全 {{count}} 件",
-			"matchCancelled": "マッチングタスクをキャンセルしました"
-		},
-		"AlertBox": {
-			"bgmData": "BGM データ",
-			"cancel": "キャンセル",
-			"confirm": "確認",
-			"confirmAddTitle": "ゲームの追加を確認",
-			"confirmDelete": "削除を確認",
-			"confirmUpdateTitle": "ゲーム情報の更新を確認",
-			"deleteBackupTitle": "バックアップを削除",
-			"deleteGameMessage": "このゲームを削除してもよろしいですか？",
-			"deleteGameTitle": "ゲームを削除",
-			"gameName": "ゲーム名",
-			"noData": "データがありません",
-			"processing": "処理中...",
-			"vndbData": "VNDB データ",
-			"ymgalData": "Ymgal データ"
-		},
-		"Collection": {
-			"errors": {
-				"cannotModifyVirtualCategory": "仮想カテゴリは変更できません",
-				"updateCategoryGamesFailed": "カテゴリゲームの更新に失敗しました。もう一度お試しください"
-			},
-			"success": {
-				"categoryGamesUpdated_other": "カテゴリゲームを更新しました：{{count}} 個"
-			}
-		},
-		"FilterModal": {
-			"allGames": "すべてのゲーム",
-			"apply": "適用",
-			"cancel": "キャンセル",
-			"clearGames": "クリア済みゲーム",
-			"customGames": "カスタムゲーム",
-			"filter": "フィルター",
-			"filterTitle": "フィルター",
-			"localGames": "ローカルゲーム",
-			"noclearGames": "未クリアのゲーム",
-			"onlineGames": "オンラインゲーム"
-		},
-		"LaunchModal": {
-			"gamePathNotFound": "ゲームパスが見つかりません",
-			"launchFailed": "ゲーム起動に失敗しました:",
-			"launchGame": "ゲームを起動",
-			"localPathLabel": "実行ファイルパス",
-			"pathRequired": "パスを選択または入力してください",
-			"pathSaved": "パスが保存されました",
-			"pathSaveFailed": "パスの保存に失敗しました",
-			"selectFolder": "フォルダを選択",
-			"setLocalPathTitle": "ローカルパスを設定",
-			"stopFailed": "ゲーム停止に失敗しました:",
-			"stoppingGame": "ゲームを停止中...",
-			"syncLocalPath": "ローカル同期"
-		},
-		"PathSettingsModal": {
-			"close": "閉じる",
-			"dbBackupPath": {
-				"note": "データベースバックアップファイルの保存パスを設定します。空のままにするとデフォルトパス（AppData/data/backups）、またはポータブルモードのプログラムディレクトリが使用されます",
-				"pathLabel": "バックアップ保存パス",
-				"pathPlaceholder": "空のままにするとデフォルトパスを使用",
-				"saveError": "データベースバックアップパスの保存に失敗しました：{{error}}",
-				"selectBtn": "ディレクトリを選択",
-				"title": "データベースバックアップパス"
-			},
-			"lePath": {
-				"note": "ゲーム起動時の地域切り替えに使用するLE地域切り替えソフトウェアの実行ファイルパスを設定します",
-				"pathLabel": "LE地域ソフトウェアパス",
-				"pathPlaceholder": "LE地域ソフトウェアの実行ファイルを選択",
-				"saveError": "LE パスの保存に失敗しました：{{error}}",
-				"selectBtn": "ファイルを選択",
-				"title": "LE地域ソフトウェアパス"
-			},
-			"magpiePath": {
-				"note": "ゲーム画面の拡大機能に使用するMagpieソフトウェアの実行ファイルパスを設定します",
-				"pathLabel": "Magpieソフトウェアパス",
-				"pathPlaceholder": "Magpieソフトウェアの実行ファイルを選択",
-				"saveError": "Magpie パスの保存に失敗しました：{{error}}",
-				"selectBtn": "ファイルを選択",
-				"title": "Magpieソフトウェアパス"
-			},
-			"saveBtn": "保存",
-			"savePath": {
-				"moveBackupWarning": "バックアップパスは保存されましたが、古いバックアップの移行に失敗しました：{{error}}",
-				"note": "ゲームセーブデータのバックアップルートディレクトリパスを設定します。空のままにするとデフォルトパスが使用されます",
-				"pathLabel": "バックアップルートパス",
-				"pathPlaceholder": "空のままにするとデフォルトパスを使用",
-				"saveError": "ゲームセーブバックアップパスの保存に失敗しました：{{error}}",
-				"selectBtn": "ディレクトリを選択",
-				"title": "ゲームセーブバックアップパス"
-			},
-			"selectFileError": "ファイルの選択に失敗しました：{{error}}",
-			"selectFolderError": "ディレクトリの選択に失敗しました：{{error}}",
-			"saving": "保存中...",
-			"title": "パス設定"
-		},
-		"RightMenu": {
-			"Collection": {
-				"categoryMenu": "カテゴリメニュー",
-				"groupMenu": "グループメニュー",
-				"manageGames": "ゲームを管理",
-				"newCategoryName": "新しいカテゴリ名",
-				"newGroupName": "新しいグループ名",
-				"renameCategory": "カテゴリの名前を変更",
-				"renameCategoryTitle": "カテゴリの名前を変更",
-				"renameGroup": "グループの名前を変更",
-				"renameGroupTitle": "グループの名前を変更"
-			},
-			"changePlayStatus": "プレイ状態を変更",
-			"deleteGame": "ゲームを削除",
-			"enterDetails": "詳細ページへ",
-			"label": "右クリックメニュー",
-			"openGameFolder": "ゲームフォルダを開く",
-			"startGame": "ゲームを起動"
-		},
-		"SearchBox": {
-			"search": "検索"
-		},
-		"Snackbar": {
-			"failedOpenDatabaseBackupFolder": "データベースバックアップフォルダの開けに失敗しました",
-			"failedOpenGameFolder": "ゲームフォルダの開けに失敗しました",
-			"gameAddedSuccess": "ゲームが正常に追加されました",
-			"viewDetails": "詳細を表示"
-		},
-		"SortModal": {
-			"addTime": "追加時間(デフォルト)",
-			"ascending": "昇順",
-			"bgmRank": "BGMランキング",
-			"cancel": "キャンセル",
-			"confirm": "確認",
-			"descending": "降順",
-			"lastPlayed": "最近プレイ",
-			"nameSort": "名前ソート",
-			"releaseTime": "ゲーム発売時間",
-			"sort": "並べ替え",
-			"sortMethod": "並べ替え方法：",
-			"vndbRank": "VNDBランキング"
-		},
-		"AppLayout": {
-			"back": "戻る"
-		},
-		"Toolbar": {
-			"bgmlink": "Bangumiページを見る",
-			"Category": {
-				"availableGames": "利用可能なゲーム",
-				"gamesInCategory": "カテゴリ内のゲーム",
-				"manageGamesTitle": "カテゴリゲームを管理",
-				"noGames": "ゲームがありません",
-				"noGamesInCategory": "このカテゴリにはゲームがありません",
-				"noSearchResults": "一致するゲームが見つかりません",
-				"save": "変更を保存",
-				"searchPlaceholder": "ゲームを検索..."
-			},
-			"Collection": {
-				"Category": {
-					"manageGames": "ゲームを管理"
-				},
-				"Group": {
-					"addCategory": "カテゴリを追加",
-					"addGroup": "グループを追加",
-					"deleteGroup": "グループを削除",
-					"deleteGroupMessage": "このグループを削除してもよろしいですか？この操作により、グループ内のすべてのカテゴリも削除され、元に戻すことはできません。",
-					"deleteGroupTitle": "グループを削除",
-					"enterCategoryName": "カテゴリ名を入力してください",
-					"enterGroupName": "グループ名を入力してください"
-				}
-			},
-			"deleteGame": "ゲームを削除",
-			"deleting": "削除中...",
-			"leLaunch": "LE地域起動",
-			"lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
-			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
-			"magpieZoom": "Magpieズーム",
-			"changePlayStatus": "プレイ状態を変更",
-			"more": "その他",
-			"openGameFolder": "ゲームフォルダを開く",
-			"theme": "テーマ",
-			"themeDark": "ダーク",
-			"themeLight": "ライト",
-			"themeSystem": "システムに従う",
-			"vndblink": "Vndbページを見る",
-			"ymgallink": "Ymgalページを見る"
-		},
-		"Tray": {
-			"exit": "終了",
-			"open": "メインウィンドウを開く"
-		},
-		"Window": {
-			"closeDialog": {
-				"dontRemind": "再度確認しない",
-				"exitApp": "終了する",
-				"message": "操作を選択してください：終了 または トレイに最小化？",
-				"minimizeToTray": "トレイに最小化",
-				"title": "アプリを閉じる"
-			},
-			"runningExitDialog": {
-				"exitApp": "そのまま終了",
-				"message": "現在 {{count}} 件のゲームが実行中です。アプリを終了してもゲーム自体は閉じませんが、このセッションのプレイ時間記録は失われます。それでも終了しますか？",
-				"title": "終了の確認"
-			},
-			"UpdateModal": {
-				"cancel": "キャンセル",
-				"changelog": "変更履歴",
-				"downloading": "アップデートをダウンロード中...",
-				"newVersion": "新しいバージョン",
-				"releaseDate": "リリース日",
-				"title": "新しいバージョンが利用可能",
-				"update": "今すぐアップデート"
-			}
-		}
-	},
-	"home": {
-		"activity": {
-			"added": "{{title}}を追加しました",
-			"addedAt": "{{time}}に追加",
-			"duration": "プレイ時間: {{duration}}",
-			"played": "{{title}}をプレイしました",
-			"playedAtTime": "{{time}}にプレイ"
-		},
-		"activityTitle": "アクティビティ",
-		"addedAt": "追加時間: {{time}}",
-		"lastPlayed": "最終プレイ: {{time}}",
-		"recentlyAdded": "最近追加したゲーム",
-		"recentlyPlayed": "最近プレイしたゲーム",
-		"repository": "ゲームリポジトリ",
-		"stats": {
-			"completedGames": "クリアしたゲーム数",
-			"localGames": "ローカルゲーム数",
-			"todayPlayTime": "今日のプレイ時間",
-			"totalGames": "総ゲーム数",
-			"totalPlayTime": "総プレイ時間",
-			"weekPlayTime": "今週のプレイ時間"
-		},
-		"title": "ホーム"
-	},
-	"pages": {
-		"Collection": {
-			"breadcrumb": {
-				"group": "グループ",
-				"unknownCategory": "不明なカテゴリ"
-			},
-			"defaultGroups": {
-				"developer": "開発者",
-				"playStatus": "プレイ状態"
-			},
-			"deleteCategoryMessage": "カテゴリ \"{{name}}\" を削除してもよろしいですか？この操作により、このカテゴリとすべてのゲームの関連付けが削除されますが、ゲーム自体は削除されません。",
-			"deleteCategoryTitle": "カテゴリを削除",
-			"deleteGroupMessage": "グループ \"{{name}}\" を削除してもよろしいですか？この操作により、このグループ内のすべてのカテゴリも削除され、元に戻すことはできません。",
-			"deleteGroupTitle": "グループを削除",
-			"errors": {
-				"cannotDeleteDefaultGroup": "デフォルトグループは削除できません",
-				"deleteCategoryFailed": "カテゴリの削除に失敗しました。もう一度お試しください",
-				"deleteGroupFailed": "グループの削除に失敗しました。もう一度お試しください",
-				"renameFailed": "名前の変更に失敗しました：{{error}}"
-			},
-			"gamesCount": "ゲーム",
-			"noCategoriesHint": "現在のグループにカテゴリがありません",
-			"success": {
-				"categoryDeleted": "カテゴリを削除しました",
-				"groupDeleted": "グループを削除しました"
-			}
-		},
-		"Detail": {
-			"addTime": "追加時間",
-			"backup": "バックアップ",
-			"Backup": {
-				"autoSave": "自動バックアップ",
-				"backupFailed": "バックアップに失敗しました",
-				"backupHistory": "バックアップ履歴",
-				"backupSuccess": "バックアップが正常に作成されました",
-				"backupTime": "バックアップ時刻",
-				"confirmDelete": "バックアップを削除してもよろしいですか",
-				"confirmDeleteSuffix": "？この操作は取り消せません。",
-				"confirmRestore": "バックアップを復元してもよろしいですか",
-				"confirmRestoreButton": "復元",
-				"confirmRestoreSuffix": "？現在のセーブデータが上書きされます。復元前に新しいバックアップを作成することをお勧めします。",
-				"createBackup": "バックアップを作成",
-				"creating": "バックアップを作成中...",
-				"deleteFailed": "削除に失敗しました",
-				"deleteSuccess": "バックアップが正常に削除されました",
-				"fileSize": "ファイルサイズ",
-				"invalidMaxBackups": "無効な最大バックアップ数",
-				"manualBackup": "手動バックアップ",
-				"maxBackups": "最大バックアップ数",
-				"noBackups": "バックアップ記録がありません",
-				"openBackupFolder": "バックアップフォルダを開く",
-				"openBackupFolderFailed": "バックアップフォルダを開くのに失敗しました",
-				"openSaveDataFolder": "セーブデータフォルダを開く",
-				"openSaveDataFolderFailed": "セーブデータフォルダを開くのに失敗しました",
-				"pathRequired": "まずセーブデータフォルダを選択してください",
-				"restoreBackup": "バックアップを復元",
-				"restoreBackupTitle": "セーブデータを復元",
-				"restoreFailed": "復元に失敗しました",
-				"restoreSuccess": "セーブデータが正常に復元されました",
-				"saveDataPath": "セーブデータフォルダパス",
-				"savePathSettings": "セーブパス設定",
-				"saveSettings": "バックアップ設定を保存",
-				"saving": "保存中...",
-				"selectSaveDataFolder": "セーブデータフォルダを選択",
-				"setPathForRestore": "バックアップを復元するには、まずセーブデータパスを設定してください",
-				"settings": "バックアップ設定",
-				"settingsSaveFailed": "バックアップ設定の保存に失敗しました",
-				"settingsSaved": "バックアップ設定が正常に保存されました"
-			},
-			"backupCount": "バックアップ数",
-			"collapseTags": "タグを折りたたむ",
-			"DataSourceUpdate": {
-				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、または YMGal ID は空にできません",
-				"customModeWarning": "カスタムモードではデータソースから更新できません。",
-				"dataSource": "データソース",
-				"incompleteYmgalData": "完全な YMGal データが見つかりませんでした。",
-				"invalidIdType": "無効なIDタイプ",
-				"loading": "読み込み中...",
-				"noDataFetched": "データが取得されていないか、データソースが無効です。",
-				"noGameSelected": "ゲームが選択されていません",
-				"updateFromSource": "データソースから更新",
-				"vndbId": "VNDB ID",
-				"ymgalId": "Ymgal ID"
-			},
-			"Edit": {
-				"dataSourceUpdate": "データソース更新",
-				"gameInfoEdit": "ゲーム情報編集",
-				"updateSuccess": "ゲーム情報が正常に更新されました"
-			},
-			"editPart": "編集",
-			"expandTags": "タグを展開する",
-			"expected_hours": "予想時間",
-			"gameDatafrom": "データソース",
-			"gameDeveloper": "開発者",
-			"GameInfoEdit": {
-				"addAliasPlaceholder": "別名を入力...",
-				"addTagPlaceholder": "タグを入力...",
-				"aliases": "別名",
-				"coverAndBasicInfo": "カバーと基本情報",
-				"customGameName": "カスタムゲーム名",
-				"descriptionAndTags": "説明とタグ",
-				"developer": "開発者",
-				"developerHelperText": "ゲームの開発者または製作グループ名",
-				"developerPlaceholder": "開発者名を入力",
-				"enterGameNote": "ゲームのメモを入力してください",
-				"gamePath": "ゲームパス",
-				"hasCustomCover": "カスタムカバーが設定されています",
-				"invalidGameId": "無効なゲームID",
-				"localPath": "実行可能ファイルのパス",
-				"noteHelperText": "ゲームのカスタム表示名を設定できます。デフォルト名を使用するには空白のままにしてください",
-				"nsfw": "NSFW",
-				"previewSelected": "新しい画像が選択されました。保存後に有効になります",
-				"releaseDate": "リリース日",
-				"releaseDateHelperText": "ゲームの元のリリース日",
-				"removeCustomCover": "カスタムカバーを削除",
-				"saveAllChanges": "すべての変更を保存",
-				"saveGameInfoFailed": "ゲーム情報の保存に失敗しました",
-				"saving": "保存中...",
-				"selectImage": "画像を選択",
-				"selectImageFailed": "画像の選択に失敗しました",
-				"selectPathFailed": "パスの選択に失敗しました",
-				"summary": "概要",
-				"summaryHelperText": "ゲームの短い説明またはストーリー概要",
-				"summaryPlaceholder": "ゲーム概要を入力...",
-				"tags": "タグ"
-			},
-			"gameRanking": "ゲームランキング",
-			"gameScore": "ゲームスコア",
-			"gameStats": "ゲーム統計",
-			"gameTags": "ゲームタグ",
-			"introduction": "紹介",
-			"loading": "読み込み中...",
-			"notFound": "ゲームデータが見つかりません",
-			"playCount": "累計プレイ回数",
-			"playTimeChart": "プレイ時間チャート",
-			"releaseDate": "公開日",
-			"todayPlayTime": "本日のプレイ時間",
-			"totalPlayTime": "累計総プレイ時間"
-		},
-		"Settings": {
-			"about": {
-				"author": "作者",
-				"blog": "作者のブログ",
-				"checkFailed": "アップデートの確認に失敗しました: {{error}}",
-				"checking": "確認中...",
-				"checkUpdate": "アップデートを確認",
-				"noUpdate": "現在のバージョンは最新です",
-				"docs": "ドキュメント",
-				"feedback": "問題を報告",
-				"github": "プロジェクトリポジトリ",
-				"title": "について",
-				"updateFound": "新しいバージョンを検出しました: {{version}}",
-				"version": "バージョン"
-			},
-			"autoStart": "自動起動",
-			"batchUpdate": {
-				"description": "バッチ更新機能は、既存のゲームのBGM/VNDBデータを更新するために使用できます。ゲームのメタデータが変更されると、この機能を使用して最新の情報を同期できます。更新ボタンをクリックしたら、更新プロセスに時間がかかる可能性があるので、お待ちください。ゲームデータソースを更新する際の使用をお勧めします。",
-				"error": "VNDBデータの一括更新に失敗しました: {{message}}",
-				"errorBgm": "BGMデータの一括更新に失敗しました: {{message}}",
-				"failed": "バッチ更新に失敗しました",
-				"noBgmGames": "BGM IDを含むゲームが見つかりません",
-				"noBgmToken": "更新失敗: BGM Tokenが設定されていません",
-				"noGames": "VNDB IDを含むゲームが見つかりません",
-				"partialFailed": "{{failed}} 個のゲームの更新に失敗しました",
-				"success": "{{success}}/{{total}} 個のゲームを正常に更新しました",
-				"title": "バッチ更新データ",
-				"updateBgm": "BGMデータを一括更新",
-				"updateVndb": "VNDBデータを一括更新",
-				"updating": "更新中...",
-				"updatingBgm": "BGMデータを一括更新中..."
-			},
-			"bgmToken": "BGMトークン",
-			"bgmTokenSettings": {
-				"clearToken": "トークンをクリア",
-				"loadingProfile": "現在の Bangumi アカウント情報を取得中...",
-				"profileUnavailable": "現在の BGM Token ではユーザー情報を取得できません。トークンが有効か確認してください。",
-				"saveError": "BGM Token の保存に失敗しました",
-				"saveSuccess": "BGM Token の保存が成功しました"
-			},
-			"cardClickMode": {
-				"doubleClickLaunch": "ダブルクリックでゲーム起動",
-				"doubleClickLaunchNote": "有効にすると左クリックが200ms遅延します（ナビゲーションモードのみ）",
-				"longPressLaunch": "長押しでゲーム起動",
-				"longPressLaunchNote": "カードを800ms長押しするとゲームが起動します。有効にするとコレクションのドラッグソート機能が無効になります",
-				"navigate": "ナビゲーションモード（シングルクリックで詳細表示）",
-				"select": "選択モード（シングルクリックでゲーム選択）",
-				"title": "カードクリックモード"
-			},
-			"closeApp": "アプリを終了",
-			"closeSettings": "終了設定",
-			"closeToTray": "トレイに最小化",
-			"collectionSync": {
-				"bgmDescription": "ゲーム追加時に BGM のコレクション状態を読み取り、ローカルで状態を変更したときに BGM に同期します。",
-				"bgmTitle": "Bangumi コレクション同期を有効化",
-				"syncFailed": "ローカル状態は更新されましたが、{{source}} へのクラウド同期に失敗しました",
-				"title": "コレクション同期",
-				"vndbDescription": "ゲーム追加時に VNDB のコレクション状態を読み取り、ローカルで状態を変更したときに VNDB に同期します。",
-				"vndbTitle": "VNDB コレクション同期を有効化"
-			},
-			"databaseBackup": {
-				"backing": "バックアップ中...",
-				"backup": "データベースをバックアップ",
-				"backupError": "データベースバックアップに失敗しました: {{error}}",
-				"backupFailed": "バックアップに失敗しました",
-				"backupSuccess": "データベースバックアップが成功しました: {{path}}",
-				"importError": "データベースのインポートに失敗しました: {{error}}",
-				"importFailed": "インポートに失敗しました",
-				"importing": "インポート中...",
-				"importSuccess": "データベースのインポートが成功しました。アプリが自動的に再起動します",
-				"openFolder": "バックアップフォルダを開く",
-				"openFolderError": "バックアップフォルダを開くのに失敗しました: {{error}}",
-				"openFolderFailed": "フォルダを開くのに失敗しました",
-				"pathNote": "空白のままにするとデフォルトパス（AppData/data/backups）を使用します。ポータブルモードの場合はプログラムディレクトリになります",
-				"restore": "データベースを復元",
-				"restoreWarning": "データベースの復元は既存のデータを上書きします。ご注意ください。インポート後、アプリは自動的に再起動します。",
-				"title": "データベースバックアップと復元"
-			},
-			"dev": {
-				"title": "実験性機能",
-				"tooltip": "以下の機能は実験的な機能です。慎重にお使いください"
-			},
-			"getToken": "トークンを取得",
-			"language": "言語",
-			"logLevel": {
-				"changed": "ログレベルが{{level}}に変更されました",
-				"changeFailed": "ログレベルの変更に失敗しました",
-				"description": "現在のセッションのみ有効で、保存されません。バックエンドのログ出力の詳細度を一時的に調整するために使用します。",
-				"levelLabel": "ログ出力レベル",
-				"openFolder": "ログフォルダを開く",
-				"openFolderError": "ログフォルダを開くのに失敗しました: {{error}}",
-				"openFolderFailed": "フォルダを開くのに失敗しました",
-				"title": "ログ設定"
-			},
-			"nsfw": {
-				"coverReplace": "NSFW表紙の置き換え",
-				"filter": "NSFWコンテンツのフィルタリング",
-				"title": "NSFWセット"
-			},
-			"pathSettings": {
-				"note": "ゲームセーブバックアップ、LE地域ソフトウェア、Magpieソフトウェア、データベースバックアップなどのパスを設定します",
-				"openModal": "パス設定を開く",
-				"title": "パス設定"
-			},
-			"linuxLaunchCommand": {
-				"title": "Linux 起動コマンド",
-				"description": "Linux で Windows 実行ファイル（.exe）を起動する際に使用するコマンドを設定します。wine、proton などの互換レイヤーコマンド、または PATH 上の実行ファイル/スクリプトのフルパスを指定できます。",
-				"commandLabel": "起動コマンド",
-				"helperText": "例: wine, /usr/bin/wine, ~/scripts/run-game.sh",
-				"resetTooltip": "デフォルト値 (wine) にリセット",
-				"saveBtn": "保存",
-				"saveSuccess": "Linux 起動コマンドを保存しました",
-				"saveError": "保存に失敗しました",
-				"note": "注意: この設定を変更した後は、ゲームを再起動すると有効になります。"
-			},
-			"portableMode": {
-				"confirmDisableMessage": "ポータブルモードを無効にすると、データベースとバックアップがシステムアプリケーションデータディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
-				"confirmEnableMessage": "ポータブルモードを有効にすると、データベースとバックアップがプログラムインストールディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
-				"confirmTitle": "ポータブルモード切り替えの確認",
-				"description": "ポータブルモードを有効にすると、データベースとバックアップはシステムアプリケーションデータディレクトリではなく、プログラムインストールディレクトリのresourcesフォルダに保存されます。USBドライブや外付けハードドライブでプログラムを使用する必要がある場合に適しています。",
-				"enable": "ポータブルモードを有効にする",
-				"title": "ポータブルモード",
-				"toggleError": "切り替えに失敗しました"
-			},
-			"restartError": "アプリの再起動に失敗しました",
-			"saveBtn": "保存",
-			"skipCloseRemind": "再度確認しない",
-			"spoilerLevel": {
-				"description": "ネタバレレベルを選択して、適切なタグコンテンツを取得する",
-				"level0": "0 - ネタバレなし",
-				"level1": "1 - 軽いネタバレ",
-				"level2": "2 - 深刻なネタバレ",
-				"title": "TAGネタバレレベル"
-			},
-			"tagTranslation": {
-				"description": "ゲームタグの中国語翻訳を有効にする",
-				"title": "TAG翻訳"
-			},
-			"timeTrackingMode": {
-				"description": "ゲーム時間の計算方法を選択します。時間表示と統計記録に影響します。",
-				"elapsed": "ゲーム起動時間",
-				"elapsedDesc": "ゲーム起動から終了までの合計時間をカウント、フォーカスに関係なく",
-				"playtime": "実際のゲーム時間（デフォルト）",
-				"playtimeDesc": "ゲームウィンドウがフォーカスされている時間のみカウント、他のウィンドウに切り替えると一時停止",
-				"title": "ゲーム計時モード"
-			},
-			"tokenPlaceholder": "BGM_TOKENを入力してください",
-			"vndbToken": "VNDB Token",
-			"vndbTokenPlaceholder": "VNDB Token を入力してください",
-			"vndbTokenSettings": {
-				"clearToken": "トークンをクリア",
-				"loadingProfile": "現在の VNDB アカウント情報を取得中...",
-				"permissions": "権限: {{permissions}}",
-				"profileUnavailable": "現在の VNDB Token ではユーザー情報を取得できません。トークンまたは権限が有効か確認してください。",
-				"saveError": "VNDB Token の保存に失敗しました",
-				"saveSuccess": "VNDB Token を保存しました",
-				"userId": "ユーザー ID: {{id}}"
-			},
-			"vndbData": {
-				"title": "VNDBデータ設定"
-			}
-		}
-	},
-	"utils": {
-		"formatPlayTime": {
-			"hours_other": "{{count}}時間",
-			"hoursAndMinutes": "{{hours}}時間{{minutes}}分",
-			"minutes_other": "{{count}}分"
-		},
-		"handleDirectory": {
-			"allFiles": "すべてのファイル",
-			"executable": "実行ファイル",
-			"folder": "フォルダ"
-		},
-		"relativetime": {
-			"daysAgo_other": "{{count}}日前",
-			"hoursAgo_other": "{{count}}時間前",
-			"justNow": "たった今",
-			"lastWeek": "先週",
-			"minutesAgo_other": "{{count}}分前"
-		}
-	}
+  "errors": {
+    "authFailed": "認証に失敗しました。資格情報または権限を確認してください",
+    "badRequest": "リクエスト内容が不正です。確認して再試行してください",
+    "bgmTokenRequired": "BGM Token が必要です。先に設定してください",
+    "invalidGameId": "ゲーム ID の形式が不正です",
+    "invokeFailed": "アプリ内部コマンドの呼び出しに失敗しました。後でもう一度お試しください",
+    "metadataNotFound": "対応するメタデータが見つかりませんでした",
+    "metadataRequestFailed": "メタデータの取得に失敗しました。後でもう一度お試しください",
+    "mixedSourcesFailed": "すべてのデータソースへのリクエストに失敗しました",
+    "notFound": "対象の内容が見つかりませんでした",
+    "requestFailed": "リクエストに失敗しました。後でもう一度お試しください",
+    "responseParseFailed": "レスポンスの解析に失敗しました。後でもう一度お試しください",
+    "unknownError": "不明なエラー",
+    "unsupportedSource": "サポートされていないデータソースです",
+    "updatePlayStatusFailed": "プレイ状態の更新に失敗しました"
+  },
+  "app": {
+    "NAVIGATION": {
+      "collection": "コレクション",
+      "gameLibrary": "ゲームライブラリ ",
+      "home": "ホーム",
+      "settings": "設定"
+    }
+  },
+  "category": {
+    "playStatus": {
+      "dropped": "中断",
+      "onHold": "保留中",
+      "played": "プレイ済み",
+      "playing": "プレイ中",
+      "wish": "プレイしたい"
+    },
+    "unknownDeveloper": "不明な開発者"
+  },
+  "common": {
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "locale": "ja-JP",
+    "saving": "保存中..."
+  },
+  "components": {
+    "AddModal": {
+      "addGame": "ゲームを追加",
+      "bulkTab": "一括インポート",
+      "cancel": "キャンセル",
+      "confirm": "確認",
+      "developer": "開発者",
+      "enableCustomMode": "カスタムモードを有効化",
+      "gameExists": "ゲームはすでに存在します",
+      "gameIDTips": "ゲームID（BGM、VNDB または YMGal IDを入力）",
+      "gameName": "ゲーム名",
+      "idSearch": "ID検索モードを有効化",
+      "noBgmToken": "BGM_TOKENが設定されていません、データを取得できません",
+      "noExecutableSelected": "実行ファイルが選択されていません",
+      "noResults": "結果が見つかりませんでした",
+      "noResultsBgm": "Bangumiでゲームが見つかりません、別の名前を試すかIDを確認してください",
+      "noResultsMixed": "いずれのデータソースでもゲームが見つかりませんでした",
+      "noResultsVndb": "VNDBでゲームが見つかりません、別の名前を試すかIDを確認してください",
+      "noResultsYmgal": "YMGalでゲームが見つかりません、別の名前を試すかIDを確認してください",
+      "processing": "処理中...",
+      "dragHint": "実行ファイルまたはフォルダを選択またはドラッグしてください",
+      "dragDropHere": "ファイルをここにドロップ",
+      "invalidFile": "有効な実行ファイル（.exe/.bat/.cmd）またはフォルダをドラッグしてください",
+      "emptyFolder": "このフォルダに実行ファイルが見つかりません",
+      "selectFromFolder": "フォルダ内に複数の実行ファイルがあります、1つ選択してください",
+      "selectGame": "ゲームを選択",
+      "selectLauncher": "ランチャーを選択",
+      "singleTab": "単体追加",
+      "timeout": "タイムアウトしました。しばらくしてから再試行してください"
+    },
+    "BulkImportModal": {
+      "selectRootFolder": "ルートフォルダを選択",
+      "noFolderSelected": "フォルダが選択されていません",
+      "searchName": "検索名",
+      "matchedGame": "一致したゲーム",
+      "status": "状態",
+      "executable": "実行ファイル",
+      "actions": "操作",
+      "noGamesFound": "ゲームが見つかりません",
+      "statusPending": "未処理",
+      "statusMatched": "一致済み",
+      "statusNotFound": "未検出",
+      "statusImported": "インポート済み",
+      "statusError": "エラー",
+      "selectExe": "起動ファイルを選択",
+      "cancel": "キャンセル",
+      "matchMetadata": "メタデータを照合",
+      "importAll": "すべてインポート",
+      "editMetadata": "ゲーム情報を編集",
+      "reset": "リセット",
+      "saveNameOnly": "名前のみ保存",
+      "search": "検索",
+      "importSummary": "{{total}} 件中 {{success}} 件のゲームをインポートしました",
+      "importPartialFailed": "{{failed}} 件のゲームのインポートに失敗しました",
+      "gamesCount_other": "全 {{count}} 件",
+      "matchCancelled": "マッチングタスクをキャンセルしました"
+    },
+    "AlertBox": {
+      "bgmData": "BGM データ",
+      "cancel": "キャンセル",
+      "confirm": "確認",
+      "confirmAddTitle": "ゲームの追加を確認",
+      "confirmDelete": "削除を確認",
+      "confirmUpdateTitle": "ゲーム情報の更新を確認",
+      "deleteBackupTitle": "バックアップを削除",
+      "deleteGameMessage": "このゲームを削除してもよろしいですか？",
+      "deleteGameTitle": "ゲームを削除",
+      "gameName": "ゲーム名",
+      "noData": "データがありません",
+      "processing": "処理中...",
+      "vndbData": "VNDB データ",
+      "ymgalData": "Ymgal データ"
+    },
+    "Collection": {
+      "errors": {
+        "cannotModifyVirtualCategory": "仮想カテゴリは変更できません",
+        "updateCategoryGamesFailed": "カテゴリゲームの更新に失敗しました。もう一度お試しください"
+      },
+      "success": {
+        "categoryGamesUpdated_other": "カテゴリゲームを更新しました：{{count}} 個"
+      }
+    },
+    "FilterModal": {
+      "allGames": "すべてのゲーム",
+      "apply": "適用",
+      "cancel": "キャンセル",
+      "clearGames": "クリア済みゲーム",
+      "customGames": "カスタムゲーム",
+      "filter": "フィルター",
+      "filterTitle": "フィルター",
+      "localGames": "ローカルゲーム",
+      "noclearGames": "未クリアのゲーム",
+      "onlineGames": "オンラインゲーム"
+    },
+    "LaunchModal": {
+      "gamePathNotFound": "ゲームパスが見つかりません",
+      "launchFailed": "ゲーム起動に失敗しました:",
+      "launchGame": "ゲームを起動",
+      "localPathLabel": "実行ファイルパス",
+      "pathRequired": "パスを選択または入力してください",
+      "pathSaved": "パスが保存されました",
+      "pathSaveFailed": "パスの保存に失敗しました",
+      "selectFolder": "フォルダを選択",
+      "setLocalPathTitle": "ローカルパスを設定",
+      "stopFailed": "ゲーム停止に失敗しました:",
+      "stoppingGame": "ゲームを停止中...",
+      "syncLocalPath": "ローカル同期"
+    },
+    "PathSettingsModal": {
+      "close": "閉じる",
+      "dbBackupPath": {
+        "note": "データベースバックアップファイルの保存パスを設定します。空のままにするとデフォルトパス（AppData/data/backups）、またはポータブルモードのプログラムディレクトリが使用されます",
+        "pathLabel": "バックアップ保存パス",
+        "pathPlaceholder": "空のままにするとデフォルトパスを使用",
+        "selectBtn": "ディレクトリを選択",
+        "title": "データベースバックアップパス"
+      },
+      "lePath": {
+        "note": "ゲーム起動時の地域切り替えに使用するLE地域切り替えソフトウェアの実行ファイルパスを設定します",
+        "pathLabel": "LE地域ソフトウェアパス",
+        "pathPlaceholder": "LE地域ソフトウェアの実行ファイルを選択",
+        "selectBtn": "ファイルを選択",
+        "title": "LE地域ソフトウェアパス"
+      },
+      "magpiePath": {
+        "note": "ゲーム画面の拡大機能に使用するMagpieソフトウェアの実行ファイルパスを設定します",
+        "pathLabel": "Magpieソフトウェアパス",
+        "pathPlaceholder": "Magpieソフトウェアの実行ファイルを選択",
+        "selectBtn": "ファイルを選択",
+        "title": "Magpieソフトウェアパス"
+      },
+      "saveBtn": "保存",
+      "saveError": "パス設定の保存に失敗しました：{{error}}",
+      "saveSuccess": "パス設定を保存しました",
+      "savePath": {
+        "moveBackupWarning": "バックアップパスは保存されましたが、古いバックアップの移行に失敗しました：{{error}}",
+        "note": "ゲームセーブデータのバックアップルートディレクトリパスを設定します。空のままにするとデフォルトパスが使用されます",
+        "pathLabel": "バックアップルートパス",
+        "pathPlaceholder": "空のままにするとデフォルトパスを使用",
+        "selectBtn": "ディレクトリを選択",
+        "title": "ゲームセーブバックアップパス"
+      },
+      "selectFileError": "ファイルの選択に失敗しました：{{error}}",
+      "selectFolderError": "ディレクトリの選択に失敗しました：{{error}}",
+      "saving": "保存中...",
+      "title": "パス設定"
+    },
+    "RightMenu": {
+      "Collection": {
+        "categoryMenu": "カテゴリメニュー",
+        "groupMenu": "グループメニュー",
+        "manageGames": "ゲームを管理",
+        "newCategoryName": "新しいカテゴリ名",
+        "newGroupName": "新しいグループ名",
+        "renameCategory": "カテゴリの名前を変更",
+        "renameCategoryTitle": "カテゴリの名前を変更",
+        "renameGroup": "グループの名前を変更",
+        "renameGroupTitle": "グループの名前を変更"
+      },
+      "changePlayStatus": "プレイ状態を変更",
+      "deleteGame": "ゲームを削除",
+      "enterDetails": "詳細ページへ",
+      "label": "右クリックメニュー",
+      "openGameFolder": "ゲームフォルダを開く",
+      "startGame": "ゲームを起動"
+    },
+    "SearchBox": {
+      "search": "検索"
+    },
+    "Snackbar": {
+      "failedOpenDatabaseBackupFolder": "データベースバックアップフォルダの開けに失敗しました",
+      "failedOpenGameFolder": "ゲームフォルダの開けに失敗しました",
+      "gameAddedSuccess": "ゲームが正常に追加されました",
+      "viewDetails": "詳細を表示"
+    },
+    "SortModal": {
+      "addTime": "追加時間(デフォルト)",
+      "ascending": "昇順",
+      "bgmRank": "BGMランキング",
+      "cancel": "キャンセル",
+      "confirm": "確認",
+      "descending": "降順",
+      "lastPlayed": "最近プレイ",
+      "nameSort": "名前ソート",
+      "releaseTime": "ゲーム発売時間",
+      "sort": "並べ替え",
+      "sortMethod": "並べ替え方法：",
+      "vndbRank": "VNDBランキング"
+    },
+    "AppLayout": {
+      "back": "戻る"
+    },
+    "Toolbar": {
+      "bgmlink": "Bangumiページを見る",
+      "Category": {
+        "availableGames": "利用可能なゲーム",
+        "gamesInCategory": "カテゴリ内のゲーム",
+        "manageGamesTitle": "カテゴリゲームを管理",
+        "noGames": "ゲームがありません",
+        "noGamesInCategory": "このカテゴリにはゲームがありません",
+        "noSearchResults": "一致するゲームが見つかりません",
+        "save": "変更を保存",
+        "searchPlaceholder": "ゲームを検索..."
+      },
+      "Collection": {
+        "Category": {
+          "manageGames": "ゲームを管理"
+        },
+        "Group": {
+          "addCategory": "カテゴリを追加",
+          "addGroup": "グループを追加",
+          "deleteGroup": "グループを削除",
+          "deleteGroupMessage": "このグループを削除してもよろしいですか？この操作により、グループ内のすべてのカテゴリも削除され、元に戻すことはできません。",
+          "deleteGroupTitle": "グループを削除",
+          "enterCategoryName": "カテゴリ名を入力してください",
+          "enterGroupName": "グループ名を入力してください"
+        }
+      },
+      "deleteGame": "ゲームを削除",
+      "deleting": "削除中...",
+      "leLaunch": "LE地域起動",
+      "lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
+      "magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
+      "magpieZoom": "Magpieズーム",
+      "changePlayStatus": "プレイ状態を変更",
+      "more": "その他",
+      "openGameFolder": "ゲームフォルダを開く",
+      "theme": "テーマ",
+      "themeDark": "ダーク",
+      "themeLight": "ライト",
+      "themeSystem": "システムに従う",
+      "vndblink": "Vndbページを見る",
+      "ymgallink": "Ymgalページを見る"
+    },
+    "Tray": {
+      "exit": "終了",
+      "open": "メインウィンドウを開く"
+    },
+    "Window": {
+      "closeDialog": {
+        "dontRemind": "再度確認しない",
+        "exitApp": "終了する",
+        "message": "操作を選択してください：終了 または トレイに最小化？",
+        "minimizeToTray": "トレイに最小化",
+        "title": "アプリを閉じる"
+      },
+      "runningExitDialog": {
+        "exitApp": "そのまま終了",
+        "message": "現在 {{count}} 件のゲームが実行中です。アプリを終了してもゲーム自体は閉じませんが、このセッションのプレイ時間記録は失われます。それでも終了しますか？",
+        "title": "終了の確認"
+      },
+      "UpdateModal": {
+        "cancel": "キャンセル",
+        "changelog": "変更履歴",
+        "downloading": "アップデートをダウンロード中...",
+        "newVersion": "新しいバージョン",
+        "releaseDate": "リリース日",
+        "title": "新しいバージョンが利用可能",
+        "update": "今すぐアップデート"
+      }
+    }
+  },
+  "home": {
+    "activity": {
+      "added": "{{title}}を追加しました",
+      "addedAt": "{{time}}に追加",
+      "duration": "プレイ時間: {{duration}}",
+      "played": "{{title}}をプレイしました",
+      "playedAtTime": "{{time}}にプレイ"
+    },
+    "activityTitle": "アクティビティ",
+    "addedAt": "追加時間: {{time}}",
+    "lastPlayed": "最終プレイ: {{time}}",
+    "recentlyAdded": "最近追加したゲーム",
+    "recentlyPlayed": "最近プレイしたゲーム",
+    "repository": "ゲームリポジトリ",
+    "stats": {
+      "completedGames": "クリアしたゲーム数",
+      "localGames": "ローカルゲーム数",
+      "todayPlayTime": "今日のプレイ時間",
+      "totalGames": "総ゲーム数",
+      "totalPlayTime": "総プレイ時間",
+      "weekPlayTime": "今週のプレイ時間"
+    },
+    "title": "ホーム"
+  },
+  "pages": {
+    "Collection": {
+      "breadcrumb": {
+        "group": "グループ",
+        "unknownCategory": "不明なカテゴリ"
+      },
+      "defaultGroups": {
+        "developer": "開発者",
+        "playStatus": "プレイ状態"
+      },
+      "deleteCategoryMessage": "カテゴリ \"{{name}}\" を削除してもよろしいですか？この操作により、このカテゴリとすべてのゲームの関連付けが削除されますが、ゲーム自体は削除されません。",
+      "deleteCategoryTitle": "カテゴリを削除",
+      "deleteGroupMessage": "グループ \"{{name}}\" を削除してもよろしいですか？この操作により、このグループ内のすべてのカテゴリも削除され、元に戻すことはできません。",
+      "deleteGroupTitle": "グループを削除",
+      "errors": {
+        "cannotDeleteDefaultGroup": "デフォルトグループは削除できません",
+        "deleteCategoryFailed": "カテゴリの削除に失敗しました。もう一度お試しください",
+        "deleteGroupFailed": "グループの削除に失敗しました。もう一度お試しください",
+        "renameFailed": "名前の変更に失敗しました：{{error}}"
+      },
+      "gamesCount": "ゲーム",
+      "noCategoriesHint": "現在のグループにカテゴリがありません",
+      "success": {
+        "categoryDeleted": "カテゴリを削除しました",
+        "groupDeleted": "グループを削除しました"
+      }
+    },
+    "Detail": {
+      "addTime": "追加時間",
+      "backup": "バックアップ",
+      "Backup": {
+        "autoSave": "自動バックアップ",
+        "backupFailed": "バックアップに失敗しました",
+        "backupHistory": "バックアップ履歴",
+        "backupSuccess": "バックアップが正常に作成されました",
+        "backupTime": "バックアップ時刻",
+        "confirmDelete": "バックアップを削除してもよろしいですか",
+        "confirmDeleteSuffix": "？この操作は取り消せません。",
+        "confirmRestore": "バックアップを復元してもよろしいですか",
+        "confirmRestoreButton": "復元",
+        "confirmRestoreSuffix": "？現在のセーブデータが上書きされます。復元前に新しいバックアップを作成することをお勧めします。",
+        "createBackup": "バックアップを作成",
+        "creating": "バックアップを作成中...",
+        "deleteFailed": "削除に失敗しました",
+        "deleteSuccess": "バックアップが正常に削除されました",
+        "fileSize": "ファイルサイズ",
+        "invalidMaxBackups": "無効な最大バックアップ数",
+        "manualBackup": "手動バックアップ",
+        "maxBackups": "最大バックアップ数",
+        "noBackups": "バックアップ記録がありません",
+        "openBackupFolder": "バックアップフォルダを開く",
+        "openBackupFolderFailed": "バックアップフォルダを開くのに失敗しました",
+        "openSaveDataFolder": "セーブデータフォルダを開く",
+        "openSaveDataFolderFailed": "セーブデータフォルダを開くのに失敗しました",
+        "pathRequired": "まずセーブデータフォルダを選択してください",
+        "restoreBackup": "バックアップを復元",
+        "restoreBackupTitle": "セーブデータを復元",
+        "restoreFailed": "復元に失敗しました",
+        "restoreSuccess": "セーブデータが正常に復元されました",
+        "saveDataPath": "セーブデータフォルダパス",
+        "savePathSettings": "セーブパス設定",
+        "saveSettings": "バックアップ設定を保存",
+        "saving": "保存中...",
+        "selectSaveDataFolder": "セーブデータフォルダを選択",
+        "setPathForRestore": "バックアップを復元するには、まずセーブデータパスを設定してください",
+        "settings": "バックアップ設定",
+        "settingsSaveFailed": "バックアップ設定の保存に失敗しました",
+        "settingsSaved": "バックアップ設定が正常に保存されました"
+      },
+      "backupCount": "バックアップ数",
+      "collapseTags": "タグを折りたたむ",
+      "DataSourceUpdate": {
+        "bgmId": "Bangumi ID",
+        "bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、または YMGal ID は空にできません",
+        "customModeWarning": "カスタムモードではデータソースから更新できません。",
+        "dataSource": "データソース",
+        "incompleteYmgalData": "完全な YMGal データが見つかりませんでした。",
+        "invalidIdType": "無効なIDタイプ",
+        "loading": "読み込み中...",
+        "noDataFetched": "データが取得されていないか、データソースが無効です。",
+        "noGameSelected": "ゲームが選択されていません",
+        "updateFromSource": "データソースから更新",
+        "vndbId": "VNDB ID",
+        "ymgalId": "Ymgal ID"
+      },
+      "Edit": {
+        "dataSourceUpdate": "データソース更新",
+        "gameInfoEdit": "ゲーム情報編集",
+        "updateSuccess": "ゲーム情報が正常に更新されました"
+      },
+      "editPart": "編集",
+      "expandTags": "タグを展開する",
+      "expected_hours": "予想時間",
+      "gameDatafrom": "データソース",
+      "gameDeveloper": "開発者",
+      "GameInfoEdit": {
+        "addAliasPlaceholder": "別名を入力...",
+        "addTagPlaceholder": "タグを入力...",
+        "aliases": "別名",
+        "coverAndBasicInfo": "カバーと基本情報",
+        "customGameName": "カスタムゲーム名",
+        "descriptionAndTags": "説明とタグ",
+        "developer": "開発者",
+        "developerHelperText": "ゲームの開発者または製作グループ名",
+        "developerPlaceholder": "開発者名を入力",
+        "enterGameNote": "ゲームのメモを入力してください",
+        "gamePath": "ゲームパス",
+        "hasCustomCover": "カスタムカバーが設定されています",
+        "invalidGameId": "無効なゲームID",
+        "localPath": "実行可能ファイルのパス",
+        "noteHelperText": "ゲームのカスタム表示名を設定できます。デフォルト名を使用するには空白のままにしてください",
+        "nsfw": "NSFW",
+        "previewSelected": "新しい画像が選択されました。保存後に有効になります",
+        "releaseDate": "リリース日",
+        "releaseDateHelperText": "ゲームの元のリリース日",
+        "removeCustomCover": "カスタムカバーを削除",
+        "saveAllChanges": "すべての変更を保存",
+        "saveGameInfoFailed": "ゲーム情報の保存に失敗しました",
+        "saving": "保存中...",
+        "selectImage": "画像を選択",
+        "selectImageFailed": "画像の選択に失敗しました",
+        "selectPathFailed": "パスの選択に失敗しました",
+        "summary": "概要",
+        "summaryHelperText": "ゲームの短い説明またはストーリー概要",
+        "summaryPlaceholder": "ゲーム概要を入力...",
+        "tags": "タグ"
+      },
+      "gameRanking": "ゲームランキング",
+      "gameScore": "ゲームスコア",
+      "gameStats": "ゲーム統計",
+      "gameTags": "ゲームタグ",
+      "introduction": "紹介",
+      "loading": "読み込み中...",
+      "notFound": "ゲームデータが見つかりません",
+      "playCount": "累計プレイ回数",
+      "playTimeChart": "プレイ時間チャート",
+      "releaseDate": "公開日",
+      "todayPlayTime": "本日のプレイ時間",
+      "totalPlayTime": "累計総プレイ時間"
+    },
+    "Settings": {
+      "about": {
+        "author": "作者",
+        "blog": "作者のブログ",
+        "checkFailed": "アップデートの確認に失敗しました: {{error}}",
+        "checking": "確認中...",
+        "checkUpdate": "アップデートを確認",
+        "noUpdate": "現在のバージョンは最新です",
+        "docs": "ドキュメント",
+        "feedback": "問題を報告",
+        "github": "プロジェクトリポジトリ",
+        "title": "について",
+        "updateFound": "新しいバージョンを検出しました: {{version}}",
+        "version": "バージョン"
+      },
+      "autoStart": "自動起動",
+      "batchUpdate": {
+        "description": "バッチ更新機能は、既存のゲームのBGM/VNDBデータを更新するために使用できます。ゲームのメタデータが変更されると、この機能を使用して最新の情報を同期できます。更新ボタンをクリックしたら、更新プロセスに時間がかかる可能性があるので、お待ちください。ゲームデータソースを更新する際の使用をお勧めします。",
+        "error": "VNDBデータの一括更新に失敗しました: {{message}}",
+        "errorBgm": "BGMデータの一括更新に失敗しました: {{message}}",
+        "failed": "バッチ更新に失敗しました",
+        "noBgmGames": "BGM IDを含むゲームが見つかりません",
+        "noBgmToken": "更新失敗: BGM Tokenが設定されていません",
+        "noGames": "VNDB IDを含むゲームが見つかりません",
+        "partialFailed": "{{failed}} 個のゲームの更新に失敗しました",
+        "success": "{{success}}/{{total}} 個のゲームを正常に更新しました",
+        "title": "バッチ更新データ",
+        "updateBgm": "BGMデータを一括更新",
+        "updateVndb": "VNDBデータを一括更新",
+        "updating": "更新中...",
+        "updatingBgm": "BGMデータを一括更新中..."
+      },
+      "bgmToken": "BGM トークン",
+      "bgmTokenSettings": {
+        "clearToken": "トークンをクリア",
+        "loadingProfile": "現在の Bangumi アカウント情報を取得中...",
+        "profileUnavailable": "現在の BGM Token ではユーザー情報を取得できません。トークンが有効か確認してください。",
+        "saveError": "BGM Token の保存に失敗しました",
+        "saveSuccess": "BGM Token の保存が成功しました"
+      },
+      "cardClickMode": {
+        "doubleClickLaunch": "ダブルクリックでゲーム起動",
+        "doubleClickLaunchNote": "有効にすると左クリックが200ms遅延します（ナビゲーションモードのみ）",
+        "longPressLaunch": "長押しでゲーム起動",
+        "longPressLaunchNote": "カードを800ms長押しするとゲームが起動します。有効にするとコレクションのドラッグソート機能が無効になります",
+        "navigate": "ナビゲーションモード（シングルクリックで詳細表示）",
+        "select": "選択モード（シングルクリックでゲーム選択）",
+        "title": "カードクリックモード"
+      },
+      "closeApp": "アプリを終了",
+      "closeSettings": "終了設定",
+      "closeToTray": "トレイに最小化",
+      "collectionSync": {
+        "bgmDescription": "ゲーム追加時に BGM のコレクション状態を読み取り、ローカルで状態を変更したときに BGM に同期します。",
+        "bgmTitle": "Bangumi コレクション同期を有効化",
+        "syncFailed": "ローカル状態は更新されましたが、{{source}} へのクラウド同期に失敗しました",
+        "title": "コレクション同期",
+        "vndbDescription": "ゲーム追加時に VNDB のコレクション状態を読み取り、ローカルで状態を変更したときに VNDB に同期します。",
+        "vndbTitle": "VNDB コレクション同期を有効化"
+      },
+      "databaseBackup": {
+        "backing": "バックアップ中...",
+        "backup": "データベースをバックアップ",
+        "backupError": "データベースバックアップに失敗しました: {{error}}",
+        "backupFailed": "バックアップに失敗しました",
+        "backupSuccess": "データベースバックアップが成功しました: {{path}}",
+        "importError": "データベースのインポートに失敗しました: {{error}}",
+        "importFailed": "インポートに失敗しました",
+        "importing": "インポート中...",
+        "importSuccess": "データベースのインポートが成功しました。アプリが自動的に再起動します",
+        "openFolder": "バックアップフォルダを開く",
+        "openFolderError": "バックアップフォルダを開くのに失敗しました: {{error}}",
+        "openFolderFailed": "フォルダを開くのに失敗しました",
+        "pathNote": "空白のままにするとデフォルトパス（AppData/data/backups）を使用します。ポータブルモードの場合はプログラムディレクトリになります",
+        "restore": "データベースを復元",
+        "restoreWarning": "データベースの復元は既存のデータを上書きします。ご注意ください。インポート後、アプリは自動的に再起動します。",
+        "title": "データベースバックアップと復元"
+      },
+      "dev": {
+        "title": "実験性機能",
+        "tooltip": "以下の機能は実験的な機能です。慎重にお使いください"
+      },
+      "getToken": "トークンを取得",
+      "language": "言語",
+      "logLevel": {
+        "changed": "ログレベルが{{level}}に変更されました",
+        "changeFailed": "ログレベルの変更に失敗しました",
+        "description": "現在のセッションのみ有効で、保存されません。バックエンドのログ出力の詳細度を一時的に調整するために使用します。",
+        "levelLabel": "ログ出力レベル",
+        "openFolder": "ログフォルダを開く",
+        "openFolderError": "ログフォルダを開くのに失敗しました: {{error}}",
+        "openFolderFailed": "フォルダを開くのに失敗しました",
+        "title": "ログ設定"
+      },
+      "nsfw": {
+        "coverReplace": "NSFW表紙の置き換え",
+        "filter": "NSFWコンテンツのフィルタリング",
+        "title": "NSFWセット"
+      },
+      "pathSettings": {
+        "note": "ゲームセーブバックアップ、LE地域ソフトウェア、Magpieソフトウェア、データベースバックアップなどのパスを設定します",
+        "openModal": "パス設定を開く",
+        "title": "パス設定"
+      },
+      "linuxLaunchCommand": {
+        "title": "Linux 起動コマンド",
+        "description": "Linux で Windows 実行ファイル（.exe）を起動する際に使用するコマンドを設定します。wine、proton などの互換レイヤーコマンド、または PATH 上の実行ファイル/スクリプトのフルパスを指定できます。",
+        "commandLabel": "起動コマンド",
+        "helperText": "例: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+        "resetTooltip": "デフォルト値 (wine) にリセット",
+        "saveBtn": "保存",
+        "saveSuccess": "Linux 起動コマンドを保存しました",
+        "saveError": "保存に失敗しました",
+        "note": "注意: この設定を変更した後は、ゲームを再起動すると有効になります。"
+      },
+      "portableMode": {
+        "confirmDisableMessage": "ポータブルモードを無効にすると、データベースとバックアップがシステムアプリケーションデータディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
+        "confirmEnableMessage": "ポータブルモードを有効にすると、データベースとバックアップがプログラムインストールディレクトリに移行されます。操作が成功すると、アプリが自動的に再起動します。",
+        "confirmTitle": "ポータブルモード切り替えの確認",
+        "description": "ポータブルモードを有効にすると、データベースとバックアップはシステムアプリケーションデータディレクトリではなく、プログラムインストールディレクトリのresourcesフォルダに保存されます。USBドライブや外付けハードドライブでプログラムを使用する必要がある場合に適しています。",
+        "enable": "ポータブルモードを有効にする",
+        "title": "ポータブルモード",
+        "toggleError": "切り替えに失敗しました"
+      },
+      "restartError": "アプリの再起動に失敗しました",
+      "saveBtn": "保存",
+      "skipCloseRemind": "再度確認しない",
+      "spoilerLevel": {
+        "description": "ネタバレレベルを選択して、適切なタグコンテンツを取得する",
+        "level0": "0 - ネタバレなし",
+        "level1": "1 - 軽いネタバレ",
+        "level2": "2 - 深刻なネタバレ",
+        "title": "TAGネタバレレベル"
+      },
+      "tagTranslation": {
+        "description": "ゲームタグの中国語翻訳を有効にする",
+        "title": "TAG翻訳"
+      },
+      "timeTrackingMode": {
+        "description": "ゲーム時間の計算方法を選択します。時間表示と統計記録に影響します。",
+        "elapsed": "ゲーム起動時間",
+        "elapsedDesc": "ゲーム起動から終了までの合計時間をカウント、フォーカスに関係なく",
+        "playtime": "実際のゲーム時間（デフォルト）",
+        "playtimeDesc": "ゲームウィンドウがフォーカスされている時間のみカウント、他のウィンドウに切り替えると一時停止",
+        "title": "ゲーム計時モード"
+      },
+      "tokenPlaceholder": "BGM_TOKENを入力してください",
+      "vndbToken": "VNDB トークン",
+      "vndbTokenPlaceholder": "VNDB Token を入力してください",
+      "vndbTokenSettings": {
+        "clearToken": "トークンをクリア",
+        "loadingProfile": "現在の VNDB アカウント情報を取得中...",
+        "permissions": "権限: {{permissions}}",
+        "profileUnavailable": "現在の VNDB Token ではユーザー情報を取得できません。トークンまたは権限が有効か確認してください。",
+        "saveError": "VNDB Token の保存に失敗しました",
+        "saveSuccess": "VNDB Token を保存しました",
+        "userId": "ユーザー ID: {{id}}"
+      },
+      "vndbData": {
+        "title": "VNDBデータ設定"
+      }
+    }
+  },
+  "utils": {
+    "formatPlayTime": {
+      "hours_other": "{{count}}時間",
+      "hoursAndMinutes": "{{hours}}時間{{minutes}}分",
+      "minutes_other": "{{count}}分"
+    },
+    "handleDirectory": {
+      "allFiles": "すべてのファイル",
+      "executable": "実行ファイル",
+      "folder": "フォルダ"
+    },
+    "relativetime": {
+      "daysAgo_other": "{{count}}日前",
+      "hoursAgo_other": "{{count}}時間前",
+      "justNow": "たった今",
+      "lastWeek": "先週",
+      "minutesAgo_other": "{{count}}分前"
+    }
+  }
 }

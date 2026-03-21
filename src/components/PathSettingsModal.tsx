@@ -32,18 +32,9 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { open as openfile } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-	useDbBackupPath,
-	useLePath,
-	useMagpiePath,
-	useSaveRootPath,
-	useSetDbBackupPath,
-	useSetLePath,
-	useSetMagpiePath,
-	useSetSaveRootPath,
-} from "@/hooks/queries/useSettings";
+import { useAllSettings, useUpdateSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import {
 	getAppDataDirPath,
@@ -62,6 +53,20 @@ interface PathSettingsModalProps {
 	inSettingsPage?: boolean;
 }
 
+interface PathSettingsDraft {
+	savePath: string;
+	lePath: string;
+	magpiePath: string;
+	dbBackupPath: string;
+}
+
+const EMPTY_DRAFT: PathSettingsDraft = {
+	savePath: "",
+	lePath: "",
+	magpiePath: "",
+	dbBackupPath: "",
+};
+
 /**
  * 路径设置弹窗组件
  * @param {PathSettingsModalProps} props
@@ -73,75 +78,58 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	inSettingsPage = true,
 }) => {
 	const { t } = useTranslation();
+	const [draft, setDraft] = useState<PathSettingsDraft>(EMPTY_DRAFT);
+	const [initialDraft, setInitialDraft] =
+		useState<PathSettingsDraft>(EMPTY_DRAFT);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { data: settingsData, isPending } = useAllSettings({ enabled: open });
+	const updateSettingsMutation = useUpdateSettings();
 
-	// 游戏存档备份路径状态
-	const [savePath, setSavePath] = useState("");
-	const [savePathOriginal, setSavePathOriginal] = useState("");
-	const [savePathLoading, setSavePathLoading] = useState(false);
+	const initDraft = useCallback(
+		(settings: NonNullable<typeof settingsData>) => {
+			const nextDraft: PathSettingsDraft = {
+				savePath: inSettingsPage ? (settings.save_root_path ?? "") : "",
+				lePath: settings.le_path ?? "",
+				magpiePath: settings.magpie_path ?? "",
+				dbBackupPath: inSettingsPage ? (settings.db_backup_path ?? "") : "",
+			};
 
-	// LE转区软件路径状态
-	const [lePath, setLePath] = useState("");
-	const [lePathOriginal, setLePathOriginal] = useState("");
-	const [lePathLoading, setLePathLoading] = useState(false);
+			setDraft(nextDraft);
+			setInitialDraft(nextDraft);
+		},
+		[inSettingsPage],
+	);
 
-	// Magpie软件路径状态
-	const [magpiePath, setMagpiePath] = useState("");
-	const [magpiePathOriginal, setMagpiePathOriginal] = useState("");
-	const [magpiePathLoading, setMagpiePathLoading] = useState(false);
-
-	// 数据库备份路径状态
-	const [dbBackupPath, setDbBackupPath] = useState("");
-	const [dbBackupPathOriginal, setDbBackupPathOriginal] = useState("");
-	const [dbBackupPathLoading, setDbBackupPathLoading] = useState(false);
-
-	const { data: saveRootPath = "" } = useSaveRootPath({
-		enabled: open && inSettingsPage,
-	});
-	const { data: lePathData = "" } = useLePath({ enabled: open });
-	const { data: magpiePathData = "" } = useMagpiePath({ enabled: open });
-	const { data: dbBackupPathData = "" } = useDbBackupPath({
-		enabled: open && inSettingsPage,
-	});
-
-	const setSaveRootPathMutation = useSetSaveRootPath();
-	const setLePathMutation = useSetLePath();
-	const setMagpiePathMutation = useSetMagpiePath();
-	const setDbBackupPathMutation = useSetDbBackupPath();
-
-	// 弹窗打开时加载数据
 	useEffect(() => {
-		if (!open) {
+		if (!open || !settingsData) {
 			return;
 		}
+		initDraft(settingsData);
+	}, [open, settingsData, initDraft]);
 
-		if (inSettingsPage) {
-			setSavePath(saveRootPath);
-			setSavePathOriginal(saveRootPath);
-			setDbBackupPath(dbBackupPathData);
-			setDbBackupPathOriginal(dbBackupPathData);
-		}
+	const isDirty =
+		draft.savePath !== initialDraft.savePath ||
+		draft.lePath !== initialDraft.lePath ||
+		draft.magpiePath !== initialDraft.magpiePath ||
+		draft.dbBackupPath !== initialDraft.dbBackupPath;
 
-		setLePath(lePathData);
-		setLePathOriginal(lePathData);
-		setMagpiePath(magpiePathData);
-		setMagpiePathOriginal(magpiePathData);
-	}, [
-		open,
-		inSettingsPage,
-		saveRootPath,
-		dbBackupPathData,
-		lePathData,
-		magpiePathData,
-	]);
+	const isLoading = open && isPending;
+
+	const updateDraft = (key: keyof PathSettingsDraft, value: string) => {
+		setDraft((prev) => ({
+			...prev,
+			[key]: value,
+		}));
+	};
 
 	/**
 	 * 选择文件夹的通用处理函数
 	 */
-	const handleSelectFolder = async (setter: (path: string) => void) => {
+	const handleSelectFolder = async (key: keyof PathSettingsDraft) => {
 		try {
 			const selectedPath = await handleGetFolder();
 			if (selectedPath) {
-				setter(selectedPath);
+				updateDraft(key, selectedPath);
 			}
 		} catch (error) {
 			snackbar.error(
@@ -160,7 +148,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	 * 选择文件的通用处理函数
 	 */
 	const handleSelectFile = async (
-		setter: (path: string) => void,
+		key: keyof PathSettingsDraft,
 		fileTypes: string[],
 	) => {
 		try {
@@ -174,7 +162,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 				],
 			});
 			if (selectedPath && !Array.isArray(selectedPath)) {
-				setter(selectedPath);
+				updateDraft(key, selectedPath);
 			}
 		} catch (error) {
 			snackbar.error(
@@ -190,23 +178,31 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	};
 
 	/**
-	 * 保存游戏存档备份路径
+	 * 统一保存路径设置
 	 */
-	const handleSaveSavePath = async () => {
+	const handleSubmit = async () => {
 		try {
-			setSavePathLoading(true);
-			await setSaveRootPathMutation.mutateAsync(savePath);
+			setIsSubmitting(true);
+			await updateSettingsMutation.mutateAsync({
+				saveRootPath: inSettingsPage ? draft.savePath || null : undefined,
+				dbBackupPath: inSettingsPage ? draft.dbBackupPath || null : undefined,
+				lePath: draft.lePath || null,
+				magpiePath: draft.magpiePath || null,
+			});
 
-			// 如果路径发生了变化，需要移动备份文件夹
-			if (savePathOriginal !== savePath || savePathOriginal !== "") {
+			const nextInitialDraft = { ...draft };
+			setInitialDraft(nextInitialDraft);
+			snackbar.success(
+				t("components.PathSettingsModal.saveSuccess", "路径设置已保存"),
+			);
+
+			// 存档备份路径修改后，尽量迁移旧备份目录
+			if (inSettingsPage && initialDraft.savePath !== draft.savePath) {
 				try {
-					const moveResult = await moveBackupFolder(
-						savePathOriginal,
-						savePath === "" ? getAppDataDirPath() : savePath,
+					await moveBackupFolder(
+						initialDraft.savePath,
+						draft.savePath === "" ? getAppDataDirPath() : draft.savePath,
 					);
-					if (moveResult) {
-						setSavePathOriginal(savePath);
-					}
 				} catch (moveError) {
 					snackbar.warning(
 						t(
@@ -218,97 +214,26 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 						),
 					);
 				}
-			} else {
-				setSavePathOriginal(savePath);
 			}
 		} catch (error) {
 			snackbar.error(
 				t(
-					"components.PathSettingsModal.savePath.saveError",
-					"保存游戏存档备份路径失败：{{error}}",
+					"components.PathSettingsModal.saveError",
+					"保存路径设置失败：{{error}}",
 					{
 						error: getUserErrorMessage(error, t),
 					},
 				),
 			);
 		} finally {
-			setSavePathLoading(false);
-		}
-	};
-
-	/**
-	 * 保存LE转区软件路径
-	 */
-	const handleSaveLePath = async () => {
-		try {
-			setLePathLoading(true);
-			await setLePathMutation.mutateAsync(lePath);
-			setLePathOriginal(lePath);
-		} catch (error) {
-			snackbar.error(
-				t(
-					"components.PathSettingsModal.lePath.saveError",
-					"保存 LE 路径失败：{{error}}",
-					{
-						error: getUserErrorMessage(error, t),
-					},
-				),
-			);
-		} finally {
-			setLePathLoading(false);
-		}
-	};
-
-	/**
-	 * 保存Magpie软件路径
-	 */
-	const handleSaveMagpiePath = async () => {
-		try {
-			setMagpiePathLoading(true);
-			await setMagpiePathMutation.mutateAsync(magpiePath);
-			setMagpiePathOriginal(magpiePath);
-		} catch (error) {
-			snackbar.error(
-				t(
-					"components.PathSettingsModal.magpiePath.saveError",
-					"保存 Magpie 路径失败：{{error}}",
-					{
-						error: getUserErrorMessage(error, t),
-					},
-				),
-			);
-		} finally {
-			setMagpiePathLoading(false);
-		}
-	};
-
-	/**
-	 * 保存数据库备份路径
-	 */
-	const handleSaveDbBackupPath = async () => {
-		try {
-			setDbBackupPathLoading(true);
-			await setDbBackupPathMutation.mutateAsync(dbBackupPath);
-			setDbBackupPathOriginal(dbBackupPath);
-		} catch (error) {
-			snackbar.error(
-				t(
-					"components.PathSettingsModal.dbBackupPath.saveError",
-					"保存数据库备份路径失败：{{error}}",
-					{
-						error: getUserErrorMessage(error, t),
-					},
-				),
-			);
-		} finally {
-			setDbBackupPathLoading(false);
+			setIsSubmitting(false);
 		}
 	};
 
 	return (
 		<Dialog
 			open={open}
-			onClose={onClose}
+			onClose={isSubmitting ? undefined : onClose}
 			maxWidth="md"
 			fullWidth
 			PaperProps={{
@@ -341,19 +266,19 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 										"备份根目录路径",
 									)}
 									variant="outlined"
-									value={savePath}
-									onChange={(e) => setSavePath(e.target.value)}
+									value={draft.savePath}
+									onChange={(e) => updateDraft("savePath", e.target.value)}
 									className="min-w-60 flex-grow"
 									placeholder={t(
 										"components.PathSettingsModal.savePath.pathPlaceholder",
 										"留空使用默认路径",
 									)}
-									disabled={savePathLoading}
+									disabled={isLoading}
 								/>
 								<Button
 									variant="outlined"
-									onClick={() => handleSelectFolder(setSavePath)}
-									disabled={savePathLoading}
+									onClick={() => handleSelectFolder("savePath")}
+									disabled={isLoading}
 									startIcon={<FolderOpenIcon />}
 									className="px-4 py-2"
 								>
@@ -361,18 +286,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 										"components.PathSettingsModal.savePath.selectBtn",
 										"选择目录",
 									)}
-								</Button>
-								<Button
-									variant="contained"
-									color="primary"
-									onClick={handleSaveSavePath}
-									disabled={savePathLoading || savePath === savePathOriginal}
-									startIcon={<SaveIcon />}
-									className="px-4 py-2"
-								>
-									{savePathLoading
-										? t("components.PathSettingsModal.saving", "保存中...")
-										: t("components.PathSettingsModal.saveBtn", "保存")}
 								</Button>
 							</Stack>
 							<Typography
@@ -405,35 +318,23 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									"LE转区软件路径",
 								)}
 								variant="outlined"
-								value={lePath}
-								onChange={(e) => setLePath(e.target.value)}
+								value={draft.lePath}
+								onChange={(e) => updateDraft("lePath", e.target.value)}
 								className="min-w-60 flex-grow"
 								placeholder={t(
 									"components.PathSettingsModal.lePath.pathPlaceholder",
 									"选择LE转区软件的可执行文件",
 								)}
-								disabled={lePathLoading}
+								disabled={isLoading}
 							/>
 							<Button
 								variant="outlined"
-								onClick={() => handleSelectFile(setLePath, ["exe"])}
-								disabled={lePathLoading}
+								onClick={() => handleSelectFile("lePath", ["exe"])}
+								disabled={isLoading}
 								startIcon={<FolderOpenIcon />}
 								className="px-4 py-2"
 							>
 								{t("components.PathSettingsModal.lePath.selectBtn", "选择文件")}
-							</Button>
-							<Button
-								variant="contained"
-								color="primary"
-								onClick={handleSaveLePath}
-								disabled={lePathLoading || lePath === lePathOriginal}
-								startIcon={<SaveIcon />}
-								className="px-4 py-2"
-							>
-								{lePathLoading
-									? t("components.PathSettingsModal.saving", "保存中...")
-									: t("components.PathSettingsModal.saveBtn", "保存")}
 							</Button>
 						</Stack>
 						<Typography
@@ -468,19 +369,19 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									"Magpie软件路径",
 								)}
 								variant="outlined"
-								value={magpiePath}
-								onChange={(e) => setMagpiePath(e.target.value)}
+								value={draft.magpiePath}
+								onChange={(e) => updateDraft("magpiePath", e.target.value)}
 								className="min-w-60 flex-grow"
 								placeholder={t(
 									"components.PathSettingsModal.magpiePath.pathPlaceholder",
 									"选择Magpie软件的可执行文件",
 								)}
-								disabled={magpiePathLoading}
+								disabled={isLoading}
 							/>
 							<Button
 								variant="outlined"
-								onClick={() => handleSelectFile(setMagpiePath, ["exe"])}
-								disabled={magpiePathLoading}
+								onClick={() => handleSelectFile("magpiePath", ["exe"])}
+								disabled={isLoading}
 								startIcon={<FolderOpenIcon />}
 								className="px-4 py-2"
 							>
@@ -488,20 +389,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 									"components.PathSettingsModal.magpiePath.selectBtn",
 									"选择文件",
 								)}
-							</Button>
-							<Button
-								variant="contained"
-								color="primary"
-								onClick={handleSaveMagpiePath}
-								disabled={
-									magpiePathLoading || magpiePath === magpiePathOriginal
-								}
-								startIcon={<SaveIcon />}
-								className="px-4 py-2"
-							>
-								{magpiePathLoading
-									? t("components.PathSettingsModal.saving", "保存中...")
-									: t("components.PathSettingsModal.saveBtn", "保存")}
 							</Button>
 						</Stack>
 						<Typography
@@ -537,19 +424,19 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 										"备份保存路径",
 									)}
 									variant="outlined"
-									value={dbBackupPath}
-									onChange={(e) => setDbBackupPath(e.target.value)}
+									value={draft.dbBackupPath}
+									onChange={(e) => updateDraft("dbBackupPath", e.target.value)}
 									className="min-w-60 flex-grow"
 									placeholder={t(
 										"components.PathSettingsModal.dbBackupPath.pathPlaceholder",
 										"留空使用默认路径",
 									)}
-									disabled={dbBackupPathLoading}
+									disabled={isLoading}
 								/>
 								<Button
 									variant="outlined"
-									onClick={() => handleSelectFolder(setDbBackupPath)}
-									disabled={dbBackupPathLoading}
+									onClick={() => handleSelectFolder("dbBackupPath")}
+									disabled={isLoading}
 									startIcon={<FolderOpenIcon />}
 									className="px-4 py-2"
 								>
@@ -557,20 +444,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 										"components.PathSettingsModal.dbBackupPath.selectBtn",
 										"选择目录",
 									)}
-								</Button>
-								<Button
-									variant="contained"
-									color="primary"
-									onClick={handleSaveDbBackupPath}
-									disabled={
-										dbBackupPathLoading || dbBackupPath === dbBackupPathOriginal
-									}
-									startIcon={<SaveIcon />}
-									className="px-4 py-2"
-								>
-									{dbBackupPathLoading
-										? t("components.PathSettingsModal.saving", "保存中...")
-										: t("components.PathSettingsModal.saveBtn", "保存")}
 								</Button>
 							</Stack>
 							<Typography
@@ -588,8 +461,18 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 				</Box>
 			</DialogContent>
 			<DialogActions>
-				<Button onClick={onClose}>
+				<Button onClick={onClose} disabled={isSubmitting}>
 					{t("components.PathSettingsModal.close", "关闭")}
+				</Button>
+				<Button
+					variant="contained"
+					onClick={handleSubmit}
+					disabled={isSubmitting || isLoading || !isDirty}
+					startIcon={<SaveIcon />}
+				>
+					{isSubmitting
+						? t("components.PathSettingsModal.saving", "保存中...")
+						: t("components.PathSettingsModal.saveBtn", "保存")}
 				</Button>
 			</DialogActions>
 		</Dialog>

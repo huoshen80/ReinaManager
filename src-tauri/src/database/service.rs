@@ -508,26 +508,16 @@ pub async fn get_all_settings(db: State<'_, DatabaseConnection>) -> Result<user:
         .map_err(|e| format!("获取所有设置失败: {}", e))
 }
 
-/// 批量更新设置 暂时无用
+/// 批量更新设置
 #[tauri::command]
 pub async fn update_settings(
     app: AppHandle,
     db: State<'_, DatabaseConnection>,
-    bgm_token: Option<String>,
-    vndb_token: Option<String>,
-    save_root_path: Option<String>,
-    db_backup_path: Option<String>,
+    data: UpdateSettingsData,
 ) -> Result<(), String> {
     use crate::utils::fs::PathManager;
 
-    let data = UpdateSettingsData {
-        bgm_token,
-        vndb_token,
-        save_root_path,
-        db_backup_path,
-        ..Default::default()
-    }
-    .cleaned(); // 清洗空字符串
+    let data = data.cleaned(); // 清洗空字符串
 
     SettingsRepository::update_settings(&db, data)
         .await

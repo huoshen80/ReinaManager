@@ -3,7 +3,7 @@
  * @description 封装所有用户设置相关的后端调用
  */
 
-import type { LogLevel } from "@/types";
+import type { LogLevel, UpdateSettingsParams } from "@/types";
 import { BaseService } from "./base";
 
 export interface UserSettings {
@@ -11,6 +11,8 @@ export interface UserSettings {
 	vndb_token?: string | null;
 	save_root_path?: string | null;
 	db_backup_path?: string | null;
+	le_path?: string | null;
+	magpie_path?: string | null;
 	portable_mode?: number | null;
 }
 
@@ -137,7 +139,6 @@ class SettingsService extends BaseService {
 		return this.invoke<void>("set_magpie_path", { path });
 	}
 
-	// 暂时无用开始
 	/**
 	 * 获取所有设置
 	 */
@@ -148,21 +149,12 @@ class SettingsService extends BaseService {
 	/**
 	 * 批量更新设置
 	 */
-	async updateSettings(
-		bgmToken?: string | null,
-		vndbToken?: string | null,
-		saveRootPath?: string | null,
-		dbBackupPath?: string | null,
-	): Promise<void> {
+	async updateSettings(updates: UpdateSettingsParams): Promise<void> {
 		return this.invoke<void>("update_settings", {
-			bgmToken,
-			vndbToken,
-			saveRootPath,
-			dbBackupPath,
+			data: updates,
 		});
 	}
 }
-// 暂时无用结束
 
 // 导出单例
 export const settingsService = new SettingsService();

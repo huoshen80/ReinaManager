@@ -243,6 +243,25 @@ export interface UpdateGameParams {
 }
 
 /**
+ * 更新设置参数 - 用于批量更新用户设置（部分更新用）
+ *
+ * 三态逻辑说明：
+ * - undefined（字段不存在）: 不修改该字段
+ * - null: 显式将该字段设为 NULL
+ * - 具体值: 更新为新值
+ *
+ * 对应 Rust 后端的 Option<Option<T>> 反序列化
+ */
+export interface UpdateSettingsParams {
+	bgmToken?: Nullable<string>;
+	vndbToken?: Nullable<string>;
+	saveRootPath?: Nullable<string>;
+	dbBackupPath?: Nullable<string>;
+	lePath?: Nullable<string>;
+	magpiePath?: Nullable<string>;
+}
+
+/**
  * 游戏数据结构 - 展示层
  *
  * 所有字段已展平，用于组件直接消费
