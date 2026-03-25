@@ -13,7 +13,7 @@ use crate::database::repository::{
     settings_repository::SettingsRepository,
 };
 use crate::entity::{games, savedata, user};
-use crate::utils::fs::PathManager;
+use crate::utils::fs::{delete_game_cover_dir, PathManager};
 
 // ==================== 便携模式相关类型 ====================
 
@@ -94,23 +94,48 @@ pub async fn update_game(
 
 /// 删除游戏
 #[tauri::command]
-pub async fn delete_game(db: State<'_, DatabaseConnection>, id: i32) -> Result<u64, String> {
-    GamesRepository::delete(&db, id)
+pub async fn delete_game(
+    app: AppHandle,
+    db: State<'_, DatabaseConnection>,
+    id: i32,
+) -> Result<u64, String> {
+    let rows_affected = GamesRepository::delete(&db, id)
         .await
         .map(|result| result.rows_affected)
-        .map_err(|e| format!("删除游戏失败: {}", e))
+        .map_err(|e| format!("删除游戏失败: {}", e))?;
+
+    if rows_affected > 0 {
+        if let Err(err) = delete_game_cover_dir(&app, id).await {
+            log::warn!("删除游戏封面目录失败 game_id={}: {}", id, err);
+        }
+    }
+
+    Ok(rows_affected)
 }
 
 /// 批量删除游戏
 #[tauri::command]
 pub async fn delete_games_batch(
+    app: AppHandle,
     db: State<'_, DatabaseConnection>,
     ids: Vec<i32>,
 ) -> Result<u64, String> {
-    GamesRepository::delete_many(&db, ids)
+    let rows_affected = GamesRepository::delete_many(&db, ids.clone())
         .await
         .map(|result| result.rows_affected)
-        .map_err(|e| format!("批量删除游戏失败: {}", e))
+        .map_err(|e| format!("批量删除游戏失败: {}", e))?;
+
+    for game_id in ids {
+        if let Err(err) = delete_game_cover_dir(&app, game_id).await {
+            log::warn!(
+                "批量删除时清理游戏封面目录失败 game_id={}: {}",
+                game_id,
+                err
+            );
+        }
+    }
+
+    Ok(rows_affected)
 }
 
 /// 获取游戏总数

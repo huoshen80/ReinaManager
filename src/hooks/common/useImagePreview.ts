@@ -1,5 +1,5 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useCallback, useState } from "react";
-import { getAssetUrl } from "@/utils/customCover";
 
 /**
  * 图片预览 Hook
@@ -36,7 +36,7 @@ export const useImagePreview = () => {
 	const selectImage = useCallback((path: string) => {
 		setSelectedPath(path);
 		// 直接转换路径为 asset URL，同步操作，无需 await
-		setPreviewUrl(getAssetUrl(path));
+		setPreviewUrl(convertFileSrc(path));
 	}, []);
 
 	return {

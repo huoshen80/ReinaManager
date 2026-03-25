@@ -1,650 +1,650 @@
 {
-  "errors": {
-    "authFailed": "认证失败，请检查凭证或权限",
-    "badRequest": "请求参数有误，请检查后重试",
-    "bgmTokenRequired": "缺少 BGM Token，请先配置后重试",
-    "invalidGameId": "游戏 ID 格式无效",
-    "invokeFailed": "应用内部调用失败，请稍后重试",
-    "metadataNotFound": "未找到对应的元数据",
-    "metadataRequestFailed": "获取元数据失败，请稍后重试",
-    "mixedSourcesFailed": "所有数据源请求均失败",
-    "notFound": "未找到相关内容",
-    "requestFailed": "请求失败，请稍后重试",
-    "responseParseFailed": "响应解析失败，请稍后重试",
-    "unknownError": "未知错误",
-    "unsupportedSource": "不支持的数据源",
-    "updatePlayStatusFailed": "更新游戏状态失败"
-  },
-  "app": {
-    "NAVIGATION": {
-      "collection": "收藏夹",
-      "gameLibrary": "游戏仓库 ",
-      "home": "主页",
-      "settings": "设置"
-    }
-  },
-  "category": {
-    "playStatus": {
-      "dropped": "弃坑",
-      "onHold": "搁置",
-      "played": "玩过",
-      "playing": "在玩",
-      "wish": "想玩"
-    },
-    "unknownDeveloper": "未知开发商"
-  },
-  "common": {
-    "cancel": "取消",
-    "confirm": "确认",
-    "locale": "zh-CN",
-    "saving": "保存中..."
-  },
-  "components": {
-    "AddModal": {
-      "addGame": "添加游戏",
-      "bulkTab": "批量导入",
-      "cancel": "取消",
-      "confirm": "确认",
-      "developer": "开发商",
-      "enableCustomMode": "启用自定义模式",
-      "gameExists": "游戏已存在",
-      "gameIDTips": "游戏ID(输入BGM、VNDB 或 YMGal ID)",
-      "gameName": "游戏名称",
-      "idSearch": "启用ID搜索模式",
-      "noBgmToken": "缺少 BGM_TOKEN，无法获取数据",
-      "noExecutableSelected": "未选择可执行程序",
-      "noResults": "没有找到结果",
-      "noResultsBgm": "未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",
-      "noResultsMixed": "所有数据源均未找到该游戏",
-      "noResultsVndb": "未在 VNDB 找到该游戏，请尝试其他名称或检查 ID",
-      "noResultsYmgal": "未在 YMGal 找到该游戏，请尝试其他名称或检查 ID",
-      "processing": "处理中...",
-      "dragHint": "请选择或拖拽可执行文件或文件夹",
-      "dragDropHere": "拖拽文件到这里",
-      "invalidFile": "请拖入有效的可执行文件（.exe/.bat/.cmd）或文件夹",
-      "emptyFolder": "该文件夹中没有找到可执行文件",
-      "selectFromFolder": "文件夹中有多个可执行文件，请选择一个",
-      "selectGame": "选择游戏",
-      "selectLauncher": "选择启动程序",
-      "singleTab": "单个添加",
-      "timeout": "请求超时，请稍后重试"
-    },
-    "BulkImportModal": {
-      "selectRootFolder": "选择根文件夹",
-      "noFolderSelected": "未选择文件夹",
-      "searchName": "搜索名称",
-      "matchedGame": "匹配的游戏",
-      "status": "状态",
-      "executable": "启动程序",
-      "actions": "操作",
-      "noGamesFound": "未找到游戏",
-      "statusPending": "待处理",
-      "statusMatched": "已匹配",
-      "statusNotFound": "未找到",
-      "statusImported": "已导入",
-      "statusError": "错误",
-      "selectExe": "请选择启动程序",
-      "cancel": "取消",
-      "matchMetadata": "匹配元数据",
-      "importAll": "全部导入",
-      "editMetadata": "编辑游戏信息",
-      "reset": "重置",
-      "saveNameOnly": "仅保存名称",
-      "search": "搜索",
-      "importSummary": "成功导入 {{success}}/{{total}} 个游戏",
-      "importPartialFailed": "{{failed}} 个游戏导入失败",
-      "gamesCount": "共 {{count}} 个游戏",
-      "matchCancelled": "已取消匹配任务"
-    },
-    "AlertBox": {
-      "bgmData": "BGM 数据",
-      "cancel": "取消",
-      "confirm": "确认",
-      "confirmAddTitle": "确认添加游戏",
-      "confirmDelete": "确认删除",
-      "confirmUpdateTitle": "确认更新游戏信息",
-      "deleteBackupTitle": "删除备份",
-      "deleteGameMessage": "确定要删除该游戏吗？",
-      "deleteGameTitle": "删除游戏",
-      "gameName": "游戏名称",
-      "noData": "没有数据",
-      "processing": "处理中...",
-      "vndbData": "VNDB 数据",
-      "ymgalData": "YMGal 数据"
-    },
-    "Collection": {
-      "errors": {
-        "cannotModifyVirtualCategory": "无法修改虚拟分类",
-        "updateCategoryGamesFailed": "更新分类游戏失败，请重试"
-      },
-      "success": {
-        "categoryGamesUpdated": "已更新分类游戏：{{count}} 个"
-      }
-    },
-    "FilterModal": {
-      "allGames": "全部游戏",
-      "apply": "应用",
-      "cancel": "取消",
-      "clearGames": "已通关游戏",
-      "customGames": "自定义游戏",
-      "filter": "筛选",
-      "filterTitle": "筛选",
-      "localGames": "本地游戏",
-      "noclearGames": "未通关游戏",
-      "onlineGames": "网络游戏"
-    },
-    "LaunchModal": {
-      "gamePathNotFound": "游戏路径未找到",
-      "launchFailed": "游戏启动失败:",
-      "launchGame": "启动游戏",
-      "localPathLabel": "可执行文件路径",
-      "pathRequired": "请选择或输入路径",
-      "pathSaved": "路径已保存",
-      "pathSaveFailed": "保存路径失败",
-      "selectFolder": "选择文件夹",
-      "setLocalPathTitle": "设置本地路径",
-      "stopFailed": "游戏停止失败:",
-      "stoppingGame": "停止游戏中...",
-      "syncLocalPath": "同步本地"
-    },
-    "PathSettingsModal": {
-      "close": "关闭",
-      "dbBackupPath": {
-        "note": "设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
-        "pathLabel": "备份保存路径",
-        "pathPlaceholder": "留空使用默认路径",
-        "selectBtn": "选择目录",
-        "title": "数据库备份路径"
-      },
-      "lePath": {
-        "note": "设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
-        "pathLabel": "LE转区软件路径",
-        "pathPlaceholder": "选择LE转区软件的可执行文件",
-        "selectBtn": "选择文件",
-        "title": "LE转区软件路径"
-      },
-      "magpiePath": {
-        "note": "设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
-        "pathLabel": "Magpie软件路径",
-        "pathPlaceholder": "选择Magpie软件的可执行文件",
-        "selectBtn": "选择文件",
-        "title": "Magpie软件路径"
-      },
-      "saveBtn": "保存",
-      "saveError": "保存路径设置失败：{{error}}",
-      "saveSuccess": "路径设置已保存",
-      "savePath": {
-        "moveBackupWarning": "备份路径已保存，但迁移旧备份失败：{{error}}",
-        "note": "设置游戏存档的备份根目录路径，留空将使用默认路径",
-        "pathLabel": "备份根目录路径",
-        "pathPlaceholder": "留空使用默认路径",
-        "selectBtn": "选择目录",
-        "title": "游戏存档备份路径"
-      },
-      "selectFileError": "选择文件失败：{{error}}",
-      "selectFolderError": "选择目录失败：{{error}}",
-      "saving": "保存中...",
-      "title": "路径设置"
-    },
-    "RightMenu": {
-      "Collection": {
-        "categoryMenu": "分类菜单",
-        "groupMenu": "分组菜单",
-        "manageGames": "管理游戏",
-        "newCategoryName": "新分类名称",
-        "newGroupName": "新分组名称",
-        "renameCategory": "重命名分类",
-        "renameCategoryTitle": "重命名分类",
-        "renameGroup": "重命名分组",
-        "renameGroupTitle": "重命名分组"
-      },
-      "changePlayStatus": "修改游戏状态",
-      "deleteGame": "删除游戏",
-      "enterDetails": "进入详情页",
-      "label": "右键菜单",
-      "openGameFolder": "打开游戏目录",
-      "startGame": "启动游戏"
-    },
-    "SearchBox": {
-      "search": "搜索"
-    },
-    "Snackbar": {
-      "failedOpenDatabaseBackupFolder": "打开数据库备份文件夹失败",
-      "failedOpenGameFolder": "打开游戏文件夹失败",
-      "gameAddedSuccess": "游戏添加成功",
-      "viewDetails": "查看详情"
-    },
-    "SortModal": {
-      "addTime": "添加时间(默认)",
-      "ascending": "升序",
-      "bgmRank": "BGM 排名",
-      "cancel": "取消",
-      "confirm": "确认",
-      "descending": "降序",
-      "lastPlayed": "最近游玩",
-      "nameSort": "名称排序",
-      "releaseTime": "游戏发布时间",
-      "sort": "排序",
-      "sortMethod": "排序方法：",
-      "vndbRank": "VNDB 排名"
-    },
-    "AppLayout": {
-      "back": "返回"
-    },
-    "Toolbar": {
-      "bgmlink": "查看Bangumi页面",
-      "Category": {
-        "availableGames": "可用游戏",
-        "gamesInCategory": "分类中的游戏",
-        "manageGamesTitle": "管理分类游戏",
-        "noGames": "暂无游戏",
-        "noGamesInCategory": "该分类暂无游戏",
-        "noSearchResults": "未找到匹配的游戏",
-        "save": "保存更改",
-        "searchPlaceholder": "搜索游戏..."
-      },
-      "Collection": {
-        "Category": {
-          "manageGames": "管理游戏"
-        },
-        "Group": {
-          "addCategory": "添加分类",
-          "addGroup": "添加分组",
-          "deleteGroup": "删除分组",
-          "deleteGroupMessage": "确定要删除此分组吗？此操作将同时删除分组下的所有分类，且无法恢复。",
-          "deleteGroupTitle": "删除分组",
-          "enterCategoryName": "请输入分类名称",
-          "enterGroupName": "请输入分组名称"
-        }
-      },
-      "deleteGame": "删除游戏",
-      "deleting": "删除中...",
-      "leLaunch": "LE转区启动",
-      "lePathNotSet": "未设置LE转区软件路径，请先配置路径",
-      "magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
-      "magpieZoom": "Magpie放大",
-      "changePlayStatus": "修改游戏状态",
-      "more": "更多",
-      "openGameFolder": "打开游戏目录",
-      "theme": "主题",
-      "themeDark": "深色",
-      "themeLight": "浅色",
-      "themeSystem": "跟随系统",
-      "vndblink": "查看Vndb页面",
-      "ymgallink": "月幕Gal页面"
-    },
-    "Tray": {
-      "exit": "退出",
-      "open": "打开主窗口"
-    },
-    "Window": {
-      "closeDialog": {
-        "dontRemind": "不再提醒",
-        "exitApp": "退出应用",
-        "message": "请选择操作：直接退出 或 最小化到托盘？",
-        "minimizeToTray": "最小化到托盘",
-        "title": "关闭应用"
-      },
-      "runningExitDialog": {
-        "exitApp": "仍然退出",
-        "message": "当前仍有 {{count}} 个游戏正在运行。退出应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要退出应用吗？",
-        "title": "退出提醒"
-      },
-      "UpdateModal": {
-        "cancel": "取消",
-        "changelog": "更新说明",
-        "downloading": "正在下载更新...",
-        "newVersion": "新版本",
-        "releaseDate": "发布日期",
-        "title": "发现新版本",
-        "update": "立即更新"
-      }
-    }
-  },
-  "home": {
-    "activity": {
-      "added": "添加了 {{title}}",
-      "addedAt": "添加于 {{time}}",
-      "duration": "游戏时长: {{duration}}",
-      "played": "游玩了 {{title}}",
-      "playedAtTime": "游玩于 {{time}}"
-    },
-    "activityTitle": "动态",
-    "addedAt": "添加时间: {{time}}",
-    "lastPlayed": "最后游玩: {{time}}",
-    "recentlyAdded": "最近添加",
-    "recentlyPlayed": "最近游玩",
-    "repository": "游戏仓库",
-    "stats": {
-      "completedGames": "通关游戏数",
-      "localGames": "本地游戏数",
-      "todayPlayTime": "今日游戏时长",
-      "totalGames": "总游戏数",
-      "totalPlayTime": "总游戏时长",
-      "weekPlayTime": "本周游戏时长"
-    },
-    "title": "主页"
-  },
-  "pages": {
-    "Collection": {
-      "breadcrumb": {
-        "group": "分组",
-        "unknownCategory": "未知分类"
-      },
-      "defaultGroups": {
-        "developer": "开发商",
-        "playStatus": "游戏状态"
-      },
-      "deleteCategoryMessage": "确定要删除分类 \"{{name}}\" 吗？此操作将移除该分类与所有游戏的关联，但不会删除游戏本身。",
-      "deleteCategoryTitle": "删除分类",
-      "deleteGroupMessage": "确定要删除分组 \"{{name}}\" 吗？此操作将同时删除该分组下的所有分类，且无法恢复。",
-      "deleteGroupTitle": "删除分组",
-      "errors": {
-        "cannotDeleteDefaultGroup": "默认分组不能删除",
-        "deleteCategoryFailed": "删除分类失败，请重试",
-        "deleteGroupFailed": "删除分组失败，请重试",
-        "renameFailed": "重命名失败：{{error}}"
-      },
-      "gamesCount": "个游戏",
-      "noCategoriesHint": "当前分组下没有分类",
-      "success": {
-        "categoryDeleted": "已删除分类",
-        "groupDeleted": "已删除分组"
-      }
-    },
-    "Detail": {
-      "addTime": "添加时间",
-      "backup": "备份",
-      "Backup": {
-        "autoSave": "自动备份",
-        "backupFailed": "备份失败",
-        "backupHistory": "备份历史",
-        "backupSuccess": "备份创建成功",
-        "backupTime": "备份时间",
-        "confirmDelete": "确定要删除备份",
-        "confirmDeleteSuffix": "吗？此操作不可撤销。",
-        "confirmRestore": "确定要恢复备份",
-        "confirmRestoreButton": "恢复",
-        "confirmRestoreSuffix": " 吗？这将覆盖当前存档，建议在恢复前先创建新备份。",
-        "createBackup": "创建备份",
-        "creating": "正在创建备份...",
-        "deleteFailed": "删除失败",
-        "deleteSuccess": "备份删除成功",
-        "fileSize": "文件大小",
-        "invalidMaxBackups": "最大备份数量必须大于0",
-        "manualBackup": "手动备份",
-        "maxBackups": "最大备份数量",
-        "noBackups": "暂无备份记录",
-        "openBackupFolder": "打开备份文件夹",
-        "openBackupFolderFailed": "打开备份文件夹失败",
-        "openSaveDataFolder": "打开存档文件夹",
-        "openSaveDataFolderFailed": "打开存档文件夹失败",
-        "pathRequired": "请先选择存档文件夹",
-        "restoreBackup": "恢复备份",
-        "restoreBackupTitle": "恢复存档",
-        "restoreFailed": "恢复失败",
-        "restoreSuccess": "存档恢复成功",
-        "saveDataPath": "存档文件夹路径",
-        "savePathSettings": "存档路径设置",
-        "saveSettings": "保存备份设置",
-        "saving": "保存中...",
-        "selectSaveDataFolder": "选择存档文件夹",
-        "setPathForRestore": "请先设置存档路径以恢复备份",
-        "settings": "备份设置",
-        "settingsSaveFailed": "备份设置保存失败",
-        "settingsSaved": "备份设置保存成功"
-      },
-      "backupCount": "存档备份数",
-      "collapseTags": "折叠标签",
-      "DataSourceUpdate": {
-        "bgmId": "Bangumi ID",
-        "bgmOrVndbIdRequired": "Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
-        "customModeWarning": "自定义模式无法从数据源更新。",
-        "dataSource": "数据源",
-        "incompleteYmgalData": "未找到完整的 YMGal 数据。",
-        "invalidIdType": "无效的ID类型",
-        "loading": "正在获取...",
-        "noDataFetched": "未获取到数据或数据源无效。",
-        "noGameSelected": "未选择游戏",
-        "updateFromSource": "从数据源更新数据",
-        "vndbId": "VNDB ID",
-        "ymgalId": "YMGal ID"
-      },
-      "Edit": {
-        "dataSourceUpdate": "数据源更新",
-        "gameInfoEdit": "游戏资料编辑",
-        "updateSuccess": "游戏信息已成功更新"
-      },
-      "editPart": "编辑",
-      "expandTags": "展开标签",
-      "expected_hours": "预计时长",
-      "gameDatafrom": "数据来源",
-      "gameDeveloper": "开发",
-      "GameInfoEdit": {
-        "addAliasPlaceholder": "输入别名后按回车添加，退格键删除",
-        "addTagPlaceholder": "输入标签后按回车添加，退格键删除",
-        "aliases": "别名",
-        "coverAndBasicInfo": "封面与基本信息",
-        "customGameName": "自定义游戏名称",
-        "descriptionAndTags": "简介与标签",
-        "developer": "开发商",
-        "developerHelperText": "例如：开发商A / 开发商B",
-        "developerPlaceholder": "多个开发商请使用 / 分隔",
-        "enterGameNote": "请输入游戏备注",
-        "gamePath": "游戏路径",
-        "hasCustomCover": "已设置自定义封面",
-        "invalidGameId": "无效的游戏ID",
-        "localPath": "可执行文件路径",
-        "noteHelperText": "您可以为游戏设置一个自定义的显示名称，留空则使用默认名称",
-        "nsfw": "NSFW (18+)",
-        "previewSelected": "已选择新图片，保存后生效",
-        "releaseDate": "发行日期",
-        "releaseDateHelperText": "游戏的发行日期",
-        "removeCustomCover": "移除自定义封面",
-        "saveAllChanges": "保存所有更改",
-        "saveGameInfoFailed": "保存游戏信息失败",
-        "saving": "保存中...",
-        "selectImage": "选择图片",
-        "selectImageFailed": "选择图片失败",
-        "selectPathFailed": "选择路径失败",
-        "summary": "游戏简介",
-        "summaryHelperText": "游戏的详细介绍（可拖动右下角调整大小）",
-        "summaryPlaceholder": "请输入游戏简介",
-        "tags": "标签"
-      },
-      "gameRanking": "游戏排行",
-      "gameScore": "游戏评分",
-      "gameStats": "游戏统计",
-      "gameTags": "游戏标签",
-      "introduction": "简介",
-      "loading": "加载中...",
-      "notFound": "未找到游戏数据",
-      "playCount": "累计游戏次数",
-      "playTimeChart": "统计图表",
-      "releaseDate": "发布时间",
-      "todayPlayTime": "今日游戏时长",
-      "totalPlayTime": "累计总时长"
-    },
-    "Settings": {
-      "about": {
-        "author": "作者",
-        "blog": "作者博客",
-        "checkFailed": "检查更新失败：{{error}}",
-        "checking": "检查中...",
-        "checkUpdate": "检查更新",
-        "noUpdate": "当前已是最新版本",
-        "docs": "使用文档",
-        "feedback": "问题反馈",
-        "github": "项目地址",
-        "title": "关于",
-        "updateFound": "发现新版本：{{version}}",
-        "version": "版本"
-      },
-      "autoStart": "开机自启",
-      "batchUpdate": {
-        "description": "批量更新功能可用于更新已存在游戏的 BGM/VNDB 数据。当游戏的元数据发生变化时，您可以使用此功能来同步最新的信息。一旦点击更新按钮请耐心等待，更新过程可能需要一些时间。推荐软件更新数据源获取字段时使用。",
-        "error": "批量更新 VNDB 数据失败: {{message}}",
-        "errorBgm": "批量更新 BGM 数据失败: {{message}}",
-        "failed": "批量更新失败",
-        "noBgmGames": "没有找到包含 BGM ID 的游戏",
-        "noBgmToken": "更新失败：未设置 BGM Token",
-        "noGames": "没有找到包含 VNDB ID 的游戏",
-        "partialFailed": "{{failed}} 个游戏更新失败",
-        "success": "成功更新 {{success}}/{{total}} 个游戏",
-        "title": "批量更新数据",
-        "updateBgm": "批量更新 BGM 数据",
-        "updateVndb": "批量更新 VNDB 数据",
-        "updating": "更新中...",
-        "updatingBgm": "正在批量更新 BGM 数据..."
-      },
-      "bgmToken": "BGM 令牌",
-      "bgmTokenSettings": {
-        "clearToken": "清除令牌",
-        "loadingProfile": "正在获取当前 Bangumi 账号信息...",
-        "profileUnavailable": "当前 BGM Token 无法获取用户信息，请检查令牌是否有效。",
-        "saveError": "BGM Token 保存失败",
-        "saveSuccess": "BGM Token 保存成功"
-      },
-      "cardClickMode": {
-        "doubleClickLaunch": "双击启动游戏",
-        "doubleClickLaunchNote": "开启后会导致左键单击延迟200ms（仅导航模式）",
-        "longPressLaunch": "长按启动游戏",
-        "longPressLaunchNote": "长按卡片800ms后启动游戏，开启后收藏夹拖拽排序功能将被禁用",
-        "navigate": "导航模式（单击跳转详情页）",
-        "select": "选择模式（单击选择游戏）",
-        "title": "卡片点击模式"
-      },
-      "closeApp": "直接退出应用",
-      "closeSettings": "关闭设置",
-      "closeToTray": "最小化到托盘",
-      "collectionSync": {
-        "bgmDescription": "添加游戏时尝试读取 BGM 收藏状态，本地修改状态时同步回 BGM。",
-        "bgmTitle": "启用 Bangumi 收藏同步",
-        "syncFailed": "本地状态已更新，但 {{source}} 云端同步失败",
-        "title": "收藏状态同步",
-        "vndbDescription": "添加游戏时尝试读取 VNDB 收藏状态，本地修改状态时同步回 VNDB。",
-        "vndbTitle": "启用 VNDB 收藏同步"
-      },
-      "databaseBackup": {
-        "backing": "备份中...",
-        "backup": "备份数据库",
-        "backupError": "数据库备份失败: {{error}}",
-        "backupFailed": "备份失败",
-        "backupSuccess": "数据库备份成功: {{path}}",
-        "importError": "数据库导入失败: {{error}}",
-        "importFailed": "导入失败",
-        "importing": "导入中...",
-        "importSuccess": "数据库导入成功，应用将自动重启",
-        "openFolder": "打开备份文件夹",
-        "openFolderError": "打开备份文件夹失败: {{error}}",
-        "openFolderFailed": "打开文件夹失败",
-        "pathNote": "备份路径配置已移至下方的「数据库备份路径」设置中",
-        "restore": "恢复数据库",
-        "restoreWarning": "恢复数据库将覆盖现有数据，请谨慎操作。导入后应用将自动重启。",
-        "title": "数据库备份与恢复"
-      },
-      "dev": {
-        "title": "实验性功能",
-        "tooltip": "以下功能为实验性功能，请谨慎使用"
-      },
-      "getToken": "获取令牌",
-      "language": "语言",
-      "logLevel": {
-        "changed": "日志级别已切换为 {{level}}",
-        "changeFailed": "切换日志级别失败",
-        "description": "仅当前会话有效，不会保存。用于临时调整后端日志输出详尽程度。",
-        "levelLabel": "日志输出级别",
-        "openFolder": "打开日志文件夹",
-        "openFolderError": "打开日志文件夹失败: {{error}}",
-        "openFolderFailed": "打开文件夹失败",
-        "title": "日志设置"
-      },
-      "nsfw": {
-        "coverReplace": "NSFW 封面替换",
-        "filter": "过滤 NSFW 内容",
-        "title": "NSFW 设置"
-      },
-      "pathSettings": {
-        "note": "配置游戏存档备份、LE转区软件、Magpie软件、数据库备份等路径",
-        "openModal": "打开路径设置",
-        "title": "路径设置"
-      },
-      "linuxLaunchCommand": {
-        "title": "Linux 启动命令",
-        "description": "设置 Linux 上启动 Windows 可执行文件（.exe）时使用的命令。支持 wine、proton 或其他兼容层命令，也可以是 PATH 中的可执行文件或脚本的完整路径。",
-        "commandLabel": "启动命令",
-        "helperText": "例如: wine, /usr/bin/wine, ~/scripts/run-game.sh",
-        "resetTooltip": "重置为默认值 (wine)",
-        "saveBtn": "保存",
-        "saveSuccess": "Linux 启动命令已保存",
-        "saveError": "保存失败",
-        "note": "注意：更改此设置后，需要重新启动游戏才能生效。"
-      },
-      "portableMode": {
-        "confirmDisableMessage": "关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
-        "confirmEnableMessage": "启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
-        "confirmTitle": "确认切换便携模式",
-        "description": "开启便携模式后，数据库和备份将保存在程序安装目录resources文件夹下，而非系统应用数据目录。适合需要将程序放在U盘或移动硬盘中使用的场景。",
-        "enable": "启用便携模式",
-        "title": "便携模式",
-        "toggleError": "切换失败"
-      },
-      "restartError": "重启失败，请手动重启应用",
-      "saveBtn": "保存",
-      "skipCloseRemind": "不再提醒",
-      "spoilerLevel": {
-        "description": "选择剧透等级以获取合适的标签内容",
-        "level0": "0 - 无剧透",
-        "level1": "1 - 轻微剧透",
-        "level2": "2 - 严重剧透",
-        "title": "TAG剧透等级"
-      },
-      "tagTranslation": {
-        "description": "开启后将使用中文翻译显示游戏标签",
-        "title": "TAG翻译"
-      },
-      "timeTrackingMode": {
-        "description": "选择游戏时间的计算方式，影响游戏运行时的时间显示和统计记录。",
-        "elapsed": "游戏启动时间",
-        "elapsedDesc": "计算从游戏启动到结束的总时间，不区分前台后台",
-        "playtime": "真实游戏时间（默认）",
-        "playtimeDesc": "仅计算游戏窗口在前台时的时间，切换到其他窗口时暂停计时",
-        "title": "游戏计时模式"
-      },
-      "tokenPlaceholder": "请填写你的BGM_TOKEN",
-      "vndbToken": "VNDB 令牌",
-      "vndbTokenPlaceholder": "请填写你的 VNDB Token",
-      "vndbTokenSettings": {
-        "clearToken": "清除令牌",
-        "loadingProfile": "正在获取当前 VNDB 账号信息...",
-        "permissions": "权限: {{permissions}}",
-        "profileUnavailable": "当前 VNDB Token 无法获取用户信息，请检查令牌或权限是否有效。",
-        "saveError": "VNDB Token 保存失败",
-        "saveSuccess": "VNDB Token 保存成功",
-        "userId": "用户 ID: {{id}}"
-      },
-      "vndbData": {
-        "title": "VNDB 数据设置"
-      }
-    }
-  },
-  "utils": {
-    "formatPlayTime": {
-      "hours": "{{count}}小时",
-      "hoursAndMinutes": "{{hours}}小时{{minutes}}分钟",
-      "minutes": "{{count}}分钟"
-    },
-    "handleDirectory": {
-      "allFiles": "所有文件",
-      "executable": "可执行文件",
-      "folder": "文件夹"
-    },
-    "relativetime": {
-      "daysAgo": "{{count}}天前",
-      "hoursAgo": "{{count}}小时前",
-      "justNow": "刚刚",
-      "lastWeek": "上周",
-      "minutesAgo": "{{count}}分钟前"
-    }
-  }
+	"errors": {
+		"authFailed": "认证失败，请检查凭证或权限",
+		"badRequest": "请求参数有误，请检查后重试",
+		"bgmTokenRequired": "缺少 BGM Token，请先配置后重试",
+		"invalidGameId": "游戏 ID 格式无效",
+		"invokeFailed": "应用内部调用失败，请稍后重试",
+		"metadataNotFound": "未找到对应的元数据",
+		"metadataRequestFailed": "获取元数据失败，请稍后重试",
+		"mixedSourcesFailed": "所有数据源请求均失败",
+		"notFound": "未找到相关内容",
+		"requestFailed": "请求失败，请稍后重试",
+		"responseParseFailed": "响应解析失败，请稍后重试",
+		"unknownError": "未知错误",
+		"unsupportedSource": "不支持的数据源",
+		"updatePlayStatusFailed": "更新游戏状态失败"
+	},
+	"app": {
+		"NAVIGATION": {
+			"collection": "收藏夹",
+			"gameLibrary": "游戏仓库 ",
+			"home": "主页",
+			"settings": "设置"
+		}
+	},
+	"category": {
+		"playStatus": {
+			"dropped": "弃坑",
+			"onHold": "搁置",
+			"played": "玩过",
+			"playing": "在玩",
+			"wish": "想玩"
+		},
+		"unknownDeveloper": "未知开发商"
+	},
+	"common": {
+		"cancel": "取消",
+		"confirm": "确认",
+		"locale": "zh-CN",
+		"saving": "保存中..."
+	},
+	"components": {
+		"AddModal": {
+			"addGame": "添加游戏",
+			"bulkTab": "批量导入",
+			"cancel": "取消",
+			"confirm": "确认",
+			"developer": "开发商",
+			"enableCustomMode": "启用自定义模式",
+			"gameExists": "游戏已存在",
+			"gameIDTips": "游戏ID(输入BGM、VNDB 或 YMGal ID)",
+			"gameName": "游戏名称",
+			"idSearch": "启用ID搜索模式",
+			"noBgmToken": "缺少 BGM_TOKEN，无法获取数据",
+			"noExecutableSelected": "未选择可执行程序",
+			"noResults": "没有找到结果",
+			"noResultsBgm": "未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",
+			"noResultsMixed": "所有数据源均未找到该游戏",
+			"noResultsVndb": "未在 VNDB 找到该游戏，请尝试其他名称或检查 ID",
+			"noResultsYmgal": "未在 YMGal 找到该游戏，请尝试其他名称或检查 ID",
+			"processing": "处理中...",
+			"dragHint": "请选择或拖拽可执行文件或文件夹",
+			"dragDropHere": "拖拽文件到这里",
+			"invalidFile": "请拖入有效的可执行文件（.exe/.bat/.cmd）或文件夹",
+			"emptyFolder": "该文件夹中没有找到可执行文件",
+			"selectFromFolder": "文件夹中有多个可执行文件，请选择一个",
+			"selectGame": "选择游戏",
+			"selectLauncher": "选择启动程序",
+			"singleTab": "单个添加",
+			"timeout": "请求超时，请稍后重试"
+		},
+		"BulkImportModal": {
+			"selectRootFolder": "选择根文件夹",
+			"noFolderSelected": "未选择文件夹",
+			"searchName": "搜索名称",
+			"matchedGame": "匹配的游戏",
+			"status": "状态",
+			"executable": "启动程序",
+			"actions": "操作",
+			"noGamesFound": "未找到游戏",
+			"statusPending": "待处理",
+			"statusMatched": "已匹配",
+			"statusNotFound": "未找到",
+			"statusImported": "已导入",
+			"statusError": "错误",
+			"selectExe": "请选择启动程序",
+			"cancel": "取消",
+			"matchMetadata": "匹配元数据",
+			"importAll": "全部导入",
+			"editMetadata": "编辑游戏信息",
+			"reset": "重置",
+			"saveNameOnly": "仅保存名称",
+			"search": "搜索",
+			"importSummary": "成功导入 {{success}}/{{total}} 个游戏",
+			"importPartialFailed": "{{failed}} 个游戏导入失败",
+			"gamesCount": "共 {{count}} 个游戏",
+			"matchCancelled": "已取消匹配任务"
+		},
+		"AlertBox": {
+			"bgmData": "BGM 数据",
+			"cancel": "取消",
+			"confirm": "确认",
+			"confirmAddTitle": "确认添加游戏",
+			"confirmDelete": "确认删除",
+			"confirmUpdateTitle": "确认更新游戏信息",
+			"deleteBackupTitle": "删除备份",
+			"deleteGameMessage": "确定要删除该游戏吗？",
+			"deleteGameTitle": "删除游戏",
+			"gameName": "游戏名称",
+			"noData": "没有数据",
+			"processing": "处理中...",
+			"vndbData": "VNDB 数据",
+			"ymgalData": "YMGal 数据"
+		},
+		"Collection": {
+			"errors": {
+				"cannotModifyVirtualCategory": "无法修改虚拟分类",
+				"updateCategoryGamesFailed": "更新分类游戏失败，请重试"
+			},
+			"success": {
+				"categoryGamesUpdated": "已更新分类游戏：{{count}} 个"
+			}
+		},
+		"FilterModal": {
+			"allGames": "全部游戏",
+			"apply": "应用",
+			"cancel": "取消",
+			"clearGames": "已通关游戏",
+			"customGames": "自定义游戏",
+			"filter": "筛选",
+			"filterTitle": "筛选",
+			"localGames": "本地游戏",
+			"noclearGames": "未通关游戏",
+			"onlineGames": "网络游戏"
+		},
+		"LaunchModal": {
+			"gamePathNotFound": "游戏路径未找到",
+			"launchFailed": "游戏启动失败:",
+			"launchGame": "启动游戏",
+			"localPathLabel": "可执行文件路径",
+			"pathRequired": "请选择或输入路径",
+			"pathSaved": "路径已保存",
+			"pathSaveFailed": "保存路径失败",
+			"selectFolder": "选择文件夹",
+			"setLocalPathTitle": "设置本地路径",
+			"stopFailed": "游戏停止失败:",
+			"stoppingGame": "停止游戏中...",
+			"syncLocalPath": "同步本地"
+		},
+		"PathSettingsModal": {
+			"close": "关闭",
+			"dbBackupPath": {
+				"note": "设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
+				"pathLabel": "备份保存路径",
+				"pathPlaceholder": "留空使用默认路径",
+				"selectBtn": "选择目录",
+				"title": "数据库备份路径"
+			},
+			"lePath": {
+				"note": "设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
+				"pathLabel": "LE转区软件路径",
+				"pathPlaceholder": "选择LE转区软件的可执行文件",
+				"selectBtn": "选择文件",
+				"title": "LE转区软件路径"
+			},
+			"magpiePath": {
+				"note": "设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
+				"pathLabel": "Magpie软件路径",
+				"pathPlaceholder": "选择Magpie软件的可执行文件",
+				"selectBtn": "选择文件",
+				"title": "Magpie软件路径"
+			},
+			"saveBtn": "保存",
+			"saveError": "保存路径设置失败：{{error}}",
+			"saveSuccess": "路径设置已保存",
+			"savePath": {
+				"moveBackupWarning": "备份路径已保存，但迁移旧备份失败：{{error}}",
+				"note": "设置游戏存档的备份根目录路径，留空将使用默认路径",
+				"pathLabel": "备份根目录路径",
+				"pathPlaceholder": "留空使用默认路径",
+				"selectBtn": "选择目录",
+				"title": "游戏存档备份路径"
+			},
+			"selectFileError": "选择文件失败：{{error}}",
+			"selectFolderError": "选择目录失败：{{error}}",
+			"saving": "保存中...",
+			"title": "路径设置"
+		},
+		"RightMenu": {
+			"Collection": {
+				"categoryMenu": "分类菜单",
+				"groupMenu": "分组菜单",
+				"manageGames": "管理游戏",
+				"newCategoryName": "新分类名称",
+				"newGroupName": "新分组名称",
+				"renameCategory": "重命名分类",
+				"renameCategoryTitle": "重命名分类",
+				"renameGroup": "重命名分组",
+				"renameGroupTitle": "重命名分组"
+			},
+			"changePlayStatus": "修改游戏状态",
+			"deleteGame": "删除游戏",
+			"enterDetails": "进入详情页",
+			"label": "右键菜单",
+			"openGameFolder": "打开游戏目录",
+			"startGame": "启动游戏"
+		},
+		"SearchBox": {
+			"search": "搜索"
+		},
+		"Snackbar": {
+			"failedOpenDatabaseBackupFolder": "打开数据库备份文件夹失败",
+			"failedOpenGameFolder": "打开游戏文件夹失败",
+			"gameAddedSuccess": "游戏添加成功",
+			"viewDetails": "查看详情"
+		},
+		"SortModal": {
+			"addTime": "添加时间(默认)",
+			"ascending": "升序",
+			"bgmRank": "BGM 排名",
+			"cancel": "取消",
+			"confirm": "确认",
+			"descending": "降序",
+			"lastPlayed": "最近游玩",
+			"nameSort": "名称排序",
+			"releaseTime": "游戏发布时间",
+			"sort": "排序",
+			"sortMethod": "排序方法：",
+			"vndbRank": "VNDB 排名"
+		},
+		"AppLayout": {
+			"back": "返回"
+		},
+		"Toolbar": {
+			"bgmlink": "查看Bangumi页面",
+			"Category": {
+				"availableGames": "可用游戏",
+				"gamesInCategory": "分类中的游戏",
+				"manageGamesTitle": "管理分类游戏",
+				"noGames": "暂无游戏",
+				"noGamesInCategory": "该分类暂无游戏",
+				"noSearchResults": "未找到匹配的游戏",
+				"save": "保存更改",
+				"searchPlaceholder": "搜索游戏..."
+			},
+			"Collection": {
+				"Category": {
+					"manageGames": "管理游戏"
+				},
+				"Group": {
+					"addCategory": "添加分类",
+					"addGroup": "添加分组",
+					"deleteGroup": "删除分组",
+					"deleteGroupMessage": "确定要删除此分组吗？此操作将同时删除分组下的所有分类，且无法恢复。",
+					"deleteGroupTitle": "删除分组",
+					"enterCategoryName": "请输入分类名称",
+					"enterGroupName": "请输入分组名称"
+				}
+			},
+			"deleteGame": "删除游戏",
+			"deleting": "删除中...",
+			"leLaunch": "LE转区启动",
+			"lePathNotSet": "未设置LE转区软件路径，请先配置路径",
+			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
+			"magpieZoom": "Magpie放大",
+			"changePlayStatus": "修改游戏状态",
+			"more": "更多",
+			"openGameFolder": "打开游戏目录",
+			"theme": "主题",
+			"themeDark": "深色",
+			"themeLight": "浅色",
+			"themeSystem": "跟随系统",
+			"vndblink": "查看Vndb页面",
+			"ymgallink": "月幕Gal页面"
+		},
+		"Tray": {
+			"exit": "退出",
+			"open": "打开主窗口"
+		},
+		"Window": {
+			"closeDialog": {
+				"dontRemind": "不再提醒",
+				"exitApp": "退出应用",
+				"message": "请选择操作：直接退出 或 最小化到托盘？",
+				"minimizeToTray": "最小化到托盘",
+				"title": "关闭应用"
+			},
+			"runningExitDialog": {
+				"exitApp": "仍然退出",
+				"message": "当前仍有 {{count}} 个游戏正在运行。退出应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要退出应用吗？",
+				"title": "退出提醒"
+			},
+			"UpdateModal": {
+				"cancel": "取消",
+				"changelog": "更新说明",
+				"downloading": "正在下载更新...",
+				"newVersion": "新版本",
+				"releaseDate": "发布日期",
+				"title": "发现新版本",
+				"update": "立即更新"
+			}
+		}
+	},
+	"home": {
+		"activity": {
+			"added": "添加了 {{title}}",
+			"addedAt": "添加于 {{time}}",
+			"duration": "游戏时长: {{duration}}",
+			"played": "游玩了 {{title}}",
+			"playedAtTime": "游玩于 {{time}}"
+		},
+		"activityTitle": "动态",
+		"addedAt": "添加时间: {{time}}",
+		"lastPlayed": "最后游玩: {{time}}",
+		"recentlyAdded": "最近添加",
+		"recentlyPlayed": "最近游玩",
+		"repository": "游戏仓库",
+		"stats": {
+			"completedGames": "通关游戏数",
+			"localGames": "本地游戏数",
+			"todayPlayTime": "今日游戏时长",
+			"totalGames": "总游戏数",
+			"totalPlayTime": "总游戏时长",
+			"weekPlayTime": "本周游戏时长"
+		},
+		"title": "主页"
+	},
+	"pages": {
+		"Collection": {
+			"breadcrumb": {
+				"group": "分组",
+				"unknownCategory": "未知分类"
+			},
+			"defaultGroups": {
+				"developer": "开发商",
+				"playStatus": "游戏状态"
+			},
+			"deleteCategoryMessage": "确定要删除分类 \"{{name}}\" 吗？此操作将移除该分类与所有游戏的关联，但不会删除游戏本身。",
+			"deleteCategoryTitle": "删除分类",
+			"deleteGroupMessage": "确定要删除分组 \"{{name}}\" 吗？此操作将同时删除该分组下的所有分类，且无法恢复。",
+			"deleteGroupTitle": "删除分组",
+			"errors": {
+				"cannotDeleteDefaultGroup": "默认分组不能删除",
+				"deleteCategoryFailed": "删除分类失败，请重试",
+				"deleteGroupFailed": "删除分组失败，请重试",
+				"renameFailed": "重命名失败：{{error}}"
+			},
+			"gamesCount": "个游戏",
+			"noCategoriesHint": "当前分组下没有分类",
+			"success": {
+				"categoryDeleted": "已删除分类",
+				"groupDeleted": "已删除分组"
+			}
+		},
+		"Detail": {
+			"addTime": "添加时间",
+			"backup": "备份",
+			"Backup": {
+				"autoSave": "自动备份",
+				"backupFailed": "备份失败",
+				"backupHistory": "备份历史",
+				"backupSuccess": "备份创建成功",
+				"backupTime": "备份时间",
+				"confirmDelete": "确定要删除备份",
+				"confirmDeleteSuffix": "吗？此操作不可撤销。",
+				"confirmRestore": "确定要恢复备份",
+				"confirmRestoreButton": "恢复",
+				"confirmRestoreSuffix": " 吗？这将覆盖当前存档，建议在恢复前先创建新备份。",
+				"createBackup": "创建备份",
+				"creating": "正在创建备份...",
+				"deleteFailed": "删除失败",
+				"deleteSuccess": "备份删除成功",
+				"fileSize": "文件大小",
+				"invalidMaxBackups": "最大备份数量必须大于0",
+				"manualBackup": "手动备份",
+				"maxBackups": "最大备份数量",
+				"noBackups": "暂无备份记录",
+				"openBackupFolder": "打开备份文件夹",
+				"openBackupFolderFailed": "打开备份文件夹失败",
+				"openSaveDataFolder": "打开存档文件夹",
+				"openSaveDataFolderFailed": "打开存档文件夹失败",
+				"pathRequired": "请先选择存档文件夹",
+				"restoreBackup": "恢复备份",
+				"restoreBackupTitle": "恢复存档",
+				"restoreFailed": "恢复失败",
+				"restoreSuccess": "存档恢复成功",
+				"saveDataPath": "存档文件夹路径",
+				"savePathSettings": "存档路径设置",
+				"saveSettings": "保存备份设置",
+				"saving": "保存中...",
+				"selectSaveDataFolder": "选择存档文件夹",
+				"setPathForRestore": "请先设置存档路径以恢复备份",
+				"settings": "备份设置",
+				"settingsSaveFailed": "备份设置保存失败",
+				"settingsSaved": "备份设置保存成功"
+			},
+			"backupCount": "存档备份数",
+			"collapseTags": "折叠标签",
+			"DataSourceUpdate": {
+				"bgmId": "Bangumi ID",
+				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
+				"customModeWarning": "自定义模式无法从数据源更新。",
+				"dataSource": "数据源",
+				"incompleteYmgalData": "未找到完整的 YMGal 数据。",
+				"invalidIdType": "无效的ID类型",
+				"loading": "正在获取...",
+				"noDataFetched": "未获取到数据或数据源无效。",
+				"noGameSelected": "未选择游戏",
+				"updateFromSource": "从数据源更新数据",
+				"vndbId": "VNDB ID",
+				"ymgalId": "YMGal ID"
+			},
+			"Edit": {
+				"dataSourceUpdate": "数据源更新",
+				"gameInfoEdit": "游戏资料编辑",
+				"updateSuccess": "游戏信息已成功更新"
+			},
+			"editPart": "编辑",
+			"expandTags": "展开标签",
+			"expected_hours": "预计时长",
+			"gameDatafrom": "数据来源",
+			"gameDeveloper": "开发",
+			"GameInfoEdit": {
+				"addAliasPlaceholder": "输入别名后按回车添加，退格键删除",
+				"addTagPlaceholder": "输入标签后按回车添加，退格键删除",
+				"aliases": "别名",
+				"coverAndBasicInfo": "封面与基本信息",
+				"customGameName": "自定义游戏名称",
+				"descriptionAndTags": "简介与标签",
+				"developer": "开发商",
+				"developerHelperText": "例如：开发商A / 开发商B",
+				"developerPlaceholder": "多个开发商请使用 / 分隔",
+				"enterGameNote": "请输入游戏备注",
+				"gamePath": "游戏路径",
+				"hasCustomCover": "已设置自定义封面",
+				"invalidGameId": "无效的游戏ID",
+				"localPath": "可执行文件路径",
+				"noteHelperText": "您可以为游戏设置一个自定义的显示名称，留空则使用默认名称",
+				"nsfw": "NSFW (18+)",
+				"previewSelected": "已选择新图片，保存后生效",
+				"releaseDate": "发行日期",
+				"releaseDateHelperText": "游戏的发行日期",
+				"removeCustomCover": "移除自定义封面",
+				"saveAllChanges": "保存所有更改",
+				"saveGameInfoFailed": "保存游戏信息失败",
+				"saving": "保存中...",
+				"selectImage": "选择图片",
+				"selectImageFailed": "选择图片失败",
+				"selectPathFailed": "选择路径失败",
+				"summary": "游戏简介",
+				"summaryHelperText": "游戏的详细介绍（可拖动右下角调整大小）",
+				"summaryPlaceholder": "请输入游戏简介",
+				"tags": "标签"
+			},
+			"gameRanking": "游戏排行",
+			"gameScore": "游戏评分",
+			"gameStats": "游戏统计",
+			"gameTags": "游戏标签",
+			"introduction": "简介",
+			"loading": "加载中...",
+			"notFound": "未找到游戏数据",
+			"playCount": "累计游戏次数",
+			"playTimeChart": "统计图表",
+			"releaseDate": "发布时间",
+			"todayPlayTime": "今日游戏时长",
+			"totalPlayTime": "累计总时长"
+		},
+		"Settings": {
+			"about": {
+				"author": "作者",
+				"blog": "作者博客",
+				"checkFailed": "检查更新失败：{{error}}",
+				"checking": "检查中...",
+				"checkUpdate": "检查更新",
+				"noUpdate": "当前已是最新版本",
+				"docs": "使用文档",
+				"feedback": "问题反馈",
+				"github": "项目地址",
+				"title": "关于",
+				"updateFound": "发现新版本：{{version}}",
+				"version": "版本"
+			},
+			"autoStart": "开机自启",
+			"batchUpdate": {
+				"description": "批量更新功能可用于更新已存在游戏的 BGM/VNDB 数据。当游戏的元数据发生变化时，您可以使用此功能来同步最新的信息。一旦点击更新按钮请耐心等待，更新过程可能需要一些时间。推荐软件更新数据源获取字段时使用。",
+				"error": "批量更新 VNDB 数据失败: {{message}}",
+				"errorBgm": "批量更新 BGM 数据失败: {{message}}",
+				"failed": "批量更新失败",
+				"noBgmGames": "没有找到包含 BGM ID 的游戏",
+				"noBgmToken": "更新失败：未设置 BGM Token",
+				"noGames": "没有找到包含 VNDB ID 的游戏",
+				"partialFailed": "{{failed}} 个游戏更新失败",
+				"success": "成功更新 {{success}}/{{total}} 个游戏",
+				"title": "批量更新数据",
+				"updateBgm": "批量更新 BGM 数据",
+				"updateVndb": "批量更新 VNDB 数据",
+				"updating": "更新中...",
+				"updatingBgm": "正在批量更新 BGM 数据..."
+			},
+			"bgmToken": "BGM 令牌",
+			"bgmTokenSettings": {
+				"clearToken": "清除令牌",
+				"loadingProfile": "正在获取当前 Bangumi 账号信息...",
+				"profileUnavailable": "当前 BGM Token 无法获取用户信息，请检查令牌是否有效。",
+				"saveError": "BGM Token 保存失败",
+				"saveSuccess": "BGM Token 保存成功"
+			},
+			"cardClickMode": {
+				"doubleClickLaunch": "双击启动游戏",
+				"doubleClickLaunchNote": "开启后会导致左键单击延迟200ms（仅导航模式）",
+				"longPressLaunch": "长按启动游戏",
+				"longPressLaunchNote": "长按卡片800ms后启动游戏，开启后收藏夹拖拽排序功能将被禁用",
+				"navigate": "导航模式（单击跳转详情页）",
+				"select": "选择模式（单击选择游戏）",
+				"title": "卡片点击模式"
+			},
+			"closeApp": "直接退出应用",
+			"closeSettings": "关闭设置",
+			"closeToTray": "最小化到托盘",
+			"collectionSync": {
+				"bgmDescription": "添加游戏时尝试读取 BGM 收藏状态，本地修改状态时同步回 BGM。",
+				"bgmTitle": "启用 Bangumi 收藏同步",
+				"syncFailed": "本地状态已更新，但 {{source}} 云端同步失败",
+				"title": "收藏状态同步",
+				"vndbDescription": "添加游戏时尝试读取 VNDB 收藏状态，本地修改状态时同步回 VNDB。",
+				"vndbTitle": "启用 VNDB 收藏同步"
+			},
+			"databaseBackup": {
+				"backing": "备份中...",
+				"backup": "备份数据库",
+				"backupError": "数据库备份失败: {{error}}",
+				"backupFailed": "备份失败",
+				"backupSuccess": "数据库备份成功: {{path}}",
+				"importError": "数据库导入失败: {{error}}",
+				"importFailed": "导入失败",
+				"importing": "导入中...",
+				"importSuccess": "数据库导入成功，应用将自动重启",
+				"openFolder": "打开备份文件夹",
+				"openFolderError": "打开备份文件夹失败: {{error}}",
+				"openFolderFailed": "打开文件夹失败",
+				"pathNote": "备份路径配置已移至下方的「数据库备份路径」设置中",
+				"restore": "恢复数据库",
+				"restoreWarning": "恢复数据库将覆盖现有数据，请谨慎操作。导入后应用将自动重启。",
+				"title": "数据库备份与恢复"
+			},
+			"dev": {
+				"title": "实验性功能",
+				"tooltip": "以下功能为实验性功能，请谨慎使用"
+			},
+			"getToken": "获取令牌",
+			"language": "语言",
+			"logLevel": {
+				"changed": "日志级别已切换为 {{level}}",
+				"changeFailed": "切换日志级别失败",
+				"description": "仅当前会话有效，不会保存。用于临时调整后端日志输出详尽程度。",
+				"levelLabel": "日志输出级别",
+				"openFolder": "打开日志文件夹",
+				"openFolderError": "打开日志文件夹失败: {{error}}",
+				"openFolderFailed": "打开文件夹失败",
+				"title": "日志设置"
+			},
+			"nsfw": {
+				"coverReplace": "NSFW 封面替换",
+				"filter": "过滤 NSFW 内容",
+				"title": "NSFW 设置"
+			},
+			"pathSettings": {
+				"note": "配置游戏存档备份、LE转区软件、Magpie软件、数据库备份等路径",
+				"openModal": "打开路径设置",
+				"title": "路径设置"
+			},
+			"linuxLaunchCommand": {
+				"title": "Linux 启动命令",
+				"description": "设置 Linux 上启动 Windows 可执行文件（.exe）时使用的命令。支持 wine、proton 或其他兼容层命令，也可以是 PATH 中的可执行文件或脚本的完整路径。",
+				"commandLabel": "启动命令",
+				"helperText": "例如: wine, /usr/bin/wine, ~/scripts/run-game.sh",
+				"resetTooltip": "重置为默认值 (wine)",
+				"saveBtn": "保存",
+				"saveSuccess": "Linux 启动命令已保存",
+				"saveError": "保存失败",
+				"note": "注意：更改此设置后，需要重新启动游戏才能生效。"
+			},
+			"portableMode": {
+				"confirmDisableMessage": "关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
+				"confirmEnableMessage": "启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
+				"confirmTitle": "确认切换便携模式",
+				"description": "开启便携模式后，数据库和备份将保存在程序安装目录resources文件夹下，而非系统应用数据目录。适合需要将程序放在U盘或移动硬盘中使用的场景。",
+				"enable": "启用便携模式",
+				"title": "便携模式",
+				"toggleError": "切换失败"
+			},
+			"restartError": "重启失败，请手动重启应用",
+			"saveBtn": "保存",
+			"skipCloseRemind": "不再提醒",
+			"spoilerLevel": {
+				"description": "选择剧透等级以获取合适的标签内容",
+				"level0": "0 - 无剧透",
+				"level1": "1 - 轻微剧透",
+				"level2": "2 - 严重剧透",
+				"title": "TAG剧透等级"
+			},
+			"tagTranslation": {
+				"description": "开启后将使用中文翻译显示游戏标签",
+				"title": "TAG翻译"
+			},
+			"timeTrackingMode": {
+				"description": "选择游戏时间的计算方式，影响游戏运行时的时间显示和统计记录。",
+				"elapsed": "游戏启动时间",
+				"elapsedDesc": "计算从游戏启动到结束的总时间，不区分前台后台",
+				"playtime": "真实游戏时间（默认）",
+				"playtimeDesc": "仅计算游戏窗口在前台时的时间，切换到其他窗口时暂停计时",
+				"title": "游戏计时模式"
+			},
+			"tokenPlaceholder": "请填写你的BGM_TOKEN",
+			"vndbToken": "VNDB 令牌",
+			"vndbTokenPlaceholder": "请填写你的 VNDB Token",
+			"vndbTokenSettings": {
+				"clearToken": "清除令牌",
+				"loadingProfile": "正在获取当前 VNDB 账号信息...",
+				"permissions": "权限: {{permissions}}",
+				"profileUnavailable": "当前 VNDB Token 无法获取用户信息，请检查令牌或权限是否有效。",
+				"saveError": "VNDB Token 保存失败",
+				"saveSuccess": "VNDB Token 保存成功",
+				"userId": "用户 ID: {{id}}"
+			},
+			"vndbData": {
+				"title": "VNDB 数据设置"
+			}
+		}
+	},
+	"utils": {
+		"formatPlayTime": {
+			"hours": "{{count}}小时",
+			"hoursAndMinutes": "{{hours}}小时{{minutes}}分钟",
+			"minutes": "{{count}}分钟"
+		},
+		"handleDirectory": {
+			"allFiles": "所有文件",
+			"executable": "可执行文件",
+			"folder": "文件夹"
+		},
+		"relativetime": {
+			"daysAgo": "{{count}}天前",
+			"hoursAgo": "{{count}}小时前",
+			"justNow": "刚刚",
+			"lastWeek": "上周",
+			"minutesAgo": "{{count}}分钟前"
+		}
+	}
 }

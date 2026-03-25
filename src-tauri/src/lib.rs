@@ -13,6 +13,7 @@ use utils::{
     fs::{
         copy_file, delete_file, delete_game_covers, move_backup_folder, open_directory, PathManager,
     },
+    game_cover::{delete_cloud_cache, register_game_cover_protocol},
     launch::{launch_game, stop_game},
     logs::{get_reina_log_level, set_reina_log_level},
     scan::scan_directory_for_games,
@@ -20,7 +21,7 @@ use utils::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    register_game_cover_protocol(tauri::Builder::default().plugin(tauri_plugin_os::init()))
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
@@ -53,6 +54,7 @@ pub fn run() {
             restore_savedata_backup,
             delete_file,
             delete_game_covers,
+            delete_cloud_cache,
             backup_database,
             import_database,
             // 游戏数据相关 commands

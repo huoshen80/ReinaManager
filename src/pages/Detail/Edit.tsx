@@ -7,6 +7,7 @@ import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useBgmToken } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
+import { fileService } from "@/services/invoke";
 import type { FullGameData, UpdateGameParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { buildMetadataUpdatePayload } from "@/utils/metadata";
@@ -34,6 +35,7 @@ export const Edit: React.FC = () => {
 	// 确认更新游戏数据（从数据源）
 	const handleConfirmGameUpdate = async () => {
 		if (gameData) {
+			await fileService.deleteCloudCoverCache(id);
 			const updateData: UpdateGameParams = buildMetadataUpdatePayload(gameData);
 			await updateGameMutation.mutateAsync({ gameId: id, updates: updateData });
 			setOpenViewBox(false);

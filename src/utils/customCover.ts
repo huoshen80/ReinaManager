@@ -3,7 +3,6 @@
  * @description 处理自定义封面的选择、预览、上传和管理
  */
 
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { basename, join } from "pathe";
 import { fileService } from "@/services/invoke";
@@ -91,16 +90,6 @@ export const uploadSelectedImage = async (
 			`Custom cover upload failed: ${toError(error, "Custom cover upload failed").message}`,
 		);
 	}
-};
-
-/**
- * 将本地文件路径转换为可用于 <img> 的 asset URL
- * 使用 Tauri 的 convertFileSrc，零内存开销，无需清理
- * @param filePath 本地文件绝对路径
- * @returns asset URL
- */
-export const getAssetUrl = (filePath: string): string => {
-	return convertFileSrc(filePath);
 };
 
 /**

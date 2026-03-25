@@ -60,6 +60,13 @@ class FileService extends BaseService {
 	}
 
 	/**
+	 * 删除本地的云端封面缓存
+	 */
+	async deleteCloudCoverCache(gameId: number): Promise<void> {
+		return this.invoke<void>("delete_cloud_cache", { gameId });
+	}
+
+	/**
 	 * 备份数据库
 	 */
 	async backupDatabase(): Promise<BackupResult> {

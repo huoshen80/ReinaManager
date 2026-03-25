@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
-use tauri::{command, AppHandle, Manager};
+use tauri::{command, AppHandle, Manager, Runtime};
 
 // ==================== 路径相关常量（重导出） ====================
 
@@ -13,7 +13,7 @@ pub use reina_path::{DB_BACKUP_SUBDIR, DB_DATA_DIR, DB_FILE_NAME, RESOURCE_DIR};
 // ==================== 路径基础函数（直接使用 Tauri API） ====================
 
 /// 判断是否处于便携模式
-pub fn is_portable_mode(app: &AppHandle) -> bool {
+pub fn is_portable_mode<R: Runtime>(app: &AppHandle<R>) -> bool {
     if let Ok(resource_dir) = app.path().resource_dir() {
         let portable_data_dir = resource_dir.join(RESOURCE_DIR).join(DB_DATA_DIR);
         let portable_db_file = portable_data_dir.join(DB_FILE_NAME);
@@ -24,7 +24,7 @@ pub fn is_portable_mode(app: &AppHandle) -> bool {
 }
 
 /// 获取基础数据目录
-pub fn get_base_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub fn get_base_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     if is_portable_mode(app) {
         Ok(app
             .path()
@@ -39,12 +39,15 @@ pub fn get_base_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 /// 获取数据库文件路径
-pub fn get_db_path(app: &AppHandle) -> Result<PathBuf, String> {
+pub fn get_db_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(get_base_data_dir(app)?.join(DB_DATA_DIR).join(DB_FILE_NAME))
 }
 
 /// 获取指定模式的数据库目录
-pub fn get_base_data_dir_for_mode(app: &AppHandle, portable: bool) -> Result<PathBuf, String> {
+pub fn get_base_data_dir_for_mode<R: Runtime>(
+    app: &AppHandle<R>,
+    portable: bool,
+) -> Result<PathBuf, String> {
     if portable {
         Ok(app
             .path()
@@ -694,7 +697,7 @@ pub async fn delete_file(file_path: String) -> Result<(), String> {
     Ok(())
 }
 
-/// 删除指定游戏的所有自定义封面文件
+/// 删除指定游戏的所有自定义封面文件，但保留封面目录
 #[command]
 pub async fn delete_game_covers(game_id: u32, covers_dir: String) -> Result<(), String> {
     let dir_path = Path::new(&covers_dir);
@@ -703,23 +706,57 @@ pub async fn delete_game_covers(game_id: u32, covers_dir: String) -> Result<(), 
         return Ok(()); // 目录不存在，视为成功
     }
 
-    // 读取目录中的所有文件
+    let expected_folder_name = format!("game_{}", game_id);
+    let dir_name = dir_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+
+    if dir_name != expected_folder_name {
+        return Err(format!(
+            "封面目录与游戏ID不匹配: game_id={}, covers_dir={}",
+            game_id, covers_dir
+        ));
+    }
+
+    let expected_file_prefix = format!("cover_{}_", game_id);
     let entries = fs::read_dir(dir_path).map_err(|e| format!("无法读取封面目录: {}", e))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("读取目录项失败: {}", e))?;
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
         let file_name = entry.file_name();
         let file_name_str = file_name.to_string_lossy();
-
-        // 匹配该游戏的封面文件模式：cover_{game_id}_*
-        if file_name_str.starts_with(&format!("cover_{}_", game_id)) {
-            let file_path = entry.path();
-            if let Err(e) = fs::remove_file(&file_path) {
-                eprintln!("删除文件失败 {:?}: {}", file_path, e);
-                // 继续删除其他文件，不中断流程
-            }
+        if !file_name_str.starts_with(&expected_file_prefix) {
+            continue;
         }
+
+        fs::remove_file(&path).map_err(|e| format!("无法删除自定义封面文件: {}", e))?;
     }
+
+    Ok(())
+}
+
+/// 删除指定游戏的封面目录（包含云端缓存和自定义封面）
+pub async fn delete_game_cover_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    game_id: i32,
+) -> Result<(), String> {
+    let game_cover_dir = get_base_data_dir(app)?
+        .join("covers")
+        .join(format!("game_{}", game_id));
+
+    if !game_cover_dir.exists() {
+        return Ok(());
+    }
+
+    fs::remove_dir_all(&game_cover_dir)
+        .map_err(|e| format!("无法删除游戏封面目录 {}: {}", game_cover_dir.display(), e))?;
 
     Ok(())
 }

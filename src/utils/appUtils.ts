@@ -3,6 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { resourceDir } from "@tauri-apps/api/path";
 import { open as openDirectory } from "@tauri-apps/plugin-dialog";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
+import { type } from "@tauri-apps/plugin-os";
 import i18next, { t } from "i18next";
 import { extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
@@ -528,8 +529,20 @@ export const getGameCover = (game: GameData): string => {
 		}
 	}
 
-	// 使用默认封面 (来自 bgm/vndb/other 数据的 image 字段)
-	return game.image || "/images/default.png";
+	// 网络封面统一交给 Rust 自定义协议处理，以支持本地缓存
+	if (game.image) {
+		if (game.id) {
+			const base =
+				type() === "windows"
+					? "http://reina-cover.localhost"
+					: "reina-cover://localhost";
+			return `${base}/${game.id}?url=${game.image}`;
+		}
+		// 没有 ID 的临时数据（如新增前预览）保持原始 URL
+		return game.image;
+	}
+
+	return "/images/default.png";
 };
 
 /**
