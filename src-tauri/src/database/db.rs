@@ -6,10 +6,10 @@ use std::time::Duration;
 use tauri::{command, AppHandle, Manager};
 use url::Url;
 
-// 从 fs 模块导入路径管理相关功能
-use crate::utils::fs::{
-    get_base_data_dir_for_mode, get_db_path, is_portable_mode, move_dir_recursive, move_file,
-    DB_BACKUP_SUBDIR, DB_DATA_DIR, DB_FILE_NAME,
+use crate::utils::fs::{move_dir_recursive, move_file};
+use reina_path::{
+    get_base_data_dir_for_mode, get_db_path, is_portable_mode, DB_BACKUP_SUBDIR, DB_DATA_DIR,
+    DB_FILE_NAME,
 };
 
 /// 数据库备份结果
@@ -31,9 +31,17 @@ pub struct ImportResult {
 // ==================== 数据库连接管理 ====================
 
 /// Establish a SeaORM database connection.
-pub async fn establish_connection(app: &AppHandle) -> Result<DatabaseConnection, DbErr> {
+pub async fn establish_connection() -> Result<DatabaseConnection, DbErr> {
     // 1. 获取数据库路径（自动判断便携模式）
-    let db_path = get_db_path(app).map_err(|e| DbErr::Conn(RuntimeErr::Internal(e)))?;
+    let db_path = get_db_path().map_err(|e| DbErr::Conn(RuntimeErr::Internal(e)))?;
+
+    fn mode() -> &'static str {
+        if is_portable_mode() {
+            "便携"
+        } else {
+            "标准"
+        }
+    }
 
     // 2. 如果数据库不存在，创建目录
     if !db_path.exists() {
@@ -42,19 +50,9 @@ pub async fn establish_connection(app: &AppHandle) -> Result<DatabaseConnection,
                 DbErr::Conn(RuntimeErr::Internal(format!("无法创建数据库目录: {}", e)))
             })?;
         }
-        let mode = if is_portable_mode(app) {
-            "便携"
-        } else {
-            "标准"
-        };
-        log::info!("首次启动，创建{}模式数据库: {}", mode, db_path.display());
+        log::info!("首次启动，创建{}模式数据库: {}", mode(), db_path.display());
     } else {
-        let mode = if is_portable_mode(app) {
-            "便携"
-        } else {
-            "标准"
-        };
-        log::info!("使用{}模式数据库: {}", mode, db_path.display());
+        log::info!("使用{}模式数据库: {}", mode(), db_path.display());
     }
 
     // 3. 使用 `url` crate 安全地构建连接字符串
@@ -111,7 +109,7 @@ async fn resolve_backup_dir(
     use crate::utils::fs::PathManager;
 
     let path_manager = app_handle.state::<PathManager>();
-    let backup_dir = path_manager.get_db_backup_path(app_handle, db).await?;
+    let backup_dir = path_manager.get_db_backup_path(db).await?;
 
     // 确保目录存在
     if !backup_dir.exists() {
@@ -212,7 +210,7 @@ pub async fn import_database(
     };
 
     // 获取当前数据库路径（自动判断便携模式）
-    let target_db_path = get_db_path(&app_handle)?;
+    let target_db_path = get_db_path()?;
 
     // 步骤1：关闭数据库连接（必须先关闭才能安全备份和覆盖）
     if let Some(conn_state) = app_handle.try_state::<DatabaseConnection>() {
@@ -274,7 +272,6 @@ pub async fn import_database(
 /// 用于在便携模式切换时迁移数据库文件、数据库备份和存档备份
 ///
 /// # Arguments
-/// * `app` - Tauri 应用句柄
 /// * `to_portable` - 是否切换到便携模式
 /// * `user_save_root_path` - 用户自定义的存档路径（用于判断是否迁移存档备份）
 ///
@@ -297,8 +294,8 @@ pub async fn migrate_data_files(
     // 获取源目录和目标目录
     // 使用 get_base_data_dir_for_mode 明确指定模式，不依赖文件存在性判断
     // 这样可以确保在迁移过程中获取正确的源目录和目标目录
-    let from_base_dir = get_base_data_dir_for_mode(app, !to_portable)?;
-    let to_base_dir = get_base_data_dir_for_mode(app, to_portable)?;
+    let from_base_dir = get_base_data_dir_for_mode(!to_portable)?;
+    let to_base_dir = get_base_data_dir_for_mode(to_portable)?;
 
     let mut result = MigrationResult {
         database_migrated: false,

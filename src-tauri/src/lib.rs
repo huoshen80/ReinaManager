@@ -168,7 +168,7 @@ pub fn run() {
             // 执行 SeaORM 数据库迁移并注册到状态管理
             let app_handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                match db::establish_connection(&app_handle).await {
+                match db::establish_connection().await {
                     Ok(conn) => {
                         log::info!("数据库连接建立成功");
 
@@ -184,11 +184,7 @@ pub fn run() {
 
                         // 预加载配置路径到路径管理器
                         if let Some(path_manager) = app_handle.try_state::<PathManager>() {
-                            if let Err(e) = path_manager
-                                .inner()
-                                .preload_config_paths(&app_handle, &conn)
-                                .await
-                            {
+                            if let Err(e) = path_manager.inner().preload_config_paths(&conn).await {
                                 log::warn!("预加载配置路径失败: {}", e);
                             } else {
                                 log::info!("配置路径预加载完成");

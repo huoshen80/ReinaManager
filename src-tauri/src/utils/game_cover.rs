@@ -4,13 +4,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use tauri::command;
 use tauri::http::{Response, StatusCode};
 use tauri::Manager;
-use tauri::{command, AppHandle};
 use tauri_plugin_http::reqwest::Client;
 use tokio::sync::Semaphore;
 
-use crate::utils::fs::get_base_data_dir;
+use reina_path::get_base_data_dir;
 
 const DEFAULT_COVER_EXTENSION: &str = "jpg";
 const DEFAULT_CLOUD_COVER_FILE_NAME: &str = "cloud_cover";
@@ -80,11 +80,8 @@ fn cloud_cover_file_stem(game_id: u32) -> String {
     format!("{DEFAULT_CLOUD_COVER_FILE_NAME}_{game_id}")
 }
 
-fn get_game_cover_dir<R: tauri::Runtime>(
-    app: &AppHandle<R>,
-    game_id: u32,
-) -> Result<PathBuf, String> {
-    Ok(get_base_data_dir(app)?
+fn get_game_cover_dir(game_id: u32) -> Result<PathBuf, String> {
+    Ok(get_base_data_dir()?
         .join("covers")
         .join(format!("game_{}", game_id)))
 }
@@ -163,8 +160,8 @@ async fn remove_file_if_exists(path: &Path) {
 }
 
 #[command]
-pub async fn delete_cloud_cache(app: AppHandle, game_id: u32) -> Result<(), String> {
-    let game_cover_dir = get_game_cover_dir(&app, game_id)?;
+pub async fn delete_cloud_cache(game_id: u32) -> Result<(), String> {
+    let game_cover_dir = get_game_cover_dir(game_id)?;
     let expected_prefix = format!("{}.", cloud_cover_file_stem(game_id));
 
     if !game_cover_dir.exists() {
@@ -365,7 +362,7 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                     .find(|(k, _)| k == "url")
                     .map(|(_, v)| v.into_owned());
 
-                let game_cover_dir = match get_game_cover_dir(&app_handle, game_id) {
+                let game_cover_dir = match get_game_cover_dir(game_id) {
                     Ok(dir) => dir,
                     Err(_) => {
                         responder.respond(

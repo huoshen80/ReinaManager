@@ -14,6 +14,7 @@ use crate::database::repository::{
 };
 use crate::entity::{games, savedata, user};
 use crate::utils::fs::{delete_game_cover_dir, PathManager};
+use reina_path::is_portable_mode;
 
 // ==================== 便携模式相关类型 ====================
 
@@ -94,18 +95,14 @@ pub async fn update_game(
 
 /// 删除游戏
 #[tauri::command]
-pub async fn delete_game(
-    app: AppHandle,
-    db: State<'_, DatabaseConnection>,
-    id: i32,
-) -> Result<u64, String> {
+pub async fn delete_game(db: State<'_, DatabaseConnection>, id: i32) -> Result<u64, String> {
     let rows_affected = GamesRepository::delete(&db, id)
         .await
         .map(|result| result.rows_affected)
         .map_err(|e| format!("删除游戏失败: {}", e))?;
 
     if rows_affected > 0 {
-        if let Err(err) = delete_game_cover_dir(&app, id).await {
+        if let Err(err) = delete_game_cover_dir(id).await {
             log::warn!("删除游戏封面目录失败 game_id={}: {}", id, err);
         }
     }
@@ -116,7 +113,6 @@ pub async fn delete_game(
 /// 批量删除游戏
 #[tauri::command]
 pub async fn delete_games_batch(
-    app: AppHandle,
     db: State<'_, DatabaseConnection>,
     ids: Vec<i32>,
 ) -> Result<u64, String> {
@@ -126,7 +122,7 @@ pub async fn delete_games_batch(
         .map_err(|e| format!("批量删除游戏失败: {}", e))?;
 
     for game_id in ids {
-        if let Err(err) = delete_game_cover_dir(&app, game_id).await {
+        if let Err(err) = delete_game_cover_dir(game_id).await {
             log::warn!(
                 "批量删除时清理游戏封面目录失败 game_id={}: {}",
                 game_id,
@@ -441,7 +437,7 @@ pub async fn set_save_root_path(
         .map_err(|e| format!("设置存档根路径失败: {}", e))?;
 
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&app, &db).await?;
+    path_manager.preload_config_paths(&db).await?;
 
     Ok(())
 }
@@ -468,7 +464,7 @@ pub async fn set_db_backup_path(
         .map_err(|e| format!("设置数据库备份保存路径失败: {}", e))?;
 
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&app, &db).await?;
+    path_manager.preload_config_paths(&db).await?;
 
     Ok(())
 }
@@ -494,7 +490,7 @@ pub async fn set_le_path(
 
     // 路径修改后刷新缓存
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&app, &db).await?;
+    path_manager.preload_config_paths(&db).await?;
 
     Ok(())
 }
@@ -520,7 +516,7 @@ pub async fn set_magpie_path(
 
     // 路径修改后刷新缓存
     let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&app, &db).await?;
+    path_manager.preload_config_paths(&db).await?;
 
     Ok(())
 }
@@ -635,9 +631,8 @@ pub async fn set_portable_mode(
 /// - 便携模式：resources/data/reina_manager.db 存在
 /// - 标准模式：resources/data/reina_manager.db 不存在
 #[tauri::command]
-pub async fn get_portable_mode(app: tauri::AppHandle) -> Result<bool, String> {
-    use crate::utils::fs::is_portable_mode;
-    Ok(is_portable_mode(&app))
+pub async fn get_portable_mode() -> Result<bool, String> {
+    Ok(is_portable_mode())
 }
 
 // ==================== 合集相关 ====================

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sevenz_rust2::{decompress_file, encoder_options::Lzma2Options, ArchiveWriter};
 use std::fs;
 use std::path::Path;
-use tauri::{AppHandle, State};
+use tauri::State;
 
 // 针对存档备份优化的压缩配置
 // 使用较低的压缩级别以提升速度，存档文件通常已是二进制格式，高压缩率收益有限
@@ -36,7 +36,6 @@ pub struct BackupInfo {
 /// * `Result<BackupInfo, String>` - 备份信息或错误消息
 #[tauri::command]
 pub async fn create_savedata_backup(
-    app: AppHandle,
     db: State<'_, DatabaseConnection>,
     path_manager: State<'_, PathManager>,
     game_id: i64,
@@ -54,7 +53,7 @@ pub async fn create_savedata_backup(
     }
 
     // 使用统一的路径管理器获取备份目录
-    let backup_root = path_manager.get_savedata_backup_path(&app, &db).await?;
+    let backup_root = path_manager.get_savedata_backup_path(&db).await?;
 
     // 创建游戏专属备份目录
     let game_backup_dir = backup_root.join(format!("game_{}", game_id));
@@ -163,7 +162,6 @@ async fn delete_backup_record(
 /// * `Result<(), String>` - 成功或错误消息
 #[tauri::command]
 pub async fn delete_savedata_backup(
-    app: AppHandle,
     db: State<'_, DatabaseConnection>,
     path_manager: State<'_, PathManager>,
     backup_id: i32,
@@ -175,7 +173,7 @@ pub async fn delete_savedata_backup(
         .ok_or_else(|| "备份记录不存在".to_string())?;
 
     // 使用统一的路径管理器获取备份目录
-    let backup_root = path_manager.get_savedata_backup_path(&app, &db).await?;
+    let backup_root = path_manager.get_savedata_backup_path(&db).await?;
     let game_backup_dir = backup_root.join(format!("game_{}", record.game_id));
     let backup_path = game_backup_dir.join(&record.file);
 

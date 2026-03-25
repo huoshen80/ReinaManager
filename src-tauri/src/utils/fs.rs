@@ -4,62 +4,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
-use tauri::{command, AppHandle, Manager, Runtime};
+use tauri::command;
 
 // ==================== 路径相关常量（重导出） ====================
 
-pub use reina_path::{DB_BACKUP_SUBDIR, DB_DATA_DIR, DB_FILE_NAME, RESOURCE_DIR};
-
-// ==================== 路径基础函数（直接使用 Tauri API） ====================
-
-/// 判断是否处于便携模式
-pub fn is_portable_mode<R: Runtime>(app: &AppHandle<R>) -> bool {
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        let portable_data_dir = resource_dir.join(RESOURCE_DIR).join(DB_DATA_DIR);
-        let portable_db_file = portable_data_dir.join(DB_FILE_NAME);
-        portable_data_dir.exists() && portable_db_file.exists()
-    } else {
-        false
-    }
-}
-
-/// 获取基础数据目录
-pub fn get_base_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    if is_portable_mode(app) {
-        Ok(app
-            .path()
-            .resource_dir()
-            .map_err(|e| format!("无法获取应用目录: {}", e))?
-            .join(RESOURCE_DIR))
-    } else {
-        app.path()
-            .app_data_dir()
-            .map_err(|e| format!("无法获取应用数据目录: {}", e))
-    }
-}
-
-/// 获取数据库文件路径
-pub fn get_db_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    Ok(get_base_data_dir(app)?.join(DB_DATA_DIR).join(DB_FILE_NAME))
-}
-
-/// 获取指定模式的数据库目录
-pub fn get_base_data_dir_for_mode<R: Runtime>(
-    app: &AppHandle<R>,
-    portable: bool,
-) -> Result<PathBuf, String> {
-    if portable {
-        Ok(app
-            .path()
-            .resource_dir()
-            .map_err(|e| format!("无法获取应用目录: {}", e))?
-            .join(RESOURCE_DIR))
-    } else {
-        app.path()
-            .app_data_dir()
-            .map_err(|e| format!("无法获取应用数据目录: {}", e))
-    }
-}
+pub use reina_path::{DB_BACKUP_SUBDIR, DB_DATA_DIR};
 
 // ==================== 路径管理器 ====================
 
@@ -85,11 +34,7 @@ impl PathManager {
     }
 
     /// 获取数据库备份路径
-    pub async fn get_db_backup_path(
-        &self,
-        app: &AppHandle,
-        db: &DatabaseConnection,
-    ) -> Result<PathBuf, String> {
+    pub async fn get_db_backup_path(&self, db: &DatabaseConnection) -> Result<PathBuf, String> {
         // 检查缓存
         {
             let cache = self.cache.lock().expect("路径管理器缓存锁已被污染");
@@ -106,7 +51,7 @@ impl PathManager {
             PathBuf::from(custom)
         } else {
             // 使用默认路径（根据便携模式判断）
-            self.get_default_db_backup_path(app)?
+            self.get_default_db_backup_path()?
         };
 
         // 缓存路径
@@ -121,7 +66,6 @@ impl PathManager {
     /// 获取存档备份路径
     pub async fn get_savedata_backup_path(
         &self,
-        app: &AppHandle,
         db: &DatabaseConnection,
     ) -> Result<PathBuf, String> {
         // 检查缓存
@@ -140,7 +84,7 @@ impl PathManager {
             PathBuf::from(custom).join("backups")
         } else {
             // 使用默认路径（根据便携模式判断）
-            get_base_data_dir(app)?.join("backups")
+            reina_path::get_base_data_dir()?.join("backups")
         };
 
         // 缓存路径
@@ -153,12 +97,7 @@ impl PathManager {
     }
 
     /// 预加载所有配置路径到缓存
-    /// 【修改】新增 app 参数，用于在配置为空时计算默认路径
-    pub async fn preload_config_paths(
-        &self,
-        app: &AppHandle, // <--- 新增参数
-        db: &DatabaseConnection,
-    ) -> Result<(), String> {
+    pub async fn preload_config_paths(&self, db: &DatabaseConnection) -> Result<(), String> {
         use crate::database::repository::settings_repository::SettingsRepository;
 
         let settings = SettingsRepository::get_all_settings(db)
@@ -181,13 +120,13 @@ impl PathManager {
         // 如果数据库没值(或为空)，直接计算出默认路径存入缓存
         let db_backup_path = match clean_str(settings.db_backup_path) {
             Some(custom) => PathBuf::from(custom),
-            None => self.get_default_db_backup_path(app)?, // <--- 这里的逻辑现在和 get_db_backup_path 一致了
+            None => self.get_default_db_backup_path()?, // <--- 这里的逻辑现在和 get_db_backup_path 一致了
         };
 
         // 3. 处理存档根目录 (系统关键路径，必须有值)
         let savedata_backup_path = match clean_str(settings.save_root_path) {
             Some(custom) => PathBuf::from(custom).join("backups"),
-            None => get_base_data_dir(app)?.join("backups"), // <--- 对齐默认逻辑
+            None => reina_path::get_base_data_dir()?.join("backups"), // <--- 对齐默认逻辑
         };
 
         // ------------------ 临时修复逻辑结束 ------------------
@@ -269,8 +208,8 @@ impl PathManager {
     }
 
     /// 获取默认的数据库备份路径
-    fn get_default_db_backup_path(&self, app: &AppHandle) -> Result<PathBuf, String> {
-        Ok(get_base_data_dir(app)?
+    fn get_default_db_backup_path(&self) -> Result<PathBuf, String> {
+        Ok(reina_path::get_base_data_dir()?
             .join(DB_DATA_DIR)
             .join(DB_BACKUP_SUBDIR))
     }
@@ -743,11 +682,8 @@ pub async fn delete_game_covers(game_id: u32, covers_dir: String) -> Result<(), 
 }
 
 /// 删除指定游戏的封面目录（包含云端缓存和自定义封面）
-pub async fn delete_game_cover_dir<R: Runtime>(
-    app: &AppHandle<R>,
-    game_id: i32,
-) -> Result<(), String> {
-    let game_cover_dir = get_base_data_dir(app)?
+pub async fn delete_game_cover_dir(game_id: i32) -> Result<(), String> {
+    let game_cover_dir = reina_path::get_base_data_dir()?
         .join("covers")
         .join(format!("game_{}", game_id));
 
