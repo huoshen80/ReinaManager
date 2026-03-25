@@ -39,9 +39,6 @@ let cachedResourceDirPath: string | null = null;
 let cachedAppDataDir: string | null = null;
 let cachedIsPortableMode: boolean | null = null;
 
-// 缓存常用路径
-let cachedDbPath: string | null = null;
-
 /**
  * 路径初始化结果类型
  */
@@ -49,7 +46,6 @@ export interface PathInitResult {
 	resourceDir: string; // 资源目录路径
 	appDataDir: string; // 应用数据目录（便携或标准）
 	isPortableMode: boolean; // 是否便携模式
-	dbPath: string; // 数据库文件路径
 }
 
 /**
@@ -70,7 +66,7 @@ export const initPathCache = async (): Promise<PathInitResult> => {
 				? Promise.resolve(cachedIsPortableMode)
 				: settingsService.getPortableMode(),
 			// 3. 获取系统 AppData 目录
-			cachedAppDataDir ? Promise.resolve(null) : path.appDataDir(),
+			cachedAppDataDir ? Promise.resolve(cachedAppDataDir) : path.appDataDir(),
 		]);
 
 	// 更新缓存
@@ -88,29 +84,15 @@ export const initPathCache = async (): Promise<PathInitResult> => {
 			cachedAppDataDir = join(cachedResourceDirPath, "resources");
 		} else {
 			// 标准模式：使用系统 AppData
-			cachedAppDataDir = systemAppDataDirResult as string;
+			cachedAppDataDir = systemAppDataDirResult;
 		}
-	}
-
-	// 4. 获取数据库路径
-	if (!cachedDbPath) {
-		cachedDbPath = join(cachedAppDataDir, "data", "reina_manager.db");
 	}
 
 	return {
 		resourceDir: cachedResourceDirPath,
-		appDataDir: cachedAppDataDir || "",
+		appDataDir: cachedAppDataDir,
 		isPortableMode: cachedIsPortableMode,
-		dbPath: cachedDbPath || "",
 	};
-};
-
-/**
- * 获取缓存的资源目录路径（同步）
- * 如果未初始化则返回空字符串
- */
-export const getResourceDirPath = (): string => {
-	return cachedResourceDirPath || "";
 };
 
 /**
@@ -118,14 +100,12 @@ export const getResourceDirPath = (): string => {
  * 如果未初始化则返回空字符串
  */
 export const getAppDataDirPath = (): string => {
-	return cachedAppDataDir || "";
-};
-
-/**
- * 获取缓存的数据库路径（同步）
- */
-export const getDbPath = (): string => {
-	return cachedDbPath || "";
+	if (!cachedAppDataDir) {
+		throw new Error(
+			"❌ 严重错误：路径缓存未初始化！请确保在访问文件系统前已完成 initPathCache。",
+		);
+	}
+	return cachedAppDataDir;
 };
 
 /**
@@ -168,13 +148,6 @@ export const getSavedataBackupPath = async (
 		);
 		return savedataBackupFinalDir;
 	}
-};
-
-/**
- * 是否为便携模式（同步）
- */
-export const isPortableMode = (): boolean => {
-	return cachedIsPortableMode || false;
 };
 
 export const getLocalDateString = (timestamp?: number): string => {
@@ -499,13 +472,8 @@ export const getGameDisplayName = (
 		: game.name || "";
 };
 export const getcustomCoverFolder = (gameID: number): string => {
-	const resourceFolder = getResourceDirPath();
-	const customCoverFolder = join(
-		resourceFolder,
-		"resources",
-		"covers",
-		`game_${gameID}`,
-	);
+	const resourceFolder = getAppDataDirPath();
+	const customCoverFolder = join(resourceFolder, "covers", `game_${gameID}`);
 	return customCoverFolder;
 };
 export const getGameCover = (game: GameData): string => {

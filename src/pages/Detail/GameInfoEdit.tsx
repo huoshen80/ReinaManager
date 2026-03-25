@@ -27,7 +27,11 @@ import {
 	getGameNsfwStatus,
 	handleExeFile,
 } from "@/utils/appUtils";
-import { selectImageFile, uploadSelectedImage } from "@/utils/customCover";
+import {
+	deleteGameCustomCovers,
+	selectImageFile,
+	uploadSelectedImage,
+} from "@/utils/customCover";
 import { getUserErrorMessage } from "@/utils/errors";
 import i18n from "@/utils/i18n";
 import { buildGameInfoUpdatePayload } from "@/utils/metadata";
@@ -329,7 +333,8 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			let uploadedImageExt: string | null | undefined;
 
 			// 1. 先处理副作用：上传图片或删除图片
-			if (shouldDeleteImage) {
+			if (shouldDeleteImage && selectedGame.id) {
+				await deleteGameCustomCovers(selectedGame.id);
 				uploadedImageExt = null; // 标记删除
 			} else if (selectedImagePath && selectedGame.id) {
 				// 上传本地选择的图片
