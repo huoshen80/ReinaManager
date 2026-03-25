@@ -1,4 +1,5 @@
 use crate::database::dto::GameLaunchOptions;
+use crate::utils::command_ext::CommandGuiExt;
 use crate::utils::game_monitor::{monitor_game, stop_game_session};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -236,7 +237,7 @@ pub async fn launch_game<R: Runtime>(
         command.args(arguments);
     }
 
-    match command.spawn() {
+    match command.gui_safe().spawn() {
         Ok(child) => {
             let process_id = child.id();
 
@@ -386,7 +387,7 @@ async fn start_magpie_for_game(
         let mut command = Command::new(&magpie_path);
         command.arg("-t"); // tray mode
 
-        match command.spawn() {
+        match command.gui_safe().spawn() {
             Ok(_child) => {
                 info!("Magpie启动成功，等待游戏窗口加载...");
             }

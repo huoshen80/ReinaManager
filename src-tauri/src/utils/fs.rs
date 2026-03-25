@@ -1,3 +1,5 @@
+#[cfg(target_os = "windows")]
+use crate::utils::command_ext::CommandGuiExt;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -245,7 +247,10 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
         // 虽然 Windows 系统本身支持正斜杠，但 Explorer 更喜欢原生的反斜杠格式
         let normalized_path = dir_path.replace('/', "\\");
 
-        let result = Command::new("explorer").arg(&normalized_path).spawn();
+        let result = Command::new("explorer")
+            .arg(&normalized_path)
+            .gui_safe()
+            .spawn();
 
         match result {
             Ok(_) => Ok(()),
@@ -253,6 +258,7 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
                 // 如果 explorer 失败，尝试使用 cmd /c start
                 let fallback_result = Command::new("cmd")
                     .args(["/c", "start", "", &normalized_path])
+                    .gui_safe()
                     .spawn();
 
                 match fallback_result {
