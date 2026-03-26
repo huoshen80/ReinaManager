@@ -1,5 +1,6 @@
 #[cfg(target_os = "windows")]
 use crate::utils::command_ext::CommandGuiExt;
+
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -8,7 +9,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use tauri::command;
 
-// ==================== 路径相关常量（重导出） ====================
+// ==================== 路径相关常量 ====================
 
 pub use reina_path::{DB_BACKUP_SUBDIR, DB_DATA_DIR};
 

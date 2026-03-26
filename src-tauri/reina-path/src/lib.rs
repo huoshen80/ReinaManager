@@ -40,22 +40,11 @@ pub fn get_base_data_dir() -> Result<PathBuf, String> {
 fn get_system_data_dir() -> Result<PathBuf, String> {
     use directories::BaseDirs;
 
+    let identifier = "com.reinamanager.dev";
+
     let base_dirs = BaseDirs::new().ok_or_else(|| "无法获取系统目录信息".to_string())?;
 
-    #[cfg(target_os = "windows")]
-    {
-        Ok(base_dirs.data_dir().join("com.reinamanager.dev"))
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        Ok(base_dirs.data_dir().join("com.reinamanager.dev"))
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        Ok(base_dirs.data_dir().join("reina-manager"))
-    }
+    Ok(base_dirs.data_dir().join(identifier))
 }
 
 /// 获取数据库文件路径

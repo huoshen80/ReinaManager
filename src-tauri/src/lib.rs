@@ -15,6 +15,7 @@ use utils::{
     },
     game_cover::{delete_cloud_cache, register_game_cover_protocol},
     launch::{launch_game, stop_game},
+    legacy_migration::run_startup_migrations,
     logs::{get_reina_log_level, set_reina_log_level},
     scan::scan_directory_for_games,
 };
@@ -164,6 +165,25 @@ pub fn run() {
             // 初始化路径管理器
             let path_manager = PathManager::new();
             app.manage(path_manager);
+
+            match run_startup_migrations() {
+                Ok(result) if result.executed == 0 => {
+                    log::debug!("启动迁移检查完成，无需执行");
+                }
+                Ok(result) => {
+                    log::info!(
+                        "启动迁移完成: executed={}, skipped={}, moved={}, replaced={}, removed_legacy={}",
+                        result.executed,
+                        result.skipped,
+                        result.migrated_files,
+                        result.replaced_files,
+                        result.removed_legacy_files
+                    );
+                }
+                Err(err) => {
+                    log::error!("启动迁移失败: {}", err);
+                }
+            }
 
             // 执行 SeaORM 数据库迁移并注册到状态管理
             let app_handle = app.handle().clone();

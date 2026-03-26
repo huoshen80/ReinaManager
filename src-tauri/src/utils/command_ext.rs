@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 use std::process::{Command, Stdio};
 
 /// 为 GUI 环境下启动子进程提供统一的标准流处理。
@@ -8,16 +9,10 @@ pub trait CommandGuiExt {
 
 impl CommandGuiExt for Command {
     fn gui_safe(&mut self) -> &mut Self {
-        #[cfg(target_os = "windows")]
         {
             self.stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
-        }
-
-        #[cfg(not(target_os = "windows"))]
-        {
-            self
         }
     }
 }
