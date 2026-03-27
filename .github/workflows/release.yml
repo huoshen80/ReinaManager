@@ -3,15 +3,15 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag name (e.g.: v1.0.0)'
+        description: "Release tag name (e.g.: v1.0.0)"
         required: true
         type: string
       prerelease:
-        description: 'Mark as pre-release'
+        description: "Mark as pre-release"
         required: false
         default: false
         type: boolean
@@ -36,7 +36,7 @@ jobs:
           echo "Looking for version: $VERSION"
           CHANGELOG_FILE=$(mktemp)
           awk "/^## \\[?v?${VERSION//./\\.}\]?/ {flag=1; next} /^## / && flag {flag=0} flag {print}" CHANGELOG.md > "$CHANGELOG_FILE"
-          
+
           if [ -s "$CHANGELOG_FILE" ]; then
             {
               echo "CHANGELOG_CONTENT<<EOF"
@@ -116,7 +116,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        rust_target: [ x86_64-pc-windows-msvc, aarch64-pc-windows-msvc ]
+        rust_target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
     environment: TAURI_KEY
     steps:
       - name: Checkout repository
@@ -148,12 +148,29 @@ jobs:
           cat >> .cargo/config.toml <<EOF
           [target.x86_64-pc-windows-msvc]
           linker = "lld-link"
-          
+
           [target.aarch64-pc-windows-msvc]
           linker = "lld-link"
           EOF
       - name: Install dependencies
         run: pnpm install
+      - name: Get version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version is $VERSION"
+      - name: Compute short target name
+        id: short
+        shell: bash
+        run: |
+          case "${{ matrix.rust_target }}" in
+            *x86_64-pc-windows*) SHORT=win_x64 ;;
+            *aarch64-pc-windows*) SHORT=win_arm64 ;;
+            *) SHORT=unknown ;;
+          esac
+          echo "SHORT=$SHORT" >> $GITHUB_OUTPUT
       - name: Build and Upload to Draft Release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -168,9 +185,41 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
-          includeRelease: true 
+          includeRelease: true
           tauriScript: pnpm tauri
           args: --target ${{ matrix.rust_target }}
+      - name: Prepare portable package (Windows)
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $short = "${{ steps.short.outputs.SHORT }}"
+          $target = "${{ matrix.rust_target }}"
+          $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager-$version-$short"
+          $resourcesDataDir = Join-Path $portableRoot "resources/data"
+          $zipPath = "src-tauri/target/$target/release/ReinaManager-$version-$short-portable.zip"
+
+          if (Test-Path $portableRoot) {
+            Remove-Item $portableRoot -Recurse -Force
+          }
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+
+          New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
+          @"
+          该文件夹为数据库文件夹，删除该文件夹则退出便携模式，反之则保持便携模式。
+          This folder stores the database. Deleting this folder exits portable mode; keeping it preserves portable mode.
+          "@ | Set-Content -Path (Join-Path $resourcesDataDir "readme.txt") -Encoding UTF8
+          Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
+          Compress-Archive -Path "$portableRoot/*" -DestinationPath $zipPath
+      - name: Upload portable package to Draft Release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            "src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable.zip" \
+            --clobber
 
   finalize-release:
     name: Finalize Release
@@ -201,55 +250,51 @@ jobs:
           TAG_NAME="${{ github.ref_name }}"
           # 从 GitHub API 获取草稿 release 的所有资源文件名
           ASSETS_JSON=$(gh release view "$TAG_NAME" --json assets --jq '.assets | .[] | .name')
-          
+
           # 解析 Windows 产物
           X64_MSI=$(echo "$ASSETS_JSON" | grep -E "_x64_.*\.msi$" || echo "")
           ARM64_MSI=$(echo "$ASSETS_JSON" | grep -E "_arm64_.*\.msi$" || echo "")
-          
+          X64_PORTABLE=$(echo "$ASSETS_JSON" | grep -E "win_x64-portable\.zip$" || echo "")
+          ARM64_PORTABLE=$(echo "$ASSETS_JSON" | grep -E "win_arm64-portable\.zip$" || echo "")
+
           # 解析 Linux 产物 (AppImage & deb)
           X64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.AppImage$" || echo "")
           X64_DEB=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.deb$" || echo "")
           ARM64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "aarch64.*\.AppImage$" || echo "")
           ARM64_DEB=$(echo "$ASSETS_JSON" | grep -E "arm64.*\.deb$" || echo "")
-          
+
           CHANGELOG="${{ needs.prepare.outputs.changelog }}"
-          
+
           # 构建下载链接
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
-          
+
           DOWNLOAD_SECTION=$(cat <<EOF
           ---
           ### 📥 下载地址 (Download)
           ![Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/$TAG_NAME/total)
-          
+
           **Windows** (不支持 Win7)
           - [**64位 (x64)**]($BASE_URL/$X64_MSI)
           - [**ARM64**]($BASE_URL/$ARM64_MSI)
-          
+          - [**便携版 (x64)**]($BASE_URL/$X64_PORTABLE)
+          - [**便携版 (ARM64)**]($BASE_URL/$ARM64_PORTABLE)
+
           **Linux**
           - [**AppImage (x64)**]($BASE_URL/$X64_APPIMAGE)
           - [**Debian/Ubuntu (.deb x64)**]($BASE_URL/$X64_DEB)
           - [**AppImage (ARM64)**]($BASE_URL/$ARM64_APPIMAGE)
           - [**Debian/Ubuntu (.deb ARM64)**]($BASE_URL/$ARM64_DEB)
-          
-          ### ⚠️ **安装提醒 (Installation Notice)**
-          不建议安装在 **C:\Program Files** 目录下。该目录需要以管理员权限运行软件才能正常使用以下功能：
-          - 自定义游戏封面
-          - 便携模式
-          ---
-          It is **NOT recommended** to install in **C:\Program Files**. This directory requires administrator privileges for the following features:
-          - Custom game covers
-          - Portable mode
+
           EOF
           )
-            
+
           FINAL_BODY=$(cat <<EOF
           $CHANGELOG
 
           $DOWNLOAD_SECTION
           EOF
           )
-          
+
           {
             echo "body<<EOF"
             echo "$FINAL_BODY"
@@ -295,6 +340,6 @@ jobs:
 
           jq '.platforms |= with_entries(.value.url |= "https://gh.huoshen80.top/\(.)")' latest.json > latest_modified.json
           mv -f latest_modified.json latest.json
-          
+
           gh release upload $TAG_NAME "latest.json" --clobber
           echo "Successfully updated latest.json with CDN URLs"

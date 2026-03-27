@@ -133,7 +133,7 @@ jobs:
           # 不在这里创建 GitHub release，仅构建
           args: >-
             --target ${{ matrix.rust_target }}
-            ${{ 
+            ${{
               (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
               && ''
               || '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
@@ -147,6 +147,32 @@ jobs:
           includeRelease: true
           tauriScript: pnpm tauri
 
+      - name: Prepare portable package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $short = "${{ steps.short.outputs.SHORT }}"
+          $target = "${{ matrix.rust_target }}"
+          $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager-$version-$short"
+          $resourcesDataDir = Join-Path $portableRoot "resources/data"
+          $zipPath = "src-tauri/target/$target/release/ReinaManager-$version-$short-portable.zip"
+
+          if (Test-Path $portableRoot) {
+            Remove-Item $portableRoot -Recurse -Force
+          }
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+
+          New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
+          @"
+          该文件夹为数据库文件夹，删除该文件夹则退出便携模式，反之则保持便携模式。
+          This folder stores the database. Deleting this folder exits portable mode; keeping it preserves portable mode.
+          "@ | Set-Content -Path (Join-Path $resourcesDataDir "readme.txt") -Encoding UTF8
+          Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
+          Compress-Archive -Path "$portableRoot/*" -DestinationPath $zipPath
+
       # 显示构建状态
       - name: Build status
         shell: bash
@@ -159,12 +185,12 @@ jobs:
           fi
 
       # Upload build artifacts for testings
-      - name: Upload Executable (Artifact)
+      - name: Upload Portable Package (Artifact)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-exe
-          path: src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager.exe
+          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable
+          path: src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable.zip
           if-no-files-found: warn
 
       - name: Upload MSI Installer (Artifact)
