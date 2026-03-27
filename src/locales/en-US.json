@@ -582,16 +582,6 @@
 				"saveError": "Save failed",
 				"note": "Note: You need to restart the game for this setting to take effect."
 			},
-			"portableMode": {
-				"confirmDisableMessage": "After disabling portable mode, the database and backups will be migrated to the system application data directory. The application will restart automatically after successful operation.",
-				"confirmEnableMessage": "After enabling portable mode, the database and backups will be migrated to the program installation directory. The application will restart automatically after successful operation.",
-				"confirmTitle": "Confirm Portable Mode Switch",
-				"description": "When portable mode is enabled, the database and backups will be saved in the program installation directory's resources folder, instead of the system application data directory. Suitable for scenarios where you need to use the program on a USB drive or external hard drive.",
-				"enable": "Enable Portable Mode",
-				"title": "Portable Mode",
-				"toggleError": "Switch failed"
-			},
-			"restartError": "Failed to restart application",
 			"saveBtn": "Save",
 			"skipCloseRemind": "Don't remind again",
 			"spoilerLevel": {

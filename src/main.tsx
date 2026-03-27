@@ -54,7 +54,7 @@ document.addEventListener("keydown", (e) => {
 initializeStores().then(async () => {
 	await initTray();
 
-	// 初始化所有路径缓存（包括便携模式判断和数据库配置读取）
+	// 初始化基础数据根目录缓存
 	try {
 		await initPathCache();
 	} catch (error) {

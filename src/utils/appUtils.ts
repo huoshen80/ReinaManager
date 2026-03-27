@@ -32,66 +32,37 @@ export interface StopGameResult {
 
 // ==================== 路径管理缓存 ====================
 
-// 缓存资源目录路径
-let cachedResourceDirPath: string | null = null;
-
-// 缓存应用基础路径
+// 缓存应用基础数据路径
 let cachedAppDataDir: string | null = null;
-let cachedIsPortableMode: boolean | null = null;
 
 /**
  * 路径初始化结果类型
  */
 export interface PathInitResult {
 	resourceDir: string; // 资源目录路径
-	appDataDir: string; // 应用数据目录（便携或标准）
-	isPortableMode: boolean; // 是否便携模式
+	appDataDir: string; // 应用基础数据根目录（便携或标准）
 }
 
 /**
  * 初始化所有路径缓存
- * 应该在应用启动时调用，结合后端判断便携模式和数据库配置
+ * 应该在应用启动时调用一次
  * @returns 所有路径信息
  */
 export const initPathCache = async (): Promise<PathInitResult> => {
-	// 使用 Promise.all 并行处理所有异步操作以提升初始化速度
-	const [resourceDirResult, isPortableResult, systemAppDataDirResult] =
-		await Promise.all([
-			// 1. 获取资源目录
-			cachedResourceDirPath
-				? Promise.resolve(cachedResourceDirPath)
-				: resourceDir(),
-			// 2. 判断便携模式
-			cachedIsPortableMode !== null
-				? Promise.resolve(cachedIsPortableMode)
-				: settingsService.getPortableMode(),
-			// 3. 获取系统 AppData 目录
-			cachedAppDataDir ? Promise.resolve(cachedAppDataDir) : path.appDataDir(),
-		]);
+	const [resourceDirPath, systemAppDataDir] = await Promise.all([
+		resourceDir(),
+		path.appDataDir(),
+	]);
+	const baseResourceDir = join(resourceDirPath, "resources");
+	const portableModeResult = await fileService.isPortableMode();
 
-	// 更新缓存
-	if (!cachedResourceDirPath) {
-		cachedResourceDirPath = resourceDirResult;
-	}
-	if (cachedIsPortableMode === null) {
-		cachedIsPortableMode = isPortableResult;
-	}
-
-	// 3. 确定应用数据目录
-	if (!cachedAppDataDir) {
-		if (cachedIsPortableMode) {
-			// 便携模式：使用资源目录/resources
-			cachedAppDataDir = join(cachedResourceDirPath, "resources");
-		} else {
-			// 标准模式：使用系统 AppData
-			cachedAppDataDir = systemAppDataDirResult;
-		}
-	}
+	cachedAppDataDir = portableModeResult.is_portable
+		? baseResourceDir
+		: systemAppDataDir;
 
 	return {
-		resourceDir: cachedResourceDirPath,
+		resourceDir: baseResourceDir,
 		appDataDir: cachedAppDataDir,
-		isPortableMode: cachedIsPortableMode,
 	};
 };
 

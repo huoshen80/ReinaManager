@@ -23,6 +23,10 @@ export interface MoveBackupFolderResult {
 	message: string;
 }
 
+export interface PortableModeResult {
+	is_portable: boolean;
+}
+
 class FileService extends BaseService {
 	/**
 	 * 扫描目录下的游戏文件夹
@@ -36,6 +40,13 @@ class FileService extends BaseService {
 	 */
 	async openDirectory(dirPath: string): Promise<void> {
 		return this.invoke<void>("open_directory", { dirPath });
+	}
+
+	/**
+	 * 判断当前是否为便携模式
+	 */
+	async isPortableMode(): Promise<PortableModeResult> {
+		return this.invoke<PortableModeResult>("is_portable_mode");
 	}
 
 	/**

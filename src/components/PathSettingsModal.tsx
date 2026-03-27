@@ -453,7 +453,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 							>
 								{t(
 									"components.PathSettingsModal.dbBackupPath.note",
-									"设置数据库备份文件的保存路径，留空将使用默认路径（AppData/data/backups），或便携模式下的程序目录",
+									"设置数据库备份文件的保存路径，留空将使用默认路径（应用数据目录/data/backups）",
 								)}
 							</Typography>
 						</Box>

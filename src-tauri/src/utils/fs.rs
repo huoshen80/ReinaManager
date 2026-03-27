@@ -9,9 +9,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use tauri::command;
 
-// ==================== 路径相关常量 ====================
-
-pub use reina_path::{DB_BACKUP_SUBDIR, DB_DATA_DIR};
+pub use reina_path::get_default_db_backup_path;
 
 // ==================== 路径管理器 ====================
 
@@ -27,6 +25,11 @@ struct PathCache {
 /// 全局路径管理器
 pub struct PathManager {
     cache: Mutex<PathCache>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PortableModeResult {
+    pub is_portable: bool,
 }
 
 impl PathManager {
@@ -53,8 +56,7 @@ impl PathManager {
             // 使用数据库中的自定义路径
             PathBuf::from(custom)
         } else {
-            // 使用默认路径（根据便携模式判断）
-            self.get_default_db_backup_path()?
+            get_default_db_backup_path()?
         };
 
         // 缓存路径
@@ -123,7 +125,7 @@ impl PathManager {
         // 如果数据库没值(或为空)，直接计算出默认路径存入缓存
         let db_backup_path = match clean_str(settings.db_backup_path) {
             Some(custom) => PathBuf::from(custom),
-            None => self.get_default_db_backup_path()?, // <--- 这里的逻辑现在和 get_db_backup_path 一致了
+            None => get_default_db_backup_path()?,
         };
 
         // 3. 处理存档根目录 (系统关键路径，必须有值)
@@ -209,13 +211,6 @@ impl PathManager {
             .and_then(|u| u.save_root_path)
             .filter(|s| !s.trim().is_empty()))
     }
-
-    /// 获取默认的数据库备份路径
-    fn get_default_db_backup_path(&self) -> Result<PathBuf, String> {
-        Ok(reina_path::get_base_data_dir()?
-            .join(DB_DATA_DIR)
-            .join(DB_BACKUP_SUBDIR))
-    }
 }
 
 // ==================== 文件操作相关 ====================
@@ -280,6 +275,14 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("无法打开目录 '{}': {}", dir_path, e)),
         }
+    }
+}
+
+/// 判断当前是否为便携模式
+#[command]
+pub fn is_portable_mode() -> PortableModeResult {
+    PortableModeResult {
+        is_portable: reina_path::is_portable_mode(),
     }
 }
 
@@ -422,6 +425,7 @@ pub fn move_file(from: &Path, to: &Path) -> Result<(), String> {
 ///
 /// # Returns
 /// * `Result<usize, String>` - 成功移动的文件数量或错误消息
+#[allow(dead_code)]
 pub fn move_dir_recursive(from: &Path, to: &Path) -> Result<usize, String> {
     // 尝试使用 rename（同盘符时性能最好）
     match fs::rename(from, to) {
@@ -497,6 +501,7 @@ pub fn move_dir_recursive(from: &Path, to: &Path) -> Result<usize, String> {
 ///
 /// # Returns
 /// * `Result<usize, String>` - 成功复制的文件数量或致命错误
+#[allow(dead_code)]
 fn copy_dir_with_error_collection(
     from: &Path,
     to: &Path,
@@ -563,6 +568,7 @@ fn copy_dir_with_error_collection(
 }
 
 /// 统计目录中的文件数量（递归）
+#[allow(dead_code)]
 fn count_files_in_dir(dir: &Path) -> Result<usize, String> {
     let mut count = 0;
 

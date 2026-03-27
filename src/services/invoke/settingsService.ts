@@ -13,16 +13,6 @@ export interface UserSettings {
 	db_backup_path?: string | null;
 	le_path?: string | null;
 	magpie_path?: string | null;
-	portable_mode?: number | null;
-}
-
-export interface PortableModeResult {
-	requires_restart: boolean;
-	database_migrated: boolean;
-	database_backups_count: number;
-	savedata_backups_count: number;
-	total_files: number;
-	message: string;
 }
 
 class SettingsService extends BaseService {
@@ -93,22 +83,6 @@ class SettingsService extends BaseService {
 	 */
 	async setDbBackupPath(path: string): Promise<void> {
 		return this.invoke<void>("set_db_backup_path", { path });
-	}
-
-	/**
-	 * 获取便携模式状态
-	 */
-	async getPortableMode(): Promise<boolean> {
-		return this.invoke<boolean>("get_portable_mode");
-	}
-
-	/**
-	 * 设置便携模式
-	 *
-	 * 切换便携模式会自动迁移配置文件并返回迁移结果
-	 */
-	async setPortableMode(enabled: boolean): Promise<PortableModeResult> {
-		return this.invoke<PortableModeResult>("set_portable_mode", { enabled });
 	}
 
 	/**

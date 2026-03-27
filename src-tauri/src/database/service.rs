@@ -1,5 +1,4 @@
 use sea_orm::DatabaseConnection;
-use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
 use crate::database::dto::{
@@ -14,26 +13,6 @@ use crate::database::repository::{
 };
 use crate::entity::{games, savedata, user};
 use crate::utils::fs::{delete_game_cover_dir, PathManager};
-use reina_path::is_portable_mode;
-
-// ==================== 便携模式相关类型 ====================
-
-/// 便携模式切换结果
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PortableModeResult {
-    /// 是否需要重启应用
-    pub requires_restart: bool,
-    /// 是否迁移了数据库文件
-    pub database_migrated: bool,
-    /// 迁移的数据库备份文件数量
-    pub database_backups_count: usize,
-    /// 迁移的存档备份文件数量
-    pub savedata_backups_count: usize,
-    /// 迁移的文件总数
-    pub total_files: usize,
-    /// 提示消息
-    pub message: String,
-}
 
 // ==================== 游戏数据相关 ====================
 
@@ -549,90 +528,6 @@ pub async fn update_settings(
     path_manager.clear_cache();
 
     Ok(())
-}
-
-/// 设置便携模式
-///
-/// 切换便携模式时会自动迁移数据库文件、数据库备份和存档备份，并要求重启应用
-///
-/// **重要**：
-/// - 迁移过程会先关闭数据库连接以确保数据完整性
-/// - 使用**剪切**操作（移动文件），源文件将被删除
-/// - 便携模式通过文件位置判断，不再存储在数据库中
-/// - 启用便携模式：将文件从 AppData 移动到程序目录/resources
-/// - 禁用便携模式：将文件从程序目录/resources 移动到 AppData
-#[tauri::command]
-pub async fn set_portable_mode(
-    app: tauri::AppHandle,
-    db: State<'_, DatabaseConnection>,
-    enabled: bool,
-) -> Result<PortableModeResult, String> {
-    use crate::database::db::migrate_data_files;
-
-    // 读取用户的存档路径配置（在关闭连接前）
-    let user_save_root_path = SettingsRepository::get_save_root_path(&db).await.ok();
-
-    // 迁移数据文件（此函数会关闭数据库连接，使用剪切操作）
-    // 如果迁移失败，直接返回错误给前端
-    let migration_result = migrate_data_files(&app, enabled, user_save_root_path)
-        .await
-        .map_err(|e| {
-            log::error!("数据文件迁移失败: {}", e);
-            format!(
-                "数据文件迁移失败: {}\n\n应用将不会自动重启，请解决问题后重启重试",
-                e
-            )
-        })?;
-
-    let mode_name = if enabled {
-        "便携模式"
-    } else {
-        "标准模式"
-    };
-    let message = if migration_result.total_files == 0 {
-        format!("已切换到{}，应用将重启以应用更改", mode_name)
-    } else {
-        let mut details = Vec::new();
-        if migration_result.database_migrated {
-            details.push("数据库文件".to_string());
-        }
-        if migration_result.database_backups_count > 0 {
-            details.push(format!(
-                "{} 个数据库备份",
-                migration_result.database_backups_count
-            ));
-        }
-        if migration_result.savedata_backups_count > 0 {
-            details.push(format!(
-                "{} 个存档备份",
-                migration_result.savedata_backups_count
-            ));
-        }
-        format!(
-            "已切换到{}并移动了 {}，应用将重启",
-            mode_name,
-            details.join("、")
-        )
-    };
-
-    Ok(PortableModeResult {
-        requires_restart: true,
-        database_migrated: migration_result.database_migrated,
-        database_backups_count: migration_result.database_backups_count,
-        savedata_backups_count: migration_result.savedata_backups_count,
-        total_files: migration_result.total_files,
-        message,
-    })
-}
-
-/// 获取当前便携模式状态
-///
-/// 通过检查文件系统判断当前是否处于便携模式
-/// - 便携模式：resources/data/reina_manager.db 存在
-/// - 标准模式：resources/data/reina_manager.db 不存在
-#[tauri::command]
-pub async fn get_portable_mode() -> Result<bool, String> {
-    Ok(is_portable_mode())
 }
 
 // ==================== 合集相关 ====================

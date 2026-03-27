@@ -63,17 +63,14 @@ import { join } from "pathe";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import { AlertConfirmBox } from "@/components/AlertBox";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import {
 	useBgmCurrentUserProfile,
 	useBgmToken,
 	useLogLevel,
-	usePortableMode,
 	useSetBgmToken,
 	useSetLogLevel,
-	useSetPortableMode,
 	useSetVndbToken,
 	useVndbCurrentUserProfile,
 	useVndbToken,
@@ -1075,136 +1072,6 @@ const DatabaseBackupSettings = () => {
 	);
 };
 
-const PortableModeSettings = () => {
-	const { t } = useTranslation();
-	const { data: portableMode = false } = usePortableMode();
-	const setPortableModeMutation = useSetPortableMode();
-	const [isLoading, setIsLoading] = useState(false);
-	const [showConfirm, setShowConfirm] = useState(false);
-	const [pendingValue, setPendingValue] = useState(false);
-
-	const handleTogglePortableMode = async (
-		event: React.ChangeEvent<HTMLInputElement>,
-	) => {
-		const newValue = event.target.checked;
-		// 显示确认对话框
-		setPendingValue(newValue);
-		setShowConfirm(true);
-	};
-
-	const handleConfirmToggle = async () => {
-		setShowConfirm(false);
-		setIsLoading(true);
-
-		try {
-			const result = await setPortableModeMutation.mutateAsync(pendingValue);
-
-			// 显示详细的迁移结果
-			if (result.total_files > 0) {
-				const details = [];
-				if (result.database_migrated) {
-					details.push("数据库文件");
-				}
-				if (result.database_backups_count > 0) {
-					details.push(`${result.database_backups_count} 个数据库备份`);
-				}
-				if (result.savedata_backups_count > 0) {
-					details.push(`${result.savedata_backups_count} 个存档备份`);
-				}
-				snackbar.success(`${result.message}（${details.join("、")}）`);
-			} else {
-				snackbar.success(result.message);
-			}
-
-			// 如果需要重启，自动重启应用
-			if (result.requires_restart) {
-				setTimeout(async () => {
-					try {
-						await relaunch();
-					} catch (error) {
-						console.error("重启应用失败:", error);
-						snackbar.error(
-							t("pages.Settings.restartError", "重启失败，请手动重启应用"),
-						);
-					}
-				}, 1500); // 给用户时间看到提示消息
-			}
-		} catch (error) {
-			console.error("切换便携模式失败:", error);
-
-			// 使用多行显示错误信息
-			snackbar.error(
-				getUserErrorMessage(
-					error,
-					t,
-					t("pages.Settings.portableMode.toggleError", "切换失败"),
-				),
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	return (
-		<>
-			<Box className="mb-6">
-				<InputLabel className="font-semibold mb-4">
-					{t("pages.Settings.portableMode.title", "便携模式")}
-				</InputLabel>
-
-				<Stack direction="row" alignItems="center" className="mb-2">
-					<FormControlLabel
-						control={
-							<Switch
-								checked={portableMode}
-								onChange={handleTogglePortableMode}
-								disabled={isLoading}
-								color="primary"
-							/>
-						}
-						label={t("pages.Settings.portableMode.enable", "启用便携模式")}
-					/>
-				</Stack>
-
-				<Typography
-					variant="caption"
-					color="text.secondary"
-					className="block mt-1"
-				>
-					{t(
-						"pages.Settings.portableMode.description",
-						"开启便携模式后，数据库和备份将保存在程序安装目录resources文件夹下，而非系统应用数据目录。适合需要将程序放在U盘或移动硬盘中使用的场景。",
-					)}
-				</Typography>
-			</Box>
-
-			{/* 确认对话框 */}
-			<AlertConfirmBox
-				open={showConfirm}
-				setOpen={setShowConfirm}
-				title={t(
-					"pages.Settings.portableMode.confirmTitle",
-					"确认切换便携模式",
-				)}
-				message={
-					pendingValue
-						? t(
-								"pages.Settings.portableMode.confirmEnableMessage",
-								"启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
-							)
-						: t(
-								"pages.Settings.portableMode.confirmDisableMessage",
-								"关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
-							)
-				}
-				onConfirm={handleConfirmToggle}
-				confirmText={t("common.confirm", "确认")}
-				confirmColor="warning"
-			/>
-		</>
-	);
-};
-
 const TimeTrackingModeSettings = () => {
 	const { t } = useTranslation();
 	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
@@ -1735,10 +1602,6 @@ export const Settings: React.FC = () => {
 
 				{/* 关闭按钮设置 */}
 				<CloseBtnSettings />
-				<Divider sx={{ my: 3 }} />
-
-				{/* 便携模式设置 */}
-				<PortableModeSettings />
 				<Divider sx={{ my: 3 }} />
 
 				{/* 路径设置 */}

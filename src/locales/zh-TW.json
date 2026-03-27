@@ -580,16 +580,6 @@
 				"saveError": "儲存失敗",
 				"note": "注意：變更此設定後，需要重新啟動遊戲才能生效。"
 			},
-			"portableMode": {
-				"confirmDisableMessage": "停用攜帶式模式後，應用程式將自動重新啟動。確定要繼續嗎？",
-				"confirmEnableMessage": "啟用攜帶式模式後，應用程式將自動重新啟動。確定要繼續嗎？",
-				"confirmTitle": "確認切換模式",
-				"description": "啟用攜帶式模式後，資料庫和備份將儲存在程式安裝目錄resources資料夾下，而非系統應用資料目錄。適合需要將程式放在隨身碟或移動硬碟中使用的場景。",
-				"enable": "啟用攜帶式模式",
-				"title": "攜帶式模式",
-				"toggleError": "切換攜帶式模式失敗: {{error}}"
-			},
-			"restartError": "重啟應用程式失敗",
 			"saveBtn": "儲存",
 			"skipCloseRemind": "不再提醒",
 			"spoilerLevel": {

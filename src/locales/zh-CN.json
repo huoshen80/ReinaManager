@@ -580,16 +580,6 @@
 				"saveError": "保存失败",
 				"note": "注意：更改此设置后，需要重新启动游戏才能生效。"
 			},
-			"portableMode": {
-				"confirmDisableMessage": "关闭便携模式后，数据库和备份将迁移至系统应用数据目录。操作成功后应用将自动重启。",
-				"confirmEnableMessage": "启用便携模式后，数据库和备份将迁移至程序安装目录。操作成功后应用将自动重启。",
-				"confirmTitle": "确认切换便携模式",
-				"description": "开启便携模式后，数据库和备份将保存在程序安装目录resources文件夹下，而非系统应用数据目录。适合需要将程序放在U盘或移动硬盘中使用的场景。",
-				"enable": "启用便携模式",
-				"title": "便携模式",
-				"toggleError": "切换失败"
-			},
-			"restartError": "重启失败，请手动重启应用",
 			"saveBtn": "保存",
 			"skipCloseRemind": "不再提醒",
 			"spoilerLevel": {

@@ -11,7 +11,8 @@ use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind, TimezoneStrategy};
 use utils::{
     fs::{
-        copy_file, delete_file, delete_game_covers, move_backup_folder, open_directory, PathManager,
+        copy_file, delete_file, delete_game_covers, is_portable_mode, move_backup_folder,
+        open_directory, PathManager,
     },
     game_cover::{delete_cloud_cache, register_game_cover_protocol},
     launch::{launch_game, stop_game},
@@ -47,6 +48,7 @@ pub fn run() {
             launch_game,
             stop_game,
             open_directory,
+            is_portable_mode,
             scan_directory_for_games,
             move_backup_folder,
             copy_file,
@@ -99,8 +101,6 @@ pub fn run() {
             set_db_backup_path,
             get_all_settings,
             update_settings,
-            get_portable_mode,
-            set_portable_mode,
             get_le_path,
             set_le_path,
             get_magpie_path,

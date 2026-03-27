@@ -30,7 +30,6 @@ export const settingsKeys = {
 	logLevel: () => [...settingsKeys.all, "logLevel"] as const,
 	saveRootPath: () => [...settingsKeys.all, "saveRootPath"] as const,
 	dbBackupPath: () => [...settingsKeys.all, "dbBackupPath"] as const,
-	portableMode: () => [...settingsKeys.all, "portableMode"] as const,
 	lePath: () => [...settingsKeys.all, "lePath"] as const,
 	magpiePath: () => [...settingsKeys.all, "magpiePath"] as const,
 };
@@ -101,17 +100,6 @@ export function useLogLevel(options?: SettingsQueryOptions) {
 	return useQuery({
 		queryKey: settingsKeys.logLevel(),
 		queryFn: () => settingsService.getLogLevel(),
-		enabled: options?.enabled,
-	});
-}
-
-/**
- * 获取便携模式状态
- */
-export function usePortableMode(options?: SettingsQueryOptions) {
-	return useQuery({
-		queryKey: settingsKeys.portableMode(),
-		queryFn: () => settingsService.getPortableMode(),
 		enabled: options?.enabled,
 	});
 }
@@ -225,22 +213,6 @@ export function useSetLogLevel() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: settingsKeys.logLevel(),
-			});
-		},
-	});
-}
-
-/**
- * 设置便携模式
- */
-export function useSetPortableMode() {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: (enabled: boolean) => settingsService.setPortableMode(enabled),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: settingsKeys.portableMode(),
 			});
 		},
 	});
