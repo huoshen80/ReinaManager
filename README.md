@@ -59,8 +59,8 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>å¦
 
 - [x] Bulk import games from folders
 - [x] Basic support for the Linux platform
+- [x] Sync game status with Bangumi and VNDB
 - [ ] Beautify individual pages
-- [ ] Sync game status with Bangumi and VNDB
 
 ## Migration
 

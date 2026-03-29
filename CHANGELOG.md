@@ -1,3 +1,53 @@
+## [0.18.0](https://github.com/huoshen80/ReinaManager/compare/v0.17.1...v0.17.2) (2026-03-29)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+
+* **AddModal:** 批量模式下切换 Tab 导致数据丢失的问题，解决 [#43](https://github.com/huoshen80/ReinaManager/issues/43) ([99b41fe](https://github.com/huoshen80/ReinaManager/commit/99b41fe697240341b4ce529e029c26f26db12910))
+* **RightMenu:** 游戏游玩状态子菜单中的 bug ([7c7bf89](https://github.com/huoshen80/ReinaManager/commit/7c7bf89200a4fa1440a9a3d8943f355de7029dee))
+* 软件运行时系统操作函数失败的问题 ([3d2dc37](https://github.com/huoshen80/ReinaManager/commit/3d2dc3713d4ec2a6a3601328287b228748306b7b))，关闭 [#44](https://github.com/huoshen80/ReinaManager/issues/44)
+
+### 新功能
+
+* 添加全局返回按钮 ([7b64b97](https://github.com/huoshen80/ReinaManager/commit/7b64b972f35e674420f4fec3f7ec819bf7760606))
+* Reina 退出时添加提醒对话框 ([9e95d2e](https://github.com/huoshen80/ReinaManager/commit/9e95d2edfae9d6f97ac1e432bd3b978cf91fedd8))
+* 添加游戏封面本地缓存 ([a3941ea](https://github.com/huoshen80/ReinaManager/commit/a3941ea583838cd75238ae396d8afe86df911a03))
+* 添加 VNDB 令牌管理和游戏状态同步功能 ([c4106cd](https://github.com/huoshen80/ReinaManager/commit/c4106cd92a69b2885ead73272179ea30d4bc6a65))
+* **FilterModal:** 添加自定义游戏筛选类型 ([318b734](https://github.com/huoshen80/ReinaManager/commit/318b7349bcd8533d28d3d94e21a5a829b239c6f1))
+* 启动时运行旧版封面迁移 ([b70a0f6](https://github.com/huoshen80/ReinaManager/commit/b70a0f6c306afd09e2c5fa0ba0ced74c1ecb304a))
+
+### 性能改进
+
+* 优化游戏封面缓存逻辑 ([37ad736](https://github.com/huoshen80/ReinaManager/commit/37ad736e2836af82b4bdc64a554c7945316e6ebf))
+* 为路径设置提供统一的保存按钮 ([f3c6235](https://github.com/huoshen80/ReinaManager/commit/f3c6235222cf04994a95e1a68af3b2260d88aabe))
+
+</details>
+
+### Bug Fixes
+
+* **AddModal:** data is lost when switching tabs in bulk mode resolve [#43](https://github.com/huoshen80/ReinaManager/issues/43) ([99b41fe](https://github.com/huoshen80/ReinaManager/commit/99b41fe697240341b4ce529e029c26f26db12910))
+* **RightMenu:** bug in the submenu of the game play status ([7c7bf89](https://github.com/huoshen80/ReinaManager/commit/7c7bf89200a4fa1440a9a3d8943f355de7029dee))
+* the problem of system operation fn failing when the software runs ([3d2dc37](https://github.com/huoshen80/ReinaManager/commit/3d2dc3713d4ec2a6a3601328287b228748306b7b)), closes [#44](https://github.com/huoshen80/ReinaManager/issues/44)
+
+
+### Features
+
+* add a global back button ([7b64b97](https://github.com/huoshen80/ReinaManager/commit/7b64b972f35e674420f4fec3f7ec819bf7760606))
+* add a reminder dialog when Reina exits ([9e95d2e](https://github.com/huoshen80/ReinaManager/commit/9e95d2edfae9d6f97ac1e432bd3b978cf91fedd8))
+* add game cover  local cache ([a3941ea](https://github.com/huoshen80/ReinaManager/commit/a3941ea583838cd75238ae396d8afe86df911a03))
+* add VNDB token management and game status sync fn ([c4106cd](https://github.com/huoshen80/ReinaManager/commit/c4106cd92a69b2885ead73272179ea30d4bc6a65))
+* **FilterModal:** add custom game filter types ([318b734](https://github.com/huoshen80/ReinaManager/commit/318b7349bcd8533d28d3d94e21a5a829b239c6f1))
+* run legacy cover migrations at startup ([b70a0f6](https://github.com/huoshen80/ReinaManager/commit/b70a0f6c306afd09e2c5fa0ba0ced74c1ecb304a))
+
+
+### Performance Improvements
+
+* optimize game cover cache logic ([37ad736](https://github.com/huoshen80/ReinaManager/commit/37ad736e2836af82b4bdc64a554c7945316e6ebf))
+* provide a unified save button for the path settings ([f3c6235](https://github.com/huoshen80/ReinaManager/commit/f3c6235222cf04994a95e1a68af3b2260d88aabe))
+
+
 ## [0.17.1](https://github.com/huoshen80/ReinaManager/compare/v0.17.0...v0.17.1) (2026-03-14)
 
 <details>

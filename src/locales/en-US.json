@@ -296,7 +296,9 @@
 				"cancel": "Cancel",
 				"changelog": "Changelog",
 				"downloading": "Downloading update...",
+				"manualUpdate": "Manual Update",
 				"newVersion": "New Version",
+				"portableWarning": "You are using the portable version, automatic updates may not work properly. It is recommended to click \"Manual Update\" to go to GitHub and download the latest zip file for replacement.",
 				"releaseDate": "Release Date",
 				"title": "New Version Available",
 				"update": "Update Now"
