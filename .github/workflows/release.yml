@@ -3,15 +3,15 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag name (e.g.: v1.0.0)"
+        description: 'Release tag name (e.g.: v1.0.0)'
         required: true
         type: string
       prerelease:
-        description: "Mark as pre-release"
+        description: 'Mark as pre-release'
         required: false
         default: false
         type: boolean
@@ -116,7 +116,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        rust_target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
+        rust_target: [ x86_64-pc-windows-msvc, aarch64-pc-windows-msvc ]
     environment: TAURI_KEY
     steps:
       - name: Checkout repository
@@ -194,9 +194,9 @@ jobs:
           $version = "${{ steps.get_version.outputs.VERSION }}"
           $short = "${{ steps.short.outputs.SHORT }}"
           $target = "${{ matrix.rust_target }}"
-          $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager-$version-$short"
+          $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager_${version}_${short}"
           $resourcesDataDir = Join-Path $portableRoot "resources/data"
-          $zipPath = "src-tauri/target/$target/release/ReinaManager-$version-$short-portable.zip"
+          $zipPath = "src-tauri/target/$target/release/ReinaManager_${version}_${short}-portable.zip"
 
           if (Test-Path $portableRoot) {
             Remove-Item $portableRoot -Recurse -Force
@@ -218,7 +218,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${{ github.ref_name }}" \
-            "src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable.zip" \
+            "src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager_${{ steps.get_version.outputs.VERSION }}_${{ steps.short.outputs.SHORT }}-portable.zip" \
             --clobber
 
   finalize-release:
@@ -243,69 +243,56 @@ jobs:
 
       - name: Prepare Release Body
         id: release_body
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
+          CHANGELOG: ${{ needs.prepare.outputs.changelog }}
         run: |
           TAG_NAME="${{ github.ref_name }}"
-          # 从 GitHub API 获取草稿 release 的所有资源文件名
-          ASSETS_JSON=$(gh release view "$TAG_NAME" --json assets --jq '.assets | .[] | .name')
-
-          # 解析 Windows 产物
-          X64_MSI=$(echo "$ASSETS_JSON" | grep -E "_x64_.*\.msi$" || echo "")
-          ARM64_MSI=$(echo "$ASSETS_JSON" | grep -E "_arm64_.*\.msi$" || echo "")
-          X64_PORTABLE=$(echo "$ASSETS_JSON" | grep -E "win_x64-portable\.zip$" || echo "")
-          ARM64_PORTABLE=$(echo "$ASSETS_JSON" | grep -E "win_arm64-portable\.zip$" || echo "")
-
-          # 解析 Linux 产物 (AppImage & deb)
-          X64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.AppImage$" || echo "")
-          X64_DEB=$(echo "$ASSETS_JSON" | grep -E "amd64.*\.deb$" || echo "")
-          ARM64_APPIMAGE=$(echo "$ASSETS_JSON" | grep -E "aarch64.*\.AppImage$" || echo "")
-          ARM64_DEB=$(echo "$ASSETS_JSON" | grep -E "arm64.*\.deb$" || echo "")
-
-          CHANGELOG="${{ needs.prepare.outputs.changelog }}"
+          VERSION="${TAG_NAME#v}"
 
           # 构建下载链接
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
 
-          DOWNLOAD_SECTION=$(cat <<EOF
-          ---
-          ### 📥 下载地址 (Download)
-          ![Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/$TAG_NAME/total)
+          X64_MSI="ReinaManager_${VERSION}_x64_en-US.msi"
+          ARM64_MSI="ReinaManager_${VERSION}_arm64_en-US.msi"
+          X64_PORTABLE="ReinaManager_${VERSION}_win_x64-portable.zip"
+          ARM64_PORTABLE="ReinaManager_${VERSION}_win_arm64-portable.zip"
+          X64_APPIMAGE="ReinaManager_${VERSION}_amd64.AppImage"
+          X64_DEB="ReinaManager_${VERSION}_amd64.deb"
+          ARM64_APPIMAGE="ReinaManager_${VERSION}_aarch64.AppImage"
+          ARM64_DEB="ReinaManager_${VERSION}_arm64.deb"
 
-          **Windows** (不支持 Win7)
-          - [**64位 (x64)**]($BASE_URL/$X64_MSI)
-          - [**ARM64**]($BASE_URL/$ARM64_MSI)
-          - [**便携版 (x64)**]($BASE_URL/$X64_PORTABLE)
-          - [**便携版 (ARM64)**]($BASE_URL/$ARM64_PORTABLE)
+          # changelog 先写入文件
+          printf '%s\n' "$CHANGELOG" > release_body.md
 
-          **Linux**
-          - [**AppImage (x64)**]($BASE_URL/$X64_APPIMAGE)
-          - [**Debian/Ubuntu (.deb x64)**]($BASE_URL/$X64_DEB)
-          - [**AppImage (ARM64)**]($BASE_URL/$ARM64_APPIMAGE)
-          - [**Debian/Ubuntu (.deb ARM64)**]($BASE_URL/$ARM64_DEB)
+          # 下载地址追加，全用 echo 逐行写，不用 heredoc
+          echo "" >> release_body.md
+          echo "---" >> release_body.md
+          echo "" >> release_body.md
+          echo "### 📥 下载地址 (Download)" >> release_body.md
+          echo "" >> release_body.md
+          echo "![Downloads](https://img.shields.io/github/downloads/${REPO}/${TAG_NAME}/total)" >> release_body.md
+          echo "" >> release_body.md
+          echo "**Windows** (不支持 Win7)" >> release_body.md
+          echo "- [**64位 (x64)**](${BASE_URL}/ReinaManager_${VERSION}_x64_en-US.msi)" >> release_body.md
+          echo "- [**ARM64**](${BASE_URL}/ReinaManager_${VERSION}_arm64_en-US.msi)" >> release_body.md
+          echo "- [**便携版 (x64)**](${BASE_URL}/ReinaManager_${VERSION}_win_x64-portable.zip)" >> release_body.md
+          echo "- [**便携版 (ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_win_arm64-portable.zip)" >> release_body.md
+          echo "" >> release_body.md
+          echo "**Linux**" >> release_body.md
+          echo "- [**AppImage (x64)**](${BASE_URL}/ReinaManager_${VERSION}_amd64.AppImage)" >> release_body.md
+          echo "- [**Debian/Ubuntu (.deb x64)**](${BASE_URL}/ReinaManager_${VERSION}_amd64.deb)" >> release_body.md
+          echo "- [**AppImage (ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_aarch64.AppImage)" >> release_body.md
+          echo "- [**Debian/Ubuntu (.deb ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_arm64.deb)" >> release_body.md
 
-          EOF
-          )
-
-          FINAL_BODY=$(cat <<EOF
-          $CHANGELOG
-
-          $DOWNLOAD_SECTION
-          EOF
-          )
-
-          {
-            echo "body<<EOF"
-            echo "$FINAL_BODY"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          cat release_body.md
 
       - name: Publish Final Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          body: ${{ steps.release_body.outputs.body }}
+          body_path: release_body.md
           draft: false
           prerelease: ${{ steps.release-type.outputs.IS_PRERELEASE }}
 
