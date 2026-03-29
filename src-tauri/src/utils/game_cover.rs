@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -8,15 +8,18 @@ use tauri::command;
 use tauri::http::{Response, StatusCode};
 use tauri::Manager;
 use tauri_plugin_http::reqwest::Client;
-use tokio::sync::Semaphore;
+use tokio::sync::{watch, RwLock, Semaphore};
 
 use reina_path::get_base_data_dir;
 
 const DEFAULT_COVER_EXTENSION: &str = "jpg";
 const DEFAULT_CLOUD_COVER_FILE_NAME: &str = "cloud_cover";
-const MAX_CONCURRENT_COVER_DOWNLOADS: usize = 10;
+const MAX_CONCURRENT_COVER_DOWNLOADS: usize = 100;
 const COVER_DOWNLOAD_CONNECT_TIMEOUT_SECS: u64 = 10;
-const COVER_DOWNLOAD_TIMEOUT_SECS: u64 = 30;
+const COVER_DOWNLOAD_TIMEOUT_SECS: u64 = 60;
+/// 最多重试次数（不含首次），退避延迟为 500ms * 2^attempt
+const COVER_MAX_RETRIES: u32 = 2;
+const COVER_RETRY_BASE_DELAY_MS: u64 = 500;
 const COVER_USER_AGENT: &str = concat!(
     "huoshen80/ReinaManager/",
     env!("CARGO_PKG_VERSION"),
@@ -25,30 +28,33 @@ const COVER_USER_AGENT: &str = concat!(
 
 static COVER_HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct DownloadKey {
-    game_id: u32,
-    url: String,
-}
-
-struct InFlightDownloadGuard {
-    in_flight_downloads: Arc<Mutex<HashSet<DownloadKey>>>,
-    key: DownloadKey,
-}
-
-impl Drop for InFlightDownloadGuard {
-    fn drop(&mut self) {
-        let mut in_flight = self
-            .in_flight_downloads
-            .lock()
-            .expect("封面下载去重锁已被污染");
-        in_flight.remove(&self.key);
-    }
-}
+/// 正在下载中的任务表：key=game_id，value=watch sender（false=进行中，true=已结束）
+type DownloadingMap = Arc<Mutex<HashMap<u32, Arc<watch::Sender<bool>>>>>;
 
 pub struct DownloadState {
     semaphore: Arc<Semaphore>,
-    in_flight_downloads: Arc<Mutex<HashSet<DownloadKey>>>,
+    /// 内存中已确认缓存完毕的 game_id 集合，避免每次请求都扫描磁盘
+    cached_ids: Arc<RwLock<HashSet<u32>>>,
+    /// 正在下载中的任务；同 game_id 的后续请求订阅 watch channel 等待其完成
+    downloading: DownloadingMap,
+}
+
+/// RAII guard：下载结束时（无论成功/失败/panic/取消）自动唤醒等待者，并清理 downloading 表
+struct DownloadCleanupGuard {
+    downloading: DownloadingMap,
+    game_id: u32,
+    sender: Arc<watch::Sender<bool>>,
+}
+
+impl Drop for DownloadCleanupGuard {
+    fn drop(&mut self) {
+        // 发送"完成"信号；等待者收到后自行检查磁盘缓存是否成功
+        let _ = self.sender.send(true);
+        self.downloading
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.game_id);
+    }
 }
 
 fn cover_http_client() -> &'static Client {
@@ -102,16 +108,28 @@ fn build_temp_cache_path(game_cover_dir: &Path, game_id: u32, extension: &str) -
     ))
 }
 
-fn get_cached_cloud_cover(game_cover_dir: &Path, game_id: u32) -> Option<PathBuf> {
-    let entries = std::fs::read_dir(game_cover_dir).ok()?;
-    let expected_prefix = format!("{}.", cloud_cover_file_stem(game_id));
+async fn get_cached_cloud_cover(game_cover_dir: &Path, game_id: u32) -> Option<PathBuf> {
+    let file_stem = cloud_cover_file_stem(game_id);
 
-    for entry in entries.flatten() {
+    // O(1) 快速路径：直接探测最常见的图片扩展名（stat 系统调用，无需遍历目录）
+    // 按实际出现频率排序，命中率覆盖 99%+ 的场景
+    const COMMON_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp"];
+    for ext in COMMON_EXTENSIONS {
+        let path = game_cover_dir.join(format!("{file_stem}.{ext}"));
+        if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+            return Some(path);
+        }
+    }
+
+    // O(N) 兜底路径：遇到罕见扩展名时退化为目录扫描
+    let mut entries = tokio::fs::read_dir(game_cover_dir).await.ok()?;
+    let expected_prefix = format!("{file_stem}.");
+
+    while let Some(entry) = entries.next_entry().await.ok()? {
         let path = entry.path();
         if !path.is_file() {
             continue;
         }
-
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if name.starts_with(&expected_prefix) && !name.contains(".part.") {
@@ -122,21 +140,26 @@ fn get_cached_cloud_cover(game_cover_dir: &Path, game_id: u32) -> Option<PathBuf
     None
 }
 
-fn content_type_for_file(path: &Path) -> &'static str {
-    match path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_ascii_lowercase())
-        .as_deref()
-    {
-        Some("jpg") | Some("jpeg") => "image/jpeg",
-        Some("png") => "image/png",
-        Some("gif") => "image/gif",
-        Some("bmp") => "image/bmp",
-        Some("webp") => "image/webp",
-        Some("avif") => "image/avif",
+fn content_type_for_extension(ext: &str) -> &'static str {
+    match ext {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
         _ => "application/octet-stream",
     }
+}
+
+fn content_type_for_file(path: &Path) -> &'static str {
+    content_type_for_extension(
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase())
+            .as_deref()
+            .unwrap_or(""),
+    )
 }
 
 fn parse_game_id_from_uri(parsed: &url::Url) -> Option<u32> {
@@ -147,7 +170,6 @@ fn parse_game_id_from_uri(parsed: &url::Url) -> Option<u32> {
             }
         }
     }
-
     parsed.path().trim_start_matches('/').parse::<u32>().ok()
 }
 
@@ -159,163 +181,157 @@ async fn remove_file_if_exists(path: &Path) {
     }
 }
 
+fn make_ok_response(bytes: Vec<u8>, content_type: &'static str) -> Response<Vec<u8>> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", content_type)
+        .header("Cache-Control", "max-age=31536000, immutable")
+        .header("Access-Control-Allow-Origin", "*")
+        .body(bytes)
+        .expect("failed to build ok response")
+}
+
+fn make_status_response(status: StatusCode) -> Response<Vec<u8>> {
+    Response::builder()
+        .status(status)
+        .body(Vec::new())
+        .expect("failed to build status response")
+}
+
 #[command]
-pub async fn delete_cloud_cache(game_id: u32) -> Result<(), String> {
+pub async fn delete_cloud_cache(
+    game_id: u32,
+    state: tauri::State<'_, DownloadState>,
+) -> Result<(), String> {
     let game_cover_dir = get_game_cover_dir(game_id)?;
     let expected_prefix = format!("{}.", cloud_cover_file_stem(game_id));
+
+    // 同步清理内存缓存标记
+    state.cached_ids.write().await.remove(&game_id);
 
     if !game_cover_dir.exists() {
         return Ok(());
     }
 
-    let entries =
-        std::fs::read_dir(&game_cover_dir).map_err(|e| format!("无法读取封面目录: {}", e))?;
+    let mut entries = tokio::fs::read_dir(&game_cover_dir)
+        .await
+        .map_err(|e| format!("无法读取封面目录: {}", e))?;
 
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("读取目录项失败: {}", e))?;
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| format!("读取目录项失败: {}", e))?
+    {
         let path = entry.path();
         if !path.is_file() {
             continue;
         }
-
         let file_name = entry.file_name();
         let file_name_str = file_name.to_string_lossy();
         if !file_name_str.starts_with(&expected_prefix) {
             continue;
         }
-
-        std::fs::remove_file(&path).map_err(|e| format!("删除云端缓存失败: {}", e))?;
+        tokio::fs::remove_file(&path)
+            .await
+            .map_err(|e| format!("删除云端缓存失败: {}", e))?;
     }
 
     Ok(())
 }
 
-fn try_start_download(
-    state: &DownloadState,
-    game_id: u32,
+/// 单次下载尝试：发起请求 → 写 .part 临时文件 → rename 为正式缓存
+/// 成功时返回图片字节（内存中已有，无需再次读盘）
+async fn try_download_once(
     url: &str,
-) -> Option<InFlightDownloadGuard> {
-    let key = DownloadKey {
-        game_id,
-        url: url.to_string(),
-    };
-    let mut in_flight = state
-        .in_flight_downloads
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-
-    if !in_flight.insert(key.clone()) {
-        return None;
-    }
-
-    Some(InFlightDownloadGuard {
-        in_flight_downloads: state.in_flight_downloads.clone(),
-        key,
-    })
-}
-
-async fn cache_cloud_cover(
+    game_cover_dir: &Path,
     game_id: u32,
-    url: String,
-    game_cover_dir: PathBuf,
-    semaphore: Arc<Semaphore>,
-    _download_guard: InFlightDownloadGuard,
-) {
-    let _permit = match semaphore.acquire_owned().await {
-        Ok(permit) => permit,
-        Err(err) => {
-            log::warn!("获取封面下载许可失败 game_id={}: {}", game_id, err);
-            return;
-        }
-    };
+) -> Result<Vec<u8>, String> {
+    tokio::fs::create_dir_all(game_cover_dir)
+        .await
+        .map_err(|e| format!("创建缓存目录失败: {}", e))?;
 
-    if get_cached_cloud_cover(&game_cover_dir, game_id).is_some() {
-        return;
-    }
+    let extension = infer_cache_extension(url);
+    let cache_path = build_cache_path(game_cover_dir, game_id, &extension);
+    let temp_path = build_temp_cache_path(game_cover_dir, game_id, &extension);
 
-    let extension = infer_cache_extension(&url);
-    let cache_path = build_cache_path(&game_cover_dir, game_id, &extension);
-    let temp_path = build_temp_cache_path(&game_cover_dir, game_id, &extension);
-
-    if let Err(err) = tokio::fs::create_dir_all(&game_cover_dir).await {
-        log::warn!(
-            "创建封面缓存目录失败 game_id={} dir={}: {}",
-            game_id,
-            game_cover_dir.display(),
-            err
-        );
-        return;
-    }
-
-    if tokio::fs::metadata(&cache_path).await.is_ok() {
-        return;
-    }
-
-    let response = match cover_http_client().get(&url).send().await {
-        Ok(response) => response,
-        Err(err) => {
-            log::warn!("下载封面失败 game_id={} url={}: {}", game_id, url, err);
-            return;
-        }
-    };
+    let response = cover_http_client()
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("发起请求失败: {}", e))?;
 
     if !response.status().is_success() {
-        log::warn!(
-            "下载封面返回非成功状态 game_id={} url={} status={}",
-            game_id,
-            url,
-            response.status()
-        );
-        return;
+        return Err(format!("HTTP 状态码异常: {}", response.status()));
     }
 
-    let bytes = match response.bytes().await {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            log::warn!(
-                "读取封面响应体失败 game_id={} url={}: {}",
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("读取响应体失败: {}", e))?
+        .to_vec();
+
+    if let Err(e) = tokio::fs::write(&temp_path, &bytes).await {
+        remove_file_if_exists(&temp_path).await;
+        return Err(format!("写入临时文件失败: {}", e));
+    }
+
+    if let Err(e) = tokio::fs::rename(&temp_path, &cache_path).await {
+        remove_file_if_exists(&temp_path).await;
+        // rename 失败（如跨盘符）不阻止本次返回，bytes 仍有效
+        log::warn!(
+            "封面 rename 失败 game_id={}: {}，本次直接返回内存字节",
+            game_id,
+            e
+        );
+    }
+
+    Ok(bytes)
+}
+
+/// 带指数退避重试的封面下载（总尝试次数 = 1 + COVER_MAX_RETRIES）
+/// 成功时返回图片字节，并已写入磁盘缓存
+async fn fetch_and_cache_cover(
+    game_id: u32,
+    url: &str,
+    game_cover_dir: &Path,
+) -> Result<Vec<u8>, String> {
+    let mut last_err = String::new();
+
+    for attempt in 0..=COVER_MAX_RETRIES {
+        if attempt > 0 {
+            let delay_ms = COVER_RETRY_BASE_DELAY_MS * (1u64 << (attempt - 1));
+            log::debug!(
+                "封面下载重试 game_id={} attempt={}/{} delay={}ms",
                 game_id,
-                url,
-                err
+                attempt,
+                COVER_MAX_RETRIES,
+                delay_ms
             );
-            return;
+            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         }
-    };
 
-    if let Err(err) = tokio::fs::write(&temp_path, &bytes).await {
-        log::warn!(
-            "写入封面临时缓存失败 game_id={} path={}: {}",
-            game_id,
-            temp_path.display(),
-            err
-        );
-        remove_file_if_exists(&temp_path).await;
-        return;
+        match try_download_once(url, game_cover_dir, game_id).await {
+            Ok(bytes) => {
+                log::debug!("封面缓存完成 game_id={} attempt={}", game_id, attempt);
+                return Ok(bytes);
+            }
+            Err(e) => {
+                log::warn!(
+                    "封面下载失败 game_id={} attempt={}/{}: {}",
+                    game_id,
+                    attempt,
+                    COVER_MAX_RETRIES,
+                    e
+                );
+                last_err = e;
+            }
+        }
     }
 
-    if tokio::fs::metadata(&cache_path).await.is_ok() {
-        remove_file_if_exists(&temp_path).await;
-        return;
-    }
-
-    if let Err(err) = tokio::fs::rename(&temp_path, &cache_path).await {
-        log::warn!(
-            "提交封面缓存失败 game_id={} from={} to={}: {}",
-            game_id,
-            temp_path.display(),
-            cache_path.display(),
-            err
-        );
-        remove_file_if_exists(&temp_path).await;
-        return;
-    }
-
-    log::debug!(
-        "封面缓存完成 game_id={} path={} ua={}",
-        game_id,
-        cache_path.display(),
-        COVER_USER_AGENT
-    );
+    Err(format!(
+        "下载最终失败（已重试 {} 次）: {}",
+        COVER_MAX_RETRIES, last_err
+    ))
 }
 
 pub fn register_game_cover_protocol<R: tauri::Runtime>(
@@ -324,22 +340,19 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
     builder
         .manage(DownloadState {
             semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_COVER_DOWNLOADS)),
-            in_flight_downloads: Arc::new(Mutex::new(HashSet::new())),
+            cached_ids: Arc::new(RwLock::new(HashSet::new())),
+            downloading: Arc::new(Mutex::new(HashMap::new())),
         })
         .register_asynchronous_uri_scheme_protocol("reina-cover", |app, request, responder| {
             let app_handle = app.app_handle().clone();
             let request_uri = request.uri().to_string();
 
             tauri::async_runtime::spawn(async move {
+                // ── 解析请求 URI ──────────────────────────────────────
                 let parsed = match url::Url::parse(&request_uri) {
-                    Ok(url) => url,
+                    Ok(u) => u,
                     Err(_) => {
-                        responder.respond(
-                            Response::builder()
-                                .status(StatusCode::BAD_REQUEST)
-                                .body(Vec::new())
-                                .expect("failed to build bad request response"),
-                        );
+                        responder.respond(make_status_response(StatusCode::BAD_REQUEST));
                         return;
                     }
                 };
@@ -347,12 +360,7 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                 let game_id = match parse_game_id_from_uri(&parsed) {
                     Some(id) => id,
                     None => {
-                        responder.respond(
-                            Response::builder()
-                                .status(StatusCode::BAD_REQUEST)
-                                .body(Vec::new())
-                                .expect("failed to build bad request response"),
-                        );
+                        responder.respond(make_status_response(StatusCode::BAD_REQUEST));
                         return;
                     }
                 };
@@ -365,75 +373,117 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                 let game_cover_dir = match get_game_cover_dir(game_id) {
                     Ok(dir) => dir,
                     Err(_) => {
-                        responder.respond(
-                            Response::builder()
-                                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                                .body(Vec::new())
-                                .expect("failed to build server error response"),
-                        );
+                        responder.respond(make_status_response(StatusCode::INTERNAL_SERVER_ERROR));
                         return;
                     }
                 };
 
-                if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id) {
+                let state = app_handle.state::<DownloadState>();
+
+                // ── 步骤 1：内存集合短路（最快路径，无磁盘 I/O）──────────
+                {
+                    let cached = state.cached_ids.read().await;
+                    if cached.contains(&game_id) {
+                        drop(cached);
+                        if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await {
+                            if let Ok(bytes) = tokio::fs::read(&cache_path).await {
+                                responder.respond(make_ok_response(
+                                    bytes,
+                                    content_type_for_file(&cache_path),
+                                ));
+                                return;
+                            }
+                        }
+                        // 内存标记存在但文件已被外部删除，清除过期记录
+                        state.cached_ids.write().await.remove(&game_id);
+                    }
+                }
+
+                // ── 步骤 2：磁盘缓存检查（冷启动或内存集合未命中）─────────
+                if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await {
                     if let Ok(bytes) = tokio::fs::read(&cache_path).await {
-                        responder.respond(
-                            Response::builder()
-                                .status(StatusCode::OK)
-                                .header("Content-Type", content_type_for_file(&cache_path))
-                                .header("Access-Control-Allow-Origin", "*")
-                                .body(bytes)
-                                .expect("failed to build cache hit response"),
-                        );
+                        // 回填内存集合，下次请求走步骤 1
+                        state.cached_ids.write().await.insert(game_id);
+                        responder
+                            .respond(make_ok_response(bytes, content_type_for_file(&cache_path)));
                         return;
                     }
                 }
 
-                if let Some(url) = cloud_url {
-                    let state = app_handle.state::<DownloadState>();
-                    let Some(download_guard) = try_start_download(&state, game_id, &url) else {
-                        log::debug!("跳过重复封面下载 game_id={} url={}", game_id, url);
+                // ── 步骤 3：无缓存，需要下载 ─────────────────────────────
+                let Some(url) = cloud_url else {
+                    responder.respond(make_status_response(StatusCode::NOT_FOUND));
+                    return;
+                };
 
-                        responder.respond(
-                            Response::builder()
-                                .status(StatusCode::FOUND)
-                                .header("Location", url)
-                                .body(Vec::new())
-                                .expect("failed to build redirect response"),
-                        );
-                        return;
-                    };
-                    let semaphore = state.semaphore.clone();
-                    let game_cover_dir_for_task = game_cover_dir.clone();
-                    let url_for_task = url.clone();
+                // 检查是否已有相同 game_id 的下载正在进行
+                // 在持有锁期间订阅 watch channel，避免"通知已发但还未订阅"的竞态
+                let existing_rx = {
+                    let downloading = state.downloading.lock().unwrap_or_else(|e| e.into_inner());
+                    downloading.get(&game_id).map(|tx| tx.subscribe())
+                };
 
-                    tauri::async_runtime::spawn(async move {
-                        cache_cloud_cover(
-                            game_id,
-                            url_for_task,
-                            game_cover_dir_for_task,
-                            semaphore,
-                            download_guard,
-                        )
-                        .await;
-                    });
+                if let Some(mut rx) = existing_rx {
+                    // 有下载在进行，等待其完成（watch channel 当前值已是 true 时立即返回）
+                    log::debug!("等待已有下载任务完成 game_id={}", game_id);
+                    let _ = rx.wait_for(|done| *done).await;
 
-                    responder.respond(
-                        Response::builder()
-                            .status(StatusCode::FOUND)
-                            .header("Location", url)
-                            .body(Vec::new())
-                            .expect("failed to build redirect response"),
-                    );
+                    // 下载结束后尝试读取磁盘缓存
+                    if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await {
+                        if let Ok(bytes) = tokio::fs::read(&cache_path).await {
+                            state.cached_ids.write().await.insert(game_id);
+                            responder.respond(make_ok_response(
+                                bytes,
+                                content_type_for_file(&cache_path),
+                            ));
+                            return;
+                        }
+                    }
+                    // 前序下载失败（超时/网络错误），返回 502
+                    responder.respond(make_status_response(StatusCode::BAD_GATEWAY));
                     return;
                 }
 
-                responder.respond(
-                    Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .body(Vec::new())
-                        .expect("failed to build not found response"),
-                );
+                // ── 步骤 4：成为本次下载的执行者 ────────────────────────
+                let (tx, _) = watch::channel(false);
+                let tx = Arc::new(tx);
+                {
+                    let mut downloading =
+                        state.downloading.lock().unwrap_or_else(|e| e.into_inner());
+                    downloading.insert(game_id, tx.clone());
+                }
+
+                // RAII guard：超出作用域时自动通知等待者并清理 downloading 表
+                let _cleanup = DownloadCleanupGuard {
+                    downloading: state.downloading.clone(),
+                    game_id,
+                    sender: tx,
+                };
+
+                // 等待信号量许可（最多 MAX_CONCURRENT_COVER_DOWNLOADS 个并发下载）
+                let _permit = match state.semaphore.clone().acquire_owned().await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        log::warn!("获取封面下载许可失败 game_id={}: {}", game_id, e);
+                        responder.respond(make_status_response(StatusCode::INTERNAL_SERVER_ERROR));
+                        return; // _cleanup drop 在此触发，通知等待者
+                    }
+                };
+
+                // 执行下载（含指数退避重试）
+                match fetch_and_cache_cover(game_id, &url, &game_cover_dir).await {
+                    Ok(bytes) => {
+                        // 回填内存缓存集合
+                        state.cached_ids.write().await.insert(game_id);
+                        let content_type = content_type_for_extension(&infer_cache_extension(&url));
+                        responder.respond(make_ok_response(bytes, content_type));
+                    }
+                    Err(e) => {
+                        log::warn!("封面下载最终失败 game_id={}: {}", game_id, e);
+                        responder.respond(make_status_response(StatusCode::BAD_GATEWAY));
+                    }
+                }
+                // _cleanup 在此 drop：通知所有等待步骤 3 的请求
             });
         })
 }
