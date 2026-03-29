@@ -416,112 +416,117 @@ const AddModal: React.FC = () => {
 							: { pt: 2 }
 					}
 				>
-					{activeTab === "single" ? (
-						<Stack spacing={2} sx={{ pt: 1 }}>
-							{/* 选择本地可执行文件 */}
-							<Button
-								fullWidth
-								variant="contained"
-								onClick={async () => {
-									const result = await handleExeFile();
-									if (result) setAddModalPath(result);
-								}}
-								startIcon={<FileOpenIcon />}
-								disabled={isBusy}
-							>
-								{t("components.AddModal.selectLauncher")}
-							</Button>
-							<TextField
-								fullWidth
-								size="small"
-								value={addModalPath}
-								placeholder={t("components.AddModal.dragHint")}
-								InputProps={{ readOnly: true }}
-							/>
-							{/* 自定义模式和 API 来源切换 */}
-							<Stack spacing={1}>
-								<FormControlLabel
-									control={
-										<Switch
-											checked={customMode}
-											onChange={() => {
-												setCustomMode(!customMode);
-											}}
-											disabled={isBusy}
-										/>
-									}
-									label={t("components.AddModal.enableCustomMode")}
-								/>
-								<RadioGroup
-									row
-									value={apiSource}
-									sx={{ gap: 1 }}
-									onChange={(e) =>
-										setApiSource(
-											e.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
-										)
-									}
-								>
-									<FormControlLabel
-										value="bgm"
-										control={<Radio />}
-										label="Bangumi"
+					{/* single tab 内容：通过 display 控制显隐，避免切换 tab 时卸载 */}
+					<Stack
+						spacing={2}
+						sx={{ pt: 1, display: activeTab === "single" ? undefined : "none" }}
+					>
+						{/* 选择本地可执行文件 */}
+						<Button
+							fullWidth
+							variant="contained"
+							onClick={async () => {
+								const result = await handleExeFile();
+								if (result) setAddModalPath(result);
+							}}
+							startIcon={<FileOpenIcon />}
+							disabled={isBusy}
+						>
+							{t("components.AddModal.selectLauncher")}
+						</Button>
+						<TextField
+							fullWidth
+							size="small"
+							value={addModalPath}
+							placeholder={t("components.AddModal.dragHint")}
+							InputProps={{ readOnly: true }}
+						/>
+						{/* 自定义模式和 API 来源切换 */}
+						<Stack spacing={1}>
+							<FormControlLabel
+								control={
+									<Switch
+										checked={customMode}
+										onChange={() => {
+											setCustomMode(!customMode);
+										}}
 										disabled={isBusy}
 									/>
-									<FormControlLabel
-										value="vndb"
-										control={<Radio />}
-										label="VNDB"
-										disabled={isBusy}
-									/>
-									<FormControlLabel
-										value="ymgal"
-										control={<Radio />}
-										label="YMGal"
-										disabled={isBusy}
-									/>
-									<FormControlLabel
-										value="mixed"
-										control={<Radio />}
-										label="Mixed"
-										disabled={isBusy}
-									/>
-								</RadioGroup>
-								<FormControlLabel
-									control={
-										<Switch
-											checked={isID}
-											onChange={() => {
-												setisID(!isID);
-											}}
-											disabled={isBusy}
-										/>
-									}
-									label={t("components.AddModal.idSearch")}
-								/>
-							</Stack>
-							{/* 游戏名称输入框 */}
-							<TextField
-								required
-								size="small"
-								id="name"
-								name="game-name"
-								label={
-									!isID
-										? t("components.AddModal.gameName")
-										: t("components.AddModal.gameIDTips")
 								}
-								type="text"
-								fullWidth
-								variant="outlined"
-								autoComplete="off"
-								value={formText}
-								onChange={(event) => setFormText(event.target.value)}
+								label={t("components.AddModal.enableCustomMode")}
+							/>
+							<RadioGroup
+								row
+								value={apiSource}
+								sx={{ gap: 1 }}
+								onChange={(e) =>
+									setApiSource(
+										e.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
+									)
+								}
+							>
+								<FormControlLabel
+									value="bgm"
+									control={<Radio />}
+									label="Bangumi"
+									disabled={isBusy}
+								/>
+								<FormControlLabel
+									value="vndb"
+									control={<Radio />}
+									label="VNDB"
+									disabled={isBusy}
+								/>
+								<FormControlLabel
+									value="ymgal"
+									control={<Radio />}
+									label="YMGal"
+									disabled={isBusy}
+								/>
+								<FormControlLabel
+									value="mixed"
+									control={<Radio />}
+									label="Mixed"
+									disabled={isBusy}
+								/>
+							</RadioGroup>
+							<FormControlLabel
+								control={
+									<Switch
+										checked={isID}
+										onChange={() => {
+											setisID(!isID);
+										}}
+										disabled={isBusy}
+									/>
+								}
+								label={t("components.AddModal.idSearch")}
 							/>
 						</Stack>
-					) : (
-						<BulkImportTab open={addModalOpen} onClose={handleCloseModal} />
-					)}
+						{/* 游戏名称输入框 */}
+						<TextField
+							required
+							size="small"
+							id="name"
+							name="game-name"
+							label={
+								!isID
+									? t("components.AddModal.gameName")
+									: t("components.AddModal.gameIDTips")
+							}
+							type="text"
+							fullWidth
+							variant="outlined"
+							autoComplete="off"
+							value={formText}
+							onChange={(event) => setFormText(event.target.value)}
+						/>
+					</Stack>
+					{/* bulk tab：始终挂载，通过 hidden prop 控制显隐，保持状态在 tab 切换时不丢失 */}
+					<BulkImportTab
+						hidden={activeTab !== "bulk"}
+						onClose={handleCloseModal}
+					/>
 				</DialogContent>
 				{activeTab === "single" && (
 					<DialogActions>

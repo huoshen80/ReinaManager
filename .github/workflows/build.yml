@@ -156,13 +156,9 @@ jobs:
           $target = "${{ matrix.rust_target }}"
           $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager-$version-$short"
           $resourcesDataDir = Join-Path $portableRoot "resources/data"
-          $zipPath = "src-tauri/target/$target/release/ReinaManager-$version-$short-portable.zip"
 
           if (Test-Path $portableRoot) {
             Remove-Item $portableRoot -Recurse -Force
-          }
-          if (Test-Path $zipPath) {
-            Remove-Item $zipPath -Force
           }
 
           New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
@@ -171,7 +167,6 @@ jobs:
           This folder stores the database. Deleting this folder exits portable mode; keeping it preserves portable mode.
           "@ | Set-Content -Path (Join-Path $resourcesDataDir "readme.txt") -Encoding UTF8
           Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
-          Compress-Archive -Path "$portableRoot/*" -DestinationPath $zipPath
 
       # 显示构建状态
       - name: Build status
@@ -190,7 +185,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable
-          path: src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable.zip
+          path: src-tauri/target/${{ matrix.rust_target }}/release/portable/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}
           if-no-files-found: warn
 
       - name: Upload MSI Installer (Artifact)

@@ -52,7 +52,8 @@ interface ImportItem extends ScanResult {
 }
 
 interface BulkImportTabProps {
-	open: boolean;
+	// 控制此 tab 是否隐藏（通过 CSS display:none 而非卸载）
+	hidden: boolean;
 	onClose: () => void;
 }
 
@@ -83,7 +84,7 @@ function getMatchedGameName(
 	);
 }
 
-const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
+const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const { t, i18n } = useTranslation();
 	const { data: bgmToken = "" } = useBgmToken();
 	const { addGamesFromBulkImport, isAddingGames } = useBulkGameAddActions();
@@ -133,7 +134,7 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 		if (!open) {
 			resetState();
 		}
-	}, [open, resetState]);
+	}, [resetState]);
 
 	const handleCloseSearchResult = useCallback(() => {
 		setSearchResultState({ open: false, results: [] });
@@ -421,6 +422,8 @@ const BulkImportTab = ({ open, onClose }: BulkImportTabProps) => {
 					height: "100%",
 					minHeight: 0,
 					overflow: "hidden",
+					// 通过 CSS 控制显隐而非卸载，保持状态在 tab 切换时不丢失
+					display: hidden ? "none" : undefined,
 				}}
 			>
 				<Stack
