@@ -29,7 +29,7 @@ import {
 	MenuItem,
 	MenuList,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { LinkWithScrollSave } from "@/components/LinkWithScrollSave";
@@ -42,7 +42,7 @@ import { useDeleteGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
-import type { GameData } from "@/types";
+
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
@@ -80,7 +80,6 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	const isGameRunning = useGamePlayStore((s) => s.isGameRunning);
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [gameData, setGameData] = useState<GameData | null>(null);
 	const { t } = useTranslation();
 
 	// 使用 Feature Facade 更新游戏状态
@@ -88,13 +87,6 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 	// 检查该游戏是否正在运行
 	const isThisGameRunning = isGameRunning(id === null ? undefined : id);
-
-	// 获取游戏数据以显示游戏状态
-	useEffect(() => {
-		if (isopen) {
-			setGameData(selectedGame);
-		}
-	}, [isopen, selectedGame]);
 
 	/**
 	 * 判断当前游戏是否可以启动
@@ -154,14 +146,11 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 */
 	const handlePlayStatusChange = (newStatus: PlayStatus) => {
 		if (id === null || id === undefined) return;
+
 		updatePlayStatus(
 			{ gameId: id, newStatus },
 			{
 				invalidateScope: "all",
-				onSuccess: (updatedGame) => {
-					// 更新本地状态，不关闭菜单
-					setGameData(updatedGame);
-				},
 			},
 		);
 	};
@@ -237,7 +226,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 				{/* 游戏状态切换 - 二级菜单 */}
 				<PlayStatusSubmenu
-					currentStatus={gameData?.clear}
+					currentStatus={selectedGame?.clear}
 					onStatusChange={handlePlayStatusChange}
 				/>
 			</MenuList>

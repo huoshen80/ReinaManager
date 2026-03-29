@@ -14,8 +14,8 @@ import { getUserErrorMessage } from "@/utils/errors";
 import i18n from "@/utils/i18n";
 import {
 	type BatchImportGameCandidate,
+	buildBulkImportGameData,
 	getGameIdentityKeys,
-	prepareBulkImportInsertGameData,
 	prepareInsertGameDataFromMetadata,
 } from "@/utils/metadata";
 
@@ -134,7 +134,7 @@ export function useBulkGameAddActions() {
 
 					let payload: InsertGameParams;
 					try {
-						payload = await prepareBulkImportInsertGameData(items[index]);
+						payload = await buildBulkImportGameData(items[index]);
 					} catch (error) {
 						const message = getUserErrorMessage(
 							error,

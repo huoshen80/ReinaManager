@@ -238,12 +238,6 @@ export async function prepareInsertGameDataFromMetadata(
 	return insertData;
 }
 
-export async function prepareBulkImportInsertGameData(
-	item: BatchImportGameCandidate,
-): Promise<InsertGameParams> {
-	return await buildBulkImportGameData(item);
-}
-
 export function buildMetadataUpdatePayload(
 	gameData: FullGameData,
 ): UpdateGameParams {

@@ -42,29 +42,26 @@ export function useGameStatusActions() {
 		options?: UpdatePlayStatusOptions,
 	) => {
 		const invalidateScope = options?.invalidateScope ?? "game";
-		const useGlobalInvalidate = invalidateScope === "all";
 
-		const previousGame = !useGlobalInvalidate
-			? (queryClient.getQueryData(
-					gameKeys.detail(params.gameId),
-				) as FullGameData | null)
-			: null;
+		// 无论 invalidateScope 是什么，都统一进行乐观更新
+		// 确保依赖数据缓存的组件能第一时间获得更新反馈，从而彻底消除派生状态（Derived State）
+		const previousGame = queryClient.getQueryData(
+			gameKeys.detail(params.gameId),
+		) as FullGameData | null;
 
-		if (!useGlobalInvalidate) {
-			queryClient.setQueryData<FullGameData | null>(
-				gameKeys.detail(params.gameId),
-				(currentGame) => {
-					if (!currentGame) {
-						return currentGame;
-					}
+		queryClient.setQueryData<FullGameData | null>(
+			gameKeys.detail(params.gameId),
+			(currentGame) => {
+				if (!currentGame) {
+					return currentGame;
+				}
 
-					return {
-						...currentGame,
-						clear: params.newStatus,
-					};
-				},
-			);
-		}
+				return {
+					...currentGame,
+					clear: params.newStatus,
+				};
+			},
+		);
 
 		updateMutation.mutate(
 			{ ...params, invalidateScope },
@@ -91,12 +88,11 @@ export function useGameStatusActions() {
 					options?.onSuccess?.(updatedGame, variables);
 				},
 				onError: (error, variables) => {
-					if (!useGlobalInvalidate) {
-						queryClient.setQueryData<FullGameData | null>(
-							gameKeys.detail(variables.gameId),
-							previousGame,
-						);
-					}
+					// 恢复回退乐观更新
+					queryClient.setQueryData<FullGameData | null>(
+						gameKeys.detail(variables.gameId),
+						previousGame,
+					);
 					snackbar.error(
 						`${t("errors.updatePlayStatusFailed", "更新游戏状态失败")}: ${getUserErrorMessage(error, t)}`,
 					);
