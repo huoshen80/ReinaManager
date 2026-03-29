@@ -425,7 +425,7 @@ const MoreButton = () => {
 				transitionDuration={0}
 			>
 				<MenuItem
-					disabled={!selectedGame || !selectedGame.bgm_id}
+					disabled={!selectedGame?.bgm_id}
 					onClick={() => {
 						handleView("bgm");
 						handleClose();
@@ -437,7 +437,7 @@ const MoreButton = () => {
 					<ListItemText>{t("components.Toolbar.bgmlink")}</ListItemText>
 				</MenuItem>
 				<MenuItem
-					disabled={!selectedGame || !selectedGame.vndb_id}
+					disabled={!selectedGame?.vndb_id}
 					onClick={() => {
 						handleView("vndb");
 						handleClose();
@@ -449,7 +449,7 @@ const MoreButton = () => {
 					<ListItemText>{t("components.Toolbar.vndblink")}</ListItemText>
 				</MenuItem>
 				<MenuItem
-					disabled={!selectedGame || !selectedGame.ymgal_id}
+					disabled={!selectedGame?.ymgal_id}
 					onClick={() => {
 						handleView("ymgal");
 						handleClose();

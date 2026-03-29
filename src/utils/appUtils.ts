@@ -166,7 +166,7 @@ export const handleOpenFolder = async ({
 	}
 	try {
 		const selectedGame = await getGameById(id);
-		if (!selectedGame || !selectedGame.localpath) {
+		if (!selectedGame?.localpath) {
 			console.error("游戏路径未找到");
 			return;
 		}

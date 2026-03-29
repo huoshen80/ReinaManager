@@ -123,7 +123,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 		if (!id) return;
 		try {
 			const game = await getGameById(id);
-			if (!game || !game.localpath) {
+			if (!game?.localpath) {
 				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}

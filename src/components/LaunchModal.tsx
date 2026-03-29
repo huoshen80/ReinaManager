@@ -135,7 +135,7 @@ export const LaunchModal = () => {
 		if (!selectedGameId) return;
 
 		try {
-			if (!selectedGame || !selectedGame.localpath) {
+			if (!selectedGame?.localpath) {
 				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}
