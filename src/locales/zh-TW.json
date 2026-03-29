@@ -601,7 +601,7 @@
 				"playtimeDesc": "僅計算遊戲視窗在前台時的時間，切換到其他視窗時暫停計時",
 				"title": "遊戲計時模式"
 			},
-			"tokenPlaceholder": "請填寫你的BGM_TOKEN",
+			"tokenPlaceholder": "請填寫你的BGM TOKEN",
 			"vndbToken": "VNDB 令牌",
 			"vndbTokenPlaceholder": "請填寫你的 VNDB Token",
 			"vndbTokenSettings": {

@@ -603,7 +603,7 @@
 				"playtimeDesc": "Only counts time when the game window is in focus, pauses when switching to other windows",
 				"title": "Game Time Tracking Mode"
 			},
-			"tokenPlaceholder": "Please enter your BGM_TOKEN",
+			"tokenPlaceholder": "Please enter your BGM TOKEN",
 			"vndbToken": "VNDB Token",
 			"vndbTokenPlaceholder": "Please enter your VNDB Token",
 			"vndbTokenSettings": {

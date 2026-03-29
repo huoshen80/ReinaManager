@@ -17,12 +17,13 @@
 import { useStore } from "@/store/appStore";
 import type { FullGameData, VndbData } from "@/types";
 import { AppError } from "@/utils/errors";
-import http, { tauriHttp } from "./http";
+import http, { USER_AGENT } from "./http";
 
 const VNDB_API_BASE = "https://api.vndb.org/kana";
 const VNDB_JSON_HEADERS = {
 	Accept: "application/json",
 	"Content-Type": "application/json",
+	"User-Agent": USER_AGENT,
 } as const;
 
 function buildVndbHeaders() {
@@ -210,8 +211,12 @@ export async function fetchVndbByName(
 
 	// 调用 VNDB API
 	const rawResults = (
-		await http.post(`${VNDB_API_BASE}/vn`, requestBody, buildVndbHeaders())
-	).data.results as RawVNDBData[];
+		await http.post<{ results: RawVNDBData[] }>(
+			`${VNDB_API_BASE}/vn`,
+			requestBody,
+			buildVndbHeaders(),
+		)
+	).data.results;
 
 	if (!rawResults || rawResults.length === 0) {
 		return [];
@@ -282,7 +287,7 @@ export async function fetchVNDBByIds(ids: string[]) {
 				results: Math.min(batch.length, 100),
 			};
 
-			const response = await http.post(
+			const response = await http.post<{ results: RawVNDBData[] }>(
 				`${VNDB_API_BASE}/vn`,
 				requestBody,
 				buildVndbHeaders(),
@@ -330,11 +335,11 @@ export async function fetchVndbCurrentUserProfile(
 	if (!token) return null;
 
 	try {
-		const response = await http.get(
+		const response = await http.get<VndbAuthInfo>(
 			`${VNDB_API_BASE}/authinfo`,
 			buildVndbAuthHeaders(token),
 		);
-		return response.data as VndbAuthInfo;
+		return response.data;
 	} catch {
 		return null;
 	}
@@ -353,13 +358,16 @@ export async function fetchVndbUserLabels(
 	if (!token) return [];
 
 	try {
-		const response = await http.get(`${VNDB_API_BASE}/ulist_labels`, {
-			...buildVndbAuthHeaders(token),
-			params: userId ? { user: userId, fields: "count" } : { fields: "count" },
-		});
-		return Array.isArray(response.data?.labels)
-			? (response.data.labels as VndbUserLabel[])
-			: [];
+		const response = await http.get<{ labels: VndbUserLabel[] }>(
+			`${VNDB_API_BASE}/ulist_labels`,
+			{
+				...buildVndbAuthHeaders(token),
+				params: userId
+					? { user: userId, fields: "count" }
+					: { fields: "count" },
+			},
+		);
+		return Array.isArray(response.data?.labels) ? response.data.labels : [];
 	} catch {
 		return [];
 	}
@@ -383,7 +391,7 @@ export async function fetchVndbUserCollection(
 		const resolvedUserId = await resolveVndbUserId(token, userId);
 		if (!resolvedUserId) return null;
 
-		const response = await http.post(
+		const response = await http.post<{ results: VndbUserCollectionItem[] }>(
 			`${VNDB_API_BASE}/ulist`,
 			{
 				user: resolvedUserId,
@@ -396,7 +404,7 @@ export async function fetchVndbUserCollection(
 		);
 
 		const results = Array.isArray(response.data?.results)
-			? (response.data.results as VndbUserCollectionItem[])
+			? response.data.results
 			: [];
 
 		return results[0] ?? null;
@@ -420,7 +428,7 @@ export async function updateVndbUserCollection(
 	if (!token || !vndbId) return false;
 
 	try {
-		await tauriHttp.patch(
+		await http.patch(
 			`${VNDB_API_BASE}/ulist/${vndbId}`,
 			payload,
 			buildVndbAuthHeaders(token),

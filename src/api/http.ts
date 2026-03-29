@@ -14,9 +14,12 @@
  * - axios
  * - @tauri-apps/plugin-http
  */
+
+import { version } from "@pkg";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import axios, { type AxiosError } from "axios";
 import { AppError, HttpResponseError, toError } from "@/utils/errors";
+
+export const USER_AGENT = `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`;
 
 interface TauriHttpOptions {
 	headers?: Record<string, string>;
@@ -29,26 +32,6 @@ interface TauriHttpResponse<T = unknown> {
 	status: number;
 	statusText: string;
 }
-
-/**
- * 创建一个带有响应拦截器的 Axios 实例。
- *
- * 该函数会创建一个 Axios 实例，并添加响应拦截器以处理常见的 HTTP 错误。
- * 对 401（未认证）和 400（请求错误）等状态码进行友好提示，其他错误返回通用错误信息。
- *
- * @returns {import('axios').AxiosInstance} 配置好的 Axios 实例，用于发送 HTTP 请求。
- */
-export const createHttp = () => {
-	const http = axios.create({});
-
-	http.interceptors.response.use(
-		(response) => response,
-		(error: AxiosError) =>
-			Promise.reject(toError(error, "HTTP request failed")),
-	);
-
-	return http;
-};
 
 function buildUrlWithParams(
 	url: string,
@@ -176,6 +159,6 @@ export const tauriHttp = {
 };
 
 /**
- * 默认导出带拦截器的 Axios 实例。
+ * 默认导出基于 Tauri 插件的 HTTP 客户端实例
  */
-export default createHttp();
+export default tauriHttp;

@@ -13,15 +13,13 @@
  * - http: 封装的 HTTP 请求工具
  */
 
-import { version } from "@pkg";
 import type { BgmData, FullGameData } from "@/types";
 import { AppError } from "@/utils/errors";
-import http, { tauriHttp } from "./http";
+import http, { USER_AGENT } from "./http";
 
-const BGM_USER_AGENT = `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`;
 const BGM_JSON_HEADERS = {
 	Accept: "application/json",
-	"User-Agent": BGM_USER_AGENT,
+	"User-Agent": USER_AGENT,
 } as const;
 
 interface BgmSubjectResponse {
@@ -129,7 +127,7 @@ export async function fetchBgmById(
 	BGM_TOKEN?: string,
 ): Promise<FullGameData> {
 	const BGMdata = (
-		await tauriHttp.get<BgmSubjectResponse>(
+		await http.get<BgmSubjectResponse>(
 			`https://api.bgm.tv/v0/subjects/${id}`,
 			buildBgmAuthHeaders(BGM_TOKEN),
 		)
@@ -160,7 +158,7 @@ export async function fetchBgmByName(
 ): Promise<FullGameData[]> {
 	const keyword = name.trim();
 	const resp = (
-		await tauriHttp.post<BgmSearchResponse>(
+		await http.post<BgmSearchResponse>(
 			"https://api.bgm.tv/v0/search/subjects",
 			{
 				keyword: keyword,
@@ -223,7 +221,7 @@ export async function fetchBgmByIds(
 			}
 
 			const BGMdata = (
-				await http.get(
+				await http.get<BgmSubjectResponse>(
 					`https://api.bgm.tv/v0/subjects/${id}`,
 					buildBgmAuthHeaders(BGM_TOKEN),
 				)
@@ -258,15 +256,12 @@ export async function fetchBgmByIds(
 export async function fetchCurrentUserProfile(token: string) {
 	if (!token) return null;
 	try {
-		const res = await tauriHttp.get(
-			"https://api.bgm.tv/v0/me",
-			buildBgmAuthHeaders(token),
-		);
-		return res.data as {
+		const res = await http.get<{
 			username: string;
 			nickname: string;
 			avatar: { large: string; medium: string; small: string };
-		};
+		}>("https://api.bgm.tv/v0/me", buildBgmAuthHeaders(token));
+		return res.data;
 	} catch {
 		return null;
 	}
@@ -285,11 +280,15 @@ export async function fetchUserCollection(
 	token: string,
 ) {
 	try {
-		const res = await tauriHttp.get(
+		const res = await http.get<{
+			type: number;
+			rate?: number;
+			comment?: string;
+		}>(
 			`https://api.bgm.tv/v0/users/${username}/collections/${subjectId}`,
 			buildBgmAuthHeaders(token),
 		);
-		return res.data as { type: number; rate?: number; comment?: string };
+		return res.data;
 	} catch {
 		return null;
 	}
@@ -310,7 +309,7 @@ export async function updateUserCollection(
 ): Promise<boolean> {
 	if (!token || !username) return false;
 	try {
-		await tauriHttp.post(
+		await http.post(
 			`https://api.bgm.tv/v0/users/-/collections/${subjectId}`,
 			{ type },
 			buildBgmAuthHeaders(token),

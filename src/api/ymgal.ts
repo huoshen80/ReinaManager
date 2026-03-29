@@ -16,7 +16,7 @@
 // 注意认证失败重试机制未生效
 import type { FullGameData, YmgalData } from "@/types";
 import { AppError, isHttpStatus, toError } from "@/utils/errors";
-import { tauriHttp } from "./http";
+import http from "./http";
 
 /**
  * YMGal API 全局配置
@@ -56,7 +56,7 @@ async function getAccessToken(forceRefresh = false): Promise<string> {
 	if (!forceRefresh && tokenCache?.token) return tokenCache.token;
 
 	try {
-		const response = await tauriHttp.get<YmTokenResponse>(
+		const response = await http.get<YmTokenResponse>(
 			`${YMGAL_CONFIG.baseUrl}/oauth/token`,
 			{
 				params: {
@@ -101,7 +101,7 @@ async function ymApiRequest<T>(
 	for (let attempt = 0; attempt <= maxRetries; attempt++) {
 		try {
 			const token = await getAccessToken(attempt > 0); // 第一次尝试使用缓存，失败后强制刷新
-			const response = await tauriHttp.get<YmApiEnvelope<T>>(
+			const response = await http.get<YmApiEnvelope<T>>(
 				`${YMGAL_CONFIG.baseUrl}${path}`,
 				{
 					params,

@@ -42,7 +42,6 @@
 		"@tauri-apps/plugin-updater": "~2.10.0",
 		"@tauri-apps/plugin-window-state": "=2.2.3",
 		"@toolpad/core": "^0.16.0",
-		"axios": "^1.13.6",
 		"fuse.js": "^7.1.0",
 		"html-react-parser": "^5.2.17",
 		"i18next": "^25.8.18",

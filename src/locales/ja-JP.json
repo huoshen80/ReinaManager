@@ -601,7 +601,7 @@
 				"playtimeDesc": "ゲームウィンドウがフォーカスされている時間のみカウント、他のウィンドウに切り替えると一時停止",
 				"title": "ゲーム計時モード"
 			},
-			"tokenPlaceholder": "BGM_TOKENを入力してください",
+			"tokenPlaceholder": "BGM TOKENを入力してください",
 			"vndbToken": "VNDB トークン",
 			"vndbTokenPlaceholder": "VNDB Token を入力してください",
 			"vndbTokenSettings": {
