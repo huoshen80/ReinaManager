@@ -1,3 +1,19 @@
+## [0.18.1](https://github.com/huoshen80/ReinaManager/compare/v0.18.0...v0.18.1) (2026-03-30)
+
+<details>
+<summary>查看中文版本</summary>
+
+### Bug 修复
+
+* 玩过游戏的筛选逻辑问题 ([10a4e46](https://github.com/huoshen80/ReinaManager/commit/10a4e46c2350e210b5788fa499b4d838c4163eb2))
+
+</details>
+
+### Bug Fixes
+
+* filter logic issue for games that have been played ([10a4e46](https://github.com/huoshen80/ReinaManager/commit/10a4e46c2350e210b5788fa499b4d838c4163eb2))
+
+
 ## [0.18.0](https://github.com/huoshen80/ReinaManager/compare/v0.17.1...v0.17.2) (2026-03-29)
 
 <details>
