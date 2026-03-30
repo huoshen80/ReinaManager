@@ -1,6 +1,6 @@
 import "i18next";
 // 直接导入你的中文语言包作为类型定义的基准
-import type zh_CN from "./src/locales/zh-CN.json";
+import type zh_CN from "@/locales/zh-CN.json";
 
 declare module "i18next" {
 	interface CustomTypeOptions {

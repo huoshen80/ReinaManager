@@ -246,7 +246,6 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANGELOG: ${{ needs.prepare.outputs.changelog }}
         run: |
           TAG_NAME="${{ github.ref_name }}"
           VERSION="${TAG_NAME#v}"
@@ -263,10 +262,8 @@ jobs:
           ARM64_APPIMAGE="ReinaManager_${VERSION}_aarch64.AppImage"
           ARM64_DEB="ReinaManager_${VERSION}_arm64.deb"
 
-          # changelog 先写入文件
-          printf '%s\n' "$CHANGELOG" > release_body.md
+          awk "/^## \\[?v?${VERSION//./\\.}\]?/ {flag=1; next} /^## / && flag {flag=0} flag {print}" CHANGELOG.md > release_body.md
 
-          # 下载地址追加，全用 echo 逐行写，不用 heredoc
           echo "" >> release_body.md
           echo "---" >> release_body.md
           echo "" >> release_body.md
@@ -286,18 +283,13 @@ jobs:
           echo "- [**AppImage (ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_aarch64.AppImage)" >> release_body.md
           echo "- [**Debian/Ubuntu (.deb ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_arm64.deb)" >> release_body.md
 
-          # 最后输出内容到 output
-          {
-           echo "content<<RELEASE_DELIMITER"
-           cat release_body.md
-           echo "RELEASE_DELIMITER"
-          } >> $GITHUB_OUTPUT
+          cat release_body.md
 
       - name: Publish Final Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          body: ${{ steps.release_body.outputs.content }}
+          body_path: release_body.md
           draft: false
           prerelease: ${{ steps.release-type.outputs.IS_PRERELEASE }}
 
