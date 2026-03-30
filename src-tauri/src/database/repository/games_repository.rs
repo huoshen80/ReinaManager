@@ -322,9 +322,9 @@ impl GamesRepository {
                     .add(games::Column::IdType.eq("custom"))
                     .add(games::Column::IdType.eq("Whitecloud")),
             ),
-            // clear 字段已迁移到 1-5 枚举：1=WISH, 2=PLAYING, 3=PLAYED, 4=ON_HOLD, 5=DROPPED
-            GameType::NoClear => query.filter(games::Column::Clear.ne(3)),
-            GameType::Clear => query.filter(games::Column::Clear.eq(3)),
+            // clear 字段已迁移到 1-5 枚举：1=WISH, 2=PLAYED, 3=PLAYING, 4=ON_HOLD, 5=DROPPED
+            GameType::NoClear => query.filter(games::Column::Clear.ne(2)),
+            GameType::Clear => query.filter(games::Column::Clear.eq(2)),
         };
         query
     }

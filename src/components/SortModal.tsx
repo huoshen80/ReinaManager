@@ -75,7 +75,7 @@ const SortModal: React.FC = () => {
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
-		await updateSort(localSortOption, localSortOrder);
+		updateSort(localSortOption, localSortOrder);
 
 		// 关闭对话框
 		handleClose();

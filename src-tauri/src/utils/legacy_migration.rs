@@ -71,6 +71,8 @@ fn m20260326_000001_migrate_legacy_covers() -> Result<StartupMigrationResult, St
 
     merge_covers_dir(&legacy_covers_dir, &current_covers_dir, &mut result)?;
     remove_dir_if_empty(&legacy_covers_dir)?;
+    // 清理可能存在的空 resources 目录
+    remove_dir_if_empty(&legacy_covers_dir)?;
 
     Ok(result)
 }
