@@ -196,7 +196,7 @@ const KunTokenSettings = () => {
 			if (loginResult.token) {
 				// 1. 持久化 Token
 				await setKunTokenMutation.mutateAsync(loginResult.token);
-				
+
 				// 2. 持久化与预热用户信息
 				if (loginResult.name) {
 					setKunUserData(loginResult);
@@ -229,15 +229,15 @@ const KunTokenSettings = () => {
 	return (
 		<Box className="mb-8">
 			<InputLabel className="font-semibold mb-4">{t("pages.Settings.kunToken")}</InputLabel>
-			
+
 			{kunToken && kunProfile ? (
 				<Box className="max-w-md p-4 border border-divider rounded-lg bg-action-hover">
 					<Stack direction="row" spacing={3} alignItems="center" justifyContent="space-between">
 						<Stack direction="row" spacing={2} alignItems="center">
-							<Avatar 
-								src={kunProfile.avatarMin || kunProfile.avatar} 
+							<Avatar
+								src={kunProfile.avatarMin || kunProfile.avatar}
 								alt={kunProfile.name}
-								sx={{ width: 56, height: 56 }} 
+								sx={{ width: 56, height: 56 }}
 							/>
 							<Box>
 								<Typography variant="body1" className="font-semibold">{kunProfile.name}</Typography>
@@ -262,20 +262,20 @@ const KunTokenSettings = () => {
 						{t("pages.Settings.kunTokenSettings.loginHint", "使用 Kungal 账号登录以同步收藏状态")}
 					</Typography>
 					<Stack direction="row" spacing={2}>
-						<TextField 
-							label="Username/Email" 
-							value={username} 
-							onChange={(e) => setUsername(e.target.value)} 
-							size="small" 
-							className="flex-grow" 
+						<TextField
+							label="Username/Email"
+							value={username}
+							onChange={(e) => setUsername(e.target.value)}
+							size="small"
+							className="flex-grow"
 						/>
-						<TextField 
-							label="Password" 
-							type="password" 
-							value={password} 
-							onChange={(e) => setPassword(e.target.value)} 
-							size="small" 
-							className="flex-grow" 
+						<TextField
+							label="Password"
+							type="password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							size="small"
+							className="flex-grow"
 						/>
 					</Stack>
 					<Button
@@ -347,7 +347,7 @@ export const AccountSettings = () => {
 							<Typography variant="body2">{t("pages.Settings.collectionSync.kunTitle")}</Typography>
 							<Typography variant="caption" color="text.secondary">{t("pages.Settings.collectionSync.kunDescription")}</Typography>
 						</Box>
-						<Switch checked={syncKunCollection} onChange={(e) => setSyncKunCollection(e.target.checked)} color="primary" />
+						<Switch disabled checked={syncKunCollection} onChange={(e) => setSyncKunCollection(e.target.checked)} color="primary" />
 					</Stack>
 				</Box>
 			</Box>
