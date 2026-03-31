@@ -287,6 +287,26 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 								)}
 							</Box>
 						)}
+						{fullgame.kun_data && (
+							<Box className="text-left">
+								<Typography variant="subtitle1" gutterBottom>
+									{t("components.AlertBox.kunData", "Kungal 数据")}
+								</Typography>
+								<Typography variant="body2" className="mb-1">
+									{t("components.AlertBox.gameName")}:{" "}
+									{fullgame.kun_data.name?.["zh-cn"] ||
+										fullgame.kun_data.name?.["en-us"] ||
+										fullgame.kun_data.name?.["ja-jp"]}
+								</Typography>
+								{fullgame.kun_data.banner && (
+									<img
+										src={fullgame.kun_data.banner}
+										alt={`Kungal ${fullgame.kun_data.id}`}
+										className="w-full h-auto max-h-64 object-contain rounded"
+									/>
+								)}
+							</Box>
+						)}
 					</Box>
 				) : (
 					<Typography>{t("components.AlertBox.noData", "没有数据")}</Typography>

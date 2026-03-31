@@ -3,15 +3,24 @@ import {
 	fetchUserCollection,
 	updateUserCollection,
 } from "@/api/bgm";
+import {
+	fetchGalgameById,
+	fetchCurrentUserProfile as fetchKunProfile,
+	toggleLike,
+	toggleFavorite,
+} from "@/api/kun";
 import { fetchVndbUserCollection, updateVndbUserCollection } from "@/api/vndb";
 import { settingsKeys } from "@/hooks/queries/useSettings";
 import { queryClient } from "@/providers/queryClient";
 import { settingsService } from "@/services/invoke";
 import { useStore } from "@/store/appStore";
-import type { FullGameData, GameData } from "@/types";
+import type { FullGameData, GameData, KunData } from "@/types";
 import { PlayStatus } from "@/types/collection";
 
-type CollectionSyncSource = "bgm" | "vndb";
+type CollectionSyncSource = "bgm" | "vndb" | "kun";
+
+// 定义一个包含所有可能同步源的扩展类型
+type SyncableGame = (GameData | FullGameData) & { kun_data?: KunData | null };
 
 const VNDB_STATUS_LABEL_IDS = {
 	PLAYING: 1,
@@ -59,6 +68,11 @@ async function getVndbToken() {
 		console.error("获取 VNDB Token 失败:", error);
 		return "";
 	}
+}
+
+async function getKunToken() {
+	const { kunToken } = useStore.getState();
+	return kunToken || "";
 }
 
 async function getBgmUsername(token: string) {
@@ -170,10 +184,33 @@ async function resolveVndbPlayStatus(game: Pick<FullGameData, "vndb_id">) {
 	}
 }
 
+async function resolveKunPlayStatus(game: Pick<FullGameData, "kun_data">) {
+	if (!game.kun_data?.id) return undefined;
+
+	try {
+		const token = await getKunToken();
+		if (!token) return undefined;
+
+		const profile = await fetchKunProfile(token);
+		if (!profile) return undefined;
+		const kunId = String(game.kun_data.id);
+		const fullData = await fetchGalgameById(kunId, token);
+
+		const rawKunData = (fullData as any)._raw;
+		if (rawKunData?.isFavorite) return PlayStatus.PLAYED;
+		if (rawKunData?.isLike) return PlayStatus.WISH;
+
+		return undefined;
+	} catch (error) {
+		console.error("解析 Kungal 收藏状态失败:", error);
+		return undefined;
+	}
+}
+
 export async function resolveCloudPlayStatus(
-	game: Pick<FullGameData, "bgm_id" | "vndb_id">,
+	game: SyncableGame,
 ) {
-	const { syncBgmCollection, syncVndbCollection } = useStore.getState();
+	const { syncBgmCollection, syncVndbCollection, syncKunCollection } = useStore.getState();
 
 	if (syncBgmCollection) {
 		const bgmStatus = await resolveBgmPlayStatus(game);
@@ -183,6 +220,11 @@ export async function resolveCloudPlayStatus(
 	if (syncVndbCollection) {
 		const vndbStatus = await resolveVndbPlayStatus(game);
 		if (vndbStatus !== undefined) return vndbStatus;
+	}
+
+	if (syncKunCollection && game.kun_data) {
+		const kunStatus = await resolveKunPlayStatus({ kun_data: game.kun_data });
+		if (kunStatus !== undefined) return kunStatus;
 	}
 
 	return undefined;
@@ -237,11 +279,35 @@ async function syncPlayStatusToVndb(
 	}
 }
 
+async function syncPlayStatusToKun(
+	gameId: number,
+	newStatus: PlayStatus,
+) {
+	try {
+		const token = await getKunToken();
+		if (!token) return true;
+
+		// 映射逻辑：
+		// PLAYED -> Favorite (收藏)
+		// WISH -> Like (点赞)
+		// 其他状态目前不对应 Kungal 操作，或根据需求定义
+		if (newStatus === PlayStatus.PLAYED) {
+			await toggleFavorite(gameId, token);
+		} else if (newStatus === PlayStatus.WISH) {
+			await toggleLike(gameId, token);
+		}
+		return true;
+	} catch (error) {
+		console.error("同步 Kungal 状态失败:", error);
+		return false;
+	}
+}
+
 export async function syncPlayStatusToCloud(
-	game: Pick<GameData, "bgm_id" | "vndb_id">,
+	game: SyncableGame,
 	newStatus: PlayStatus,
 ): Promise<CollectionSyncSource[]> {
-	const { syncBgmCollection, syncVndbCollection } = useStore.getState();
+	const { syncBgmCollection, syncVndbCollection, syncKunCollection } = useStore.getState();
 	const failedSources: CollectionSyncSource[] = [];
 
 	if (syncBgmCollection) {
@@ -252,6 +318,11 @@ export async function syncPlayStatusToCloud(
 	if (syncVndbCollection) {
 		const success = await syncPlayStatusToVndb(game, newStatus);
 		if (!success) failedSources.push("vndb");
+	}
+
+	if (syncKunCollection && game.kun_data?.id) {
+		const success = await syncPlayStatusToKun(game.kun_data.id, newStatus);
+		if (!success) failedSources.push("kun");
 	}
 
 	return failedSources;

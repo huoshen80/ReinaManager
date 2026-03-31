@@ -13,6 +13,7 @@
 		"responseParseFailed": "Failed to parse the response. Please try again later",
 		"unknownError": "Unknown error",
 		"unsupportedSource": "Unsupported data source",
+		"kunTokenRequired": "Kungal Token is missing. Please configure it first",
 		"updatePlayStatusFailed": "Failed to update play status"
 	},
 	"app": {
@@ -509,6 +510,20 @@
 				"saveError": "Failed to save BGM Token",
 				"saveSuccess": "BGM Token saved successfully"
 			},
+			"kunToken": "Kungal Token",
+			"kunTokenSettings": {
+				"clearToken": "Clear token",
+				"loadingProfile": "Loading current Kungal account info...",
+				"profileUnavailable": "Unable to fetch user info with the current Token. Please check whether the token is valid.",
+				"saveError": "Failed to save Kungal Token",
+				"saveSuccess": "Kungal Token saved successfully",
+				"loginBtn": "Login & Get Token",
+				"loginError": "Login failed, please check credentials or network",
+				"loginInputError": "Please enter username and password",
+				"loginSuccess": "Login successful",
+				"moemoe": "MoeMoe: {{count}}",
+				"orLogin": "or login with account"
+			},
 			"cardClickMode": {
 				"doubleClickLaunch": "Double-click to launch game",
 				"doubleClickLaunchNote": "Enabling this will cause a 200ms delay for left-click (navigation mode only)",
@@ -527,7 +542,9 @@
 				"syncFailed": "Local status was updated, but failed to sync to {{source}}",
 				"title": "Collection Sync",
 				"vndbDescription": "Try to read the VNDB collection status when adding a game, and sync local status changes back to VNDB.",
-				"vndbTitle": "Enable VNDB collection sync"
+				"vndbTitle": "Enable VNDB collection sync",
+				"kunDescription": "Try to read Kungal like/favorite status when adding, and sync local changes back to Kungal.",
+				"kunTitle": "Enable Kungal collection sync"
 			},
 			"databaseBackup": {
 				"backing": "Backing up...",

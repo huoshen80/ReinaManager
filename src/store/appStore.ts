@@ -68,8 +68,8 @@ export interface AppState {
 	setGameFilterType: (type: GameType) => void;
 
 	// 数据来源选择
-	apiSource: "bgm" | "vndb" | "ymgal" | "mixed";
-	setApiSource: (source: "bgm" | "vndb" | "ymgal" | "mixed") => void;
+	apiSource: "bgm" | "vndb" | "ymgal" | "kungal" | "mixed";
+	setApiSource: (source: "bgm" | "vndb" | "ymgal" | "kungal" | "mixed") => void;
 
 	// NSFW相关
 	nsfwFilter: boolean;
@@ -98,6 +98,8 @@ export interface AppState {
 	setSyncBgmCollection: (enabled: boolean) => void;
 	syncVndbCollection: boolean;
 	setSyncVndbCollection: (enabled: boolean) => void;
+	syncKunCollection: boolean;
+	setSyncKunCollection: (enabled: boolean) => void;
 
 	// 剧透等级
 	spoilerLevel: number;
@@ -123,6 +125,13 @@ export interface AppState {
 		categoryId: number | null,
 		categoryName?: string,
 	) => void; // 设置当前选中的分类
+
+	// Kungal Token (持久化)
+	kunToken: string;
+	setKunToken: (token: string) => void;
+	// Kungal 登录返回的用户详细信息快照 (持久化，用于显示头像/昵称等)
+	kunUserData: any | null;
+	setKunUserData: (data: any | null) => void;
 }
 
 // 创建持久化的全局状态
@@ -153,7 +162,7 @@ export const useStore = create<AppState>()(
 
 			// 数据来源选择
 			apiSource: "mixed",
-			setApiSource: (source: "bgm" | "vndb" | "ymgal" | "mixed") => {
+			setApiSource: (source: "bgm" | "vndb" | "ymgal" | "kungal" | "mixed") => {
 				set({ apiSource: source });
 			},
 
@@ -212,6 +221,10 @@ export const useStore = create<AppState>()(
 			syncVndbCollection: false,
 			setSyncVndbCollection: (enabled: boolean) => {
 				set({ syncVndbCollection: enabled });
+			},
+			syncKunCollection: false,
+			setSyncKunCollection: (enabled: boolean) => {
+				set({ syncKunCollection: enabled });
 			},
 
 			// 剧透等级
@@ -293,6 +306,17 @@ export const useStore = create<AppState>()(
 				});
 			},
 
+			// Kungal Token
+			kunToken: "",
+			setKunToken: (token: string) => {
+				set({ kunToken: token });
+			},
+			// Kungal 用户信息
+			kunUserData: null,
+			setKunUserData: (data: any | null) => {
+				set({ kunUserData: data });
+			},
+
 			// 设置当前选中的分类
 			setSelectedCategory: (
 				categoryId: number | null,
@@ -344,6 +368,10 @@ export const useStore = create<AppState>()(
 				currentGroupId: state.currentGroupId,
 				selectedCategoryId: state.selectedCategoryId,
 				selectedCategoryName: state.selectedCategoryName,
+				// Kungal Token
+				kunToken: state.kunToken,
+				kunUserData: state.kunUserData,
+				syncKunCollection: state.syncKunCollection,
 			}),
 		},
 	),

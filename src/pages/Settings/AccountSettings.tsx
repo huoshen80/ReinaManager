@@ -28,7 +28,9 @@ import {
 	useSetVndbToken,
 	useVndbCurrentUserProfile,
 	useVndbToken,
+	settingsKeys,
 } from "@/hooks/queries/useSettings";
+import { useQueryClient } from "@tanstack/react-query";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 
@@ -171,25 +173,17 @@ const VndbTokenSettings = () => {
 const KunTokenSettings = () => {
 	const { t } = useTranslation();
 	const { data: kunToken = "" } = useKunToken();
-	const { data: kunProfile, isLoading: isKunProfileLoading } = useKunCurrentUserProfile();
+	const { data: kunProfile } = useKunCurrentUserProfile();
 	const setKunTokenMutation = useSetKunToken();
-	const [inputToken, setInputToken] = useState("");
+	const queryClient = useQueryClient();
+	const { setKunUserData } = useStore(
+		useShallow((s) => ({
+			setKunUserData: s.setKunUserData,
+		}))
+	);
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-	useEffect(() => {
-		setInputToken(kunToken);
-	}, [kunToken]);
-
-	const handleSaveToken = async () => {
-		try {
-			await setKunTokenMutation.mutateAsync(inputToken);
-			snackbar.success(t("pages.Settings.kunTokenSettings.saveSuccess", "Kungal Token 保存成功"));
-		} catch (error) {
-			snackbar.error(t("pages.Settings.kunTokenSettings.saveError", "Kungal Token 保存失败"));
-		}
-	};
 
 	const handleLogin = async () => {
 		if (!username || !password) {
@@ -198,66 +192,103 @@ const KunTokenSettings = () => {
 		}
 		setIsLoggingIn(true);
 		try {
-			const response = await kunLogin(username, password);
-			if (response.token) {
-				await setKunTokenMutation.mutateAsync(response.token);
+			const loginResult = await kunLogin(username, password);
+			if (loginResult.token) {
+				// 1. 持久化 Token
+				await setKunTokenMutation.mutateAsync(loginResult.token);
+				
+				// 2. 持久化与预热用户信息
+				if (loginResult.name) {
+					setKunUserData(loginResult);
+					queryClient.setQueryData(settingsKeys.kunCurrentUserProfileByToken(loginResult.token), loginResult);
+				}
+
 				snackbar.success(t("pages.Settings.kunTokenSettings.loginSuccess"));
 				setPassword("");
+				setUsername("");
+			} else {
+				snackbar.error(t("pages.Settings.kunTokenSettings.loginError"));
 			}
 		} catch (error) {
+			console.error("Kungal login failed:", error);
 			snackbar.error(t("pages.Settings.kunTokenSettings.loginError"));
 		} finally {
 			setIsLoggingIn(false);
 		}
 	};
 
+	const handleLogout = async () => {
+		try {
+			await setKunTokenMutation.mutateAsync("");
+			snackbar.success(t("pages.Settings.kunTokenSettings.logoutSuccess", "Kungal 账户已退出"));
+		} catch (error) {
+			snackbar.error(t("pages.Settings.kunTokenSettings.logoutError", "退出登录失败"));
+		}
+	};
+
 	return (
 		<Box className="mb-8">
 			<InputLabel className="font-semibold mb-4">{t("pages.Settings.kunToken")}</InputLabel>
-			{kunToken && (
-				<Box className="mb-4">
-					{isKunProfileLoading ? (
-						<Typography variant="caption" color="text.secondary">{t("pages.Settings.kunTokenSettings.loadingProfile")}</Typography>
-					) : kunProfile ? (
+			
+			{kunToken && kunProfile ? (
+				<Box className="max-w-md p-4 border border-divider rounded-lg bg-action-hover">
+					<Stack direction="row" spacing={3} alignItems="center" justifyContent="space-between">
 						<Stack direction="row" spacing={2} alignItems="center">
-							<Avatar src={kunProfile.avatar} alt={kunProfile.name} />
+							<Avatar 
+								src={kunProfile.avatarMin || kunProfile.avatar} 
+								alt={kunProfile.name}
+								sx={{ width: 56, height: 56 }} 
+							/>
 							<Box>
-								<Typography variant="body2" className="font-semibold">{kunProfile.name}</Typography>
-								<Typography variant="caption" color="text.secondary">{t("pages.Settings.kunTokenSettings.moemoe", { count: kunProfile.moemoe })}</Typography>
+								<Typography variant="body1" className="font-semibold">{kunProfile.name}</Typography>
+								<Typography variant="caption" color="text.secondary">
+									{t("pages.Settings.kunTokenSettings.moemoe", { count: kunProfile.moemoepoint || 0 })}
+								</Typography>
+								{kunProfile.isCheckIn && (
+									<Typography variant="caption" color="success.main" display="block">
+										✓ {t("pages.Settings.kunTokenSettings.checkedIn", "今日已签到")}
+									</Typography>
+								)}
 							</Box>
 						</Stack>
-					) : (
-						<Typography variant="caption" color="text.secondary">{t("pages.Settings.kunTokenSettings.profileUnavailable")}</Typography>
-					)}
+						<Button variant="outlined" color="error" size="small" onClick={handleLogout}>
+							{t("pages.Settings.kunTokenSettings.logoutBtn", "退出登录")}
+						</Button>
+					</Stack>
 				</Box>
+			) : (
+				<Stack direction="column" spacing={2} className="max-w-md">
+					<Typography variant="body2" color="text.secondary" className="mb-2">
+						{t("pages.Settings.kunTokenSettings.loginHint", "使用 Kungal 账号登录以同步收藏状态")}
+					</Typography>
+					<Stack direction="row" spacing={2}>
+						<TextField 
+							label="Username/Email" 
+							value={username} 
+							onChange={(e) => setUsername(e.target.value)} 
+							size="small" 
+							className="flex-grow" 
+						/>
+						<TextField 
+							label="Password" 
+							type="password" 
+							value={password} 
+							onChange={(e) => setPassword(e.target.value)} 
+							size="small" 
+							className="flex-grow" 
+						/>
+					</Stack>
+					<Button
+						variant="contained"
+						fullWidth
+						onClick={handleLogin}
+						disabled={isLoggingIn}
+						startIcon={isLoggingIn && <CircularProgress size={20} color="inherit" />}
+					>
+						{isLoggingIn ? t("pages.Settings.kunTokenSettings.loggingIn") : t("pages.Settings.kunTokenSettings.loginBtn")}
+					</Button>
+				</Stack>
 			)}
-			<Stack direction="column" spacing={2} className="max-w-md">
-				<Stack direction="row" spacing={2}>
-					<TextField
-						placeholder={t("pages.Settings.kunToken")}
-						value={inputToken}
-						onChange={(e) => setInputToken(e.target.value)}
-						size="small"
-						className="flex-grow"
-						slotProps={{ htmlInput: { style: { WebkitTextSecurity: "disc", textSecurity: "disc" } } }}
-					/>
-					<Button variant="contained" onClick={handleSaveToken} disabled={setKunTokenMutation.isPending}>{t("pages.Settings.saveBtn")}</Button>
-				</Stack>
-				<Divider sx={{ my: 1 }}>{t("pages.Settings.kunTokenSettings.orLogin")}</Divider>
-				<Stack direction="row" spacing={2}>
-					<TextField label="Username/Email" value={username} onChange={(e) => setUsername(e.target.value)} size="small" className="flex-grow" />
-					<TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} size="small" className="flex-grow" />
-				</Stack>
-				<Button
-					variant="outlined"
-					fullWidth
-					onClick={handleLogin}
-					disabled={isLoggingIn}
-					startIcon={isLoggingIn && <CircularProgress size={20} />}
-				>
-					{t("pages.Settings.kunTokenSettings.loginBtn")}
-				</Button>
-			</Stack>
 		</Box>
 	);
 };

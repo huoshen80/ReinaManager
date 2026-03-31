@@ -137,7 +137,33 @@ export type IdType =
 	| "ymgal"
 	| "mixed"
 	| "custom"
-	| "Whitecloud";
+	| "Whitecloud"
+	| "kungal";
+
+/**
+ * Kungal 数据结构
+ */
+export interface KunData {
+	id: number;
+	name: {
+		"en-us": string;
+		"ja-jp": string;
+		"zh-cn": string;
+		"zh-tw": string;
+	};
+	banner: string;
+	summary?: string;
+	tags?: string[];
+	developer?: string;
+	score?: number;
+	nsfw?: boolean;
+	date?: string;
+	alias?: string[];
+	platform?: string[];
+	language?: string[];
+	ageLimit?: string;
+	originalLanguage?: string;
+}
 
 /**
  * 完整游戏数据 - 对应数据库 games 表结构（读取用）
@@ -153,6 +179,7 @@ export interface FullGameData {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	id_type?: IdType | string;
 
 	// --- 核心状态 ---
@@ -168,6 +195,7 @@ export interface FullGameData {
 	bgm_data?: Nullable<BgmData>;
 	vndb_data?: Nullable<VndbData>;
 	ymgal_data?: Nullable<YmgalData>;
+	kun_data?: Nullable<KunData>;
 	custom_data?: Nullable<CustomData>;
 
 	// --- 时间类（只读） ---
@@ -189,6 +217,7 @@ export interface InsertGameParams {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	id_type: IdType | string; // 必需字段
 
 	// --- 核心状态 ---
@@ -223,6 +252,7 @@ export interface UpdateGameParams {
 	bgm_id?: Nullable<string>;
 	vndb_id?: Nullable<string>;
 	ymgal_id?: Nullable<string>;
+	kun_id?: Nullable<string>;
 	id_type?: IdType | string;
 
 	// --- 核心状态（支持三态） ---
@@ -255,6 +285,7 @@ export interface UpdateGameParams {
 export interface UpdateSettingsParams {
 	bgmToken?: Nullable<string>;
 	vndbToken?: Nullable<string>;
+	kunToken?: Nullable<string>;
 	saveRootPath?: Nullable<string>;
 	dbBackupPath?: Nullable<string>;
 	lePath?: Nullable<string>;
@@ -273,6 +304,7 @@ export interface GameData {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	id_type?: string;
 	date?: string;
 	localpath?: string;

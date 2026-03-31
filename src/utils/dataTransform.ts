@@ -13,6 +13,7 @@ import type {
 	CustomData,
 	FullGameData,
 	GameData,
+	KunData,
 	Nullable,
 	VndbData,
 	YmgalData,
@@ -80,7 +81,7 @@ export function getDisplayGameData(
 	};
 
 	// 根据 id_type 决定数据来源
-	const { bgm_data, vndb_data, ymgal_data, custom_data } = fullData;
+	const { bgm_data, vndb_data, ymgal_data, kun_data, custom_data } = fullData;
 
 	switch (fullData.id_type) {
 		case "bgm":
@@ -97,11 +98,12 @@ export function getDisplayGameData(
 
 		case "mixed":
 			// 混合数据源：合并所有可用数据
-			if (bgm_data || vndb_data || ymgal_data) {
+			if (bgm_data || vndb_data || ymgal_data || fullData.kun_data) {
 				mergeMultipleDataSources(baseData, {
 					bgm_data,
 					vndb_data,
 					ymgal_data,
+					kun_data: fullData.kun_data,
 					custom_data,
 				});
 			}
@@ -112,11 +114,17 @@ export function getDisplayGameData(
 			if (custom_data) assignFromDataSource(baseData, custom_data, "custom");
 			break;
 
+		case "kungal":
+			if (kun_data) assignFromDataSource(baseData, kun_data, "kungal");
+			break;
+
 		default: {
 			// 未知类型：尝试使用任何可用数据
-			const anyData = bgm_data ?? vndb_data ?? ymgal_data ?? custom_data;
-			if (anyData)
-				assignFromDataSource(baseData, anyData as DataSource, "fallback");
+			const anyData = bgm_data ?? vndb_data ?? ymgal_data ?? kun_data ?? custom_data;
+			if (anyData) {
+				const fallbackType = bgm_data ? "bgm" : (vndb_data ? "vndb" : (kun_data ? "kungal" : "fallback"));
+				assignFromDataSource(baseData, anyData as any, fallbackType as any);
+			}
 		}
 	}
 
@@ -131,18 +139,20 @@ export function getDisplayGameData(
 /**
  * 数据源类型联合
  */
-type DataSource = BgmData | VndbData | YmgalData | CustomData;
+type DataSource = BgmData | VndbData | YmgalData | CustomData | KunData;
 
 /**
  * 从单个数据源分配字段
  */
 function assignFromDataSource(
 	target: GameData,
-	source: DataSource,
-	sourceType: "bgm" | "vndb" | "ymgal" | "custom" | "fallback",
+	source: DataSource | KunData,
+	sourceType: "bgm" | "vndb" | "ymgal" | "custom" | "fallback" | "kungal",
 ) {
-	// 基础字段
-	assignBasicFields(target, source);
+	// 基础字段 - 排除 Kungal，因为它的 name 是对象，assignBasicFields 只处理字符串
+	if (sourceType !== "kungal") {
+		assignBasicFields(target, source as any);
+	}
 
 	// 源特有的字段 - 使用类型断言处理不同数据源的属性差异
 	switch (sourceType) {
@@ -181,6 +191,23 @@ function assignFromDataSource(
 			target.tags = customSource.tags || [];
 			break;
 		}
+
+		case "kungal": {
+			const kunSource = source as KunData;
+			target.image = kunSource.banner;
+			target.name = kunSource.name["zh-cn"] || kunSource.name["ja-jp"] || kunSource.name["en-us"];
+			target.name_cn = kunSource.name["zh-cn"];
+			target.tags = kunSource.tags || [];
+			target.score = kunSource.score;
+			target.summary = kunSource.summary;
+			target.developer = kunSource.developer;
+			target.nsfw = kunSource.nsfw;
+			// 格式化日期：将 2025-12-19T... 截断为 2025-12-19，以便 UI 正确显示
+			if (kunSource.date) {
+				target.date = kunSource.date.split("T")[0];
+			}
+			break;
+		}
 	}
 }
 
@@ -193,20 +220,46 @@ function mergeMultipleDataSources(
 		bgm_data?: Nullable<BgmData>;
 		vndb_data?: Nullable<VndbData>;
 		ymgal_data?: Nullable<YmgalData>;
+		kun_data?: Nullable<KunData>;
 		custom_data?: Nullable<CustomData>;
 	},
 ) {
-	const { bgm_data, vndb_data, ymgal_data, custom_data } = sources;
+	const { bgm_data, vndb_data, ymgal_data, kun_data, custom_data } = sources;
 
-	// 基础字段：优先级 BGM > VNDB > YMGal
-	const primarySource = bgm_data || vndb_data || ymgal_data;
-	if (primarySource) assignBasicFields(target, primarySource);
+	// 基础字段：优先级 BGM > VNDB > Kungal > YMGal
+	const primarySource = bgm_data || vndb_data || kun_data || ymgal_data;
+	if (primarySource) {
+		if (
+			"name" in primarySource &&
+			typeof primarySource.name === "object" &&
+			primarySource.name !== null
+		) {
+			// 处理 Kungal 这种 name 为对象的情况
+			const kunSource = primarySource as KunData;
+			// 仅在目标字段不存在或不可用时进行回退映射，或直接覆盖
+			target.name = kunSource.name["en-us"] || kunSource.name["ja-jp"];
+			target.name_cn = kunSource.name["zh-cn"] || kunSource.name["zh-tw"];
+			target.summary = kunSource.summary;
+			target.developer = kunSource.developer;
+			target.nsfw = kunSource.nsfw;
+			// 转换日期格式: Kungal 可能返回 ISO 8601 (2025-12-19T...)，而 UI 需要 yyyy-MM-dd
+			if (kunSource.date) {
+				target.date = kunSource.date.split("T")[0];
+			}
+		} else {
+			assignBasicFields(target, primarySource as any);
+			// 同样处理日期转换
+			if (target.date && target.date.includes("T")) {
+				target.date = target.date.split("T")[0];
+			}
+		}
+	}
 
-	target.image = bgm_data?.image || vndb_data?.image || ymgal_data?.image;
+	target.image = bgm_data?.image || vndb_data?.image || kun_data?.banner || ymgal_data?.image;
 
-	// 简介：YMGal 优先
+	// 简介：Kungal 优先 (Kun 通常有比较详细的中文简介)
 	target.summary =
-		ymgal_data?.summary || bgm_data?.summary || vndb_data?.summary;
+		kun_data?.summary || ymgal_data?.summary || bgm_data?.summary || vndb_data?.summary;
 
 	// 开发商: VNDB 优先
 	target.developer =
@@ -216,6 +269,7 @@ function mergeMultipleDataSources(
 	const allTags = [
 		...(bgm_data?.tags || []),
 		...(vndb_data?.tags || []),
+		...(kun_data?.tags || []),
 		...(ymgal_data?.tags || []),
 		...(custom_data?.tags || []),
 	];
@@ -225,13 +279,14 @@ function mergeMultipleDataSources(
 	const allAliases = [
 		...(bgm_data?.aliases || []),
 		...(vndb_data?.aliases || []),
+		...(kun_data?.alias || []),
 		...(ymgal_data?.aliases || []),
 		...(custom_data?.aliases || []),
 	];
 	target.aliases = Array.from(new Set(allAliases));
 
-	// 评分: BGM 优先，其次 VNDB
-	target.score = bgm_data?.score ?? vndb_data?.score;
+	// 评分: BGM 优先，其次 VNDB/Kungal
+	target.score = bgm_data?.score ?? vndb_data?.score ?? kun_data?.score;
 
 	// BGM 特有字段
 	target.rank = bgm_data?.rank;
@@ -239,6 +294,11 @@ function mergeMultipleDataSources(
 	// VNDB 特有字段
 	target.all_titles = vndb_data?.all_titles || [];
 	target.average_hours = vndb_data?.average_hours;
+
+	// Kungal 特有 ID 同步
+	if (kun_data?.id) {
+		target.kun_id = String(kun_data.id);
+	}
 }
 
 /**
@@ -281,4 +341,20 @@ export function getDisplayGameDataList(
 	language?: string,
 ): GameData[] {
 	return fullDataList.map((fullData) => getDisplayGameData(fullData, language));
+}
+
+/**
+ * 从 FullGameData 中提取当前生效的 ID
+ * 根据 id_type 优先级提取
+ */
+export function getIdFromFullData(data: FullGameData): string | undefined {
+	const type = data.id_type;
+	if (type === "bgm") return data.bgm_id;
+	if (type === "vndb") return data.vndb_id;
+	if (type === "ymgal") return data.ymgal_id;
+	if (type === "kungal") return data.kun_id;
+	if (type === "mixed") {
+		return data.bgm_id || data.vndb_id || data.ymgal_id || data.kun_id;
+	}
+	return undefined;
 }
