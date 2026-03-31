@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tauri::{command, AppHandle, Manager};
+use tauri::{AppHandle, Manager, command};
 use url::Url;
 
 use reina_path::{get_db_path, is_portable_mode};

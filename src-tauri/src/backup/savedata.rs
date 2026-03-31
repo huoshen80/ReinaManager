@@ -2,7 +2,7 @@ use crate::{database::repository::games_repository::GamesRepository, utils::fs::
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use sevenz_rust2::{decompress_file, encoder_options::Lzma2Options, ArchiveWriter};
+use sevenz_rust2::{ArchiveWriter, decompress_file, encoder_options::Lzma2Options};
 use std::fs;
 use std::path::Path;
 use tauri::State;

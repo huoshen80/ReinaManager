@@ -154,15 +154,14 @@ impl GameStatsRepository {
     ) -> Result<i32, DbErr> {
         let stats = Self::get_statistics(db, game_id).await?;
 
-        if let Some(stats) = stats {
-            if let Some(daily_stats_json) = stats.daily_stats {
-                let daily_stats =
-                    Self::parse_daily_stats(&daily_stats_json).map_err(DbErr::Custom)?;
+        if let Some(stats) = stats
+            && let Some(daily_stats_json) = stats.daily_stats
+        {
+            let daily_stats = Self::parse_daily_stats(&daily_stats_json).map_err(DbErr::Custom)?;
 
-                for stat in daily_stats {
-                    if stat.date == today {
-                        return Ok(stat.playtime);
-                    }
+            for stat in daily_stats {
+                if stat.date == today {
+                    return Ok(stat.playtime);
                 }
             }
         }

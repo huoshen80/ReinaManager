@@ -11,13 +11,13 @@ use serde_json::json;
 
 #[cfg(target_os = "windows")]
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 use std::time::SystemTime;
 use std::time::{Duration, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
-use tokio::time::{interval, MissedTickBehavior};
+use tokio::time::{MissedTickBehavior, interval};
 #[cfg(target_os = "windows")]
 use {
     log::warn, parking_lot::RwLock, std::collections::HashSet, std::path::Path,
@@ -28,8 +28,8 @@ use {
 use windows::Win32::{
     Foundation::CloseHandle,
     System::Threading::{
-        GetExitCodeProcess, OpenProcess, QueryFullProcessImageNameW, TerminateProcess,
-        PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE,
+        GetExitCodeProcess, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+        PROCESS_TERMINATE, QueryFullProcessImageNameW, TerminateProcess,
     },
     UI::WindowsAndMessaging::GetWindowThreadProcessId,
 };
@@ -583,10 +583,11 @@ fn start_foreground_hook<R: Runtime + 'static>(
                     // 锁已释放，安全发送事件
                     if should_emit {
                         info!("前台窗口切换到已知游戏进程: PID {}", new_pid);
-                        if let Err(e) = app_handle.emit(
+                        let emit_result = app_handle.emit(
                             "game-process-switched", //暂时无用
                             json!({ "gameId": game_id, "newProcessId": new_pid }),
-                        ) {
+                        );
+                        if let Err(e) = emit_result {
                             warn!("无法发送进程切换事件: {}", e);
                         }
                     }
@@ -618,10 +619,11 @@ fn start_foreground_hook<R: Runtime + 'static>(
                         }
 
                         // 发送进程切换事件
-                        if let Err(e) = app_handle.emit(
+                        let emit_result = app_handle.emit(
                             "game-process-switched", //暂时无用
                             json!({ "gameId": game_id, "newProcessId": new_pid }),
-                        ) {
+                        );
+                        if let Err(e) = emit_result {
                             warn!("无法发送进程切换事件: {}", e);
                         }
                         continue;
@@ -730,33 +732,33 @@ fn get_processes_in_directory(executable_path: &str, sys: &mut System) -> Vec<u3
 
     let mut pids = Vec::new();
     for (pid, process) in sys.processes() {
-        if let Some(process_exe_path) = process.exe() {
-            if let Some(process_dir) = process_exe_path.parent() {
-                // 优先使用字符串比较，避免对每个进程都执行 canonicalize
-                let process_str = process_dir.to_string_lossy();
+        if let Some(process_exe_path) = process.exe()
+            && let Some(process_dir) = process_exe_path.parent()
+        {
+            // 优先使用字符串比较，避免对每个进程都执行 canonicalize
+            let process_str = process_dir.to_string_lossy();
 
-                let matches = if let Some(canonical) = &canonical_target {
-                    // 先尝试字符串前缀匹配（快速路径）
-                    if process_str.starts_with(&target_str) {
-                        true
-                    } else {
-                        // 字符串匹配失败，尝试规范化路径比较（慢速路径）
-                        std::fs::canonicalize(process_dir)
-                            .ok()
-                            .map(|canonical_process_dir| {
-                                canonical_process_dir == *canonical
-                                    || canonical_process_dir.starts_with(canonical)
-                            })
-                            .unwrap_or(false)
-                    }
+            let matches = if let Some(canonical) = &canonical_target {
+                // 先尝试字符串前缀匹配（快速路径）
+                if process_str.starts_with(&target_str) {
+                    true
                 } else {
-                    // target_dir 规范化失败，完全使用字符串比较
-                    process_str == target_str || process_str.starts_with(target_str.as_str())
-                };
-
-                if matches {
-                    pids.push(pid.as_u32());
+                    // 字符串匹配失败，尝试规范化路径比较（慢速路径）
+                    std::fs::canonicalize(process_dir)
+                        .ok()
+                        .map(|canonical_process_dir| {
+                            canonical_process_dir == *canonical
+                                || canonical_process_dir.starts_with(canonical)
+                        })
+                        .unwrap_or(false)
                 }
+            } else {
+                // target_dir 规范化失败，完全使用字符串比较
+                process_str == target_str || process_str.starts_with(target_str.as_str())
+            };
+
+            if matches {
+                pids.push(pid.as_u32());
             }
         }
     }

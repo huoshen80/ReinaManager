@@ -12,7 +12,7 @@ use crate::database::repository::{
     settings_repository::SettingsRepository,
 };
 use crate::entity::{games, savedata, user};
-use crate::utils::fs::{delete_game_cover_dir, PathManager};
+use crate::utils::fs::{PathManager, delete_game_cover_dir};
 
 // ==================== 游戏数据相关 ====================
 
@@ -80,10 +80,10 @@ pub async fn delete_game(db: State<'_, DatabaseConnection>, id: i32) -> Result<u
         .map(|result| result.rows_affected)
         .map_err(|e| format!("删除游戏失败: {}", e))?;
 
-    if rows_affected > 0 {
-        if let Err(err) = delete_game_cover_dir(id).await {
-            log::warn!("删除游戏封面目录失败 game_id={}: {}", id, err);
-        }
+    if rows_affected > 0
+        && let Err(err) = delete_game_cover_dir(id).await
+    {
+        log::warn!("删除游戏封面目录失败 game_id={}: {}", id, err);
     }
 
     Ok(rows_affected)

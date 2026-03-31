@@ -3,7 +3,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use tauri::{command, State};
+use tauri::{State, command};
 use walkdir::WalkDir;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -202,18 +202,17 @@ fn scan_games_blocking(
             // 统计直属文件数
             *file_count_by_dir.entry(parent.to_path_buf()).or_insert(0) += 1;
             // 收集有效可执行文件，并标记该目录已有 exe
-            if let Some(ext) = entry_path.extension() {
-                if VALID_EXE_EXTENSIONS
+            if let Some(ext) = entry_path.extension()
+                && VALID_EXE_EXTENSIONS
                     .iter()
                     .any(|&e| ext.eq_ignore_ascii_case(e))
-                    && !is_excluded_exe(entry_path)
-                {
-                    dirs_with_exe.insert(parent.to_path_buf());
-                    exe_by_dir
-                        .entry(parent.to_path_buf())
-                        .or_default()
-                        .push(entry_path.to_path_buf());
-                }
+                && !is_excluded_exe(entry_path)
+            {
+                dirs_with_exe.insert(parent.to_path_buf());
+                exe_by_dir
+                    .entry(parent.to_path_buf())
+                    .or_default()
+                    .push(entry_path.to_path_buf());
             }
         }
     }

@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use tauri::Manager;
 use tauri::command;
 use tauri::http::{Response, StatusCode};
-use tauri::Manager;
 use tauri_plugin_http::reqwest::Client;
-use tokio::sync::{watch, RwLock, Semaphore};
+use tokio::sync::{RwLock, Semaphore, watch};
 
 use reina_path::get_base_data_dir;
 
@@ -163,12 +163,11 @@ fn content_type_for_file(path: &Path) -> &'static str {
 }
 
 fn parse_game_id_from_uri(parsed: &url::Url) -> Option<u32> {
-    if let Some(host) = parsed.host_str() {
-        if host != "localhost" {
-            if let Ok(id) = host.parse::<u32>() {
-                return Some(id);
-            }
-        }
+    if let Some(host) = parsed.host_str()
+        && host != "localhost"
+        && let Ok(id) = host.parse::<u32>()
+    {
+        return Some(id);
     }
     parsed.path().trim_start_matches('/').parse::<u32>().ok()
 }
@@ -385,14 +384,15 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                     let cached = state.cached_ids.read().await;
                     if cached.contains(&game_id) {
                         drop(cached);
-                        if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await {
-                            if let Ok(bytes) = tokio::fs::read(&cache_path).await {
-                                responder.respond(make_ok_response(
-                                    bytes,
-                                    content_type_for_file(&cache_path),
-                                ));
-                                return;
-                            }
+                        if let Some(cache_path) =
+                            get_cached_cloud_cover(&game_cover_dir, game_id).await
+                            && let Ok(bytes) = tokio::fs::read(&cache_path).await
+                        {
+                            responder.respond(make_ok_response(
+                                bytes,
+                                content_type_for_file(&cache_path),
+                            ));
+                            return;
                         }
                         // 内存标记存在但文件已被外部删除，清除过期记录
                         state.cached_ids.write().await.remove(&game_id);
@@ -400,14 +400,13 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                 }
 
                 // ── 步骤 2：磁盘缓存检查（冷启动或内存集合未命中）─────────
-                if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await {
-                    if let Ok(bytes) = tokio::fs::read(&cache_path).await {
-                        // 回填内存集合，下次请求走步骤 1
-                        state.cached_ids.write().await.insert(game_id);
-                        responder
-                            .respond(make_ok_response(bytes, content_type_for_file(&cache_path)));
-                        return;
-                    }
+                if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await
+                    && let Ok(bytes) = tokio::fs::read(&cache_path).await
+                {
+                    // 回填内存集合，下次请求走步骤 1
+                    state.cached_ids.write().await.insert(game_id);
+                    responder.respond(make_ok_response(bytes, content_type_for_file(&cache_path)));
+                    return;
                 }
 
                 // ── 步骤 3：无缓存，需要下载 ─────────────────────────────
@@ -429,15 +428,13 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                     let _ = rx.wait_for(|done| *done).await;
 
                     // 下载结束后尝试读取磁盘缓存
-                    if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await {
-                        if let Ok(bytes) = tokio::fs::read(&cache_path).await {
-                            state.cached_ids.write().await.insert(game_id);
-                            responder.respond(make_ok_response(
-                                bytes,
-                                content_type_for_file(&cache_path),
-                            ));
-                            return;
-                        }
+                    if let Some(cache_path) = get_cached_cloud_cover(&game_cover_dir, game_id).await
+                        && let Ok(bytes) = tokio::fs::read(&cache_path).await
+                    {
+                        state.cached_ids.write().await.insert(game_id);
+                        responder
+                            .respond(make_ok_response(bytes, content_type_for_file(&cache_path)));
+                        return;
                     }
                     // 前序下载失败（超时/网络错误），返回 502
                     responder.respond(make_status_response(StatusCode::BAD_GATEWAY));
@@ -471,7 +468,8 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                 };
 
                 // 执行下载（含指数退避重试）
-                match fetch_and_cache_cover(game_id, &url, &game_cover_dir).await {
+                let fetch_result = fetch_and_cache_cover(game_id, &url, &game_cover_dir).await;
+                match fetch_result {
                     Ok(bytes) => {
                         // 回填内存缓存集合
                         state.cached_ids.write().await.insert(game_id);

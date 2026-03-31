@@ -11,7 +11,7 @@ use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::OnceCell;
-use tokio::time::{interval, MissedTickBehavior};
+use tokio::time::{MissedTickBehavior, interval};
 
 // ============================================================================
 // 常量定义
@@ -106,8 +106,8 @@ pub async fn get_connection() -> Result<&'static zbus::Connection, zbus::Error> 
         .await
 }
 
-pub async fn get_manager_proxy(
-) -> Result<&'static zbus_systemd::systemd1::ManagerProxy<'static>, zbus::Error> {
+pub async fn get_manager_proxy()
+-> Result<&'static zbus_systemd::systemd1::ManagerProxy<'static>, zbus::Error> {
     MANAGER_PROXY
         .get_or_try_init(|| async {
             let connection = get_connection().await?;

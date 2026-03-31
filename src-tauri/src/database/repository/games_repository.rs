@@ -344,11 +344,7 @@ impl GamesRepository {
             (_, None) => std::cmp::Ordering::Less,
             (Some(ka), Some(kb)) => {
                 let ord = ka.partial_cmp(&kb).unwrap_or(std::cmp::Ordering::Equal);
-                if desc {
-                    ord.reverse()
-                } else {
-                    ord
-                }
+                if desc { ord.reverse() } else { ord }
             }
         });
     }
@@ -378,11 +374,7 @@ impl GamesRepository {
                     let en = d.name.as_deref().filter(|n| !n.is_empty());
 
                     // 根据 use_cn 决定优先级链
-                    if use_cn {
-                        cn.or(en)
-                    } else {
-                        en
-                    }
+                    if use_cn { cn.or(en) } else { en }
                 })
             };
         }

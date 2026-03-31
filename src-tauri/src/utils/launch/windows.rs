@@ -4,7 +4,7 @@ use crate::utils::game_monitor::{monitor_game, stop_game_session};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use tauri::{command, AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, command};
 #[cfg(target_os = "windows")]
 use {
     crate::utils::fs::PathManager,
@@ -34,8 +34,8 @@ pub struct StopResult {
 #[cfg(target_os = "windows")]
 mod keyboard_simulator {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
-        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS,
-        KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, VIRTUAL_KEY,
+        INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
+        KEYEVENTF_KEYUP, SendInput, VIRTUAL_KEY,
     };
 
     /// 创建键盘输入事件
@@ -90,13 +90,13 @@ mod win_elevated_launch {
     use std::os::windows::ffi::OsStrExt;
     use std::path::Path;
 
-    use windows::core::PCWSTR;
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::Threading::GetProcessId;
     use windows::Win32::UI::Shell::{
-        ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW,
+        SEE_MASK_FLAG_NO_UI, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
     };
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::PCWSTR;
 
     fn to_wide_null(s: &str) -> Vec<u16> {
         OsStr::new(s).encode_wide().chain(Some(0)).collect()
@@ -237,7 +237,8 @@ pub async fn launch_game<R: Runtime>(
         command.args(arguments);
     }
 
-    match command.gui_safe().spawn() {
+    let spawn_result = command.gui_safe().spawn();
+    match spawn_result {
         Ok(child) => {
             let process_id = child.id();
 
@@ -387,7 +388,8 @@ async fn start_magpie_for_game(
         let mut command = Command::new(&magpie_path);
         command.arg("-t"); // tray mode
 
-        match command.gui_safe().spawn() {
+        let spawn_result = command.gui_safe().spawn();
+        match spawn_result {
             Ok(_child) => {
                 info!("Magpie启动成功，等待游戏窗口加载...");
             }

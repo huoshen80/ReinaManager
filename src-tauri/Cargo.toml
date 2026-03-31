@@ -8,8 +8,8 @@ description = "A lightweight visual novel manager"
 authors = ["huoshen80"]
 license = "GNU AFFERO GENERAL PUBLIC LICENSE"
 repository = "https://github.com/huoshen80/ReinaManager/"
-edition = "2021"
-rust-version = "1.94.0"
+edition = "2024"
+rust-version = "1.94.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -83,6 +83,7 @@ zbus_systemd = { version = "0.25800.0", features = ["systemd1"] }
 
 [profile.dev]
 incremental = true # 以较小的步骤编译您的二进制文件。
+split-debuginfo = "unpacked"
 
 [profile.release]
 codegen-units = 1 # 允许 LLVM 执行更好的优化。

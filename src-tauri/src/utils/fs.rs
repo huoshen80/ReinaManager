@@ -310,15 +310,14 @@ pub async fn move_backup_folder(old_path: String, new_path: String) -> Result<Mo
     }
 
     // 检查新路径的父目录是否存在，如果不存在则创建
-    if let Some(parent) = new_backup_path.parent() {
-        if !parent.exists() {
-            if let Err(e) = fs::create_dir_all(parent) {
-                return Ok(MoveResult {
-                    success: false,
-                    message: format!("无法创建目标目录: {}", e),
-                });
-            }
-        }
+    if let Some(parent) = new_backup_path.parent()
+        && !parent.exists()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        return Ok(MoveResult {
+            success: false,
+            message: format!("无法创建目标目录: {}", e),
+        });
     }
 
     // 检查新路径是否已经存在
@@ -467,8 +466,7 @@ pub fn move_dir_recursive(from: &Path, to: &Path) -> Result<usize, String> {
                 let error_summary = copy_errors.join("\n");
                 return Err(format!(
                     "目录复制部分失败（已复制 {} 个文件）：\n{}\n\n注意: 源目录保持不变，目标目录包含部分文件，请解决问题后重试",
-                    copied_count,
-                    error_summary
+                    copied_count, error_summary
                 ));
             }
 
@@ -628,10 +626,10 @@ pub async fn copy_file(src: String, dst: String) -> Result<(), String> {
         return Err(format!("源文件不存在: {}", src));
     }
 
-    if let Some(parent) = dst_path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent).map_err(|e| format!("无法创建目标目录的父目录: {}", e))?;
-        }
+    if let Some(parent) = dst_path.parent()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent).map_err(|e| format!("无法创建目标目录的父目录: {}", e))?;
     }
     fs::copy(src_path, dst_path).map_err(|e| format!("无法复制文件: {}", e))?;
     Ok(())
