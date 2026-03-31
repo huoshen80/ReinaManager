@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::bgm_data::BgmData;
 use super::custom_data::CustomData;
+use super::kun_data::KunData;
 use super::vndb_data::VndbData;
 use super::ymgal_data::YmgalData;
 
@@ -23,6 +24,8 @@ pub struct Model {
     pub vndb_id: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub ymgal_id: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub kun_id: Option<String>,
     #[sea_orm(column_type = "Text")]
     pub id_type: String,
 
@@ -46,6 +49,8 @@ pub struct Model {
     pub bgm_data: Option<BgmData>,
     #[sea_orm(column_type = "Text", nullable)]
     pub ymgal_data: Option<YmgalData>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub kun_data: Option<KunData>,
     #[sea_orm(column_type = "Text", nullable)]
     pub custom_data: Option<CustomData>,
 

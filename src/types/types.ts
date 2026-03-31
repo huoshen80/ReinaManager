@@ -234,6 +234,7 @@ export interface InsertGameParams {
 	bgm_data?: BgmData;
 	vndb_data?: VndbData;
 	ymgal_data?: YmgalData;
+	kun_data?: KunData;
 	custom_data?: CustomData;
 }
 
@@ -269,6 +270,7 @@ export interface UpdateGameParams {
 	bgm_data?: Nullable<BgmData>;
 	vndb_data?: Nullable<VndbData>;
 	ymgal_data?: Nullable<YmgalData>;
+	kun_data?: Nullable<KunData>;
 	custom_data?: Nullable<CustomData>;
 }
 

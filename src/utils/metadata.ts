@@ -43,7 +43,9 @@ interface SourceUpdateParams {
 	bgmId?: string;
 	vndbId?: string;
 	ymgalId?: string;
+	kunId?: string;
 	bgmToken?: string;
+	kunToken?: string;
 }
 
 async function fetchYmgalAndMerge(
@@ -131,7 +133,9 @@ export async function fetchMetadataForUpdate({
 	bgmId,
 	vndbId,
 	ymgalId,
+	kunId,
 	bgmToken,
+	kunToken,
 }: SourceUpdateParams): Promise<FullGameData> {
 	if (!selectedGame) {
 		throw new Error(
@@ -156,6 +160,8 @@ export async function fetchMetadataForUpdate({
 		apiData = await gameMetadataService.getGameById(vndbId, "vndb");
 	} else if (idType === "ymgal" && ymgalId) {
 		apiData = await gameMetadataService.getGameById(ymgalId, "ymgal");
+	} else if (idType === "kungal" && kunId) {
+		apiData = await gameMetadataService.getGameById(kunId, "kungal", undefined, kunToken);
 	} else if (idType === "mixed") {
 		apiData = await gameMetadataService.getGameByIds({
 			bgmId,
@@ -190,12 +196,14 @@ export async function buildInsertGameData(
 		bgm_id: gameData.bgm_id,
 		vndb_id: gameData.vndb_id,
 		ymgal_id: gameData.ymgal_id,
+		kun_id: gameData.kun_id,
 		id_type: gameData.id_type || fallbackIdType || "mixed",
 		date: fallbackDate,
 		localpath: gameData.localpath ?? undefined,
 		bgm_data: gameData.bgm_data ?? undefined,
 		vndb_data: gameData.vndb_data ?? undefined,
 		ymgal_data: gameData.ymgal_data ?? undefined,
+		kun_data: gameData.kun_data ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
 	};
 	const cloudStatus = await resolveCloudPlayStatus(insertData);
@@ -247,14 +255,22 @@ export function buildMetadataUpdatePayload(
 		case "bgm":
 			updateData.vndb_data = null;
 			updateData.ymgal_data = null;
+			updateData.kun_data = null;
 			break;
 		case "vndb":
 			updateData.bgm_data = null;
 			updateData.ymgal_data = null;
+			updateData.kun_data = null;
 			break;
 		case "ymgal":
 			updateData.bgm_data = null;
 			updateData.vndb_data = null;
+			updateData.kun_data = null;
+			break;
+		case "kungal":
+			updateData.bgm_data = null;
+			updateData.vndb_data = null;
+			updateData.ymgal_data = null;
 			break;
 		case "mixed":
 			if (!gameData.bgm_id) {
@@ -268,6 +284,10 @@ export function buildMetadataUpdatePayload(
 			if (!gameData.ymgal_id) {
 				updateData.ymgal_data = null;
 				updateData.ymgal_id = null;
+			}
+			if (!gameData.kun_id) {
+				updateData.kun_data = null;
+				updateData.kun_id = null;
 			}
 			break;
 	}
@@ -388,11 +408,12 @@ export async function buildBulkImportGameData(
 }
 
 export function getGameIdentityKeys(
-	payload: Pick<InsertGameParams, "bgm_id" | "vndb_id" | "ymgal_id">,
+	payload: Pick<InsertGameParams, "bgm_id" | "vndb_id" | "ymgal_id" | "kun_id">,
 ): string[] {
 	return [
 		payload.bgm_id ? `bgm:${payload.bgm_id}` : null,
 		payload.vndb_id ? `vndb:${payload.vndb_id}` : null,
 		payload.ymgal_id ? `ymgal:${payload.ymgal_id}` : null,
+		payload.kun_id ? `kun:${payload.kun_id}` : null,
 	].filter((value): value is string => Boolean(value));
 }

@@ -19,6 +19,7 @@ import { fetchMetadataForUpdate } from "@/utils/metadata";
 
 interface DataSourceUpdateProps {
 	bgmToken: string;
+	kunToken?: string;
 	selectedGame: GameData | null;
 	onDataFetched: (data: FullGameData) => void;
 	disabled?: boolean;
@@ -30,6 +31,7 @@ interface DataSourceUpdateProps {
  */
 export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	bgmToken,
+	kunToken,
 	selectedGame,
 	onDataFetched,
 	disabled = false,
@@ -40,6 +42,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	const [bgmId, setBgmId] = useState<string>(selectedGame?.bgm_id || "");
 	const [vndbId, setVndbId] = useState<string>(selectedGame?.vndb_id || "");
 	const [ymgalId, setYmgalId] = useState<string>(selectedGame?.ymgal_id || "");
+	const [kunId, setKunId] = useState<string>(selectedGame?.kun_id || "");
 	const [idType, setIdType] = useState<string>(selectedGame?.id_type || "");
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -47,11 +50,13 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 		setBgmId(selectedGame?.bgm_id || "");
 		setVndbId(selectedGame?.vndb_id || "");
 		setYmgalId(selectedGame?.ymgal_id || "");
+		setKunId(selectedGame?.kun_id || "");
 		setIdType(selectedGame?.id_type || "");
 	}, [
 		selectedGame?.bgm_id,
 		selectedGame?.vndb_id,
 		selectedGame?.ymgal_id,
+		selectedGame?.kun_id,
 		selectedGame?.id_type,
 	]);
 
@@ -74,11 +79,11 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			return;
 		}
 
-		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId) {
+		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId) {
 			snackbar.error(
 				t(
-					"pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired",
-					"Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
+					"pages.Detail.DataSourceUpdate.mixedIdRequired",
+					"Mixed模式必须至少填写一个源ID",
 				),
 			);
 			return;
@@ -92,7 +97,9 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 				bgmId,
 				vndbId,
 				ymgalId,
+				kunId,
 				bgmToken,
+				kunToken,
 			});
 			onDataFetched(result);
 		} catch (error) {
@@ -123,6 +130,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					<MenuItem value="bgm">Bangumi</MenuItem>
 					<MenuItem value="vndb">VNDB</MenuItem>
 					<MenuItem value="ymgal">YMGal</MenuItem>
+					<MenuItem value="kungal">Kungal</MenuItem>
 					<MenuItem value="mixed">Mixed</MenuItem>
 					<MenuItem value="custom">Custom</MenuItem>
 					<MenuItem value="Whitecloud" disabled>
@@ -170,6 +178,19 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 				/>
 			)}
 
+			{/* Kungal ID 编辑框 */}
+			{(idType === "kungal" || idType === "mixed") && (
+				<TextField
+					label={t("pages.Detail.DataSourceUpdate.kunId", "Kungal ID")}
+					variant="outlined"
+					fullWidth
+					value={kunId}
+					onChange={(e) => setKunId(e.target.value)}
+					disabled={isLoading || disabled}
+					required={idType === "kungal"}
+				/>
+			)}
+
 			{/* 更新按钮 */}
 			<Button
 				variant="contained"
@@ -184,7 +205,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					(idType === "bgm" && !bgmId) ||
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||
-					(idType === "mixed" && !bgmId && !vndbId && !ymgalId)
+					(idType === "kungal" && !kunId) ||
+					(idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId)
 				}
 				onClick={handleFetchAndPreview}
 				startIcon={

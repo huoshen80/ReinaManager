@@ -5,7 +5,7 @@ import { useLocation } from "react-router";
 import { ViewGameBox } from "@/components/AlertBox";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
-import { useBgmToken } from "@/hooks/queries/useSettings";
+import { useBgmToken, useKunToken } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
 import type { FullGameData, UpdateGameParams } from "@/types";
@@ -23,6 +23,7 @@ import { GameInfoEdit } from "./GameInfoEdit";
  */
 export const Edit: React.FC = () => {
 	const { data: bgmToken = "" } = useBgmToken();
+	const { data: kunToken = "" } = useKunToken();
 	const id = Number(useLocation().pathname.split("/").pop());
 	const { selectedGame } = useSelectedGame(id);
 	const updateGameMutation = useUpdateGame();
@@ -84,6 +85,7 @@ export const Edit: React.FC = () => {
 						</Typography>
 						<DataSourceUpdate
 							bgmToken={bgmToken}
+							kunToken={kunToken}
 							selectedGame={selectedGame}
 							onDataFetched={handleDataSourceFetched}
 						/>
