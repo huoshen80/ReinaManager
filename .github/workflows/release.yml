@@ -21,34 +21,44 @@ jobs:
     name: Prepare Release
     runs-on: ubuntu-latest
     outputs:
-      changelog: ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
+      pure_changelog: ${{ steps.cliff_pure.outputs.changes }}
+      release_body: ${{ steps.combine.outputs.content }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Extract changelog for current version
-        id: changelog
+      - name: Extract pure changelog from CHANGELOG.md
+        id: cliff_pure
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          version: ${{ github.ref_name }}
+          path: ./CHANGELOG.md
+
+      - name: Generate download links
+        uses: orhun/git-cliff-action@v4
+        id: cliff_links
+        env:
+          INCLUDE_DOWNLOAD_LINKS: "only"
+        with:
+          config: cliff.toml
+          args: --latest
+          strip: header
+
+      - name: Combine full release body
+        id: combine
         shell: bash
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Looking for version: $VERSION"
-          CHANGELOG_FILE=$(mktemp)
-          awk "/^## \\[?v?${VERSION//./\\.}\]?/ {flag=1; next} /^## / && flag {flag=0} flag {print}" CHANGELOG.md > "$CHANGELOG_FILE"
+          {
+            echo "content<<EOF"
+            cat << 'INNER_EOF'
+          ${{ steps.cliff_pure.outputs.changes }}
 
-          if [ -s "$CHANGELOG_FILE" ]; then
-            {
-              echo "CHANGELOG_CONTENT<<EOF"
-              cat "$CHANGELOG_FILE"
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
-            echo "Found changelog content"
-          else
-            echo "CHANGELOG_CONTENT=See the assets to download and install this version." >> $GITHUB_OUTPUT
-            echo "No matching changelog found for version $VERSION"
-          fi
-          rm -f "$CHANGELOG_FILE"
+          ${{ steps.cliff_links.outputs.content }}
+          INNER_EOF
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   build-linux:
     name: Build Linux
@@ -102,7 +112,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
-          releaseBody: ${{ needs.prepare.outputs.changelog }}
+          releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
@@ -147,10 +157,10 @@ jobs:
           echo "Configuring lld for Windows..."
           cat >> .cargo/config.toml <<EOF
           [target.x86_64-pc-windows-msvc]
-          linker = "lld-link"
+          linker = "rust-lld"
 
           [target.aarch64-pc-windows-msvc]
-          linker = "lld-link"
+          linker = "rust-lld"
           EOF
       - name: Install dependencies
         run: pnpm install
@@ -181,7 +191,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
-          releaseBody: ${{ needs.prepare.outputs.changelog }}
+          releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
@@ -241,55 +251,11 @@ jobs:
             echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Prepare Release Body
-        id: release_body
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG_NAME="${{ github.ref_name }}"
-          VERSION="${TAG_NAME#v}"
-
-          # 构建下载链接
-          BASE_URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME"
-
-          X64_MSI="ReinaManager_${VERSION}_x64_en-US.msi"
-          ARM64_MSI="ReinaManager_${VERSION}_arm64_en-US.msi"
-          X64_PORTABLE="ReinaManager_${VERSION}_win_x64-portable.zip"
-          ARM64_PORTABLE="ReinaManager_${VERSION}_win_arm64-portable.zip"
-          X64_APPIMAGE="ReinaManager_${VERSION}_amd64.AppImage"
-          X64_DEB="ReinaManager_${VERSION}_amd64.deb"
-          ARM64_APPIMAGE="ReinaManager_${VERSION}_aarch64.AppImage"
-          ARM64_DEB="ReinaManager_${VERSION}_arm64.deb"
-
-          awk "/^## \\[?v?${VERSION//./\\.}\]?/ {flag=1; next} /^## / && flag {flag=0} flag {print}" CHANGELOG.md > release_body.md
-
-          echo "" >> release_body.md
-          echo "---" >> release_body.md
-          echo "" >> release_body.md
-          echo "### 📥 下载地址 (Download)" >> release_body.md
-          echo "" >> release_body.md
-          echo "![Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/$TAG_NAME/total)" >> release_body.md
-          echo "" >> release_body.md
-          echo "**Windows** (不支持 Win7)" >> release_body.md
-          echo "- [**64位 (x64)**](${BASE_URL}/ReinaManager_${VERSION}_x64_en-US.msi)" >> release_body.md
-          echo "- [**ARM64**](${BASE_URL}/ReinaManager_${VERSION}_arm64_en-US.msi)" >> release_body.md
-          echo "- [**便携版 (x64)**](${BASE_URL}/ReinaManager_${VERSION}_win_x64-portable.zip)" >> release_body.md
-          echo "- [**便携版 (ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_win_arm64-portable.zip)" >> release_body.md
-          echo "" >> release_body.md
-          echo "**Linux**" >> release_body.md
-          echo "- [**AppImage (x64)**](${BASE_URL}/ReinaManager_${VERSION}_amd64.AppImage)" >> release_body.md
-          echo "- [**Debian/Ubuntu (.deb x64)**](${BASE_URL}/ReinaManager_${VERSION}_amd64.deb)" >> release_body.md
-          echo "- [**AppImage (ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_aarch64.AppImage)" >> release_body.md
-          echo "- [**Debian/Ubuntu (.deb ARM64)**](${BASE_URL}/ReinaManager_${VERSION}_arm64.deb)" >> release_body.md
-
-          cat release_body.md
-
       - name: Publish Final Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          body_path: release_body.md
+          body: ${{ needs.prepare.outputs.release_body }}
           draft: false
           prerelease: ${{ steps.release-type.outputs.IS_PRERELEASE }}
 
