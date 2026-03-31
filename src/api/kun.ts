@@ -142,7 +142,8 @@ export async function fetchGalgameById(id: string, token?: string): Promise<Full
 export async function searchGalgame(
 	keywords: string,
 	page = 1,
-	limit = 12
+	limit = 12,
+	token?: string,
 ): Promise<{ galgames: FullGameData[]; total: number }> {
 	const resp = await http.get<any>(
 		`${KUN_API_BASE}/search`,
@@ -152,9 +153,8 @@ export async function searchGalgame(
 				type: "galgame",
 				page,
 				limit,
-				limit,
 			},
-			...buildKunAuthHeaders(),
+			...buildKunAuthHeaders(token),
 		}
 	);
 

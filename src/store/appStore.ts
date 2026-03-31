@@ -132,6 +132,10 @@ export interface AppState {
 	// Kungal 登录返回的用户详细信息快照 (持久化，用于显示头像/昵称等)
 	kunUserData: any | null;
 	setKunUserData: (data: any | null) => void;
+
+	// 开发者模式
+	isDev: boolean;
+	setIsDev: (enabled: boolean) => void;
 }
 
 // 创建持久化的全局状态
@@ -317,6 +321,12 @@ export const useStore = create<AppState>()(
 				set({ kunUserData: data });
 			},
 
+			// 开发者模式
+			isDev: false,
+			setIsDev: (enabled: boolean) => {
+				set({ isDev: enabled });
+			},
+
 			// 设置当前选中的分类
 			setSelectedCategory: (
 				categoryId: number | null,
@@ -372,6 +382,7 @@ export const useStore = create<AppState>()(
 				kunToken: state.kunToken,
 				kunUserData: state.kunUserData,
 				syncKunCollection: state.syncKunCollection,
+				isDev: state.isDev,
 			}),
 		},
 	),

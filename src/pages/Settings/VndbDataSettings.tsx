@@ -5,10 +5,10 @@ import {
 	MenuItem,
 	Select,
 	Stack,
+	Switch,
 	Typography,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/store/appStore";
 
 /**
@@ -88,5 +88,3 @@ export const VndbDataSettings = () => {
 		</Box>
 	);
 };
-
-import { Switch } from "@mui/material";

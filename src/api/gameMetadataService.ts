@@ -284,7 +284,7 @@ class GameMetadataService {
 				case "ymgal":
 					return await fetchYmByName(name);
 				case "kungal":
-					return (await searchGalgame(name)).galgames;
+					return (await searchGalgame(name, 1, 12, kunToken)).galgames;
 				default:
 					throw createStableError(
 						"unsupported_source",
