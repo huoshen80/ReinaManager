@@ -9,7 +9,6 @@
 use log::{debug, error, info};
 use serde_json::json;
 
-#[cfg(target_os = "windows")]
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -18,18 +17,22 @@ use std::time::SystemTime;
 use std::time::{Duration, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::time::{MissedTickBehavior, interval};
-#[cfg(target_os = "windows")]
+
 use {
-    log::warn, parking_lot::RwLock, std::collections::HashSet, std::path::Path,
-    std::sync::OnceLock, sysinfo::ProcessesToUpdate, sysinfo::System,
+    log::warn, parking_lot::RwLock, std::collections::HashSet, std::path::Path, std::sync::OnceLock,
 };
 
-#[cfg(target_os = "windows")]
 use windows::Win32::{
     Foundation::CloseHandle,
-    System::Threading::{
-        GetExitCodeProcess, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
-        PROCESS_TERMINATE, QueryFullProcessImageNameW, TerminateProcess,
+    System::{
+        Diagnostics::ToolHelp::{
+            CREATE_TOOLHELP_SNAPSHOT_FLAGS, CreateToolhelp32Snapshot, PROCESSENTRY32W,
+            Process32FirstW, Process32NextW,
+        },
+        Threading::{
+            GetExitCodeProcess, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+            PROCESS_TERMINATE, QueryFullProcessImageNameW, TerminateProcess,
+        },
     },
     UI::WindowsAndMessaging::GetWindowThreadProcessId,
 };
@@ -52,7 +55,6 @@ const MONITOR_CHECK_INTERVAL_SECS: u64 = 1;
 // ============================================================================
 
 /// 活跃的监控会话信息
-#[cfg(target_os = "windows")]
 pub struct ActiveSession {
     /// 停止信号，用于通知监控线程停止
     pub stop_signal: Arc<AtomicBool>,
@@ -64,7 +66,7 @@ pub struct ActiveSession {
 ///
 /// 用于在 Hook 线程和主监控循环之间共享信息
 /// 使用 parking_lot::RwLock 替代 std::sync::Mutex 以避免死锁
-#[cfg(target_os = "windows")]
+
 #[derive(Debug)]
 struct MonitorState {
     /// 当前是否有游戏窗口在前台
@@ -72,7 +74,7 @@ struct MonitorState {
     /// 当前活跃的游戏进程 PID
     best_pid: u32,
 }
-#[cfg(target_os = "windows")]
+
 impl MonitorState {
     /// 创建新的监控状态实例
     fn new(initial_pid: u32) -> Self {
@@ -86,17 +88,16 @@ impl MonitorState {
 /// Hook 线程守卫，确保线程在任何退出情况下都能正确停止
 ///
 /// 使用 RAII 模式，在析构时自动发送停止信号
-#[cfg(target_os = "windows")]
 struct HookGuard {
     stop_signal: Arc<AtomicBool>,
 }
-#[cfg(target_os = "windows")]
+
 impl HookGuard {
     fn new(stop_signal: Arc<AtomicBool>) -> Self {
         Self { stop_signal }
     }
 }
-#[cfg(target_os = "windows")]
+
 impl Drop for HookGuard {
     fn drop(&mut self) {
         // 无论函数如何退出（正常返回、?, panic 等），都会触发停止信号
@@ -110,21 +111,18 @@ impl Drop for HookGuard {
 // ============================================================================
 
 /// 全局会话存储（使用 parking_lot::RwLock 保护 HashMap）
-#[cfg(target_os = "windows")]
 static ACTIVE_SESSIONS: OnceLock<RwLock<std::collections::HashMap<u32, ActiveSession>>> =
     OnceLock::new();
 
 /// 获取全局会话存储的引用
-#[cfg(target_os = "windows")]
 fn get_sessions() -> &'static RwLock<std::collections::HashMap<u32, ActiveSession>> {
     ACTIVE_SESSIONS.get_or_init(|| RwLock::new(std::collections::HashMap::new()))
 }
 /// 注册新的监控会话
-#[cfg(target_os = "windows")]
 fn register_session(game_id: u32, session: ActiveSession) {
     get_sessions().write().insert(game_id, session);
 }
-#[cfg(target_os = "windows")]
+
 /// 移除监控会话
 fn unregister_session(game_id: u32) {
     get_sessions().write().remove(&game_id);
@@ -141,7 +139,6 @@ fn unregister_session(game_id: u32) {
 ///
 /// # Returns
 /// 成功返回终止的进程数量，失败返回错误信息
-#[cfg(target_os = "windows")]
 pub async fn stop_game_session(game_id: u32) -> Result<u32, String> {
     // 获取会话信息
     let sessions = get_sessions().read();
@@ -202,17 +199,10 @@ pub async fn monitor_game<R: Runtime>(
     executable_path: String,
 ) {
     let app_handle_clone = app_handle.clone();
-    let mut sys = System::new();
 
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_game_monitor(
-            app_handle_clone,
-            game_id,
-            process_id,
-            executable_path,
-            &mut sys,
-        )
-        .await
+        if let Err(e) =
+            run_game_monitor(app_handle_clone, game_id, process_id, executable_path).await
         {
             error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
         }
@@ -247,13 +237,11 @@ pub async fn monitor_game<R: Runtime>(
 /// 5. 主循环每秒检查状态并累计时间
 /// 6. 进程失活时触发重新扫描
 /// 7. 会话结束时发送结束事件
-#[cfg(target_os = "windows")]
 async fn run_game_monitor<R: Runtime>(
     app_handle: AppHandle<R>,
     game_id: u32,
     initial_pid: u32,
     executable_path: String,
-    sys: &mut System,
 ) -> Result<(), String> {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();
@@ -263,7 +251,7 @@ async fn run_game_monitor<R: Runtime>(
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // 初始扫描：获取所有候选 PID
-    let candidate_pids = get_all_candidate_pids(&executable_path, sys);
+    let candidate_pids = get_all_candidate_pids(&executable_path);
     let mut candidate_pids_set: HashSet<u32> = candidate_pids.into_iter().collect();
     // 如果初始 PID 不在候选列表中，手动添加（容错）
     if !candidate_pids_set.contains(&initial_pid) && is_process_running(initial_pid) {
@@ -360,7 +348,7 @@ async fn run_game_monitor<R: Runtime>(
                 warn!("最佳进程 {} 已失活，触发重新扫描", current_best_pid);
 
                 // 触发目录扫描，获取最新的候选 PID 列表
-                let new_candidate_pids_vec = get_all_candidate_pids(&executable_path, sys);
+                let new_candidate_pids_vec = get_all_candidate_pids(&executable_path);
 
                 if new_candidate_pids_vec.is_empty() {
                     info!("未找到可切换的活动进程，结束监控会话");
@@ -518,7 +506,6 @@ fn finalize_session<R: Runtime>(
 /// 3. 检查 PID 是否在已知的候选列表中
 /// 4. 如果不在，检查其可执行文件路径是否在游戏目录下（逃逸检测）
 /// 5. 更新共享状态：is_foreground、best_pid，并将新进程加入候选列表
-#[cfg(target_os = "windows")]
 fn start_foreground_hook<R: Runtime + 'static>(
     state: Arc<RwLock<MonitorState>>,
     candidate_pids: Arc<RwLock<HashSet<u32>>>,
@@ -535,8 +522,10 @@ fn start_foreground_hook<R: Runtime + 'static>(
 
         let mut last_pid: u32 = 0;
 
-        // 预处理游戏目录路径：转换为小写用于不区分大小写的比较（Windows 特性）
-        let game_directory_lower = game_directory.to_lowercase();
+        // 双重路径预处理：原始路径 + 真实物理规范化路径（如果可获取）
+        let canonical_game_dir = std::fs::canonicalize(&game_directory)
+            .ok()
+            .map(|p| p.to_string_lossy().to_string());
 
         // 主循环：检查停止信号
         while !stop_signal.load(Ordering::Acquire) {
@@ -597,11 +586,13 @@ fn start_foreground_hook<R: Runtime + 'static>(
                 // 检查 2：新 PID 的可执行文件是否在游戏目录下（逃逸检测）
                 if let Some(exe_path) = get_process_executable_path(new_pid) {
                     let exe_path_str = exe_path.to_string_lossy();
-                    // Windows 文件系统不区分大小写，统一转小写比较
-                    if exe_path_str
-                        .to_lowercase()
-                        .starts_with(&game_directory_lower)
-                    {
+                    // 双重无开销短路匹配
+                    let mut matches = is_sub_path_ignore_case(&exe_path_str, &game_directory);
+                    if !matches && let Some(canon_str) = &canonical_game_dir {
+                        matches = is_sub_path_ignore_case(&exe_path_str, canon_str);
+                    }
+
+                    if matches {
                         // 发现新的游戏进程！
                         info!(
                             "检测到新的游戏进程（逃逸）: PID {}, 路径: {}",
@@ -643,21 +634,51 @@ fn start_foreground_hook<R: Runtime + 'static>(
 // 进程管理 - 进程查询与检测
 // ============================================================================
 
+/// 判断在忽略大小写的情况下，`path` 是否为 `base_dir` 或其子路径
+///
+/// 这个函数除了忽略大写字母外，还会处理类似于 `"C:\Games\Game2"` 误匹配为 `"C:\Games\Game"`
+fn is_sub_path_ignore_case(path: &str, base_dir: &str) -> bool {
+    let path_bytes = path.as_bytes();
+    let base_bytes = base_dir.as_bytes();
+    let path_len = path_bytes.len();
+    let base_len = base_bytes.len();
+
+    if path_len < base_len {
+        return false;
+    }
+
+    if !path_bytes[..base_len].eq_ignore_ascii_case(base_bytes) {
+        return false;
+    }
+
+    if path_len == base_len {
+        return true;
+    }
+
+    // base_dir 自身以分隔符结尾（比如根目录 C:\）
+    if base_dir.ends_with('\\') || base_dir.ends_with('/') {
+        return true;
+    }
+
+    // 否则，确保匹配部分的下一个字符是路径分隔符
+    let next_char = path_bytes[base_len];
+    next_char == b'\\' || next_char == b'/'
+}
+// ============================================================================
+
 /// 获取当前所有候选的游戏进程 PID 列表
 ///
 /// 从游戏目录下扫描所有进程，自动过滤掉管理器自身。
 ///
 /// # Arguments
 /// * `executable_path` - 游戏可执行文件路径
-/// * `sys` - System 实例的可变引用
 ///
 /// # Returns
 /// 返回所有候选 PID 的列表，如果没有找到则返回空列表
-#[cfg(target_os = "windows")]
-fn get_all_candidate_pids(executable_path: &str, sys: &mut System) -> Vec<u32> {
+fn get_all_candidate_pids(executable_path: &str) -> Vec<u32> {
     let manager_pid = std::process::id();
 
-    let candidate_pids: Vec<u32> = get_process_id_by_path(executable_path, sys)
+    let candidate_pids: Vec<u32> = get_processes_in_directory(executable_path)
         .into_iter()
         .filter(|&pid| pid != manager_pid)
         .collect();
@@ -678,41 +699,16 @@ fn get_all_candidate_pids(executable_path: &str, sys: &mut System) -> Vec<u32> {
     candidate_pids
 }
 
-/// 根据可执行文件所在目录获取该目录及子目录下所有正在运行的进程 PID 列表。
+/// 用 Windows ToolHelp API 枚举所有运行进程，返回可执行路径在目标目录下的进程 PID 列表
 ///
-/// 此函数会刷新进程信息，然后扫描所有进程，找出可执行文件路径在目标目录或其子目录中的进程。
-// has_window_for_pid 函数已移除，其功能已整合到 select_best_from_candidates 中
-// 这样可以避免多次调用 EnumWindows（O(N*M) -> O(M)），提升性能
-/// 根据可执行文件所在目录获取该目录及子目录下所有正在运行的进程 PID 列表。
-///
-/// 此函数会刷新进程信息，然后扫描所有进程，找出可执行文件路径在目标目录或其子目录中的进程。
+/// 复用文件内已有的 `get_process_executable_path()` 获取路径，替代 sysinfo。
 ///
 /// # Arguments
-/// * `executable_path` - 要查找的可执行文件的完整路径
-/// * `sys` - System 实例的可变引用
+/// * `executable_path` - 可执行文件的完整路径（用于确定目标目录）
 ///
 /// # Returns
-/// 返回目录下所有正在运行的进程 PID 列表
-#[cfg(target_os = "windows")]
-fn get_process_id_by_path(executable_path: &str, sys: &mut System) -> Vec<u32> {
-    let pids = get_processes_in_directory(executable_path, sys);
-    debug!("找到进程目录下的进程 PID 列表: {:?}", pids);
-    pids
-}
-
-/// 根据可执行文件所在目录获取该目录及子目录下所有正在运行的进程 PID 列表
-///
-/// # Arguments
-/// * `executable_path` - 可执行文件的完整路径
-/// * `sys` - System 实例的可变引用
-///
-/// # Returns
-/// 返回该目录及子目录下所有正在运行进程的 PID 列表。如果无法获取目录信息，返回空列表
-#[cfg(target_os = "windows")]
-fn get_processes_in_directory(executable_path: &str, sys: &mut System) -> Vec<u32> {
-    // 只更新进程列表，不更新磁盘、网络等其他信息，提高性能
-    sys.refresh_processes(ProcessesToUpdate::All, true);
-
+/// 返回该目录及子目录下所有正在运行进程的 PID 列表
+fn get_processes_in_directory(executable_path: &str) -> Vec<u32> {
     let target_dir = match Path::new(executable_path).parent() {
         Some(dir) => dir,
         None => {
@@ -721,47 +717,65 @@ fn get_processes_in_directory(executable_path: &str, sys: &mut System) -> Vec<u3
         }
     };
 
-    // 只对目标目录进行一次规范化，避免在循环中重复 I/O
-    let canonical_target = std::fs::canonicalize(target_dir).ok();
-
-    // 预先准备字符串形式的路径用于回退比较
-    let target_str = canonical_target
-        .as_ref()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| target_dir.to_string_lossy().to_string());
+    // 双重路径预处理：保留原始字符串 + 尝试获取物理真实规范化路径
+    let target_str = target_dir.to_string_lossy().to_string();
+    let canonical_target_str = std::fs::canonicalize(target_dir)
+        .ok()
+        .map(|p| p.to_string_lossy().to_string());
 
     let mut pids = Vec::new();
-    for (pid, process) in sys.processes() {
-        if let Some(process_exe_path) = process.exe()
-            && let Some(process_dir) = process_exe_path.parent()
-        {
-            // 优先使用字符串比较，避免对每个进程都执行 canonicalize
-            let process_str = process_dir.to_string_lossy();
 
-            let matches = if let Some(canonical) = &canonical_target {
-                // 先尝试字符串前缀匹配（快速路径）
-                if process_str.starts_with(&target_str) {
-                    true
-                } else {
-                    // 字符串匹配失败，尝试规范化路径比较（慢速路径）
-                    std::fs::canonicalize(process_dir)
-                        .ok()
-                        .map(|canonical_process_dir| {
-                            canonical_process_dir == *canonical
-                                || canonical_process_dir.starts_with(canonical)
-                        })
-                        .unwrap_or(false)
+    unsafe {
+        // 创建进程快照
+        let snapshot = match CreateToolhelp32Snapshot(
+            CREATE_TOOLHELP_SNAPSHOT_FLAGS(0x00000002), // TH32CS_SNAPPROCESS
+            0,
+        ) {
+            Ok(h) if !h.is_invalid() => h,
+            _ => {
+                warn!("CreateToolhelp32Snapshot 失败");
+                return Vec::new();
+            }
+        };
+
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+
+        // 遍历所有进程
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                let pid = entry.th32ProcessID;
+                // 通过复用已有函数获取进程的完整可执行路径
+
+                if pid > 0
+                    && let Some(exe_path) = get_process_executable_path(pid)
+                    && let Some(process_dir) = exe_path.parent()
+                {
+                    let process_str = process_dir.to_string_lossy();
+
+                    // 双重无开销短路匹配
+                    let mut matches = is_sub_path_ignore_case(&process_str, &target_str);
+                    if !matches && let Some(canon_str) = &canonical_target_str {
+                        matches = is_sub_path_ignore_case(&process_str, canon_str);
+                    }
+
+                    if matches {
+                        pids.push(pid);
+                    }
                 }
-            } else {
-                // target_dir 规范化失败，完全使用字符串比较
-                process_str == target_str || process_str.starts_with(target_str.as_str())
-            };
 
-            if matches {
-                pids.push(pid.as_u32());
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
             }
         }
+
+        let _ = CloseHandle(snapshot);
     }
+
+    debug!("找到进程目录下的进程 PID 列表: {:?}", pids);
     pids
 }
 
@@ -775,7 +789,6 @@ fn get_processes_in_directory(executable_path: &str, sys: &mut System) -> Vec<u3
 ///
 /// # Returns
 /// 如果进程仍在运行（退出码为 STILL_ACTIVE = 259），返回 `true`，否则返回 `false`
-#[cfg(target_os = "windows")]
 pub fn is_process_running(pid: u32) -> bool {
     unsafe {
         let handle_result = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
@@ -802,7 +815,6 @@ pub fn is_process_running(pid: u32) -> bool {
 ///
 /// # Returns
 /// 成功返回 `Ok(())`，失败返回错误信息
-#[cfg(target_os = "windows")]
 pub fn terminate_process(pid: u32) -> Result<(), String> {
     unsafe {
         let handle = OpenProcess(PROCESS_TERMINATE, false, pid)
@@ -826,7 +838,6 @@ pub fn terminate_process(pid: u32) -> Result<(), String> {
 ///
 /// # Returns
 /// 如果成功，返回进程的可执行文件完整路径
-#[cfg(target_os = "windows")]
 fn get_process_executable_path(pid: u32) -> Option<std::path::PathBuf> {
     use windows::core::PWSTR;
 
@@ -838,7 +849,7 @@ fn get_process_executable_path(pid: u32) -> Option<std::path::PathBuf> {
                 let error_code = e.code().0;
                 if error_code == 0x80070005u32 as i32 {
                     // ERROR_ACCESS_DENIED
-                    debug!("无权访问进程 {} 的路径（可能是系统/保护进程）", pid);
+                    // debug!("无权访问进程 {} 的路径（可能是系统/保护进程）", pid);
                 } else {
                     debug!("无法打开进程 {} (错误码: 0x{:X})", pid, error_code);
                 }

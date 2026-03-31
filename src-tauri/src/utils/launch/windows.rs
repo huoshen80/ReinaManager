@@ -5,11 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
 use tauri::{AppHandle, Runtime, command};
-#[cfg(target_os = "windows")]
 use {
     crate::utils::fs::PathManager,
     log::{error, info},
-    sysinfo::{ProcessRefreshKind, RefreshKind, System},
     tauri::Manager,
     tokio::time,
 };
@@ -31,7 +29,6 @@ pub struct StopResult {
 }
 
 // ================= Windows键盘模拟支持 =================
-#[cfg(target_os = "windows")]
 mod keyboard_simulator {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
         INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
@@ -84,7 +81,6 @@ mod keyboard_simulator {
 
 // ================= Windows 提权启动（ShellExecuteExW with "runas"）支持 =================
 // 仅在 Windows 下编译，其他平台不包含该实现
-#[cfg(target_os = "windows")]
 mod win_elevated_launch {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
@@ -364,7 +360,6 @@ pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
 }
 
 /// 为游戏启动Magpie放大
-#[cfg(target_os = "windows")]
 async fn start_magpie_for_game(
     _game_path: &str,
     app_handle: &AppHandle<impl Runtime>,
@@ -425,18 +420,52 @@ async fn start_magpie_for_game(
     }
 }
 
-/// 检查进程是否在运行（使用sysinfo，性能优于tasklist命令）
+/// 检查指定名称的进程是否在运行（使用 Windows ToolHelp API）
 fn is_process_running(process_name: &str) -> bool {
-    let mut system = System::new_with_specifics(
-        RefreshKind::nothing().with_processes(ProcessRefreshKind::everything()),
-    );
+    use std::mem;
+    use windows::Win32::{
+        Foundation::CloseHandle,
+        System::Diagnostics::ToolHelp::{
+            CREATE_TOOLHELP_SNAPSHOT_FLAGS, CreateToolhelp32Snapshot, PROCESSENTRY32W,
+            Process32FirstW, Process32NextW,
+        },
+    };
 
-    // 刷新进程信息
-    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    unsafe {
+        let snapshot = match CreateToolhelp32Snapshot(
+            CREATE_TOOLHELP_SNAPSHOT_FLAGS(0x00000002), // TH32CS_SNAPPROCESS
+            0,
+        ) {
+            Ok(h) if !h.is_invalid() => h,
+            _ => return false,
+        };
 
-    // 检查是否有匹配的进程
-    system
-        .processes()
-        .values()
-        .any(|process| process.name().eq_ignore_ascii_case(process_name))
+        let mut entry = PROCESSENTRY32W {
+            dwSize: mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+
+        let mut found = false;
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                // th32ExeFile 是以 null 结尾的 UTF-16 进程名（不含路径）
+                let name_end = entry
+                    .szExeFile
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(entry.szExeFile.len());
+                let name = String::from_utf16_lossy(&entry.szExeFile[..name_end]);
+                if name.eq_ignore_ascii_case(process_name) {
+                    found = true;
+                    break;
+                }
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+
+        let _ = CloseHandle(snapshot);
+        found
+    }
 }

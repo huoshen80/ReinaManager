@@ -43,13 +43,12 @@ tauri-plugin-os = "~2.3.2"
 
 
 # System / utilities
-sysinfo = "0.38.4"
 sevenz-rust2 = "0.20.2"
 chrono = { version = "0.4.44", features = ["serde"] }
 parking_lot = "0.12"
 
 # Async runtime / DB
-tokio = { version = "1.50.0", features = ["full"] }
+tokio = { version = "1.50.0", features = ["rt-multi-thread", "time", "sync", "fs"] }
 sea-orm = { version = "1.1.19", features = [
     "sqlx-sqlite",
     "runtime-tokio-native-tls",
