@@ -29,11 +29,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version is $VERSION"
+
       - name: Extract pure changelog from CHANGELOG.md
         id: cliff_pure
         uses: mindsers/changelog-reader-action@v2
         with:
-          version: ${{ github.ref_name }}
+          version: ${{ steps.get_version.outputs.VERSION }}
           path: ./CHANGELOG.md
 
       - name: Generate download links
