@@ -4,7 +4,6 @@ import {
 	updateUserCollection,
 } from "@/api/bgm";
 import { fetchVndbUserCollection, updateVndbUserCollection } from "@/api/vndb";
-import { settingsKeys } from "@/hooks/queries/useSettings";
 import { queryClient } from "@/providers/queryClient";
 import { settingsService } from "@/services/invoke";
 import { useStore } from "@/store/appStore";
@@ -39,10 +38,8 @@ const VNDB_NORMAL_STATUS_LABEL_IDS = [
 
 async function getBgmToken() {
 	try {
-		return await queryClient.fetchQuery({
-			queryKey: settingsKeys.bgmToken(),
-			queryFn: () => settingsService.getBgmToken(),
-		});
+		const settings = await settingsService.getAllSettings();
+		return settings.bgm_token ?? "";
 	} catch (error) {
 		console.error("获取 BGM Token 失败:", error);
 		return "";
@@ -51,10 +48,8 @@ async function getBgmToken() {
 
 async function getVndbToken() {
 	try {
-		return await queryClient.fetchQuery({
-			queryKey: settingsKeys.vndbToken(),
-			queryFn: () => settingsService.getVndbToken(),
-		});
+		const settings = await settingsService.getAllSettings();
+		return settings.vndb_token ?? "";
 	} catch (error) {
 		console.error("获取 VNDB Token 失败:", error);
 		return "";
@@ -64,7 +59,7 @@ async function getVndbToken() {
 async function getBgmUsername(token: string) {
 	try {
 		const profile = await queryClient.fetchQuery({
-			queryKey: settingsKeys.bgmCurrentUserProfileByToken(token),
+			queryKey: ["settings", "bgmCurrentUserProfile", token],
 			queryFn: () => fetchCurrentUserProfile(token),
 		});
 		return profile?.username ?? null;

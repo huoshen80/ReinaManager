@@ -1,10 +1,10 @@
-use crate::{database::repository::games_repository::GamesRepository, utils::fs::PathManager};
+use crate::database::repository::games_repository::GamesRepository;
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use sevenz_rust2::{ArchiveWriter, decompress_file, encoder_options::Lzma2Options};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::State;
 
 // 针对存档备份优化的压缩配置
@@ -21,7 +21,7 @@ pub struct BackupInfo {
 }
 /// 创建游戏存档备份
 ///
-/// 备份目录优先级（通过 PathManager 统一管理）：
+/// 备份目录优先级：
 /// 1. 使用 user.save_root_path/backups（如果设置且非空）
 /// 2. 使用默认路径：
 ///    - 便携模式：程序目录/backups
@@ -37,7 +37,6 @@ pub struct BackupInfo {
 #[tauri::command]
 pub async fn create_savedata_backup(
     db: State<'_, DatabaseConnection>,
-    path_manager: State<'_, PathManager>,
     game_id: i64,
     source_path: String,
 ) -> Result<BackupInfo, String> {
@@ -52,8 +51,7 @@ pub async fn create_savedata_backup(
         return Err("源路径必须是一个文件夹".to_string());
     }
 
-    // 使用统一的路径管理器获取备份目录
-    let backup_root = path_manager.get_savedata_backup_path(&db).await?;
+    let backup_root = resolve_savedata_backup_root(&db).await?;
 
     // 创建游戏专属备份目录
     let game_backup_dir = backup_root.join(format!("game_{}", game_id));
@@ -163,7 +161,6 @@ async fn delete_backup_record(
 #[tauri::command]
 pub async fn delete_savedata_backup(
     db: State<'_, DatabaseConnection>,
-    path_manager: State<'_, PathManager>,
     backup_id: i32,
 ) -> Result<(), String> {
     // 先从数据库获取备份记录
@@ -172,8 +169,7 @@ pub async fn delete_savedata_backup(
         .map_err(|e| format!("获取备份记录失败: {}", e))?
         .ok_or_else(|| "备份记录不存在".to_string())?;
 
-    // 使用统一的路径管理器获取备份目录
-    let backup_root = path_manager.get_savedata_backup_path(&db).await?;
+    let backup_root = resolve_savedata_backup_root(&db).await?;
     let game_backup_dir = backup_root.join(format!("game_{}", record.game_id));
     let backup_path = game_backup_dir.join(&record.file);
 
@@ -183,6 +179,19 @@ pub async fn delete_savedata_backup(
     }
 
     Ok(())
+}
+
+async fn resolve_savedata_backup_root(db: &DatabaseConnection) -> Result<PathBuf, String> {
+    use crate::database::repository::settings_repository::DbSettingsExt;
+    let settings = db.get_settings().await?;
+
+    let backup_root = if let Some(custom) = settings.save_root_path_value() {
+        PathBuf::from(custom).join("backups")
+    } else {
+        reina_path::get_base_data_dir()?.join("backups")
+    };
+
+    Ok(backup_root)
 }
 
 /// 创建7z压缩包

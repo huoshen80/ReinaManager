@@ -84,7 +84,8 @@ export const getAppDataDirPath = (): string => {
  */
 export const getDbBackupPath = async (): Promise<string> => {
 	try {
-		const backupDir = await settingsService.getDbBackupPath();
+		const settings = await settingsService.getAllSettings();
+		const backupDir = settings.db_backup_path ?? "";
 		const backupFinalDir = join(getAppDataDirPath(), "data", "backups");
 		return backupDir ? backupDir : backupFinalDir;
 	} catch (error) {
@@ -102,7 +103,8 @@ export const getSavedataBackupPath = async (
 	gameId: number,
 ): Promise<string> => {
 	try {
-		const savedataBackupPath = await settingsService.getSaveRootPath();
+		const settings = await settingsService.getAllSettings();
+		const savedataBackupPath = settings.save_root_path ?? "";
 		const backupGameDir = join(savedataBackupPath, "backups", `game_${gameId}`);
 		const savedataBackupFinalDir = join(
 			getAppDataDirPath(),

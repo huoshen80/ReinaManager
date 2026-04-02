@@ -31,7 +31,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gameMetadataService } from "@/api";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
-import { useBgmToken } from "@/hooks/queries/useSettings";
+import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
 import type { FullGameData, ScanResult } from "@/types";
@@ -86,7 +86,8 @@ function getMatchedGameName(
 
 const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const { t, i18n } = useTranslation();
-	const { data: bgmToken = "" } = useBgmToken();
+	const { data: settings } = useAllSettings();
+	const bgmToken = settings?.bgm_token ?? "";
 	const { addGamesFromBulkImport, isAddingGames } = useBulkGameAddActions();
 	const preferredApiSource = bgmToken ? "bgm" : "vndb";
 

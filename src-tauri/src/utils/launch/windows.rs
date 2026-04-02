@@ -1,14 +1,14 @@
 use crate::database::dto::GameLaunchOptions;
+use crate::database::repository::settings_repository::DbSettingsExt;
 use crate::utils::command_ext::CommandGuiExt;
 use crate::utils::game_monitor::{monitor_game, stop_game_session};
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use tauri::{AppHandle, Runtime, command};
+use tauri::{AppHandle, Runtime, State, command};
 use {
-    crate::utils::fs::PathManager,
     log::{error, info},
-    tauri::Manager,
     tokio::time,
 };
 
@@ -172,6 +172,7 @@ mod win_elevated_launch {
 #[command]
 pub async fn launch_game<R: Runtime>(
     app_handle: AppHandle<R>,
+    db: State<'_, DatabaseConnection>,
     game_path: String,
     game_id: u32,
     args: Option<Vec<String>>,
@@ -181,15 +182,22 @@ pub async fn launch_game<R: Runtime>(
         return Err(format!("游戏可执行文件不存在: {}", game_path));
     }
 
-    // 处理启动选项
+    // ✨ 1. 先提取启动选项，写法也可以更简短
     let use_le = launch_options
         .as_ref()
-        .map(|opt| opt.le_launch.unwrap_or(false))
+        .and_then(|opt| opt.le_launch)
         .unwrap_or(false);
     let use_magpie = launch_options
         .as_ref()
-        .map(|opt| opt.magpie.unwrap_or(false))
+        .and_then(|opt| opt.magpie)
         .unwrap_or(false);
+
+    // ✨ 2. 直接复用上面的布尔值来判断是否需要查库
+    let settings = if use_le || use_magpie {
+        Some(db.inner().get_settings().await?)
+    } else {
+        None
+    };
 
     // 获取游戏可执行文件的目录
     let game_dir = match Path::new(&game_path).parent() {
@@ -205,18 +213,12 @@ pub async fn launch_game<R: Runtime>(
 
     // 根据启动选项决定启动方式
     let mut command = if use_le {
-        // LE转区启动
-        let path_manager = app_handle.state::<PathManager>().inner();
+        let le_path = settings
+            .as_ref()
+            .and_then(|s| s.le_path_value())
+            .ok_or_else(|| "LE转区软件路径未设置".to_string())?;
 
-        let le_path = path_manager
-            .get_le_path()
-            .map_err(|e| format!("获取LE路径失败: {}", e))?;
-
-        if le_path.is_empty() {
-            return Err("LE转区软件路径未设置".to_string());
-        }
-
-        let mut cmd = Command::new(&le_path);
+        let mut cmd = Command::new(le_path);
         cmd.current_dir(game_dir);
         cmd.arg(&game_path);
         cmd
@@ -243,13 +245,15 @@ pub async fn launch_game<R: Runtime>(
 
             // 如果需要Magpie放大，在后台启动
             if use_magpie {
-                let game_path_clone = game_path.clone();
-                let app_handle_clone = app_handle.clone();
+                let magpie_path = settings
+                    .as_ref()
+                    .and_then(|s| s.magpie_path_value())
+                    .ok_or_else(|| "Magpie放大软件路径未设置".to_string())?
+                    .to_string();
 
                 tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                    if let Err(e) = start_magpie_for_game(&game_path_clone, &app_handle_clone).await
-                    {
+                    if let Err(e) = start_magpie_for_game(&magpie_path).await {
                         error!("启动Magpie失败: {}", e);
                     }
                 });
@@ -272,15 +276,10 @@ pub async fn launch_game<R: Runtime>(
             if needs_elevation {
                 // 对于LE启动，需要用LE路径作为执行文件，游戏路径作为参数
                 let (exec_path, exec_args) = if use_le {
-                    let path_manager = app_handle.state::<PathManager>().inner();
-
-                    let le_path = path_manager
-                        .get_le_path()
-                        .map_err(|_| "获取LE路径失败".to_string())?;
-
-                    if le_path.is_empty() {
-                        return Err("LE转区软件路径未设置，无法提权启动".to_string());
-                    }
+                    let le_path = settings
+                        .as_ref()
+                        .and_then(|s| s.le_path_value())
+                        .ok_or_else(|| "LE转区软件路径未设置，无法提权启动".to_string())?;
 
                     let mut args = vec![game_path.clone()];
                     if let Some(additional_args) = &args_clone {
@@ -302,14 +301,15 @@ pub async fn launch_game<R: Runtime>(
 
                         // 如果需要Magpie放大，在后台启动
                         if use_magpie {
-                            let game_path_clone = game_path.clone();
-                            let app_handle_clone = app_handle.clone();
+                            let magpie_path = settings
+                                .as_ref()
+                                .and_then(|s| s.magpie_path_value())
+                                .ok_or_else(|| "Magpie放大软件路径未设置".to_string())?
+                                .to_string();
 
                             tokio::spawn(async move {
                                 time::sleep(time::Duration::from_secs(1)).await;
-                                if let Err(e) =
-                                    start_magpie_for_game(&game_path_clone, &app_handle_clone).await
-                                {
+                                if let Err(e) = start_magpie_for_game(&magpie_path).await {
                                     error!("启动Magpie失败: {}", e);
                                 }
                             });
@@ -360,27 +360,13 @@ pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
 }
 
 /// 为游戏启动Magpie放大
-async fn start_magpie_for_game(
-    _game_path: &str,
-    app_handle: &AppHandle<impl Runtime>,
-) -> Result<(), String> {
-    // 获取Magpie路径
-    let path_manager = app_handle.state::<PathManager>().inner();
-
-    let magpie_path = path_manager
-        .get_magpie_path()
-        .map_err(|e| format!("获取Magpie路径失败: {}", e))?;
-
-    if magpie_path.is_empty() {
-        return Err("Magpie放大软件路径未设置".to_string());
-    }
-
+async fn start_magpie_for_game(magpie_path: &str) -> Result<(), String> {
     // 检查Magpie是否已经在运行
     let magpie_was_running = is_process_running("Magpie.exe");
 
     if !magpie_was_running {
         // Magpie没有运行，启动它
-        let mut command = Command::new(&magpie_path);
+        let mut command = Command::new(magpie_path);
         command.arg("-t"); // tray mode
 
         let spawn_result = command.gui_safe().spawn();

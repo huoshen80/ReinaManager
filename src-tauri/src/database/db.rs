@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tauri::{AppHandle, Manager, command};
+use tauri::{State, command};
 use url::Url;
 
-use reina_path::{get_db_path, is_portable_mode};
+use reina_path::{get_db_path, get_default_db_backup_path, is_portable_mode};
 
 /// 数据库备份结果
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,15 +97,17 @@ fn generate_backup_filename() -> String {
     format!("reina_manager_{}.db", timestamp)
 }
 
-/// 解析备份目标目录（使用统一的路径管理器）
-async fn resolve_backup_dir(
-    app_handle: &AppHandle,
-    db: &DatabaseConnection,
-) -> Result<PathBuf, String> {
-    use crate::utils::fs::PathManager;
+/// 解析备份目标目录（按需读取 user.db_backup_path）
+async fn resolve_backup_dir(db: &DatabaseConnection) -> Result<PathBuf, String> {
+    use crate::database::repository::settings_repository::DbSettingsExt;
 
-    let path_manager = app_handle.state::<PathManager>();
-    let backup_dir = path_manager.get_db_backup_path(db).await?;
+    let settings = db.get_settings().await?;
+
+    let backup_dir = if let Some(custom) = settings.db_backup_path_value() {
+        PathBuf::from(custom)
+    } else {
+        get_default_db_backup_path()?
+    };
 
     // 确保目录存在
     if !backup_dir.exists() {
@@ -124,23 +126,14 @@ async fn resolve_backup_dir(
 /// - 优先使用 user.db_backup_path（如果设置且非空）
 /// - 否则使用默认路径
 ///
-/// # Arguments
-///
-/// * `app_handle` - Tauri 应用句柄
-///
 /// # Returns
 ///
 /// 备份结果，包含备份文件的路径
 #[command]
-pub async fn backup_database(app_handle: AppHandle) -> Result<BackupResult, String> {
-    // 获取数据库连接
-    let db = app_handle
-        .try_state::<DatabaseConnection>()
-        .ok_or("数据库连接不可用")?;
-
+pub async fn backup_database(db: State<'_, DatabaseConnection>) -> Result<BackupResult, String> {
     // 生成备份文件名并确定目标路径
     let backup_name = generate_backup_filename();
-    let backup_dir = resolve_backup_dir(&app_handle, &db).await?;
+    let backup_dir = resolve_backup_dir(&db).await?;
     let target_path = backup_dir.join(&backup_name);
 
     // 将路径转换为字符串
@@ -174,7 +167,6 @@ pub async fn backup_database(app_handle: AppHandle) -> Result<BackupResult, Stri
 /// # Arguments
 ///
 /// * `source_path` - 要导入的数据库文件路径
-/// * `app_handle` - Tauri 应用句柄
 ///
 /// # Returns
 ///
@@ -182,7 +174,7 @@ pub async fn backup_database(app_handle: AppHandle) -> Result<BackupResult, Stri
 #[command]
 pub async fn import_database(
     source_path: String,
-    app_handle: AppHandle,
+    db: State<'_, DatabaseConnection>,
 ) -> Result<ImportResult, String> {
     let src_path = Path::new(&source_path);
 
@@ -197,25 +189,17 @@ pub async fn import_database(
     }
 
     // 在关闭连接前读取备份配置
-    let backup_dir = if let Some(conn_state) = app_handle.try_state::<DatabaseConnection>() {
-        resolve_backup_dir(&app_handle, conn_state.inner())
-            .await
-            .ok()
-    } else {
-        None
-    };
+    let backup_dir = resolve_backup_dir(&db).await.ok();
 
     // 获取当前数据库路径（自动判断便携模式）
     let target_db_path = get_db_path()?;
 
     // 步骤1：关闭数据库连接（必须先关闭才能安全备份和覆盖）
-    if let Some(conn_state) = app_handle.try_state::<DatabaseConnection>() {
-        let conn = conn_state.inner().clone();
-        close_connection(conn)
-            .await
-            .map_err(|e| format!("关闭数据库连接失败: {}", e))?;
-        log::info!("数据库连接已关闭，准备备份和导入");
-    }
+    let conn = db.inner().clone();
+    close_connection(conn)
+        .await
+        .map_err(|e| format!("关闭数据库连接失败: {}", e))?;
+    log::info!("数据库连接已关闭，准备备份和导入");
 
     // 步骤2：使用 fs::copy 进行冷备份（连接已关闭，可以安全复制）
     let result_backup_path = if target_db_path.exists() {

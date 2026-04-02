@@ -17,48 +17,6 @@ export interface UserSettings {
 
 class SettingsService extends BaseService {
 	/**
-	 * 获取 BGM Token
-	 */
-	async getBgmToken(): Promise<string> {
-		return this.invoke<string>("get_bgm_token");
-	}
-
-	/**
-	 * 设置 BGM Token
-	 */
-	async setBgmToken(token: string): Promise<void> {
-		return this.invoke<void>("set_bgm_token", { token });
-	}
-
-	/**
-	 * 获取 VNDB Token
-	 */
-	async getVndbToken(): Promise<string> {
-		return this.invoke<string>("get_vndb_token");
-	}
-
-	/**
-	 * 设置 VNDB Token
-	 */
-	async setVndbToken(token: string): Promise<void> {
-		return this.invoke<void>("set_vndb_token", { token });
-	}
-
-	/**
-	 * 获取存档根路径
-	 */
-	async getSaveRootPath(): Promise<string> {
-		return this.invoke<string>("get_save_root_path");
-	}
-
-	/**
-	 * 设置存档根路径
-	 */
-	async setSaveRootPath(path: string): Promise<void> {
-		return this.invoke<void>("set_save_root_path", { path });
-	}
-
-	/**
 	 * 动态设置日志输出级别（不持久化）
 	 */
 	async setLogLevel(level: LogLevel): Promise<void> {
@@ -70,47 +28,6 @@ class SettingsService extends BaseService {
 	 */
 	async getLogLevel(): Promise<LogLevel> {
 		return this.invoke<LogLevel>("get_reina_log_level");
-	}
-	/**
-	 * 获取数据库备份保存路径
-	 */
-	async getDbBackupPath(): Promise<string> {
-		return this.invoke<string>("get_db_backup_path");
-	}
-
-	/**
-	 * 设置数据库备份保存路径
-	 */
-	async setDbBackupPath(path: string): Promise<void> {
-		return this.invoke<void>("set_db_backup_path", { path });
-	}
-
-	/**
-	 * 获取LE转区软件路径
-	 */
-	async getLePath(): Promise<string> {
-		return this.invoke<string>("get_le_path");
-	}
-
-	/**
-	 * 设置LE转区软件路径
-	 */
-	async setLePath(path: string): Promise<void> {
-		return this.invoke<void>("set_le_path", { path });
-	}
-
-	/**
-	 * 获取Magpie转区软件路径
-	 */
-	async getMagpiePath(): Promise<string> {
-		return this.invoke<string>("get_magpie_path");
-	}
-
-	/**
-	 * 设置Magpie转区软件路径
-	 */
-	async setMagpiePath(path: string): Promise<void> {
-		return this.invoke<void>("set_magpie_path", { path });
 	}
 
 	/**
