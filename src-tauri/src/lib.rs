@@ -152,15 +152,14 @@ pub fn run() {
                         .build(),
                 )?;
             } else {
-                // 设置初始日志级别为 Error（运行时可通过命令调整）
+                // 设置初始日志级别为 Warn（运行时可通过命令调整）
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Debug) // 允许运行时动态调整到任意级别
+                        .level(log::LevelFilter::Warn) // 允许运行时动态调整到任意级别
                         .build(),
                 )?;
             }
-            log::set_max_level(log::LevelFilter::Error);
 
             // 初始化路径管理器
             let path_manager = PathManager::new();

@@ -183,15 +183,13 @@ export async function fetchMetadataForUpdate({
 
 export async function buildInsertGameData(
 	gameData: FullGameData,
-	fallbackIdType?: string,
-	fallbackDate?: string,
 ): Promise<InsertGameParams> {
 	const insertData: InsertGameParams = {
 		bgm_id: gameData.bgm_id,
 		vndb_id: gameData.vndb_id,
 		ymgal_id: gameData.ymgal_id,
-		id_type: gameData.id_type || fallbackIdType || "mixed",
-		date: fallbackDate,
+		id_type: gameData.id_type || "mixed",
+		date: gameData.date,
 		localpath: gameData.localpath ?? undefined,
 		bgm_data: gameData.bgm_data ?? undefined,
 		vndb_data: gameData.vndb_data ?? undefined,
@@ -210,30 +208,15 @@ export async function buildInsertGameData(
 	};
 }
 
-export interface PrepareInsertGameDataOptions {
-	localpath?: string;
-	fallbackIdType?: string;
-	fallbackDate?: string;
-}
-
 function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 	return item.selectedExe ? `${item.path}\\${item.selectedExe}` : item.path;
 }
 
 export async function prepareInsertGameDataFromMetadata(
 	gameData: FullGameData,
-	options?: PrepareInsertGameDataOptions,
 ): Promise<InsertGameParams> {
 	const completeData = await ensureCompleteMetadata(gameData);
-	const insertData = await buildInsertGameData(
-		completeData,
-		options?.fallbackIdType,
-		options?.fallbackDate,
-	);
-
-	if (options?.localpath !== undefined) {
-		insertData.localpath = options.localpath;
-	}
+	const insertData = await buildInsertGameData(completeData);
 
 	return insertData;
 }
@@ -368,12 +351,9 @@ export async function buildBulkImportGameData(
 	item: BatchImportGameCandidate,
 ): Promise<InsertGameParams> {
 	if (item.matchedData) {
+		const prepared = await prepareInsertGameDataFromMetadata(item.matchedData);
 		return {
-			...(await buildInsertGameData(
-				item.matchedData,
-				item.matchedData.id_type,
-				item.matchedData.date,
-			)),
+			...prepared,
 			localpath: getBatchImportLocalPath(item),
 		};
 	}

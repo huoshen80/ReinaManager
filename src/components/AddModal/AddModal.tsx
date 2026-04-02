@@ -184,15 +184,11 @@ const AddModal: React.FC = () => {
 
 	const handleAddGame = useCallback(
 		async (gameData: FullGameData) => {
-			const gameId = await addGameFromMetadata(gameData, {
-				localpath: addModalPath,
-				fallbackIdType: gameData.id_type,
-				fallbackDate: gameData.date,
-			});
+			const gameId = await addGameFromMetadata(gameData);
 			closeAddModal();
 			showGameAddedSuccess({ gameId, navigate, t });
 		},
-		[addGameFromMetadata, addModalPath, closeAddModal, navigate, t],
+		[addGameFromMetadata, closeAddModal, navigate, t],
 	);
 
 	const handleCloseSearchResult = useCallback(() => {
