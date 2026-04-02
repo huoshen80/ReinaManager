@@ -1,7 +1,7 @@
 {
 	"name": "reinamanager",
 	"private": true,
-	"version": "0.18.1",
+	"version": "0.18.2",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -12,7 +12,7 @@
 		"format": "biome format --write .",
 		"lint": "biome check .",
 		"check": "pnpm run format && pnpm run lint && pnpm run typecheck",
-		"changelog": "git-cliff --unreleased --prepend CHANGELOG.md",
+		"changelog": "git-cliff --bump --unreleased --prepend CHANGELOG.md",
 		"changelog:all": "git-cliff -o CHANGELOG.md",
 		"changelog:view": "git-cliff --latest",
 		"i18n:status": "i18next-cli status",
