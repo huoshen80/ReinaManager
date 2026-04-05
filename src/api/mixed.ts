@@ -21,9 +21,9 @@
 import { AppError, toError } from "@/utils/errors";
 import type { FullGameData } from "../types";
 import { fetchBgmById, fetchBgmByName } from "./bgm";
+import { fetchGalgameById, searchGalgame } from "./kun";
 import { fetchVndbById, fetchVndbByName } from "./vndb";
 import { fetchYmById, fetchYmByName } from "./ymgal";
-import { fetchGalgameById, searchGalgame } from "./kun";
 
 interface SafeFetchResult {
 	data: FullGameData | null;
@@ -86,14 +86,13 @@ async function getYmgalDataSafely(
 async function getKungalDataSafely(
 	searchName: string,
 	kun_id?: string,
-	KUN_TOKEN?: string,
 ): Promise<SafeFetchResult> {
 	try {
 		if (kun_id) {
-			return { data: await fetchGalgameById(kun_id, KUN_TOKEN), failed: false };
+			return { data: await fetchGalgameById(kun_id), failed: false };
 		}
 		const result = await searchGalgame(searchName);
-		return { data: result.galgames[0] ?? null, failed: false };
+		return { data: result[0] ?? null, failed: false };
 	} catch {
 		return { data: null, failed: true };
 	}
@@ -101,23 +100,15 @@ async function getKungalDataSafely(
 
 function extractNameFromApi(apiData: FullGameData | null): string | undefined {
 	if (!apiData) return undefined;
-	// 优先级: YMGal > BGM > Kungal > VNDB > Custom
-	const ymgalName = apiData.ymgal_data?.name_cn || apiData.ymgal_data?.name;
-	if (ymgalName) return ymgalName as string;
 
-	const bgmName = apiData.bgm_data?.name_cn || apiData.bgm_data?.name;
-	if (bgmName) return bgmName as string;
-
-	const kunName = apiData.kun_data?.name?.["zh-cn"] || apiData.kun_data?.name?.["ja-jp"];
-	if (kunName) return kunName as string;
-
-	const vndbName = apiData.vndb_data?.name_cn || apiData.vndb_data?.name;
-	if (vndbName) return vndbName as string;
-
-	// 其次使用 custom_data 中的名称
-	const custom = apiData.custom_data?.name;
-	if (custom) return custom as string;
-	return undefined;
+	const bgmName = apiData.bgm_data?.name;
+	if (bgmName) return bgmName;
+	const vndbName = apiData.vndb_data?.name;
+	if (vndbName) return vndbName;
+	const ymgalName = apiData.ymgal_data?.name;
+	if (ymgalName) return ymgalName;
+	const kunName = apiData.kun_data?.name;
+	if (kunName) return kunName;
 }
 
 /**
@@ -141,11 +132,12 @@ export async function fetchMixedData(options: {
 	kun_id?: string;
 	name?: string;
 	BGM_TOKEN?: string;
-	KUN_TOKEN?: string;
 }) {
-	const { bgm_id, vndb_id, ymgal_id, kun_id, name, BGM_TOKEN, KUN_TOKEN } = options;
+	const { bgm_id, vndb_id, ymgal_id, kun_id, name, BGM_TOKEN } = options;
 
-	const providedIds = [bgm_id, vndb_id, ymgal_id, kun_id].filter(Boolean).length;
+	const providedIds = [bgm_id, vndb_id, ymgal_id, kun_id].filter(
+		Boolean,
+	).length;
 
 	// 场景1: 单个ID提供 - 获取该数据源，然后用名称搜索其他数据源（取第一个结果）
 	if (providedIds === 1) {
@@ -165,7 +157,7 @@ export async function fetchMixedData(options: {
 			ymgalResult = await getYmgalDataSafely("", ymgal_id);
 			searchName = extractNameFromApi(ymgalResult.data);
 		} else if (kun_id) {
-			kunResult = await getKungalDataSafely("", kun_id, KUN_TOKEN);
+			kunResult = await getKungalDataSafely("", kun_id);
 			searchName = extractNameFromApi(kunResult.data);
 		}
 
@@ -182,7 +174,7 @@ export async function fetchMixedData(options: {
 						? getYmgalDataSafely(searchName)
 						: Promise.resolve(ymgalResult),
 					!kunResult.data
-						? getKungalDataSafely(searchName, undefined, KUN_TOKEN)
+						? getKungalDataSafely(searchName)
 						: Promise.resolve(kunResult),
 				]);
 			bgmResult = nextBgmResult;
@@ -191,7 +183,12 @@ export async function fetchMixedData(options: {
 			kunResult = nextKunResult;
 		}
 
-		if (bgmResult.failed && vndbResult.failed && ymgalResult.failed && kunResult.failed) {
+		if (
+			bgmResult.failed &&
+			vndbResult.failed &&
+			ymgalResult.failed &&
+			kunResult.failed
+		) {
 			throw new AppError({
 				code: "mixed_sources_failed",
 				message: "All mixed source requests failed for single-id lookup",
@@ -215,10 +212,15 @@ export async function fetchMixedData(options: {
 				: Promise.resolve({ data: null, failed: false }),
 			getVNDBDataSafely(searchName),
 			getYmgalDataSafely(searchName),
-			getKungalDataSafely(searchName, undefined, KUN_TOKEN),
+			getKungalDataSafely(searchName),
 		]);
 
-		if (bgmResult.failed && vndbResult.failed && ymgalResult.failed && kunResult.failed) {
+		if (
+			bgmResult.failed &&
+			vndbResult.failed &&
+			ymgalResult.failed &&
+			kunResult.failed
+		) {
 			throw new AppError({
 				code: "mixed_sources_failed",
 				message: `All mixed source requests failed for search: ${searchName}`,

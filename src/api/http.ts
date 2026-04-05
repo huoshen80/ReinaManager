@@ -106,7 +106,10 @@ async function requestTauriHttp<T>(
 
 	if (!response.ok) {
 		if (import.meta.env.DEV) {
-			console.error(`[TauriHTTP Error] ${method} ${fullUrl} ${response.status}`, response.statusText);
+			console.error(
+				`[TauriHTTP Error] ${method} ${fullUrl} ${response.status}`,
+				response.statusText,
+			);
 		}
 		throw new HttpResponseError({
 			method,

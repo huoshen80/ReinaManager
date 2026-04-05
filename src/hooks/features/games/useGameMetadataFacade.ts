@@ -45,7 +45,12 @@ export function useGameDuplicateChecker() {
 	const { data: allGames = [] } = useAllGames();
 
 	const checkGameExists = useCallback(
-		(gameData: Pick<InsertGameParams, "bgm_id" | "vndb_id" | "ymgal_id" | "kun_id">) => {
+		(
+			gameData: Pick<
+				InsertGameParams,
+				"bgm_id" | "vndb_id" | "ymgal_id" | "kun_id"
+			>,
+		) => {
 			return allGames.some(
 				(game) =>
 					(gameData.bgm_id && game.bgm_id === gameData.bgm_id) ||

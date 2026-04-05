@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { gameKeys, useGameDetail } from "@/hooks/queries/useGames";
 import { gameService } from "@/services/invoke";
 import type { FullGameData, GameData } from "@/types";
@@ -8,14 +7,13 @@ import { getDisplayGameData } from "@/utils/appUtils";
 import { useAllGameListFacade } from "./useGameListFacade";
 
 export function useSelectedGame(gameId: number | null | undefined) {
-	const { i18n } = useTranslation();
 	const gameDetailQuery = useGameDetail(gameId ?? null);
 
 	const selectedGame = useMemo(() => {
 		return gameDetailQuery.data
-			? getDisplayGameData(gameDetailQuery.data, i18n.language)
+			? getDisplayGameData(gameDetailQuery.data)
 			: null;
-	}, [gameDetailQuery.data, i18n.language]);
+	}, [gameDetailQuery.data]);
 
 	return {
 		selectedGame,
@@ -25,7 +23,6 @@ export function useSelectedGame(gameId: number | null | undefined) {
 }
 
 export function useGetGameById() {
-	const { i18n } = useTranslation();
 	const queryClient = useQueryClient();
 	const displayAllGames = useAllGameListFacade();
 
@@ -43,7 +40,7 @@ export function useGetGameById() {
 			);
 
 			if (cachedDetail) {
-				return getDisplayGameData(cachedDetail, i18n.language);
+				return getDisplayGameData(cachedDetail);
 			}
 
 			const fullGame = await queryClient.fetchQuery({
@@ -55,9 +52,9 @@ export function useGetGameById() {
 				throw new Error("游戏不存在");
 			}
 
-			return getDisplayGameData(fullGame, i18n.language);
+			return getDisplayGameData(fullGame);
 		},
-		[displayAllGames, i18n.language, queryClient],
+		[displayAllGames, queryClient],
 	);
 
 	return getGameById;

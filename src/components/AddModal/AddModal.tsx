@@ -35,7 +35,7 @@ import { gameMetadataService } from "@/api";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useAddGame } from "@/hooks/queries/useGames";
-import { useBgmToken, useKunToken } from "@/hooks/queries/useSettings";
+import { useBgmToken } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { FullGameData, InsertGameParams } from "@/types";
@@ -50,7 +50,6 @@ import BulkImportTab from "./BulkImportTab";
 import GameSearchResultDialog, {
 	getPrimaryGameSearchResult,
 } from "./GameSearchResultDialog";
-import { getIdFromFullData } from "@/utils/dataTransform";
 
 /**
  * 常量定义
@@ -92,7 +91,6 @@ const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { data: bgmToken = "" } = useBgmToken();
-	const { data: kunToken = "" } = useKunToken();
 	const addGameMutation = useAddGame();
 	const { addGameFromMetadata, isAddingGame } = useSingleGameAddActions();
 
@@ -206,59 +204,14 @@ const AddModal: React.FC = () => {
 	 */
 	const handleConfirmAdd = useCallback(async () => {
 		const finaldata = getPrimaryGameSearchResult(searchResultState.results);
-		if (!finaldata || isBusy) return;
+		if (!finaldata) return;
 
-		setLoading(true);
 		try {
-			// 在确认添加前，根据 ID 重新获取一份完整的详情
-			const id = getIdFromFullData(finaldata);
-			// 修正 apiType 推导：优先使用 finaldata 的 id_type，如果为 mixed 则使用当前的 apiSource
-			let apiType = finaldata.id_type === "mixed" ? apiSource : (finaldata.id_type || apiSource);
-			
-			// 防御性：如果 apiSource 是具体的源，则强制使用该源
-			if (apiSource !== "mixed") {
-				apiType = apiSource;
-			}
-
-			if (import.meta.env.DEV) {
-				console.log("[AddModal] Confirm Add Debug:", {
-					id,
-					apiType,
-					apiSource,
-					finaldata_id_type: finaldata.id_type,
-					has_id: !!id
-				});
-			}
-
-			let detailedData = finaldata;
-			if (id && apiType && apiType !== "mixed") {
-				if (import.meta.env.DEV) {
-					console.log(`[AddModal] Triggering Detail Fetch for ${apiType} ID: ${id}`);
-				}
-				detailedData = await gameMetadataService.getGameById(
-					id,
-					apiType as any,
-					bgmToken,
-					kunToken,
-				);
-			}
-
-			await handleAddGame(detailedData);
+			await handleAddGame(finaldata);
 		} catch (error) {
 			showError(getUserErrorMessage(error, t));
-		} finally {
-			setLoading(false);
 		}
-	}, [
-		handleAddGame,
-		searchResultState.results,
-		showError,
-		t,
-		isBusy,
-		apiSource,
-		bgmToken,
-		kunToken,
-	]);
+	}, [handleAddGame, searchResultState.results, showError, t]);
 
 	const cancelOngoingRequest = useCallback(() => {
 		if (abortControllerRef.current) {
@@ -278,30 +231,13 @@ const AddModal: React.FC = () => {
 				return;
 			}
 
-			setLoading(true);
 			try {
-				// 从列表选择时，数据源可能不完整，重新获取详情
-				const id = getIdFromFullData(selectedGame);
-				const apiType = selectedGame.id_type;
-
-				let detailedData = selectedGame;
-				if (id && apiType && apiType !== "mixed") {
-					detailedData = await gameMetadataService.getGameById(
-						id,
-						apiType as any,
-						bgmToken,
-						kunToken,
-					);
-				}
-
-				await handleAddGame(detailedData);
+				await handleAddGame(selectedGame);
 			} catch (error) {
 				showError(getUserErrorMessage(error, t));
-			} finally {
-				setLoading(false);
 			}
 		},
-		[handleAddGame, isBusy, showError, t, bgmToken, kunToken],
+		[handleAddGame, isBusy, showError, t],
 	);
 
 	/**
@@ -312,7 +248,6 @@ const AddModal: React.FC = () => {
 			query: formText,
 			source: apiSource === "mixed" ? undefined : apiSource,
 			bgmToken,
-			kunToken,
 			isIdSearch: isID,
 			defaults: {
 				localpath: addModalPath,
@@ -339,7 +274,9 @@ const AddModal: React.FC = () => {
 				throw new Error(t("components.AddModal.noResultsYmgal"));
 			}
 			if (apiSource === "kungal") {
-				throw new Error(t("components.AddModal.noResultsKun", "Kungal 未找到相关结果"));
+				throw new Error(
+					t("components.AddModal.noResultsKun", "Kungal 未找到相关结果"),
+				);
 			}
 			// 默认错误
 			throw new Error(t("components.AddModal.noResults"));
@@ -529,7 +466,12 @@ const AddModal: React.FC = () => {
 								sx={{ gap: 1 }}
 								onChange={(e) =>
 									setApiSource(
-										e.target.value as "bgm" | "vndb" | "ymgal" | "kungal" | "mixed",
+										e.target.value as
+											| "bgm"
+											| "vndb"
+											| "ymgal"
+											| "kungal"
+											| "mixed",
 									)
 								}
 							>

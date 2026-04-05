@@ -7,10 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCurrentUserProfile } from "@/api/bgm";
 import { fetchVndbCurrentUserProfile } from "@/api/vndb";
-import { fetchCurrentUserProfile as fetchKunCurrentUserProfile } from "@/api/kun";
 import { settingsService } from "@/services/invoke";
-import { useStore } from "@/store/appStore";
-import { useShallow } from "zustand/react/shallow";
 import type { LogLevel, UpdateSettingsParams } from "@/types";
 
 // ============================================================================
@@ -35,11 +32,6 @@ export const settingsKeys = {
 	dbBackupPath: () => [...settingsKeys.all, "dbBackupPath"] as const,
 	lePath: () => [...settingsKeys.all, "lePath"] as const,
 	magpiePath: () => [...settingsKeys.all, "magpiePath"] as const,
-	kunToken: () => [...settingsKeys.all, "kunToken"] as const,
-	kunCurrentUserProfile: () =>
-		[...settingsKeys.all, "kunCurrentUserProfile"] as const,
-	kunCurrentUserProfileByToken: (token: string) =>
-		[...settingsKeys.kunCurrentUserProfile(), token] as const,
 };
 
 type BgmToken = string;
@@ -168,53 +160,6 @@ export function useMagpiePath(options?: SettingsQueryOptions) {
 	});
 }
 
-/**
- * 获取 Kungal Token
- */
-export function useKunToken() {
-	const kunToken = useStore((s) => s.kunToken);
-	return useQuery({
-		queryKey: settingsKeys.kunToken(),
-		queryFn: async () => kunToken,
-		initialData: kunToken,
-	});
-}
-
-/**
- * 获取当前 Kungal Token 对应的用户资料
- * 逻辑：优先返回持久化的 kunUserData，并调用 status 接口检测有效性
- */
-export function useKunCurrentUserProfile(options?: SettingsQueryOptions) {
-	const { data: kunToken = "" } = useKunToken();
-	const { kunUserData, setKunUserData, setKunToken } = useStore(
-		useShallow((s) => ({
-			kunUserData: s.kunUserData,
-			setKunUserData: s.setKunUserData,
-			setKunToken: s.setKunToken,
-		}))
-	);
-
-	return useQuery({
-		queryKey: settingsKeys.kunCurrentUserProfileByToken(kunToken),
-		queryFn: async () => {
-			try {
-				// 调用 status 检查在线状态
-				await fetchKunCurrentUserProfile(kunToken);
-				// 如果没报错，返回现有的持久化数据
-				return kunUserData;
-			} catch (error) {
-				// 如果 status 接口报错（通常是 401），说明 Token 已过期
-				setKunUserData(null);
-				setKunToken("");
-				throw error;
-			}
-		},
-		enabled: (options?.enabled ?? true) && Boolean(kunToken),
-		initialData: kunUserData,
-		staleTime: 1000 * 60 * 30, // 30分钟内认为有效，减少 status 请求
-	});
-}
-
 // ============================================================================
 // Mutations - 数据操作 hooks
 // ============================================================================
@@ -252,32 +197,6 @@ export function useSetVndbToken() {
 			});
 			queryClient.invalidateQueries({
 				queryKey: settingsKeys.vndbCurrentUserProfile(),
-			});
-		},
-	});
-}
-
-/**
- * 设置 Kungal Token
- */
-export function useSetKunToken() {
-	const setKunToken = useStore((s) => s.setKunToken);
-	const setKunUserData = useStore((s) => s.setKunUserData);
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: async (token: string) => {
-			if (!token) {
-				setKunUserData(null);
-			}
-			setKunToken(token);
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: settingsKeys.kunToken(),
-			});
-			queryClient.invalidateQueries({
-				queryKey: settingsKeys.kunCurrentUserProfile(),
 			});
 		},
 	});

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useAllGames, useGameList } from "@/hooks/queries/useGames";
 import { useStore } from "@/store/appStore";
@@ -7,7 +6,6 @@ import { applyNsfwFilter, getDisplayGameDataList } from "@/utils/appUtils";
 import { enhancedSearch } from "@/utils/enhancedSearch";
 
 export function useGameListFacade() {
-	const { i18n } = useTranslation();
 	const { gameFilterType, sortOption, sortOrder, nsfwFilter, searchKeyword } =
 		useStore(
 			useShallow((s) => ({
@@ -22,8 +20,8 @@ export function useGameListFacade() {
 	const gameListQuery = useGameList(gameFilterType, sortOption, sortOrder);
 
 	const displayGames = useMemo(() => {
-		return getDisplayGameDataList(gameListQuery.data ?? [], i18n.language);
-	}, [gameListQuery.data, i18n.language]);
+		return getDisplayGameDataList(gameListQuery.data ?? []);
+	}, [gameListQuery.data]);
 
 	const nsfwFilteredGames = useMemo(() => {
 		return applyNsfwFilter(displayGames, nsfwFilter);
@@ -46,12 +44,11 @@ export function useGameListFacade() {
 }
 
 export function useAllGameListFacade() {
-	const { i18n } = useTranslation();
 	const allGamesQuery = useAllGames();
 
 	const displayGames = useMemo(() => {
-		return getDisplayGameDataList(allGamesQuery.data ?? [], i18n.language);
-	}, [allGamesQuery.data, i18n.language]);
+		return getDisplayGameDataList(allGamesQuery.data ?? []);
+	}, [allGamesQuery.data]);
 
 	return displayGames;
 }

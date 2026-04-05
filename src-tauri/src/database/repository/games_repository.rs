@@ -388,9 +388,8 @@ impl GamesRepository {
         macro_rules! kun_extract_name {
             ($source:expr) => {
                 $source.as_ref().and_then(|d| {
-                    let cn = d.name.zh_cn.as_deref().filter(|n| !n.is_empty());
-                    let en = d.name.en_us.as_deref().filter(|n| !n.is_empty())
-                               .or(d.name.ja_jp.as_deref().filter(|n| !n.is_empty()));
+                    let cn = d.name_cn.as_deref().filter(|n| !n.is_empty());
+                    let en = d.name.as_deref().filter(|n| !n.is_empty());
                     if use_cn { cn.or(en) } else { en }
                 })
             };
@@ -401,7 +400,7 @@ impl GamesRepository {
             "bgm" => extract_name!(game.bgm_data),
             "vndb" => extract_name!(game.vndb_data),
             "ymgal" => extract_name!(game.ymgal_data),
-            "kun" => kun_extract_name!(game.kun_data),
+            "kungal" => kun_extract_name!(game.kun_data),
             // mixed 和其他类型：依次降级尝试
             _ => extract_name!(game.bgm_data)
                 .or_else(|| extract_name!(game.vndb_data))

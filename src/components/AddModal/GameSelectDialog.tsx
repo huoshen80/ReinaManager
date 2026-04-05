@@ -17,7 +17,13 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
-import type { BgmData, FullGameData, KunData, VndbData, YmgalData } from "@/types";
+import type {
+	BgmData,
+	FullGameData,
+	KunData,
+	VndbData,
+	YmgalData,
+} from "@/types";
 
 interface GameSelectDialogProps {
 	open: boolean;
@@ -27,14 +33,6 @@ interface GameSelectDialogProps {
 	loading?: boolean;
 	title?: string;
 	apiSource: "bgm" | "vndb" | "ymgal" | "kungal";
-}
-
-/**
- * 提取 Kungal 的开发者信息
- */
-function kunSourceDeveloper(kunData?: KunData | null): string | null {
-	if (!kunData) return null;
-	return kunData.developer || null;
 }
 
 /**
@@ -54,7 +52,7 @@ function extractDisplayInfo(
 	sourceLabel: string;
 } {
 	// 根据数据源直接提取对应的数据
-	let data: BgmData | VndbData | YmgalData | null | undefined;
+	let data: BgmData | VndbData | YmgalData | KunData | null | undefined;
 	let id: string;
 	let sourceLabel: string;
 
@@ -66,21 +64,14 @@ function extractDisplayInfo(
 		data = item.vndb_data;
 		id = item.vndb_id || "";
 		sourceLabel = `VNDB: ${id}`;
-	} else if (apiSource === "kungal") {
-		const kunData = item.kun_data;
-		return {
-			id: String(kunData?.id || ""),
-			name: kunData?.name?.["en-us"] || kunData?.name?.["ja-jp"] || "",
-			name_cn: kunData?.name?.["zh-cn"] || kunData?.name?.["zh-tw"] || null,
-			image: kunData?.banner || null,
-			developer: kunSourceDeveloper(kunData),
-			date: item.date || null,
-			sourceLabel: `Kungal: ${kunData?.id || ""}`,
-		};
-	} else {
+	} else if (apiSource === "ymgal") {
 		data = item.ymgal_data;
 		id = item.ymgal_id || "";
 		sourceLabel = `YMGal: ${id}`;
+	} else {
+		data = item.kun_data;
+		id = item.kun_id || "";
+		sourceLabel = `Kungal: ${id}`;
 	}
 
 	return {

@@ -19,7 +19,6 @@ import { fetchMetadataForUpdate } from "@/utils/metadata";
 
 interface DataSourceUpdateProps {
 	bgmToken: string;
-	kunToken?: string;
 	selectedGame: GameData | null;
 	onDataFetched: (data: FullGameData) => void;
 	disabled?: boolean;
@@ -31,7 +30,6 @@ interface DataSourceUpdateProps {
  */
 export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	bgmToken,
-	kunToken,
 	selectedGame,
 	onDataFetched,
 	disabled = false,
@@ -99,7 +97,6 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 				ymgalId,
 				kunId,
 				bgmToken,
-				kunToken,
 			});
 			onDataFetched(result);
 		} catch (error) {

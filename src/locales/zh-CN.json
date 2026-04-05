@@ -13,7 +13,6 @@
 		"responseParseFailed": "响应解析失败，请稍后重试",
 		"unknownError": "未知错误",
 		"unsupportedSource": "不支持的数据源",
-		"kunTokenRequired": "缺少 Kungal Token，请先配置后重试",
 		"updatePlayStatusFailed": "更新游戏状态失败"
 	},
 	"app": {
@@ -508,20 +507,6 @@
 				"saveError": "BGM Token 保存失败",
 				"saveSuccess": "BGM Token 保存成功"
 			},
-			"kunToken": "Kungal 令牌",
-			"kunTokenSettings": {
-				"clearToken": "清除令牌",
-				"loadingProfile": "正在获取 Kungal 账号信息...",
-				"profileUnavailable": "当前 Token 无法获取 Kungal 用户信息，请检查令牌是否有效。",
-				"saveError": "Kungal Token 保存失败",
-				"saveSuccess": "Kungal Token 保存成功",
-				"loginBtn": "登录并获取 Token",
-				"loginError": "登录失败，请检查账号密码或网络",
-				"loginInputError": "请输入用户名和密码",
-				"loginSuccess": "登录成功",
-				"moemoe": "萌点: {{count}}",
-				"orLogin": "或 账号登录"
-			},
 			"cardClickMode": {
 				"doubleClickLaunch": "双击启动游戏",
 				"doubleClickLaunchNote": "开启后会导致左键单击延迟200ms（仅导航模式）",
@@ -540,9 +525,7 @@
 				"syncFailed": "本地状态已更新，但 {{source}} 云端同步失败",
 				"title": "收藏状态同步",
 				"vndbDescription": "添加游戏时尝试读取 VNDB 收藏状态，本地修改状态时同步回 VNDB。",
-				"vndbTitle": "启用 VNDB 收藏同步",
-				"kunDescription": "添加游戏时尝试读取 Kungal 点赞/收藏状态，本地修改状态时同步回 Kungal。",
-				"kunTitle": "启用 Kungal 收藏同步"
+				"vndbTitle": "启用 VNDB 收藏同步"
 			},
 			"databaseBackup": {
 				"backing": "备份中...",

@@ -74,8 +74,8 @@ function getMatchedGameName(
 	return (
 		(useChineseName
 			? gameData.bgm_data?.name_cn ||
-			gameData.vndb_data?.name_cn ||
-			gameData.ymgal_data?.name_cn
+				gameData.vndb_data?.name_cn ||
+				gameData.ymgal_data?.name_cn
 			: undefined) ||
 		gameData.bgm_data?.name ||
 		gameData.vndb_data?.name ||
@@ -525,28 +525,28 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 										<TableCell>
 											{item.status === "pending"
 												? t(
-													"components.BulkImportModal.statusPending",
-													"待处理",
-												)
+														"components.BulkImportModal.statusPending",
+														"待处理",
+													)
 												: item.status === "matched"
 													? t(
-														"components.BulkImportModal.statusMatched",
-														"已匹配",
-													)
+															"components.BulkImportModal.statusMatched",
+															"已匹配",
+														)
 													: item.status === "not found"
 														? t(
-															"components.BulkImportModal.statusNotFound",
-															"未找到",
-														)
+																"components.BulkImportModal.statusNotFound",
+																"未找到",
+															)
 														: item.status === "imported"
 															? t(
-																"components.BulkImportModal.statusImported",
-																"已导入",
-															)
+																	"components.BulkImportModal.statusImported",
+																	"已导入",
+																)
 															: t(
-																"components.BulkImportModal.statusError",
-																"错误",
-															)}
+																	"components.BulkImportModal.statusError",
+																	"错误",
+																)}
 										</TableCell>
 										<TableCell>
 											{item.executables.length === 1 ? (
@@ -687,9 +687,9 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								!editIsIdSearch
 									? t("components.AddModal.gameName", "游戏名称")
 									: t(
-										"components.AddModal.gameIDTips",
-										"游戏ID(输入BGM、VNDB 或 YMGal ID)",
-									)
+											"components.AddModal.gameIDTips",
+											"游戏ID(输入BGM、VNDB 或 YMGal ID)",
+										)
 							}
 							value={editName}
 							onChange={(event) => setEditName(event.target.value)}
@@ -708,7 +708,12 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								value={editApiSource}
 								onChange={(event) =>
 									setEditApiSource(
-										event.target.value as "bgm" | "vndb" | "ymgal" | "kungal" | "mixed",
+										event.target.value as
+											| "bgm"
+											| "vndb"
+											| "ymgal"
+											| "kungal"
+											| "mixed",
 									)
 								}
 							>
