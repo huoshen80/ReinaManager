@@ -9,10 +9,12 @@
 # template for the changelog body
 # https://keats.github.io/tera/docs/#introduction
 body = """
-{% if get_env(name="INCLUDE_DOWNLOAD_LINKS", default="false") == "only" %}
 {% set repo = get_env(name="GITHUB_REPOSITORY", default="huoshen80/ReinaManager") %}
+{% set repo_url = "https://github.com/" ~ repo %}
+
+{% if get_env(name="INCLUDE_DOWNLOAD_LINKS", default="false") == "only" %}
 {% set clean_version = version | trim_start_matches(pat="v") %}
-{% set base_url = "https://github.com/" ~ repo ~ "/releases/download/" ~ version ~ "/" %}
+{% set base_url = repo_url ~ "/releases/download/" ~ version ~ "/" %}
 {% set prefix = "ReinaManager_" ~ clean_version %}
 ---
 ### 📥 下载地址 (Download)
@@ -33,16 +35,26 @@ body = """
 
 {% else %}
 {% if version %}\
-    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+    {% if previous.version %}\
+        ## [{{ version | trim_start_matches(pat="v") }}]({{ repo_url }}/compare/{{ previous.version }}...{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
+    {% else %}\
+        ## [{{ version | trim_start_matches(pat="v") }}]({{ repo_url }}/releases/tag/{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
+    {% endif %}\
 {% else %}\
-    ## [unreleased]
+    {% if previous.version %}\
+        ## [unreleased]({{ repo_url }}/compare/{{ previous.version }}...HEAD)
+    {% else %}\
+        ## [unreleased]
+    {% endif %}\
 {% endif %}\
+
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
     {% for commit in commits %}
         - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
             {% if commit.breaking %}[**breaking**] {% endif %}\
-            {{ commit.message | upper_first }}\
+            {{ commit.message | upper_first }} \
+            ([{{ commit.id | truncate(length=7, end="") }}]({{ repo_url }}/commit/{{ commit.id }}))\
     {% endfor %}
 {% endfor %}\n
 {% endif %}
@@ -62,24 +74,24 @@ filter_unconventional = true
 split_commits = false
 # regex for preprocessing the commit messages
 commit_preprocessors = [
-  # { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/orhun/git-cliff/issues/${2}))"},
+    # { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/orhun/git-cliff/issues/${2}))"},
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
-  { message = "^feat", group = "✨ Features" },
-  { message = "^fix", group = "🐛 Bug Fixes" },
-  { message = "^doc", group = "📚 Documentation" },
-  { message = "^perf", group = "🚀 Performance" },
-  { message = "^refactor", group = "🚜 Refactor" },
-  { message = "^style", group = "🎨 Styling" },
-  { message = "^test", group = "🧪 Testing" },
-  { message = "^chore\\(release\\): prepare for", skip = true },
-  { message = "^chore\\(deps.*\\)", skip = true },
-  { message = "^chore\\(pr\\)", skip = true },
-  { message = "^chore\\(pull\\)", skip = true },
-  { message = "^chore|^ci", group = "⚙️ Miscellaneous Tasks" },
-  { body = ".*security", group = "🛡️ Security" },
-  { message = "^revert", group = "◀️ Revert" },
+    { message = "^feat", group = "✨ Features" },
+    { message = "^fix", group = "🐛 Bug Fixes" },
+    { message = "^doc", group = "📚 Documentation" },
+    { message = "^perf", group = "🚀 Performance" },
+    { message = "^refactor", group = "🚜 Refactor" },
+    { message = "^style", group = "🎨 Styling" },
+    { message = "^test", group = "🧪 Testing" },
+    { message = "^chore\\(release\\): prepare for", skip = true },
+    { message = "^chore\\(deps.*\\)", skip = true },
+    { message = "^chore\\(pr\\)", skip = true },
+    { message = "^chore\\(pull\\)", skip = true },
+    { message = "^chore|^ci", group = "⚙️ Miscellaneous Tasks" },
+    { body = ".*security", group = "🛡️ Security" },
+    { message = "^revert", group = "◀️ Revert" },
 ]
 # protect breaking changes from being skipped due to matching a skipping commit_parser
 protect_breaking_commits = false

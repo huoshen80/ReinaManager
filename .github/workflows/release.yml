@@ -261,12 +261,24 @@ jobs:
           fi
 
       - name: Publish Final Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          body: ${{ needs.prepare.outputs.release_body }}
-          draft: false
-          prerelease: ${{ steps.release-type.outputs.IS_PRERELEASE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FULL_RELEASE_BODY: ${{ needs.prepare.outputs.release_body }}
+        run: |
+          # 1. 将包含下载链接的完整内容写入临时文件
+          echo "$FULL_RELEASE_BODY" > full_release_notes.md
+          
+          # 2. 判断是否添加 prerelease 标签
+          PRERELEASE_FLAG=""
+          if [ "${{ steps.release-type.outputs.IS_PRERELEASE }}" == "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          
+          # 3. 强制覆写 Release 正文，并解除草稿状态
+          gh release edit "${{ github.ref_name }}" \
+            --draft=false \
+            --notes-file full_release_notes.md \
+            $PRERELEASE_FLAG
 
   update_cdn_urls:
     name: Update CDN URLs in latest.json
