@@ -11,8 +11,8 @@ use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind, TimezoneStrategy};
 use utils::{
     fs::{
-        PathManager, copy_file, delete_file, delete_game_covers, is_portable_mode,
-        move_backup_folder, open_directory,
+        copy_file, delete_file, delete_game_covers, is_portable_mode, move_backup_folder,
+        open_directory,
     },
     game_cover::{delete_cloud_cache, register_game_cover_protocol},
     launch::{launch_game, stop_game},
@@ -91,20 +91,8 @@ pub fn run() {
             get_today_playtime,
             init_game_statistics,
             // 用户设置相关 commands
-            get_bgm_token,
-            set_bgm_token,
-            get_vndb_token,
-            set_vndb_token,
-            get_save_root_path,
-            set_save_root_path,
-            get_db_backup_path,
-            set_db_backup_path,
             get_all_settings,
             update_settings,
-            get_le_path,
-            set_le_path,
-            get_magpie_path,
-            set_magpie_path,
             // 日志相关 commands（运行时动态调整）
             set_reina_log_level,
             get_reina_log_level,
@@ -152,19 +140,14 @@ pub fn run() {
                         .build(),
                 )?;
             } else {
-                // 设置初始日志级别为 Error（运行时可通过命令调整）
+                // 设置初始日志级别为 Info（运行时可通过命令调整）
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Debug) // 允许运行时动态调整到任意级别
+                        .level(log::LevelFilter::Info) // 允许运行时动态调整到任意级别
                         .build(),
                 )?;
             }
-            log::set_max_level(log::LevelFilter::Error);
-
-            // 初始化路径管理器
-            let path_manager = PathManager::new();
-            app.manage(path_manager);
 
             match run_startup_migrations() {
                 Ok(result) if result.executed == 0 => {
@@ -201,15 +184,6 @@ pub fn run() {
 
                         // 将数据库连接注册到 Tauri 状态管理
                         app_handle.manage(conn.clone());
-
-                        // 预加载配置路径到路径管理器
-                        if let Some(path_manager) = app_handle.try_state::<PathManager>() {
-                            if let Err(e) = path_manager.inner().preload_config_paths(&conn).await {
-                                log::warn!("预加载配置路径失败: {}", e);
-                            } else {
-                                log::info!("配置路径预加载完成");
-                            }
-                        }
                     }
                     Err(e) => {
                         log::error!("无法建立数据库连接: {}", e);

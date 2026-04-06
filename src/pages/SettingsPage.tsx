@@ -66,14 +66,12 @@ import { useShallow } from "zustand/react/shallow";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { useScrollRestore } from "@/hooks/common/useScrollRestore";
 import {
+	useAllSettings,
 	useBgmCurrentUserProfile,
-	useBgmToken,
 	useLogLevel,
-	useSetBgmToken,
 	useSetLogLevel,
-	useSetVndbToken,
+	useUpdateSettings,
 	useVndbCurrentUserProfile,
-	useVndbToken,
 } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
@@ -137,10 +135,11 @@ const LanguageSelect = () => {
 
 const BgmTokenSettings = () => {
 	const { t } = useTranslation();
-	const { data: bgmToken = "" } = useBgmToken();
+	const { data: settings } = useAllSettings();
+	const bgmToken = settings?.bgm_token ?? "";
 	const { data: bgmProfile, isLoading: isBgmProfileLoading } =
 		useBgmCurrentUserProfile();
-	const setBgmTokenMutation = useSetBgmToken();
+	const updateSettingsMutation = useUpdateSettings();
 	const [inputToken, setInputToken] = useState("");
 
 	useEffect(() => {
@@ -159,7 +158,9 @@ const BgmTokenSettings = () => {
 	 */
 	const handleSaveToken = async () => {
 		try {
-			await setBgmTokenMutation.mutateAsync(inputToken);
+			await updateSettingsMutation.mutateAsync({
+				bgmToken: inputToken,
+			});
 			snackbar.success(
 				t("pages.Settings.bgmTokenSettings.saveSuccess", "BGM Token 保存成功"),
 			);
@@ -257,7 +258,7 @@ const BgmTokenSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleSaveToken}
-					disabled={setBgmTokenMutation.isPending}
+					disabled={updateSettingsMutation.isPending}
 					className="px-6 py-2"
 				>
 					{t("pages.Settings.saveBtn")}
@@ -277,10 +278,11 @@ const BgmTokenSettings = () => {
 
 const VndbTokenSettings = () => {
 	const { t } = useTranslation();
-	const { data: vndbToken = "" } = useVndbToken();
+	const { data: settings } = useAllSettings();
+	const vndbToken = settings?.vndb_token ?? "";
 	const { data: vndbProfile, isLoading: isVndbProfileLoading } =
 		useVndbCurrentUserProfile();
-	const setVndbTokenMutation = useSetVndbToken();
+	const updateSettingsMutation = useUpdateSettings();
 	const [inputToken, setInputToken] = useState("");
 
 	useEffect(() => {
@@ -293,7 +295,9 @@ const VndbTokenSettings = () => {
 
 	const handleSaveToken = async () => {
 		try {
-			await setVndbTokenMutation.mutateAsync(inputToken);
+			await updateSettingsMutation.mutateAsync({
+				vndbToken: inputToken,
+			});
 			snackbar.success(
 				t(
 					"pages.Settings.vndbTokenSettings.saveSuccess",
@@ -405,7 +409,7 @@ const VndbTokenSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleSaveToken}
-					disabled={setVndbTokenMutation.isPending}
+					disabled={updateSettingsMutation.isPending}
 					className="px-6 py-2"
 				>
 					{t("pages.Settings.saveBtn")}
@@ -1337,7 +1341,8 @@ const DevSettings: React.FC = () => {
 
 const BatchUpdateSettings: React.FC = () => {
 	const { t } = useTranslation();
-	const { data: bgmToken = "" } = useBgmToken();
+	const { data: settings } = useAllSettings();
+	const bgmToken = settings?.bgm_token ?? "";
 	const [isUpdatingVndb, setIsUpdatingVndb] = useState(false);
 	const [isUpdatingBgm, setIsUpdatingBgm] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string>("");

@@ -1,5 +1,5 @@
 use sea_orm::DatabaseConnection;
-use tauri::{AppHandle, Manager, State};
+use tauri::State;
 
 use crate::database::dto::{
     BatchOperationResult, InsertCollectionData, InsertGameData, UpdateCollectionData,
@@ -12,7 +12,7 @@ use crate::database::repository::{
     settings_repository::SettingsRepository,
 };
 use crate::entity::{games, savedata, user};
-use crate::utils::fs::{PathManager, delete_game_cover_dir};
+use crate::utils::fs::delete_game_cover_dir;
 
 // ==================== 游戏数据相关 ====================
 
@@ -359,147 +359,6 @@ pub async fn init_game_statistics(
 
 // ==================== 用户设置相关 ====================
 
-/// 获取 BGM Token
-#[tauri::command]
-pub async fn get_bgm_token(db: State<'_, DatabaseConnection>) -> Result<String, String> {
-    SettingsRepository::get_bgm_token(&db)
-        .await
-        .map_err(|e| format!("获取 BGM Token 失败: {}", e))
-}
-
-/// 设置 BGM Token
-#[tauri::command]
-pub async fn set_bgm_token(db: State<'_, DatabaseConnection>, token: String) -> Result<(), String> {
-    SettingsRepository::set_bgm_token(&db, token)
-        .await
-        .map_err(|e| format!("设置 BGM Token 失败: {}", e))
-}
-
-/// 获取 VNDB Token
-#[tauri::command]
-pub async fn get_vndb_token(db: State<'_, DatabaseConnection>) -> Result<String, String> {
-    SettingsRepository::get_vndb_token(&db)
-        .await
-        .map_err(|e| format!("获取 VNDB Token 失败: {}", e))
-}
-
-/// 设置 VNDB Token
-#[tauri::command]
-pub async fn set_vndb_token(
-    db: State<'_, DatabaseConnection>,
-    token: String,
-) -> Result<(), String> {
-    SettingsRepository::set_vndb_token(&db, token)
-        .await
-        .map_err(|e| format!("设置 VNDB Token 失败: {}", e))
-}
-
-/// 获取存档根路径
-#[tauri::command]
-pub async fn get_save_root_path(db: State<'_, DatabaseConnection>) -> Result<String, String> {
-    SettingsRepository::get_save_root_path(&db)
-        .await
-        .map_err(|e| format!("获取存档根路径失败: {}", e))
-}
-
-/// 设置存档根路径
-#[tauri::command]
-pub async fn set_save_root_path(
-    app: AppHandle,
-    db: State<'_, DatabaseConnection>,
-    path: String,
-) -> Result<(), String> {
-    use crate::utils::fs::PathManager;
-
-    SettingsRepository::set_save_root_path(&db, path)
-        .await
-        .map_err(|e| format!("设置存档根路径失败: {}", e))?;
-
-    let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
-
-    Ok(())
-}
-
-/// 获取数据库备份保存路径
-#[tauri::command]
-pub async fn get_db_backup_path(db: State<'_, DatabaseConnection>) -> Result<String, String> {
-    SettingsRepository::get_db_backup_path(&db)
-        .await
-        .map_err(|e| format!("获取数据库备份保存路径失败: {}", e))
-}
-
-/// 设置数据库备份保存路径
-#[tauri::command]
-pub async fn set_db_backup_path(
-    app: AppHandle,
-    db: State<'_, DatabaseConnection>,
-    path: String,
-) -> Result<(), String> {
-    use crate::utils::fs::PathManager;
-
-    SettingsRepository::set_db_backup_path(&db, path)
-        .await
-        .map_err(|e| format!("设置数据库备份保存路径失败: {}", e))?;
-
-    let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
-
-    Ok(())
-}
-
-/// 获取LE转区软件路径
-#[tauri::command]
-pub async fn get_le_path(db: State<'_, DatabaseConnection>) -> Result<String, String> {
-    SettingsRepository::get_le_path(&db)
-        .await
-        .map_err(|e| format!("获取LE转区软件路径失败: {}", e))
-}
-
-/// 设置LE转区软件路径
-#[tauri::command]
-pub async fn set_le_path(
-    db: State<'_, DatabaseConnection>,
-    app: AppHandle,
-    path: String,
-) -> Result<(), String> {
-    SettingsRepository::set_le_path(&db, path)
-        .await
-        .map_err(|e| format!("设置LE转区软件路径失败: {}", e))?;
-
-    // 路径修改后刷新缓存
-    let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
-
-    Ok(())
-}
-
-/// 获取Magpie转区软件路径
-#[tauri::command]
-pub async fn get_magpie_path(db: State<'_, DatabaseConnection>) -> Result<String, String> {
-    SettingsRepository::get_magpie_path(&db)
-        .await
-        .map_err(|e| format!("获取Magpie转区软件路径失败: {}", e))
-}
-
-/// 设置Magpie转区软件路径
-#[tauri::command]
-pub async fn set_magpie_path(
-    db: State<'_, DatabaseConnection>,
-    app: AppHandle,
-    path: String,
-) -> Result<(), String> {
-    SettingsRepository::set_magpie_path(&db, path)
-        .await
-        .map_err(|e| format!("设置Magpie转区软件路径失败: {}", e))?;
-
-    // 路径修改后刷新缓存
-    let path_manager = app.state::<PathManager>();
-    path_manager.preload_config_paths(&db).await?;
-
-    Ok(())
-}
-
 /// 获取所有设置
 #[tauri::command]
 pub async fn get_all_settings(db: State<'_, DatabaseConnection>) -> Result<user::Model, String> {
@@ -511,23 +370,14 @@ pub async fn get_all_settings(db: State<'_, DatabaseConnection>) -> Result<user:
 /// 批量更新设置
 #[tauri::command]
 pub async fn update_settings(
-    app: AppHandle,
     db: State<'_, DatabaseConnection>,
     data: UpdateSettingsData,
 ) -> Result<(), String> {
-    use crate::utils::fs::PathManager;
-
     let data = data.cleaned(); // 清洗空字符串
 
     SettingsRepository::update_settings(&db, data)
         .await
-        .map_err(|e| format!("更新设置失败: {}", e))?;
-
-    // 清除缓存，下次获取时会重新计算路径
-    let path_manager = app.state::<PathManager>();
-    path_manager.clear_cache();
-
-    Ok(())
+        .map_err(|e| format!("更新设置失败: {}", e))
 }
 
 // ==================== 合集相关 ====================

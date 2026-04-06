@@ -35,7 +35,7 @@ import { gameMetadataService } from "@/api";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useAddGame } from "@/hooks/queries/useGames";
-import { useBgmToken } from "@/hooks/queries/useSettings";
+import { useAllSettings } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { apiSourceType, FullGameData, InsertGameParams } from "@/types";
@@ -90,7 +90,8 @@ function extractFolderName(path: string): string {
 const AddModal: React.FC = () => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { data: bgmToken = "" } = useBgmToken();
+	const { data: settings } = useAllSettings();
+	const bgmToken = settings?.bgm_token ?? "";
 	const addGameMutation = useAddGame();
 	const { addGameFromMetadata, isAddingGame } = useSingleGameAddActions();
 
@@ -184,15 +185,11 @@ const AddModal: React.FC = () => {
 
 	const handleAddGame = useCallback(
 		async (gameData: FullGameData) => {
-			const gameId = await addGameFromMetadata(gameData, {
-				localpath: addModalPath,
-				fallbackIdType: gameData.id_type,
-				fallbackDate: gameData.date,
-			});
+			const gameId = await addGameFromMetadata(gameData);
 			closeAddModal();
 			showGameAddedSuccess({ gameId, navigate, t });
 		},
-		[addGameFromMetadata, addModalPath, closeAddModal, navigate, t],
+		[addGameFromMetadata, closeAddModal, navigate, t],
 	);
 
 	const handleCloseSearchResult = useCallback(() => {

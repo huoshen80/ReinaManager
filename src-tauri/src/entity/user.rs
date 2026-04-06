@@ -22,6 +22,24 @@ pub struct Model {
     pub magpie_path: Option<String>,
 }
 
+impl Model {
+    pub fn save_root_path_value(&self) -> Option<&str> {
+        self.save_root_path.as_deref()
+    }
+
+    pub fn db_backup_path_value(&self) -> Option<&str> {
+        self.db_backup_path.as_deref()
+    }
+
+    pub fn le_path_value(&self) -> Option<&str> {
+        self.le_path.as_deref()
+    }
+
+    pub fn magpie_path_value(&self) -> Option<&str> {
+        self.magpie_path.as_deref()
+    }
+}
+
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 

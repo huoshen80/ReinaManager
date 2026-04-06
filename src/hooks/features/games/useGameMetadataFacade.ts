@@ -73,7 +73,6 @@ export function useSingleGameAddActions() {
 	const metadataAddActionMutation = useMutation({
 		mutationFn: async ({
 			gameData,
-			options,
 		}: {
 			gameData: FullGameData;
 			options?: {
@@ -82,10 +81,7 @@ export function useSingleGameAddActions() {
 				fallbackDate?: string;
 			};
 		}) => {
-			const insertData = await prepareInsertGameDataFromMetadata(
-				gameData,
-				options,
-			);
+			const insertData = await prepareInsertGameDataFromMetadata(gameData);
 
 			if (checkGameExists(insertData)) {
 				throw new Error(i18n.t("components.AddModal.gameExists"));
@@ -96,17 +92,9 @@ export function useSingleGameAddActions() {
 	});
 
 	const addGameFromMetadata = useCallback(
-		async (
-			gameData: FullGameData,
-			options?: {
-				localpath?: string;
-				fallbackIdType?: string;
-				fallbackDate?: string;
-			},
-		) => {
+		async (gameData: FullGameData) => {
 			return metadataAddActionMutation.mutateAsync({
 				gameData,
-				options,
 			});
 		},
 		[metadataAddActionMutation],

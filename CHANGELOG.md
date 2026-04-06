@@ -1,3 +1,48 @@
+
+## [0.18.2] - 2026-04-02
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类
+
+- 清理项目根目录 [skip ci]
+- *(workflow)* 使用 git-cliff 并改进发布流程
+- *(src-tauri)* 整理导入并提升 Rust 版本
+
+### 🐛 Bug 修复
+
+- 在批量导入模式下，选择 Ymgal 数据源或混合数据源会导致 Ymgal 元数据获取不完整，切换日志级别到 info 解决 #46
+
+### 🚀 性能优化
+
+- *(game_monitor)* 替换 sysinfo 为 Windows ToolHelp API，提升监控性能
+
+### 🚜 重构
+
+- 聚合多个设置以进行统一的获取和更新，移除统一路径管理器
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- Clean the root of project [skip ci]
+- *(workflow)* Use git-cliff and improve release workflow
+- *(src-tauri)* Tidy imports and bump Rust edition
+
+### 🐛 Bug Fixes
+
+- In batch import mode, selecting the Ymgal source or Mixed source will cause incomplete retrieval of Ymgal metadata,switch log level to info resolve #46
+
+### 🚀 Performance
+
+- *(game_monitor)* Replace sysinfo with Windows ToolHelp API,enhance monitoring performance
+
+### 🚜 Refactor
+
+- Aggregate multiple settings for unified retrieval and updating, remove the unified path manager
+
+
 ## [0.18.1](https://github.com/huoshen80/ReinaManager/compare/v0.18.0...v0.18.1) (2026-03-30)
 
 <details>

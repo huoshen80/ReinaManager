@@ -68,7 +68,7 @@ import {
 } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
-import { useLePath, useMagpiePath } from "@/hooks/queries/useSettings";
+import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { HanleGamesProps } from "@/types";
@@ -317,8 +317,9 @@ const MoreButton = () => {
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
 	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
-	const { data: lePath = "" } = useLePath();
-	const { data: magpiePath = "" } = useMagpiePath();
+	const { data: settings } = useAllSettings();
+	const lePath = settings?.le_path ?? "";
+	const magpiePath = settings?.magpie_path ?? "";
 
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
