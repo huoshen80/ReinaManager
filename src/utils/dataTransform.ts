@@ -98,12 +98,11 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 
 		case "mixed":
 			// 混合数据源：合并所有可用数据
-			if (bgm_data || vndb_data || ymgal_data || kun_data) {
+			if (bgm_data || vndb_data || ymgal_data) {
 				mergeMultipleDataSources(baseData, {
 					bgm_data,
 					vndb_data,
 					ymgal_data,
-					kun_data,
 					custom_data,
 				});
 			}
@@ -176,25 +175,20 @@ function assignFromDataSource(
 			break;
 		}
 
+		case "kungal": {
+			const kunSource = source as KunData;
+			target.image = kunSource.image;
+			target.tags = kunSource.tags || [];
+			target.all_titles = kunSource.all_titles || [];
+			target.aliases = kunSource.aliases || [];
+			break;
+		}
+
 		case "custom":
 		case "fallback": {
 			const customSource = source as CustomData;
 			target.aliases = customSource.aliases || [];
 			target.tags = customSource.tags || [];
-			break;
-		}
-
-		case "kungal": {
-			const kunSource = source as KunData;
-			target.image = kunSource.image;
-			target.name = kunSource.name;
-			target.name_cn = kunSource.name_cn;
-			target.tags = kunSource.tags || [];
-			target.all_titles = kunSource.all_titles || [];
-			target.aliases = kunSource.aliases || [];
-			target.summary = kunSource.summary;
-			target.developer = kunSource.developer;
-			target.nsfw = kunSource.nsfw;
 			break;
 		}
 	}
@@ -209,43 +203,29 @@ function mergeMultipleDataSources(
 		bgm_data?: Nullable<BgmData>;
 		vndb_data?: Nullable<VndbData>;
 		ymgal_data?: Nullable<YmgalData>;
-		kun_data?: Nullable<KunData>;
 		custom_data?: Nullable<CustomData>;
 	},
 ) {
-	const { bgm_data, vndb_data, ymgal_data, kun_data, custom_data } = sources;
+	const { bgm_data, vndb_data, ymgal_data, custom_data } = sources;
 
-	// 基础字段：优先级 BGM > VNDB > Kungal > YMGal
-	const primarySource = bgm_data || vndb_data || kun_data || ymgal_data;
-	if (primarySource) {
-		assignBasicFields(target, primarySource);
-		if (target.date?.includes("T")) {
-			target.date = target.date.split("T")[0];
-		}
-	}
+	// 基础字段：优先级 BGM > VNDB > YMGal
+	const primarySource = bgm_data || vndb_data || ymgal_data;
+	if (primarySource) assignBasicFields(target, primarySource);
 
-	target.image =
-		bgm_data?.image || vndb_data?.image || kun_data?.image || ymgal_data?.image;
+	target.image = bgm_data?.image || vndb_data?.image || ymgal_data?.image;
 
-	// 简介：Kungal 优先 (Kun 通常有比较详细的中文简介)
+	// 简介：YMGal 优先
 	target.summary =
-		kun_data?.summary ||
-		ymgal_data?.summary ||
-		bgm_data?.summary ||
-		vndb_data?.summary;
+		ymgal_data?.summary || bgm_data?.summary || vndb_data?.summary;
 
 	// 开发商: VNDB 优先
 	target.developer =
-		vndb_data?.developer ||
-		bgm_data?.developer ||
-		ymgal_data?.developer ||
-		kun_data?.developer;
+		vndb_data?.developer || bgm_data?.developer || ymgal_data?.developer;
 
 	// 标签: 合并所有数据源的标签，去重
 	const allTags = [
 		...(bgm_data?.tags || []),
 		...(vndb_data?.tags || []),
-		...(kun_data?.tags || []),
 		...(ymgal_data?.tags || []),
 		...(custom_data?.tags || []),
 	];
@@ -255,7 +235,6 @@ function mergeMultipleDataSources(
 	const allAliases = [
 		...(bgm_data?.aliases || []),
 		...(vndb_data?.aliases || []),
-		...(kun_data?.aliases || []),
 		...(ymgal_data?.aliases || []),
 		...(custom_data?.aliases || []),
 	];
@@ -268,7 +247,7 @@ function mergeMultipleDataSources(
 	target.rank = bgm_data?.rank;
 
 	// VNDB 特有字段
-	target.all_titles = vndb_data?.all_titles || kun_data?.all_titles || [];
+	target.all_titles = vndb_data?.all_titles || [];
 	target.average_hours = vndb_data?.average_hours;
 }
 

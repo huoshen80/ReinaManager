@@ -77,11 +77,11 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			return;
 		}
 
-		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId) {
+		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId) {
 			snackbar.error(
 				t(
-					"pages.Detail.DataSourceUpdate.mixedIdRequired",
-					"Mixed模式必须至少填写一个源ID",
+					"pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired",
+					"Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
 				),
 			);
 			return;
@@ -176,7 +176,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			)}
 
 			{/* Kungal ID 编辑框 */}
-			{(idType === "kungal" || idType === "mixed") && (
+			{idType === "kungal" && (
 				<TextField
 					label={t("pages.Detail.DataSourceUpdate.kunId", "Kungal ID")}
 					variant="outlined"
@@ -203,7 +203,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||
 					(idType === "kungal" && !kunId) ||
-					(idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId)
+					(idType === "mixed" && !bgmId && !vndbId && !ymgalId)
 				}
 				onClick={handleFetchAndPreview}
 				startIcon={

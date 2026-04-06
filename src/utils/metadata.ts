@@ -104,7 +104,9 @@ export async function ensureCompleteMetadata(
 	// 1. 过滤出当前上下文中需要执行的二次拉取任务
 	const tasks = SECONDARY_FETCH_STRATEGIES.filter((strategy) => {
 		const isTargetIdType =
-			gameData.id_type === strategy.source || gameData.id_type === "mixed";
+			strategy.source === "kungal"
+				? gameData.id_type === "kungal"
+				: gameData.id_type === strategy.source || gameData.id_type === "mixed";
 		const hasId = !!gameData[strategy.idKey];
 		const isDataIncomplete = !strategy.isComplete(
 			gameData[strategy.dataKey] as isCompleteData,
@@ -192,7 +194,6 @@ export async function fetchMetadataForUpdate({
 			bgmId,
 			vndbId,
 			ymgalId,
-			kunId,
 			bgmToken,
 		});
 	} else {
@@ -299,10 +300,9 @@ export function buildMetadataUpdatePayload(
 			updateData.ymgal_data = null;
 			updateData.ymgal_id = null;
 		}
-		if (!gameData.kun_id) {
-			updateData.kun_data = null;
-			updateData.kun_id = null;
-		}
+		// Kungal 已从 mixed 逻辑剔除
+		updateData.kun_data = null;
+		updateData.kun_id = null;
 	}
 
 	return updateData;
