@@ -13,7 +13,9 @@ import type {
 	CustomData,
 	FullGameData,
 	GameData,
+	KunData,
 	Nullable,
+	SourceType,
 	VndbData,
 	YmgalData,
 } from "@/types";
@@ -51,13 +53,9 @@ const assignBasicFields = (
  * 根据 id_type 智能合并游戏数据
  *
  * @param fullData 完整游戏数据（单表架构，元数据嵌入）
- * @param language 当前语言
  * @returns 展平的 GameData
  */
-export function getDisplayGameData(
-	fullData: FullGameData,
-	_language?: string,
-): GameData {
+export function getDisplayGameData(fullData: FullGameData): GameData {
 	// 基础数据 - 直接从 fullData 中获取根节点字段
 	const baseData: GameData = {
 		...fullData,
@@ -80,7 +78,7 @@ export function getDisplayGameData(
 	};
 
 	// 根据 id_type 决定数据来源
-	const { bgm_data, vndb_data, ymgal_data, custom_data } = fullData;
+	const { bgm_data, vndb_data, ymgal_data, kun_data, custom_data } = fullData;
 
 	switch (fullData.id_type) {
 		case "bgm":
@@ -93,6 +91,10 @@ export function getDisplayGameData(
 
 		case "ymgal":
 			if (ymgal_data) assignFromDataSource(baseData, ymgal_data, "ymgal");
+			break;
+
+		case "kun":
+			if (kun_data) assignFromDataSource(baseData, kun_data, "kun");
 			break;
 
 		case "mixed":
@@ -114,9 +116,9 @@ export function getDisplayGameData(
 
 		default: {
 			// 未知类型：尝试使用任何可用数据
-			const anyData = bgm_data ?? vndb_data ?? ymgal_data ?? custom_data;
-			if (anyData)
-				assignFromDataSource(baseData, anyData as DataSource, "fallback");
+			const anyData =
+				bgm_data ?? vndb_data ?? ymgal_data ?? kun_data ?? custom_data;
+			if (anyData) assignFromDataSource(baseData, anyData, "fallback");
 		}
 	}
 
@@ -131,7 +133,7 @@ export function getDisplayGameData(
 /**
  * 数据源类型联合
  */
-type DataSource = BgmData | VndbData | YmgalData | CustomData;
+type DataSource = BgmData | VndbData | YmgalData | KunData | CustomData;
 
 /**
  * 从单个数据源分配字段
@@ -139,7 +141,7 @@ type DataSource = BgmData | VndbData | YmgalData | CustomData;
 function assignFromDataSource(
 	target: GameData,
 	source: DataSource,
-	sourceType: "bgm" | "vndb" | "ymgal" | "custom" | "fallback",
+	sourceType: SourceType | "custom" | "fallback",
 ) {
 	// 基础字段
 	assignBasicFields(target, source);
@@ -171,6 +173,15 @@ function assignFromDataSource(
 			const ymgalSource = source as YmgalData;
 			target.image = ymgalSource.image;
 			target.aliases = ymgalSource.aliases || [];
+			break;
+		}
+
+		case "kun": {
+			const kunSource = source as KunData;
+			target.image = kunSource.image;
+			target.tags = kunSource.tags || [];
+			target.all_titles = kunSource.all_titles || [];
+			target.aliases = kunSource.aliases || [];
 			break;
 		}
 
@@ -278,7 +289,6 @@ function applyCustomDataOverride(target: GameData, customData: CustomData) {
  */
 export function getDisplayGameDataList(
 	fullDataList: FullGameData[],
-	language?: string,
 ): GameData[] {
-	return fullDataList.map((fullData) => getDisplayGameData(fullData, language));
+	return fullDataList.map((fullData) => getDisplayGameData(fullData));
 }

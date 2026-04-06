@@ -34,7 +34,7 @@ import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFac
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
-import type { FullGameData, ScanResult } from "@/types";
+import type { apiSourceType, FullGameData, ScanResult } from "@/types";
 import {
 	createAbortableRunner,
 	handleGetFolder,
@@ -97,9 +97,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const [items, setItems] = useState<ImportItem[]>([]);
 	const [editItemPath, setEditItemPath] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
-	const [editApiSource, setEditApiSource] = useState<
-		"bgm" | "vndb" | "ymgal" | "mixed"
-	>("bgm");
+	const [editApiSource, setEditApiSource] = useState<apiSourceType>("bgm");
 	const [editIsIdSearch, setEditIsIdSearch] = useState(false);
 	const [searchResultState, setSearchResultState] = useState<SearchResultState>(
 		{
@@ -708,9 +706,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								row
 								value={editApiSource}
 								onChange={(event) =>
-									setEditApiSource(
-										event.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
-									)
+									setEditApiSource(event.target.value as apiSourceType)
 								}
 							>
 								<FormControlLabel

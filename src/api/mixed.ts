@@ -83,17 +83,13 @@ async function getYmgalDataSafely(
 
 function extractNameFromApi(apiData: FullGameData | null): string | undefined {
 	if (!apiData) return undefined;
-	// 优先级: YMGal > VNDB > BGM > Custom
-	const ymgalName = apiData.ymgal_data?.name;
-	if (ymgalName) return ymgalName as string;
-	const vndbName = apiData.vndb_data?.name;
-	if (vndbName) return vndbName as string;
+
 	const bgmName = apiData.bgm_data?.name;
-	if (bgmName) return bgmName as string;
-	// 其次使用 custom_data 中的名称
-	const custom = apiData.custom_data?.name;
-	if (custom) return custom as string;
-	return undefined;
+	if (bgmName) return bgmName;
+	const vndbName = apiData.vndb_data?.name;
+	if (vndbName) return vndbName;
+	const ymgalName = apiData.ymgal_data?.name;
+	if (ymgalName) return ymgalName;
 }
 
 /**

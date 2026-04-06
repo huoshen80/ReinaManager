@@ -59,6 +59,9 @@
 				},
 				{
 					"url": "https://api.vndb.org"
+				},
+				{
+					"url": "https://www.kungal.com"
 				}
 			]
 		}

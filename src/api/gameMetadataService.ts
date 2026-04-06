@@ -7,6 +7,7 @@
  */
 
 import { fetchBgmById, fetchBgmByName } from "@/api/bgm";
+import { fetchGalgameById, searchGalgame } from "@/api/kun";
 import { fetchMixedData } from "@/api/mixed";
 import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
@@ -45,16 +46,6 @@ function createStableError(
 		code,
 		message,
 	});
-}
-
-/**
- * 检查 YMGal 数据是否完整
- * YMGal 数据完整需要包含 summary 和 aliases 字段
- */
-export function isYmgalDataComplete(
-	ymgalData?: { summary?: string; aliases?: string[] } | null,
-): boolean {
-	return !!(ymgalData?.summary && ymgalData?.aliases);
 }
 
 /**
@@ -121,7 +112,7 @@ function ensureMixedResult(result: FullGameData | null): FullGameData {
 /**
  * 支持的数据源类型
  */
-export type DataSource = "bgm" | "vndb" | "ymgal";
+export type DataSource = "bgm" | "vndb" | "ymgal" | "kun";
 
 /**
  * 游戏搜索参数
@@ -163,7 +154,7 @@ class GameMetadataService {
 	 */
 	private isIdQuery(query: string): boolean {
 		return (
-			/^\d+$/.test(query) || // BGM ID (纯数字)
+			/^\d+$/.test(query) || // BGM 和 Kungal ID (纯数字)
 			/^v\d+$/i.test(query) || // VNDB ID (v开头+数字)
 			/^ga\d+$/i.test(query) // YMGal ID (ga开头+数字)
 		);
@@ -218,6 +209,13 @@ class GameMetadataService {
 		source: DataSource,
 		bgmToken?: string,
 	): Promise<FullGameData> {
+		if (import.meta.env.DEV) {
+			console.log(`[MetadataService] getGameById called:`, {
+				id,
+				source,
+				hasBgmToken: !!bgmToken,
+			});
+		}
 		try {
 			switch (source) {
 				case "bgm":
@@ -232,6 +230,8 @@ class GameMetadataService {
 					return await fetchVndbById(id);
 				case "ymgal":
 					return await fetchYmById(Number(id));
+				case "kun":
+					return await fetchGalgameById(id);
 				default:
 					throw createStableError(
 						"unsupported_source",
@@ -263,6 +263,8 @@ class GameMetadataService {
 					return await fetchVndbByName(name);
 				case "ymgal":
 					return await fetchYmByName(name);
+				case "kun":
+					return await searchGalgame(name);
 				default:
 					throw createStableError(
 						"unsupported_source",
@@ -346,11 +348,12 @@ class GameMetadataService {
 	}
 
 	/**
-	 * 验证游戏 ID 格式
+	 * 验证游戏 ID 格式 // 目前无用
 	 */
 	isValidGameId(id: string, source: DataSource): boolean {
 		switch (source) {
 			case "bgm":
+			case "kun":
 				return /^\d+$/.test(id);
 			case "vndb":
 				return /^v\d+$/i.test(id);

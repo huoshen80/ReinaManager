@@ -38,7 +38,7 @@ import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
-import type { FullGameData, InsertGameParams } from "@/types";
+import type { apiSourceType, FullGameData, InsertGameParams } from "@/types";
 import {
 	createAbortableRunner,
 	handleExeFile,
@@ -270,6 +270,11 @@ const AddModal: React.FC = () => {
 			if (apiSource === "ymgal") {
 				throw new Error(t("components.AddModal.noResultsYmgal"));
 			}
+			if (apiSource === "kun") {
+				throw new Error(
+					t("components.AddModal.noResultsKun", "Kungal 未找到相关结果"),
+				);
+			}
 			// 默认错误
 			throw new Error(t("components.AddModal.noResults"));
 		}
@@ -456,11 +461,7 @@ const AddModal: React.FC = () => {
 								row
 								value={apiSource}
 								sx={{ gap: 1 }}
-								onChange={(e) =>
-									setApiSource(
-										e.target.value as "bgm" | "vndb" | "ymgal" | "mixed",
-									)
-								}
+								onChange={(e) => setApiSource(e.target.value as apiSourceType)}
 							>
 								<FormControlLabel
 									value="bgm"
@@ -478,6 +479,12 @@ const AddModal: React.FC = () => {
 									value="ymgal"
 									control={<Radio />}
 									label="YMGal"
+									disabled={isBusy}
+								/>
+								<FormControlLabel
+									value="kun"
+									control={<Radio />}
+									label="Kun"
 									disabled={isBusy}
 								/>
 								<FormControlLabel

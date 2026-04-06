@@ -5,6 +5,7 @@
 
 use crate::entity::bgm_data::BgmData;
 use crate::entity::custom_data::CustomData;
+use crate::entity::kun_data::KunData;
 use crate::entity::vndb_data::VndbData;
 use crate::entity::ymgal_data::YmgalData;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -42,6 +43,7 @@ impl InsertGameData {
         self.bgm_id = clean_option_string(self.bgm_id);
         self.vndb_id = clean_option_string(self.vndb_id);
         self.ymgal_id = clean_option_string(self.ymgal_id);
+        self.kun_id = clean_option_string(self.kun_id);
         self.date = clean_option_string(self.date);
         self.localpath = clean_option_string(self.localpath);
         self.savepath = clean_option_string(self.savepath);
@@ -56,6 +58,7 @@ impl UpdateGameData {
         self.bgm_id = clean_double_option_string(self.bgm_id);
         self.vndb_id = clean_double_option_string(self.vndb_id);
         self.ymgal_id = clean_double_option_string(self.ymgal_id);
+        self.kun_id = clean_double_option_string(self.kun_id);
         self.date = clean_double_option_string(self.date);
         self.localpath = clean_double_option_string(self.localpath);
         self.savepath = clean_double_option_string(self.savepath);
@@ -150,6 +153,7 @@ pub struct InsertGameData {
     pub bgm_id: Option<String>,
     pub vndb_id: Option<String>,
     pub ymgal_id: Option<String>,
+    pub kun_id: Option<String>,
     pub id_type: String,
 
     // === 核心状态 ===
@@ -166,6 +170,7 @@ pub struct InsertGameData {
     pub vndb_data: Option<VndbData>,
     pub bgm_data: Option<BgmData>,
     pub ymgal_data: Option<YmgalData>,
+    pub kun_data: Option<KunData>,
     pub custom_data: Option<CustomData>,
 }
 
@@ -197,6 +202,8 @@ pub struct UpdateGameData {
     pub vndb_id: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub ymgal_id: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub kun_id: Option<Option<String>>,
     pub id_type: Option<String>,
 
     // === 核心状态 ===
@@ -223,6 +230,8 @@ pub struct UpdateGameData {
     pub bgm_data: Option<Option<BgmData>>,
     #[serde(default, deserialize_with = "double_option")]
     pub ymgal_data: Option<Option<YmgalData>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub kun_data: Option<Option<KunData>>,
     #[serde(default, deserialize_with = "double_option")]
     pub custom_data: Option<Option<CustomData>>,
 }

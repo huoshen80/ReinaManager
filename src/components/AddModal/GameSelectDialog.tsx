@@ -17,7 +17,14 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
-import type { BgmData, FullGameData, VndbData, YmgalData } from "@/types";
+import type {
+	BgmData,
+	FullGameData,
+	KunData,
+	SourceType,
+	VndbData,
+	YmgalData,
+} from "@/types";
 
 interface GameSelectDialogProps {
 	open: boolean;
@@ -26,7 +33,7 @@ interface GameSelectDialogProps {
 	onSelect: (game: FullGameData, index: number) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
-	apiSource: "bgm" | "vndb" | "ymgal";
+	apiSource: SourceType;
 }
 
 /**
@@ -35,7 +42,7 @@ interface GameSelectDialogProps {
  */
 function extractDisplayInfo(
 	item: FullGameData,
-	apiSource: "bgm" | "vndb" | "ymgal",
+	apiSource: SourceType,
 ): {
 	id: string;
 	name: string;
@@ -46,7 +53,7 @@ function extractDisplayInfo(
 	sourceLabel: string;
 } {
 	// 根据数据源直接提取对应的数据
-	let data: BgmData | VndbData | YmgalData | null | undefined;
+	let data: BgmData | VndbData | YmgalData | KunData | null | undefined;
 	let id: string;
 	let sourceLabel: string;
 
@@ -58,10 +65,14 @@ function extractDisplayInfo(
 		data = item.vndb_data;
 		id = item.vndb_id || "";
 		sourceLabel = `VNDB: ${id}`;
-	} else {
+	} else if (apiSource === "ymgal") {
 		data = item.ymgal_data;
 		id = item.ymgal_id || "";
 		sourceLabel = `YMGal: ${id}`;
+	} else {
+		data = item.kun_data;
+		id = item.kun_id || "";
+		sourceLabel = `Kungal: ${id}`;
 	}
 
 	return {

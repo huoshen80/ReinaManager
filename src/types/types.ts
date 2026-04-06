@@ -108,6 +108,21 @@ export interface YmgalData {
 }
 
 /**
+ * Kun 数据结构
+ */
+export interface KunData {
+	image?: string;
+	name?: string;
+	name_cn?: string;
+	all_titles?: string[];
+	aliases?: string[];
+	summary?: string;
+	tags?: string[];
+	developer?: string;
+	nsfw?: boolean;
+}
+
+/**
  * 自定义数据结构（JSON 列嵌入 games 表）
  *
  * 用于用户手动添加的游戏或自定义元数据
@@ -128,16 +143,24 @@ export interface CustomData {
 
 // ==================== 游戏数据类型（DTO 三位一体） ====================
 
+export type SourceType = "bgm" | "vndb" | "ymgal" | "kun";
+
+export type apiSourceType = SourceType | "mixed";
+
 /**
  * 数据源 ID 类型
  */
-export type IdType =
-	| "bgm"
-	| "vndb"
-	| "ymgal"
-	| "mixed"
-	| "custom"
-	| "Whitecloud";
+export type IdType = apiSourceType | "custom" | "Whitecloud";
+
+export enum IdTypeEnum {
+	BGM = "bgm",
+	VNDB = "vndb",
+	YMGAL = "ymgal",
+	KUN = "kun",
+	MIXED = "mixed",
+	CUSTOM = "custom",
+	WHITECLOUD = "Whitecloud",
+}
 
 /**
  * 完整游戏数据 - 对应数据库 games 表结构（读取用）
@@ -153,6 +176,7 @@ export interface FullGameData {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	id_type?: IdType | string;
 
 	// --- 核心状态 ---
@@ -168,6 +192,7 @@ export interface FullGameData {
 	bgm_data?: Nullable<BgmData>;
 	vndb_data?: Nullable<VndbData>;
 	ymgal_data?: Nullable<YmgalData>;
+	kun_data?: Nullable<KunData>;
 	custom_data?: Nullable<CustomData>;
 
 	// --- 时间类（只读） ---
@@ -189,6 +214,7 @@ export interface InsertGameParams {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	id_type: IdType | string; // 必需字段
 
 	// --- 核心状态 ---
@@ -205,6 +231,7 @@ export interface InsertGameParams {
 	bgm_data?: BgmData;
 	vndb_data?: VndbData;
 	ymgal_data?: YmgalData;
+	kun_data?: KunData;
 	custom_data?: CustomData;
 }
 
@@ -223,6 +250,7 @@ export interface UpdateGameParams {
 	bgm_id?: Nullable<string>;
 	vndb_id?: Nullable<string>;
 	ymgal_id?: Nullable<string>;
+	kun_id?: Nullable<string>;
 	id_type?: IdType | string;
 
 	// --- 核心状态（支持三态） ---
@@ -239,6 +267,7 @@ export interface UpdateGameParams {
 	bgm_data?: Nullable<BgmData>;
 	vndb_data?: Nullable<VndbData>;
 	ymgal_data?: Nullable<YmgalData>;
+	kun_data?: Nullable<KunData>;
 	custom_data?: Nullable<CustomData>;
 }
 
@@ -273,6 +302,7 @@ export interface GameData {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	id_type?: string;
 	date?: string;
 	localpath?: string;

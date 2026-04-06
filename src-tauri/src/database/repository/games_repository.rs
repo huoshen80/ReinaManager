@@ -59,6 +59,7 @@ impl GamesRepository {
             bgm_id: Set(game.bgm_id),
             vndb_id: Set(game.vndb_id),
             ymgal_id: Set(game.ymgal_id),
+            kun_id: Set(game.kun_id),
             id_type: Set(game.id_type),
             date: Set(game.date),
             localpath: Set(game.localpath),
@@ -71,6 +72,7 @@ impl GamesRepository {
             vndb_data: Set(game.vndb_data),
             bgm_data: Set(game.bgm_data),
             ymgal_data: Set(game.ymgal_data),
+            kun_data: Set(game.kun_data),
             custom_data: Set(game.custom_data),
             created_at: Set(Some(now)),
             updated_at: Set(Some(now)),
@@ -137,6 +139,7 @@ impl GamesRepository {
             bgm_id: updates.bgm_id.map_or(NotSet, Set),
             vndb_id: updates.vndb_id.map_or(NotSet, Set),
             ymgal_id: updates.ymgal_id.map_or(NotSet, Set),
+            kun_id: updates.kun_id.map_or(NotSet, Set),
             id_type: updates.id_type.map_or(NotSet, Set),
             date: updates.date.map_or(NotSet, Set),
             localpath: updates.localpath.map_or(NotSet, Set),
@@ -149,6 +152,7 @@ impl GamesRepository {
             vndb_data: updates.vndb_data.map_or(NotSet, Set),
             bgm_data: updates.bgm_data.map_or(NotSet, Set),
             ymgal_data: updates.ymgal_data.map_or(NotSet, Set),
+            kun_data: updates.kun_data.map_or(NotSet, Set),
             custom_data: updates.custom_data.map_or(NotSet, Set),
             updated_at: Set(Some(now)),
             ..Default::default()
@@ -180,6 +184,7 @@ impl GamesRepository {
                 bgm_id: update.bgm_id.map_or(NotSet, Set),
                 vndb_id: update.vndb_id.map_or(NotSet, Set),
                 ymgal_id: update.ymgal_id.map_or(NotSet, Set),
+                kun_id: update.kun_id.map_or(NotSet, Set),
                 id_type: update.id_type.map_or(NotSet, Set),
                 date: update.date.map_or(NotSet, Set),
                 localpath: update.localpath.map_or(NotSet, Set),
@@ -192,6 +197,7 @@ impl GamesRepository {
                 bgm_data: update.bgm_data.map_or(NotSet, Set),
                 vndb_data: update.vndb_data.map_or(NotSet, Set),
                 ymgal_data: update.ymgal_data.map_or(NotSet, Set),
+                kun_data: update.kun_data.map_or(NotSet, Set),
                 custom_data: update.custom_data.map_or(NotSet, Set),
                 updated_at: Set(Some(now)),
                 ..Default::default()
@@ -379,15 +385,27 @@ impl GamesRepository {
             };
         }
 
+        macro_rules! kun_extract_name {
+            ($source:expr) => {
+                $source.as_ref().and_then(|d| {
+                    let cn = d.name_cn.as_deref().filter(|n| !n.is_empty());
+                    let en = d.name.as_deref().filter(|n| !n.is_empty());
+                    if use_cn { cn.or(en) } else { en }
+                })
+            };
+        }
+
         // 2. 根据 id_type 获取最终名称的引用 (&str)
         let name_ref = match game.id_type.as_str() {
             "bgm" => extract_name!(game.bgm_data),
             "vndb" => extract_name!(game.vndb_data),
             "ymgal" => extract_name!(game.ymgal_data),
+            "kun" => kun_extract_name!(game.kun_data),
             // mixed 和其他类型：依次降级尝试
             _ => extract_name!(game.bgm_data)
                 .or_else(|| extract_name!(game.vndb_data))
-                .or_else(|| extract_name!(game.ymgal_data)),
+                .or_else(|| extract_name!(game.ymgal_data))
+                .or_else(|| kun_extract_name!(game.kun_data)),
         };
 
         // 3. 统一在这里进行内存分配，根据语言转换为合适的排序键

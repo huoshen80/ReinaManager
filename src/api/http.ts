@@ -31,6 +31,7 @@ interface TauriHttpResponse<T = unknown> {
 	data: T;
 	status: number;
 	statusText: string;
+	headers: [string, string][];
 }
 
 function buildUrlWithParams(
@@ -86,6 +87,13 @@ async function requestTauriHttp<T>(
 	const fullUrl =
 		method === "GET" ? buildUrlWithParams(url, options?.params) : url;
 
+	if (import.meta.env.DEV) {
+		console.log(`[TauriHTTP] ${method} ${fullUrl}`, {
+			headers: options?.headers,
+			body: data,
+		});
+	}
+
 	const response = await tauriFetch(fullUrl, {
 		method,
 		headers: {
@@ -97,6 +105,12 @@ async function requestTauriHttp<T>(
 	});
 
 	if (!response.ok) {
+		if (import.meta.env.DEV) {
+			console.error(
+				`[TauriHTTP Error] ${method} ${fullUrl} ${response.status}`,
+				response.statusText,
+			);
+		}
 		throw new HttpResponseError({
 			method,
 			url: fullUrl,
@@ -105,10 +119,17 @@ async function requestTauriHttp<T>(
 		});
 	}
 
+	const parsedData = await parseTauriResponse<T>(response, method, fullUrl);
+
+	if (import.meta.env.DEV) {
+		console.log(`[TauriHTTP Response] ${method} ${fullUrl}`, parsedData);
+	}
+
 	return {
-		data: await parseTauriResponse<T>(response, method, fullUrl),
+		data: parsedData,
 		status: response.status,
 		statusText: response.statusText,
+		headers: Array.from(response.headers.entries()),
 	};
 }
 

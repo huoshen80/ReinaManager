@@ -14,6 +14,10 @@ export type {
 	GameSearchParams,
 } from "./gameMetadataService";
 export { gameMetadataService } from "./gameMetadataService";
+export {
+	fetchGalgameById,
+	searchGalgame,
+} from "./kun";
 export { fetchMixedData } from "./mixed";
 export {
 	fetchVndbById,

@@ -1,5 +1,4 @@
 import { gameMetadataService } from "@/api";
-import { isYmgalDataComplete } from "@/api/gameMetadataService";
 import type {
 	CustomData,
 	FullGameData,
@@ -43,55 +42,90 @@ interface SourceUpdateParams {
 	bgmId?: string;
 	vndbId?: string;
 	ymgalId?: string;
+	kunId?: string;
 	bgmToken?: string;
 }
 
-async function fetchYmgalAndMerge(
-	ymgalId: string | number,
-	existingData: FullGameData,
-): Promise<FullGameData | null> {
-	const results = await gameMetadataService.searchGames({
-		query: ymgalId.toString(),
-		source: "ymgal",
-		isIdSearch: true,
-	});
+// ---------------------- 策略配置区 ----------------------
 
-	if (results.length === 0) {
-		return null;
-	}
+type SecondarySource = "ymgal" | "kun";
 
-	const ymgalData = results[0];
-	return {
-		id_type: "mixed",
-		bgm_id: existingData.bgm_id,
-		bgm_data: existingData.bgm_data ?? undefined,
-		vndb_id: existingData.vndb_id,
-		vndb_data: existingData.vndb_data ?? undefined,
-		ymgal_id: ymgalData.ymgal_id,
-		ymgal_data: ymgalData.ymgal_data,
-		date: existingData.date,
-		localpath: existingData.localpath,
-		custom_data: existingData.custom_data ?? undefined,
-	};
+interface isCompleteData {
+	summary?: string;
+	aliases?: string[];
 }
+
+interface FetchStrategy {
+	source: SecondarySource;
+	idKey: keyof FullGameData;
+	dataKey: keyof FullGameData;
+	isComplete: (data: isCompleteData) => boolean;
+	errorKey: string;
+	defaultErrorMsg: string;
+}
+
+function isDataComplete(galData?: isCompleteData): boolean {
+	return !!(galData?.summary && galData?.aliases);
+}
+
+// 定义二次获取数据的策略
+const SECONDARY_FETCH_STRATEGIES: FetchStrategy[] = [
+	{
+		source: "ymgal",
+		idKey: "ymgal_id",
+		dataKey: "ymgal_data",
+		isComplete: isDataComplete,
+		errorKey: "pages.Detail.DataSourceUpdate.incompleteYmgalData",
+		defaultErrorMsg: "未找到完整的 YMGal 数据。",
+	},
+	{
+		source: "kun",
+		idKey: "kun_id",
+		dataKey: "kun_data",
+		isComplete: isDataComplete,
+		errorKey: "pages.Detail.DataSourceUpdate.incompleteKungalData",
+		defaultErrorMsg: "未找到完整的 Kungal 数据。",
+	},
+];
+
+// 所有可能包含源数据的字段
+const ALL_DATA_SOURCES = [
+	"bgm_data",
+	"vndb_data",
+	"ymgal_data",
+	"kun_data",
+] as const;
+
+// ---------------------- 核心业务逻辑区 ----------------------
 
 export async function ensureCompleteMetadata(
 	gameData: FullGameData,
 ): Promise<FullGameData> {
-	const needsCompleteData =
-		gameData.id_type === "ymgal" ||
-		(gameData.id_type === "mixed" &&
-			gameData.ymgal_id &&
-			!isYmgalDataComplete(gameData.ymgal_data));
+	// 1. 过滤出当前上下文中需要执行的二次拉取任务
+	const tasks = SECONDARY_FETCH_STRATEGIES.filter((strategy) => {
+		const isTargetIdType =
+			strategy.source === "kun"
+				? gameData.id_type === "kun"
+				: gameData.id_type === strategy.source || gameData.id_type === "mixed";
+		const hasId = !!gameData[strategy.idKey];
+		const isDataIncomplete = !strategy.isComplete(
+			gameData[strategy.dataKey] as isCompleteData,
+		);
 
-	if (!needsCompleteData) {
+		return isTargetIdType && hasId && isDataIncomplete;
+	});
+
+	if (tasks.length === 0) {
 		return gameData;
 	}
 
-	if (gameData.id_type === "ymgal") {
+	// 2. 并行执行所有缺失数据的拉取请求
+	const fetchPromises = tasks.map(async (strategy) => {
+		const sourceId = gameData[strategy.idKey] as string;
+
 		const results = await gameMetadataService.searchGames({
-			query: gameData.ymgal_id?.toString() || "",
-			source: "ymgal",
+			query: sourceId.toString(),
+			source: strategy.source,
 			isIdSearch: true,
 			defaults: {
 				localpath: gameData.localpath ?? undefined,
@@ -99,30 +133,26 @@ export async function ensureCompleteMetadata(
 		});
 
 		if (results.length === 0) {
-			throw new Error(
-				i18n.t(
-					"pages.Detail.DataSourceUpdate.incompleteYmgalData",
-					"未找到完整的 YMGal 数据。",
-				),
-			);
+			throw new Error(i18n.t(strategy.errorKey, strategy.defaultErrorMsg));
 		}
 
-		return results[0];
-	}
+		// 返回需要合并的增量对象
+		return {
+			[strategy.idKey]: results[0][strategy.idKey],
+			[strategy.dataKey]: results[0][strategy.dataKey],
+		};
+	});
 
-	if (gameData.ymgal_id) {
-		const merged = await fetchYmgalAndMerge(gameData.ymgal_id, gameData);
-		if (merged) {
-			return merged;
-		}
-	}
+	const partialUpdates = await Promise.all(fetchPromises);
 
-	throw new Error(
-		i18n.t(
-			"pages.Detail.DataSourceUpdate.incompleteYmgalData",
-			"未找到完整的 YMGal 数据。",
-		),
-	);
+	return partialUpdates.reduce(
+		(mergedObj, currentUpdate) => {
+			return Object.assign(mergedObj, currentUpdate, {
+				id_type: gameData.id_type === "mixed" ? "mixed" : gameData.id_type,
+			});
+		},
+		{ ...gameData },
+	) as FullGameData;
 }
 
 export async function fetchMetadataForUpdate({
@@ -131,6 +161,7 @@ export async function fetchMetadataForUpdate({
 	bgmId,
 	vndbId,
 	ymgalId,
+	kunId,
 	bgmToken,
 }: SourceUpdateParams): Promise<FullGameData> {
 	if (!selectedGame) {
@@ -156,6 +187,8 @@ export async function fetchMetadataForUpdate({
 		apiData = await gameMetadataService.getGameById(vndbId, "vndb");
 	} else if (idType === "ymgal" && ymgalId) {
 		apiData = await gameMetadataService.getGameById(ymgalId, "ymgal");
+	} else if (idType === "kun" && kunId) {
+		apiData = await gameMetadataService.getGameById(kunId, "kun");
 	} else if (idType === "mixed") {
 		apiData = await gameMetadataService.getGameByIds({
 			bgmId,
@@ -188,12 +221,14 @@ export async function buildInsertGameData(
 		bgm_id: gameData.bgm_id,
 		vndb_id: gameData.vndb_id,
 		ymgal_id: gameData.ymgal_id,
+		kun_id: gameData.kun_id,
 		id_type: gameData.id_type || "mixed",
 		date: gameData.date,
 		localpath: gameData.localpath ?? undefined,
 		bgm_data: gameData.bgm_data ?? undefined,
 		vndb_data: gameData.vndb_data ?? undefined,
 		ymgal_data: gameData.ymgal_data ?? undefined,
+		kun_data: gameData.kun_data ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
 	};
 	const cloudStatus = await resolveCloudPlayStatus(insertData);
@@ -226,33 +261,31 @@ export function buildMetadataUpdatePayload(
 ): UpdateGameParams {
 	const updateData: UpdateGameParams = { ...gameData };
 
-	switch (gameData.id_type) {
-		case "bgm":
-			updateData.vndb_data = null;
-			updateData.ymgal_data = null;
-			break;
-		case "vndb":
+	if (gameData.id_type !== "mixed") {
+		// 单一数据源模式：保留对应的 _data，将其余源的数据清空
+		const activeSource = `${gameData.id_type}_data`;
+		for (const source of ALL_DATA_SOURCES) {
+			if (source !== activeSource) {
+				updateData[source] = null;
+			}
+		}
+	} else {
+		// 混合模式：根据对应的 ID 决定是否清空该数据源
+		if (!gameData.bgm_id) {
 			updateData.bgm_data = null;
-			updateData.ymgal_data = null;
-			break;
-		case "ymgal":
-			updateData.bgm_data = null;
+			updateData.bgm_id = null;
+		}
+		if (!gameData.vndb_id) {
 			updateData.vndb_data = null;
-			break;
-		case "mixed":
-			if (!gameData.bgm_id) {
-				updateData.bgm_data = null;
-				updateData.bgm_id = null;
-			}
-			if (!gameData.vndb_id) {
-				updateData.vndb_data = null;
-				updateData.vndb_id = null;
-			}
-			if (!gameData.ymgal_id) {
-				updateData.ymgal_data = null;
-				updateData.ymgal_id = null;
-			}
-			break;
+			updateData.vndb_id = null;
+		}
+		if (!gameData.ymgal_id) {
+			updateData.ymgal_data = null;
+			updateData.ymgal_id = null;
+		}
+		// Kungal 已从 mixed 逻辑剔除
+		updateData.kun_data = null;
+		updateData.kun_id = null;
 	}
 
 	return updateData;
@@ -368,11 +401,12 @@ export async function buildBulkImportGameData(
 }
 
 export function getGameIdentityKeys(
-	payload: Pick<InsertGameParams, "bgm_id" | "vndb_id" | "ymgal_id">,
+	payload: Pick<InsertGameParams, "bgm_id" | "vndb_id" | "ymgal_id" | "kun_id">,
 ): string[] {
 	return [
 		payload.bgm_id ? `bgm:${payload.bgm_id}` : null,
 		payload.vndb_id ? `vndb:${payload.vndb_id}` : null,
 		payload.ymgal_id ? `ymgal:${payload.ymgal_id}` : null,
+		payload.kun_id ? `kun:${payload.kun_id}` : null,
 	].filter((value): value is string => Boolean(value));
 }

@@ -22,6 +22,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
+import type { apiSourceType } from "@/types";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
@@ -68,8 +69,8 @@ export interface AppState {
 	setGameFilterType: (type: GameType) => void;
 
 	// 数据来源选择
-	apiSource: "bgm" | "vndb" | "ymgal" | "mixed";
-	setApiSource: (source: "bgm" | "vndb" | "ymgal" | "mixed") => void;
+	apiSource: apiSourceType;
+	setApiSource: (source: apiSourceType) => void;
 
 	// NSFW相关
 	nsfwFilter: boolean;
@@ -153,7 +154,7 @@ export const useStore = create<AppState>()(
 
 			// 数据来源选择
 			apiSource: "mixed",
-			setApiSource: (source: "bgm" | "vndb" | "ymgal" | "mixed") => {
+			setApiSource: (source: apiSourceType) => {
 				set({ apiSource: source });
 			},
 
