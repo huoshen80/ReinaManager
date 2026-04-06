@@ -112,7 +112,7 @@ function ensureMixedResult(result: FullGameData | null): FullGameData {
 /**
  * 支持的数据源类型
  */
-export type DataSource = "bgm" | "vndb" | "ymgal" | "kungal";
+export type DataSource = "bgm" | "vndb" | "ymgal" | "kun";
 
 /**
  * 游戏搜索参数
@@ -230,7 +230,7 @@ class GameMetadataService {
 					return await fetchVndbById(id);
 				case "ymgal":
 					return await fetchYmById(Number(id));
-				case "kungal":
+				case "kun":
 					return await fetchGalgameById(id);
 				default:
 					throw createStableError(
@@ -263,7 +263,7 @@ class GameMetadataService {
 					return await fetchVndbByName(name);
 				case "ymgal":
 					return await fetchYmByName(name);
-				case "kungal":
+				case "kun":
 					return await searchGalgame(name);
 				default:
 					throw createStableError(
@@ -353,7 +353,7 @@ class GameMetadataService {
 	isValidGameId(id: string, source: DataSource): boolean {
 		switch (source) {
 			case "bgm":
-			case "kungal":
+			case "kun":
 				return /^\d+$/.test(id);
 			case "vndb":
 				return /^v\d+$/i.test(id);

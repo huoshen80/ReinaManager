@@ -58,6 +58,7 @@
 			"noResultsMixed": "所有数据源均未找到该游戏",
 			"noResultsVndb": "未在 VNDB 找到该游戏，请尝试其他名称或检查 ID",
 			"noResultsYmgal": "未在 YMGal 找到该游戏，请尝试其他名称或检查 ID",
+			"noResultsKun": "未在 Kungal 找到该游戏，请尝试其他名称或检查 ID",
 			"processing": "处理中...",
 			"dragHint": "请选择或拖拽可执行文件或文件夹",
 			"dragDropHere": "拖拽文件到这里",

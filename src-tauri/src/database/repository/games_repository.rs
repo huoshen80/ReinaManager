@@ -400,7 +400,7 @@ impl GamesRepository {
             "bgm" => extract_name!(game.bgm_data),
             "vndb" => extract_name!(game.vndb_data),
             "ymgal" => extract_name!(game.ymgal_data),
-            "kungal" => kun_extract_name!(game.kun_data),
+            "kun" => kun_extract_name!(game.kun_data),
             // mixed 和其他类型：依次降级尝试
             _ => extract_name!(game.bgm_data)
                 .or_else(|| extract_name!(game.vndb_data))

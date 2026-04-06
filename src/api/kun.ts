@@ -204,7 +204,7 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
 	const result: FullGameData = {
 		kun_id: String(kunData.id),
 		vndb_id: kunData.vndbId,
-		id_type: "kungal",
+		id_type: "kun",
 		kun_data,
 	};
 
@@ -269,7 +269,7 @@ export async function searchGalgame(
 
 	return resp.data.map((item) => ({
 		kun_id: String(item.id),
-		id_type: "kungal",
+		id_type: "kun",
 		kun_data: {
 			name: pickLocalizedText(item.name),
 			image: item.banner,

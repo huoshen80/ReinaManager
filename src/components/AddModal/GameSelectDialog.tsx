@@ -21,6 +21,7 @@ import type {
 	BgmData,
 	FullGameData,
 	KunData,
+	SourceType,
 	VndbData,
 	YmgalData,
 } from "@/types";
@@ -32,7 +33,7 @@ interface GameSelectDialogProps {
 	onSelect: (game: FullGameData, index: number) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
-	apiSource: "bgm" | "vndb" | "ymgal" | "kungal";
+	apiSource: SourceType;
 }
 
 /**
@@ -41,7 +42,7 @@ interface GameSelectDialogProps {
  */
 function extractDisplayInfo(
 	item: FullGameData,
-	apiSource: "bgm" | "vndb" | "ymgal" | "kungal",
+	apiSource: SourceType,
 ): {
 	id: string;
 	name: string;

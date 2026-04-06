@@ -108,7 +108,7 @@ export interface YmgalData {
 }
 
 /**
- * Kungal 数据结构
+ * Kun 数据结构
  */
 export interface KunData {
 	image?: string;
@@ -143,17 +143,24 @@ export interface CustomData {
 
 // ==================== 游戏数据类型（DTO 三位一体） ====================
 
+export type SourceType = "bgm" | "vndb" | "ymgal" | "kun";
+
+export type apiSourceType = SourceType | "mixed";
+
 /**
  * 数据源 ID 类型
  */
-export type IdType =
-	| "bgm"
-	| "vndb"
-	| "ymgal"
-	| "mixed"
-	| "custom"
-	| "kungal"
-	| "Whitecloud";
+export type IdType = apiSourceType | "custom" | "Whitecloud";
+
+export enum IdTypeEnum {
+	BGM = "bgm",
+	VNDB = "vndb",
+	YMGAL = "ymgal",
+	KUN = "kun",
+	MIXED = "mixed",
+	CUSTOM = "custom",
+	WHITECLOUD = "Whitecloud",
+}
 
 /**
  * 完整游戏数据 - 对应数据库 games 表结构（读取用）

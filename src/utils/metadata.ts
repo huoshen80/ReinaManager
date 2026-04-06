@@ -48,7 +48,7 @@ interface SourceUpdateParams {
 
 // ---------------------- 策略配置区 ----------------------
 
-type SecondarySource = "ymgal" | "kungal";
+type SecondarySource = "ymgal" | "kun";
 
 interface isCompleteData {
 	summary?: string;
@@ -79,7 +79,7 @@ const SECONDARY_FETCH_STRATEGIES: FetchStrategy[] = [
 		defaultErrorMsg: "未找到完整的 YMGal 数据。",
 	},
 	{
-		source: "kungal",
+		source: "kun",
 		idKey: "kun_id",
 		dataKey: "kun_data",
 		isComplete: isDataComplete,
@@ -104,8 +104,8 @@ export async function ensureCompleteMetadata(
 	// 1. 过滤出当前上下文中需要执行的二次拉取任务
 	const tasks = SECONDARY_FETCH_STRATEGIES.filter((strategy) => {
 		const isTargetIdType =
-			strategy.source === "kungal"
-				? gameData.id_type === "kungal"
+			strategy.source === "kun"
+				? gameData.id_type === "kun"
 				: gameData.id_type === strategy.source || gameData.id_type === "mixed";
 		const hasId = !!gameData[strategy.idKey];
 		const isDataIncomplete = !strategy.isComplete(
@@ -187,8 +187,8 @@ export async function fetchMetadataForUpdate({
 		apiData = await gameMetadataService.getGameById(vndbId, "vndb");
 	} else if (idType === "ymgal" && ymgalId) {
 		apiData = await gameMetadataService.getGameById(ymgalId, "ymgal");
-	} else if (idType === "kungal" && kunId) {
-		apiData = await gameMetadataService.getGameById(kunId, "kungal");
+	} else if (idType === "kun" && kunId) {
+		apiData = await gameMetadataService.getGameById(kunId, "kun");
 	} else if (idType === "mixed") {
 		apiData = await gameMetadataService.getGameByIds({
 			bgmId,

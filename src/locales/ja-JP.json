@@ -58,6 +58,7 @@
 			"noResultsMixed": "いずれのデータソースでもゲームが見つかりませんでした",
 			"noResultsVndb": "VNDBでゲームが見つかりません、別の名前を試すかIDを確認してください",
 			"noResultsYmgal": "YMGalでゲームが見つかりません、別の名前を試すかIDを確認してください",
+			"noResultsKun": "Kungalでゲームが見つかりません、別の名前を試すかIDを確認してください",
 			"processing": "処理中...",
 			"dragHint": "実行ファイルまたはフォルダを選択またはドラッグしてください",
 			"dragDropHere": "ファイルをここにドロップ",

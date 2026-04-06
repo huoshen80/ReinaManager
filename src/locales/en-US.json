@@ -58,6 +58,7 @@
 			"noResultsMixed": "Game not found on any data source",
 			"noResultsVndb": "Game not found on VNDB, please try another name or check the ID",
 			"noResultsYmgal": "Game not found on YMGal, please try another name or check the ID",
+			"noResultsKun": "Game not found on Kungal, please try another name or check the ID",
 			"processing": "Processing...",
 			"dragHint": "Please select or drag an executable file or folder",
 			"dragDropHere": "Drop files here",

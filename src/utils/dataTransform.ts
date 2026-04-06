@@ -15,6 +15,7 @@ import type {
 	GameData,
 	KunData,
 	Nullable,
+	SourceType,
 	VndbData,
 	YmgalData,
 } from "@/types";
@@ -92,8 +93,8 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 			if (ymgal_data) assignFromDataSource(baseData, ymgal_data, "ymgal");
 			break;
 
-		case "kungal":
-			if (kun_data) assignFromDataSource(baseData, kun_data, "kungal");
+		case "kun":
+			if (kun_data) assignFromDataSource(baseData, kun_data, "kun");
 			break;
 
 		case "mixed":
@@ -140,7 +141,7 @@ type DataSource = BgmData | VndbData | YmgalData | KunData | CustomData;
 function assignFromDataSource(
 	target: GameData,
 	source: DataSource,
-	sourceType: "bgm" | "vndb" | "ymgal" | "kungal" | "custom" | "fallback",
+	sourceType: SourceType | "custom" | "fallback",
 ) {
 	// 基础字段
 	assignBasicFields(target, source);
@@ -175,7 +176,7 @@ function assignFromDataSource(
 			break;
 		}
 
-		case "kungal": {
+		case "kun": {
 			const kunSource = source as KunData;
 			target.image = kunSource.image;
 			target.tags = kunSource.tags || [];

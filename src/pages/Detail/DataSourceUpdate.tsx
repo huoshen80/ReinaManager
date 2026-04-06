@@ -127,7 +127,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					<MenuItem value="bgm">Bangumi</MenuItem>
 					<MenuItem value="vndb">VNDB</MenuItem>
 					<MenuItem value="ymgal">YMGal</MenuItem>
-					<MenuItem value="kungal">Kungal</MenuItem>
+					<MenuItem value="kun">Kungal</MenuItem>
 					<MenuItem value="mixed">Mixed</MenuItem>
 					<MenuItem value="custom">Custom</MenuItem>
 					<MenuItem value="Whitecloud" disabled>
@@ -176,7 +176,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			)}
 
 			{/* Kungal ID 编辑框 */}
-			{idType === "kungal" && (
+			{idType === "kun" && (
 				<TextField
 					label={t("pages.Detail.DataSourceUpdate.kunId", "Kungal ID")}
 					variant="outlined"
@@ -184,7 +184,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					value={kunId}
 					onChange={(e) => setKunId(e.target.value)}
 					disabled={isLoading || disabled}
-					required={idType === "kungal"}
+					required={idType === "kun"}
 				/>
 			)}
 
@@ -202,7 +202,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					(idType === "bgm" && !bgmId) ||
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||
-					(idType === "kungal" && !kunId) ||
+					(idType === "kun" && !kunId) ||
 					(idType === "mixed" && !bgmId && !vndbId && !ymgalId)
 				}
 				onClick={handleFetchAndPreview}
