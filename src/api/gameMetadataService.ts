@@ -126,6 +126,26 @@ export interface GameSearchParams {
 	isIdSearch?: boolean; // 是否为ID搜索（由用户通过isID开关控制）
 }
 
+type SelectionSource = DataSource | "mixed";
+
+interface SelectionDetailEnrichRule {
+	source: DataSource;
+	getId: (game: FullGameData) => string | undefined;
+}
+
+const selectionDetailEnrichRules: Partial<
+	Record<DataSource, SelectionDetailEnrichRule>
+> = {
+	ymgal: {
+		source: "ymgal",
+		getId: (game) => game.ymgal_id,
+	},
+	kun: {
+		source: "kun",
+		getId: (game) => game.kun_id,
+	},
+};
+
 /**
  * 游戏元数据服务类
  * 提供统一的游戏数据获取接口，封装各数据源的差异性
@@ -245,6 +265,41 @@ class GameMetadataService {
 				`Metadata request failed for ${source} id lookup`,
 			);
 		}
+	}
+
+	/**
+	 * 处理“用户从搜索结果中选择一项”后的详情补全。
+	 * 规则：
+	 * - mixed 或 ID 搜索：直接返回原数据
+	 * - 单源名称搜索：仅 ymgal/kun 需要按 id 拉取完整详情
+	 */
+	async enrichSelectedGameDetails(params: {
+		selectedGame: FullGameData;
+		source: SelectionSource;
+		isIdSearch?: boolean;
+	}): Promise<FullGameData> {
+		const { selectedGame, source, isIdSearch = false } = params;
+
+		if (isIdSearch || source === "mixed") {
+			return selectedGame;
+		}
+
+		const enrichRule = selectionDetailEnrichRules[source];
+		if (!enrichRule) {
+			return selectedGame;
+		}
+
+		const selectedId = enrichRule.getId(selectedGame);
+		if (!selectedId) {
+			return selectedGame;
+		}
+
+		const detailedData = await this.getGameById(selectedId, enrichRule.source);
+		return {
+			...selectedGame,
+			...detailedData,
+			localpath: selectedGame.localpath ?? detailedData.localpath,
+		};
 	}
 
 	/**

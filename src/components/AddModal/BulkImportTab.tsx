@@ -377,19 +377,33 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		setEditItemPath(null);
 	};
 
-	const handleEditRowSelect = (selectedData: FullGameData) => {
+	const handleEditRowSelect = async (selectedData: FullGameData) => {
 		if (!selectedData || !editItemPath) return;
 
-		const nextItems = [...items];
-		const itemIndex = nextItems.findIndex((item) => item.path === editItemPath);
-		if (itemIndex !== -1) {
-			nextItems[itemIndex].name = editName;
-			nextItems[itemIndex].matchedData = selectedData;
-			nextItems[itemIndex].status = "matched";
-			setItems(nextItems);
-		}
+		try {
+			setSearchResultLoading(true);
+			const resolvedData = await gameMetadataService.enrichSelectedGameDetails({
+				selectedGame: selectedData,
+				source: editApiSource,
+				isIdSearch: editIsIdSearch,
+			});
 
-		setEditItemPath(null);
+			const nextItems = [...items];
+			const itemIndex = nextItems.findIndex(
+				(item) => item.path === editItemPath,
+			);
+			if (itemIndex !== -1) {
+				nextItems[itemIndex].name = editName;
+				nextItems[itemIndex].matchedData = resolvedData;
+				nextItems[itemIndex].status = "matched";
+				setItems(nextItems);
+			}
+			setEditItemPath(null);
+		} catch (error) {
+			snackbar.error(getUserErrorMessage(error, t));
+		} finally {
+			setSearchResultLoading(false);
+		}
 	};
 
 	const handleDeleteItem = (path: string) => {
@@ -725,6 +739,12 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 									value="ymgal"
 									control={<Radio />}
 									label="YMGal"
+									disabled={searchResultLoading}
+								/>
+								<FormControlLabel
+									value="kun"
+									control={<Radio />}
+									label="Kun"
 									disabled={searchResultLoading}
 								/>
 								<FormControlLabel

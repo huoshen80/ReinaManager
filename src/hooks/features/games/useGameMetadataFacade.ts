@@ -9,14 +9,15 @@ import type {
 	BatchOperationResult,
 	FullGameData,
 	InsertGameParams,
+	SourceIdType,
 } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import i18n from "@/utils/i18n";
 import {
 	type BatchImportGameCandidate,
 	buildBulkImportGameData,
+	buildInsertGameData,
 	getGameIdentityKeys,
-	prepareInsertGameDataFromMetadata,
 } from "@/utils/metadata";
 
 export interface BulkImportActionInput extends BatchImportGameCandidate {
@@ -45,12 +46,7 @@ export function useGameDuplicateChecker() {
 	const { data: allGames = [] } = useAllGames();
 
 	const checkGameExists = useCallback(
-		(
-			gameData: Pick<
-				InsertGameParams,
-				"bgm_id" | "vndb_id" | "ymgal_id" | "kun_id"
-			>,
-		) => {
+		(gameData: Pick<InsertGameParams, SourceIdType>) => {
 			return allGames.some(
 				(game) =>
 					(gameData.bgm_id && game.bgm_id === gameData.bgm_id) ||
@@ -81,7 +77,7 @@ export function useSingleGameAddActions() {
 				fallbackDate?: string;
 			};
 		}) => {
-			const insertData = await prepareInsertGameDataFromMetadata(gameData);
+			const insertData = await buildInsertGameData(gameData);
 
 			if (checkGameExists(insertData)) {
 				throw new Error(i18n.t("components.AddModal.gameExists"));

@@ -275,12 +275,15 @@ function transformYmData(
  * @param {string} name 游戏名称
  * @param {number} pageNum 页号，从 1 开始
  * @param {number} pageSize 每页数量，范围 1-20
+ * @param {boolean} fetchDetailById 是否仅对第一个结果用 ID 再次请求完整详情（默认 false）
+ * 说明：该参数只用于“首条补全”场景，禁止对搜索结果列表逐条补全。
  * @returns {Promise<FullGameData[]>} 游戏列表
  */
 export async function fetchYmByName(
 	name: string,
 	pageNum = 1,
 	pageSize = 20,
+	fetchDetailById = false,
 ): Promise<FullGameData[]> {
 	const data = await ymApiRequest<{ result?: YmGameListItem[] }>(
 		"/open/archive/search-game",
@@ -297,7 +300,7 @@ export async function fetchYmByName(
 	}
 
 	// 将列表数据转换为统一格式（不包含详细信息）
-	return data.result.map((item: YmGameListItem): FullGameData => {
+	const results = data.result.map((item: YmGameListItem): FullGameData => {
 		const ymgal_data: YmgalData = {
 			image: item.mainImg,
 			name: item.name,
@@ -313,6 +316,19 @@ export async function fetchYmByName(
 			ymgal_data,
 		};
 	});
+
+	// 如果启用二步请求且有结果，用第一个结果的 ID 获取完整详情。
+	// 注意：详情请求失败时降级为首条轻量数据，避免上层 mixed 链路整体失败。
+	if (fetchDetailById && results.length > 0 && results[0].ymgal_id) {
+		try {
+			const detailedData = await fetchYmById(Number(results[0].ymgal_id));
+			return [detailedData];
+		} catch {
+			return [results[0]];
+		}
+	}
+
+	return results;
 }
 
 /**

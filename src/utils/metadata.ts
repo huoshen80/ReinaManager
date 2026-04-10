@@ -4,6 +4,7 @@ import type {
 	FullGameData,
 	GameData,
 	InsertGameParams,
+	SourceIdType,
 	UpdateGameParams,
 } from "@/types";
 import {
@@ -46,114 +47,7 @@ interface SourceUpdateParams {
 	bgmToken?: string;
 }
 
-// ---------------------- 策略配置区 ----------------------
-
-type SecondarySource = "ymgal" | "kun";
-
-interface isCompleteData {
-	summary?: string;
-	aliases?: string[];
-}
-
-interface FetchStrategy {
-	source: SecondarySource;
-	idKey: keyof FullGameData;
-	dataKey: keyof FullGameData;
-	isComplete: (data: isCompleteData) => boolean;
-	errorKey: string;
-	defaultErrorMsg: string;
-}
-
-function isDataComplete(galData?: isCompleteData): boolean {
-	return !!(galData?.summary && galData?.aliases);
-}
-
-// 定义二次获取数据的策略
-const SECONDARY_FETCH_STRATEGIES: FetchStrategy[] = [
-	{
-		source: "ymgal",
-		idKey: "ymgal_id",
-		dataKey: "ymgal_data",
-		isComplete: isDataComplete,
-		errorKey: "pages.Detail.DataSourceUpdate.incompleteYmgalData",
-		defaultErrorMsg: "未找到完整的 YMGal 数据。",
-	},
-	{
-		source: "kun",
-		idKey: "kun_id",
-		dataKey: "kun_data",
-		isComplete: isDataComplete,
-		errorKey: "pages.Detail.DataSourceUpdate.incompleteKungalData",
-		defaultErrorMsg: "未找到完整的 Kungal 数据。",
-	},
-];
-
-// 所有可能包含源数据的字段
-const ALL_DATA_SOURCES = [
-	"bgm_data",
-	"vndb_data",
-	"ymgal_data",
-	"kun_data",
-] as const;
-
 // ---------------------- 核心业务逻辑区 ----------------------
-
-export async function ensureCompleteMetadata(
-	gameData: FullGameData,
-): Promise<FullGameData> {
-	// 1. 过滤出当前上下文中需要执行的二次拉取任务
-	const tasks = SECONDARY_FETCH_STRATEGIES.filter((strategy) => {
-		const isTargetIdType =
-			strategy.source === "kun"
-				? gameData.id_type === "kun"
-				: gameData.id_type === strategy.source || gameData.id_type === "mixed";
-		const hasId = !!gameData[strategy.idKey];
-		const isDataIncomplete = !strategy.isComplete(
-			gameData[strategy.dataKey] as isCompleteData,
-		);
-
-		return isTargetIdType && hasId && isDataIncomplete;
-	});
-
-	if (tasks.length === 0) {
-		return gameData;
-	}
-
-	// 2. 并行执行所有缺失数据的拉取请求
-	const fetchPromises = tasks.map(async (strategy) => {
-		const sourceId = gameData[strategy.idKey] as string;
-
-		const results = await gameMetadataService.searchGames({
-			query: sourceId.toString(),
-			source: strategy.source,
-			isIdSearch: true,
-			defaults: {
-				localpath: gameData.localpath ?? undefined,
-			},
-		});
-
-		if (results.length === 0) {
-			throw new Error(i18n.t(strategy.errorKey, strategy.defaultErrorMsg));
-		}
-
-		// 返回需要合并的增量对象
-		return {
-			[strategy.idKey]: results[0][strategy.idKey],
-			[strategy.dataKey]: results[0][strategy.dataKey],
-		};
-	});
-
-	const partialUpdates = await Promise.all(fetchPromises);
-
-	return partialUpdates.reduce(
-		(mergedObj, currentUpdate) => {
-			return Object.assign(mergedObj, currentUpdate, {
-				id_type: gameData.id_type === "mixed" ? "mixed" : gameData.id_type,
-			});
-		},
-		{ ...gameData },
-	) as FullGameData;
-}
 
 export async function fetchMetadataForUpdate({
 	selectedGame,
@@ -211,7 +105,7 @@ export async function fetchMetadataForUpdate({
 		);
 	}
 
-	return ensureCompleteMetadata(apiData);
+	return apiData;
 }
 
 export async function buildInsertGameData(
@@ -247,19 +141,18 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 	return item.selectedExe ? `${item.path}\\${item.selectedExe}` : item.path;
 }
 
-export async function prepareInsertGameDataFromMetadata(
-	gameData: FullGameData,
-): Promise<InsertGameParams> {
-	const completeData = await ensureCompleteMetadata(gameData);
-	const insertData = await buildInsertGameData(completeData);
-
-	return insertData;
-}
-
 export function buildMetadataUpdatePayload(
 	gameData: FullGameData,
 ): UpdateGameParams {
 	const updateData: UpdateGameParams = { ...gameData };
+
+	// 所有可能包含源数据的字段
+	const ALL_DATA_SOURCES = [
+		"bgm_data",
+		"vndb_data",
+		"ymgal_data",
+		"kun_data",
+	] as const;
 
 	if (gameData.id_type !== "mixed") {
 		// 单一数据源模式：保留对应的 _data，将其余源的数据清空
@@ -384,9 +277,9 @@ export async function buildBulkImportGameData(
 	item: BatchImportGameCandidate,
 ): Promise<InsertGameParams> {
 	if (item.matchedData) {
-		const prepared = await prepareInsertGameDataFromMetadata(item.matchedData);
+		const insertData = await buildInsertGameData(item.matchedData);
 		return {
-			...prepared,
+			...insertData,
 			localpath: getBatchImportLocalPath(item),
 		};
 	}
@@ -401,7 +294,7 @@ export async function buildBulkImportGameData(
 }
 
 export function getGameIdentityKeys(
-	payload: Pick<InsertGameParams, "bgm_id" | "vndb_id" | "ymgal_id" | "kun_id">,
+	payload: Pick<InsertGameParams, SourceIdType>,
 ): string[] {
 	return [
 		payload.bgm_id ? `bgm:${payload.bgm_id}` : null,

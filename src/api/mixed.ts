@@ -74,7 +74,9 @@ async function getYmgalDataSafely(
 		if (ymgal_id) {
 			return { data: await fetchYmById(Number(ymgal_id)), failed: false };
 		}
-		const result = await fetchYmByName(searchName);
+		// mixed 模式固定为“搜索后取索引0并补全详情”。
+		// 这样可以保证 mixed 预览尽量完整，同时避免对整页结果逐条补全。
+		const result = await fetchYmByName(searchName, 1, 20, true);
 		return { data: result[0] ?? null, failed: false };
 	} catch {
 		return { data: null, failed: true };

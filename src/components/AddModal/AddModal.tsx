@@ -229,12 +229,21 @@ const AddModal: React.FC = () => {
 			}
 
 			try {
-				await handleAddGame(selectedGame);
+				setLoading(true);
+				const resolvedGame =
+					await gameMetadataService.enrichSelectedGameDetails({
+						selectedGame,
+						source: apiSource,
+						isIdSearch: isID,
+					});
+				await handleAddGame(resolvedGame);
 			} catch (error) {
 				showError(getUserErrorMessage(error, t));
+			} finally {
+				setLoading(false);
 			}
 		},
-		[handleAddGame, isBusy, showError, t],
+		[apiSource, handleAddGame, isBusy, isID, showError, t],
 	);
 
 	/**

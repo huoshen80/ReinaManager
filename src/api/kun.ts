@@ -244,11 +244,14 @@ export async function fetchGalgameById(id: string): Promise<FullGameData> {
  * @param keywords 关键词
  * @param page 页码
  * @param limit 每页数量
+ * @param fetchDetailById 是否仅对第一个结果用 ID 再次请求完整详情（默认 false）
+ * 说明：该参数只用于“首条补全”场景，禁止对搜索结果列表逐条补全。
  */
 export async function searchGalgame(
 	keywords: string,
 	page = 1,
 	limit = 12,
+	fetchDetailById = false,
 ): Promise<FullGameData[]> {
 	const resp = await http.get<SearchResultGalgame[]>(`${KUN_API_BASE}/search`, {
 		params: {
@@ -267,7 +270,7 @@ export async function searchGalgame(
 		});
 	}
 
-	return resp.data.map((item) => ({
+	const results = resp.data.map((item) => ({
 		kun_id: String(item.id),
 		id_type: "kun",
 		kun_data: {
@@ -275,4 +278,12 @@ export async function searchGalgame(
 			image: item.banner,
 		},
 	}));
+
+	// 如果启用二步请求且有结果，用第一个结果的 ID 获取完整详情
+	if (fetchDetailById && results.length > 0 && results[0].kun_id) {
+		const detailedData = await fetchGalgameById(results[0].kun_id);
+		return [detailedData];
+	}
+
+	return results;
 }
