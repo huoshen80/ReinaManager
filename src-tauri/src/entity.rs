@@ -7,9 +7,9 @@ pub mod prelude;
 // === JSON 数据结构（嵌入 games 表的 JSON 列）===
 pub mod bgm_data;
 pub mod custom_data;
+pub mod kun_data;
 pub mod vndb_data;
 pub mod ymgal_data;
-pub mod kun_data;
 
 // === SeaORM 实体（对应数据库表）===
 pub mod collections;

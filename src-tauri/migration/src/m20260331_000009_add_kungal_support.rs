@@ -11,11 +11,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Games::Table)
-                    .add_column_if_not_exists(
-                        ColumnDef::new(Games::KunId)
-                            .text()
-                            .null(),
-                    )
+                    .add_column_if_not_exists(ColumnDef::new(Games::KunId).text().null())
                     .to_owned(),
             )
             .await?;
@@ -24,11 +20,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Games::Table)
-                    .add_column_if_not_exists(
-                        ColumnDef::new(Games::KunData)
-                            .text()
-                            .null(),
-                    )
+                    .add_column_if_not_exists(ColumnDef::new(Games::KunData).text().null())
                     .to_owned(),
             )
             .await?;

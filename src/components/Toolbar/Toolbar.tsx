@@ -318,8 +318,8 @@ const MoreButton = () => {
 	const open = Boolean(anchorEl);
 	const [pathSettingsModalOpen, setPathSettingsModalOpen] = useState(false);
 	const { data: settings } = useAllSettings();
-	const lePath = settings?.le_path ?? "";
-	const magpiePath = settings?.magpie_path ?? "";
+	const hasLePath = Boolean(settings?.le_path);
+	const hasMagpiePath = Boolean(settings?.magpie_path);
 
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
@@ -357,10 +357,13 @@ const MoreButton = () => {
 	/**
 	 * 切换LE转区启动状态
 	 */
-	const handleToggleLeLaunch = async (checked: boolean) => {
-		if (selectedGame?.id === undefined) return;
+	const handleToggleLeLaunch = async () => {
+		const gameId = selectedGame?.id;
+		if (gameId === undefined) return;
 
-		if (!lePath || lePath.trim() === "") {
+		const nextEnabled = selectedGame?.le_launch !== 1;
+
+		if (nextEnabled && !hasLePath) {
 			snackbar.warning(
 				t(
 					"components.Toolbar.lePathNotSet",
@@ -373,8 +376,8 @@ const MoreButton = () => {
 
 		try {
 			await updateGameMutation.mutateAsync({
-				gameId: selectedGame.id,
-				updates: { le_launch: checked ? 1 : 0 },
+				gameId,
+				updates: { le_launch: nextEnabled ? 1 : 0 },
 			});
 		} catch (error) {
 			console.error("更新LE转区启动状态失败:", error);
@@ -384,10 +387,13 @@ const MoreButton = () => {
 	/**
 	 * 切换Magpie放大状态
 	 */
-	const handleToggleMagpie = async (checked: boolean) => {
-		if (selectedGame?.id === undefined) return;
+	const handleToggleMagpie = async () => {
+		const gameId = selectedGame?.id;
+		if (gameId === undefined) return;
 
-		if (!magpiePath || magpiePath.trim() === "") {
+		const nextEnabled = selectedGame?.magpie !== 1;
+
+		if (nextEnabled && !hasMagpiePath) {
 			snackbar.warning(
 				t(
 					"components.Toolbar.magpiePathNotSet",
@@ -400,8 +406,8 @@ const MoreButton = () => {
 
 		try {
 			await updateGameMutation.mutateAsync({
-				gameId: selectedGame.id,
-				updates: { magpie: checked ? 1 : 0 },
+				gameId,
+				updates: { magpie: nextEnabled ? 1 : 0 },
 			});
 		} catch (error) {
 			console.error("更新Magpie放大状态失败:", error);
@@ -463,18 +469,14 @@ const MoreButton = () => {
 						{t("components.Toolbar.ymgallink", "月幕Gal页面")}
 					</ListItemText>
 				</MenuItem>
-				<MenuItem
-					onClick={() => handleToggleLeLaunch(!(selectedGame?.le_launch === 1))}
-				>
+				<MenuItem onClick={handleToggleLeLaunch}>
 					<ListItemIcon>
 						<TurnRightIcon fontSize="small" />
 					</ListItemIcon>
 					<ListItemText>{t("components.Toolbar.leLaunch")}</ListItemText>
 					<Switch checked={selectedGame?.le_launch === 1} size="small" />
 				</MenuItem>
-				<MenuItem
-					onClick={() => handleToggleMagpie(!(selectedGame?.magpie === 1))}
-				>
+				<MenuItem onClick={handleToggleMagpie}>
 					<ListItemIcon>
 						<OpenInFullIcon fontSize="small" />
 					</ListItemIcon>
