@@ -19,6 +19,7 @@ import type {
 	VndbData,
 	YmgalData,
 } from "@/types";
+import { isSourceType, SOURCE_FIELD_KEYS } from "@/types";
 
 /**
  * 将 null 转换为 undefined
@@ -26,6 +27,10 @@ import type {
  */
 const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
 	value ?? undefined;
+
+function assertNever(value: never): never {
+	throw new Error(`Unhandled source: ${String(value)}`);
+}
 
 /**
  * 辅助函数：从数据源提取基础字段（避免重复代码）
@@ -80,45 +85,36 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 	// 根据 id_type 决定数据来源
 	const { bgm_data, vndb_data, ymgal_data, kun_data, custom_data } = fullData;
 
-	switch (fullData.id_type) {
-		case "bgm":
-			if (bgm_data) assignFromDataSource(baseData, bgm_data, "bgm");
-			break;
+	if (fullData.id_type && isSourceType(fullData.id_type)) {
+		const sourceData = fullData[SOURCE_FIELD_KEYS[fullData.id_type].data];
+		if (sourceData) {
+			assignFromDataSource(baseData, sourceData, fullData.id_type);
+		}
+	} else {
+		switch (fullData.id_type) {
+			case "mixed":
+				// 混合数据源：合并所有可用数据
+				if (bgm_data || vndb_data || ymgal_data) {
+					mergeMultipleDataSources(baseData, {
+						bgm_data,
+						vndb_data,
+						ymgal_data,
+						custom_data,
+					});
+				}
+				break;
 
-		case "vndb":
-			if (vndb_data) assignFromDataSource(baseData, vndb_data, "vndb");
-			break;
+			case "custom":
+			case "Whitecloud":
+				if (custom_data) assignFromDataSource(baseData, custom_data, "custom");
+				break;
 
-		case "ymgal":
-			if (ymgal_data) assignFromDataSource(baseData, ymgal_data, "ymgal");
-			break;
-
-		case "kun":
-			if (kun_data) assignFromDataSource(baseData, kun_data, "kun");
-			break;
-
-		case "mixed":
-			// 混合数据源：合并所有可用数据
-			if (bgm_data || vndb_data || ymgal_data) {
-				mergeMultipleDataSources(baseData, {
-					bgm_data,
-					vndb_data,
-					ymgal_data,
-					custom_data,
-				});
+			default: {
+				// 未知类型：尝试使用任何可用数据
+				const anyData =
+					bgm_data ?? vndb_data ?? ymgal_data ?? kun_data ?? custom_data;
+				if (anyData) assignFromDataSource(baseData, anyData, "fallback");
 			}
-			break;
-
-		case "custom":
-		case "Whitecloud":
-			if (custom_data) assignFromDataSource(baseData, custom_data, "custom");
-			break;
-
-		default: {
-			// 未知类型：尝试使用任何可用数据
-			const anyData =
-				bgm_data ?? vndb_data ?? ymgal_data ?? kun_data ?? custom_data;
-			if (anyData) assignFromDataSource(baseData, anyData, "fallback");
 		}
 	}
 
@@ -192,6 +188,8 @@ function assignFromDataSource(
 			target.tags = customSource.tags || [];
 			break;
 		}
+		default:
+			return assertNever(sourceType);
 	}
 }
 

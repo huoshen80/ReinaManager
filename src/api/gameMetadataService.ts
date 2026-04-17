@@ -11,7 +11,8 @@ import { fetchGalgameById, searchGalgame } from "@/api/kun";
 import { fetchMixedData } from "@/api/mixed";
 import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
-import type { FullGameData } from "@/types";
+import type { FullGameData, SourceType } from "@/types";
+import { SOURCE_KEYS } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 
 interface MixedSourceResult {
@@ -112,7 +113,11 @@ function ensureMixedResult(result: FullGameData | null): FullGameData {
 /**
  * 支持的数据源类型
  */
-export type DataSource = "bgm" | "vndb" | "ymgal" | "kun";
+export type DataSource = SourceType;
+
+function assertNever(value: never): never {
+	throw new Error(`Unhandled source: ${String(value)}`);
+}
 
 /**
  * 游戏搜索参数
@@ -173,11 +178,7 @@ class GameMetadataService {
 	 * 判断查询字符串是否为 ID
 	 */
 	private isIdQuery(query: string): boolean {
-		return (
-			/^\d+$/.test(query) || // BGM 和 Kungal ID (纯数字)
-			/^v\d+$/i.test(query) || // VNDB ID (v开头+数字)
-			/^ga\d+$/i.test(query) // YMGal ID (ga开头+数字)
-		);
+		return SOURCE_KEYS.some((source) => this.isValidGameId(query, source));
 	}
 
 	/**
@@ -253,10 +254,7 @@ class GameMetadataService {
 				case "kun":
 					return await fetchGalgameById(id);
 				default:
-					throw createStableError(
-						"unsupported_source",
-						`Unsupported metadata source: ${source}`,
-					);
+					return assertNever(source);
 			}
 		} catch (error) {
 			throw createMetadataError(
@@ -321,10 +319,7 @@ class GameMetadataService {
 				case "kun":
 					return await searchGalgame(name);
 				default:
-					throw createStableError(
-						"unsupported_source",
-						`Unsupported metadata source: ${source}`,
-					);
+					return assertNever(source);
 			}
 		} catch (error) {
 			throw createMetadataError(
@@ -415,7 +410,7 @@ class GameMetadataService {
 			case "ymgal":
 				return /^ga\d+$/i.test(id) || /^\d+$/.test(id);
 			default:
-				return false;
+				return assertNever(source);
 		}
 	}
 

@@ -5,7 +5,14 @@ import type {
 	GameData,
 	InsertGameParams,
 	SourceIdType,
+	SourceType,
 	UpdateGameParams,
+} from "@/types";
+import {
+	isSourceType,
+	MIXED_SOURCE_KEYS,
+	SOURCE_FIELD_KEYS,
+	SOURCE_KEYS,
 } from "@/types";
 import {
 	getArrayDiff,
@@ -47,6 +54,37 @@ interface SourceUpdateParams {
 	bgmToken?: string;
 }
 
+function assertNever(value: never): never {
+	throw new Error(`Unhandled source: ${String(value)}`);
+}
+
+function getSourceUpdateId(
+	params: Pick<SourceUpdateParams, "bgmId" | "vndbId" | "ymgalId" | "kunId">,
+	source: SourceType,
+): string | undefined {
+	switch (source) {
+		case "bgm":
+			return params.bgmId;
+		case "vndb":
+			return params.vndbId;
+		case "ymgal":
+			return params.ymgalId;
+		case "kun":
+			return params.kunId;
+		default:
+			return assertNever(source);
+	}
+}
+
+function clearMetadataSource(
+	updateData: UpdateGameParams,
+	source: SourceType,
+): void {
+	const { id, data } = SOURCE_FIELD_KEYS[source];
+	updateData[id] = null;
+	updateData[data] = null;
+}
+
 // ---------------------- 核心业务逻辑区 ----------------------
 
 export async function fetchMetadataForUpdate({
@@ -75,21 +113,25 @@ export async function fetchMetadataForUpdate({
 
 	let apiData: FullGameData;
 
-	if (idType === "bgm" && bgmId) {
-		apiData = await gameMetadataService.getGameById(bgmId, "bgm", bgmToken);
-	} else if (idType === "vndb" && vndbId) {
-		apiData = await gameMetadataService.getGameById(vndbId, "vndb");
-	} else if (idType === "ymgal" && ymgalId) {
-		apiData = await gameMetadataService.getGameById(ymgalId, "ymgal");
-	} else if (idType === "kun" && kunId) {
-		apiData = await gameMetadataService.getGameById(kunId, "kun");
-	} else if (idType === "mixed") {
+	if (idType === "mixed") {
 		apiData = await gameMetadataService.getGameByIds({
 			bgmId,
 			vndbId,
 			ymgalId,
 			bgmToken,
 		});
+	} else if (isSourceType(idType)) {
+		const sourceId = getSourceUpdateId(
+			{ bgmId, vndbId, ymgalId, kunId },
+			idType,
+		);
+		if (!sourceId) {
+			throw new Error(
+				i18n.t("pages.Detail.DataSourceUpdate.invalidIdType", "无效的ID类型"),
+			);
+		}
+
+		apiData = await gameMetadataService.getGameById(sourceId, idType, bgmToken);
 	} else {
 		throw new Error(
 			i18n.t("pages.Detail.DataSourceUpdate.invalidIdType", "无效的ID类型"),
@@ -145,40 +187,26 @@ export function buildMetadataUpdatePayload(
 	gameData: FullGameData,
 ): UpdateGameParams {
 	const updateData: UpdateGameParams = { ...gameData };
-
-	// 所有可能包含源数据的字段
-	const ALL_DATA_SOURCES = [
-		"bgm_data",
-		"vndb_data",
-		"ymgal_data",
-		"kun_data",
-	] as const;
+	const mixedSources = new Set<SourceType>(MIXED_SOURCE_KEYS);
 
 	if (gameData.id_type !== "mixed") {
-		// 单一数据源模式：保留对应的 _data，将其余源的数据清空
-		const activeSource = `${gameData.id_type}_data`;
-		for (const source of ALL_DATA_SOURCES) {
-			if (source !== activeSource) {
-				updateData[source] = null;
+		for (const source of SOURCE_KEYS) {
+			if (source !== gameData.id_type) {
+				clearMetadataSource(updateData, source);
 			}
 		}
 	} else {
-		// 混合模式：根据对应的 ID 决定是否清空该数据源
-		if (!gameData.bgm_id) {
-			updateData.bgm_data = null;
-			updateData.bgm_id = null;
+		for (const source of MIXED_SOURCE_KEYS) {
+			const { id } = SOURCE_FIELD_KEYS[source];
+			if (!gameData[id]) {
+				clearMetadataSource(updateData, source);
+			}
 		}
-		if (!gameData.vndb_id) {
-			updateData.vndb_data = null;
-			updateData.vndb_id = null;
+		for (const source of SOURCE_KEYS) {
+			if (!mixedSources.has(source)) {
+				clearMetadataSource(updateData, source);
+			}
 		}
-		if (!gameData.ymgal_id) {
-			updateData.ymgal_data = null;
-			updateData.ymgal_id = null;
-		}
-		// Kungal 已从 mixed 逻辑剔除
-		updateData.kun_data = null;
-		updateData.kun_id = null;
 	}
 
 	return updateData;

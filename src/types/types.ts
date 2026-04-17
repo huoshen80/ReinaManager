@@ -145,8 +145,33 @@ export interface CustomData {
 
 export type SourceType = "bgm" | "vndb" | "ymgal" | "kun";
 export type SourceIdType = "bgm_id" | "vndb_id" | "ymgal_id" | "kun_id";
+export type SourceDataKey =
+	| "bgm_data"
+	| "vndb_data"
+	| "ymgal_data"
+	| "kun_data";
 
 export type apiSourceType = SourceType | "mixed";
+
+export const SOURCE_KEYS = ["bgm", "vndb", "ymgal", "kun"] as const;
+export const MIXED_SOURCE_KEYS = ["bgm", "vndb", "ymgal"] as const;
+
+export const SOURCE_FIELD_KEYS = {
+	bgm: { id: "bgm_id", data: "bgm_data" },
+	vndb: { id: "vndb_id", data: "vndb_data" },
+	ymgal: { id: "ymgal_id", data: "ymgal_data" },
+	kun: { id: "kun_id", data: "kun_data" },
+} as const satisfies Record<
+	SourceType,
+	{
+		id: SourceIdType;
+		data: SourceDataKey;
+	}
+>;
+
+export function isSourceType(value: string): value is SourceType {
+	return value in SOURCE_FIELD_KEYS;
+}
 
 /**
  * 数据源 ID 类型
