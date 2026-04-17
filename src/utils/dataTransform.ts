@@ -264,7 +264,7 @@ function applyCustomDataOverride(target: GameData, customData: CustomData) {
 	if (customData.developer) {
 		target.developer = customData.developer;
 	}
-	if (customData.nsfw) {
+	if (customData.nsfw != null) {
 		target.nsfw = customData.nsfw;
 	}
 	if (customData.date) {
