@@ -533,6 +533,10 @@
 				"vndbDescription": "Try to read the VNDB collection status when adding a game, and sync local status changes back to VNDB.",
 				"vndbTitle": "Enable VNDB collection sync"
 			},
+			"mixedSearchSources": {
+				"description": "This setting only affects mixed search requests when adding games. BGM and VNDB are always enabled, while YMGal and Kungal can be enabled as needed.",
+				"title": "Mixed Search Sources"
+			},
 			"databaseBackup": {
 				"backing": "Backing up...",
 				"backup": "Backup Database",

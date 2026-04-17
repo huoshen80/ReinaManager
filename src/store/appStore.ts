@@ -22,7 +22,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
-import type { apiSourceType } from "@/types";
+import type { apiSourceType, SourceType } from "@/types";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
@@ -71,6 +71,10 @@ export interface AppState {
 	// 数据来源选择
 	apiSource: apiSourceType;
 	setApiSource: (source: apiSourceType) => void;
+	mixedEnableYmgal: boolean;
+	setMixedEnableYmgal: (enabled: boolean) => void;
+	mixedEnableKun: boolean;
+	setMixedEnableKun: (enabled: boolean) => void;
 
 	// NSFW相关
 	nsfwFilter: boolean;
@@ -126,6 +130,24 @@ export interface AppState {
 	) => void; // 设置当前选中的分类
 }
 
+const REQUIRED_MIXED_SOURCES: readonly SourceType[] = ["bgm", "vndb"];
+
+export function getEnabledMixedSources(
+	state: Pick<AppState, "mixedEnableYmgal" | "mixedEnableKun">,
+): SourceType[] {
+	const sources: SourceType[] = [...REQUIRED_MIXED_SOURCES];
+
+	if (state.mixedEnableYmgal) {
+		sources.push("ymgal");
+	}
+
+	if (state.mixedEnableKun) {
+		sources.push("kun");
+	}
+
+	return sources;
+}
+
 // 创建持久化的全局状态
 export const useStore = create<AppState>()(
 	persist(
@@ -156,6 +178,14 @@ export const useStore = create<AppState>()(
 			apiSource: "mixed",
 			setApiSource: (source: apiSourceType) => {
 				set({ apiSource: source });
+			},
+			mixedEnableYmgal: false,
+			setMixedEnableYmgal: (enabled: boolean) => {
+				set({ mixedEnableYmgal: enabled });
+			},
+			mixedEnableKun: false,
+			setMixedEnableKun: (enabled: boolean) => {
+				set({ mixedEnableKun: enabled });
 			},
 
 			openAddModal: (path?: string) => {
@@ -325,6 +355,8 @@ export const useStore = create<AppState>()(
 				defaultCloseAction: state.defaultCloseAction,
 				// 数据来源选择
 				apiSource: state.apiSource,
+				mixedEnableYmgal: state.mixedEnableYmgal,
+				mixedEnableKun: state.mixedEnableKun,
 				// nsfw相关
 				nsfwFilter: state.nsfwFilter,
 				nsfwCoverReplace: state.nsfwCoverReplace,

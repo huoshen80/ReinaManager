@@ -531,6 +531,10 @@
 				"vndbDescription": "ゲーム追加時に VNDB のコレクション状態を読み取り、ローカルで状態を変更したときに VNDB に同期します。",
 				"vndbTitle": "VNDB コレクション同期を有効化"
 			},
+			"mixedSearchSources": {
+				"description": "この設定は、ゲーム追加時の mixed 検索リクエストにのみ影響します。BGM と VNDB は常に有効で、YMGal と Kungal は必要に応じて有効化できます。",
+				"title": "Mixed 検索ソース"
+			},
 			"databaseBackup": {
 				"backing": "バックアップ中...",
 				"backup": "データベースをバックアップ",

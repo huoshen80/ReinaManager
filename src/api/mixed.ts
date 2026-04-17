@@ -19,7 +19,7 @@
  */
 
 import { AppError, toError } from "@/utils/errors";
-import type { FullGameData } from "../types";
+import type { FullGameData, SourceType } from "../types";
 import { fetchBgmById, fetchBgmByName } from "./bgm";
 import { fetchGalgameById, searchGalgame } from "./kun";
 import { fetchVndbById, fetchVndbByName } from "./vndb";
@@ -28,6 +28,13 @@ import { fetchYmById, fetchYmByName } from "./ymgal";
 interface SafeFetchResult {
 	data: FullGameData | null;
 	failed: boolean;
+}
+
+function isSourceEnabled(
+	enabledSources: readonly SourceType[] | undefined,
+	source: SourceType,
+): boolean {
+	return !enabledSources || enabledSources.includes(source);
 }
 
 function extractEmbeddedVndbResult(
@@ -151,12 +158,20 @@ export async function fetchMixedData(options: {
 	kun_id?: string;
 	name?: string;
 	BGM_TOKEN?: string;
+	enabledSources?: readonly SourceType[];
 }) {
-	const { bgm_id, vndb_id, ymgal_id, kun_id, name, BGM_TOKEN } = options;
-
-	const providedIds = [bgm_id, vndb_id, ymgal_id, kun_id].filter(
-		Boolean,
-	).length;
+	const { bgm_id, vndb_id, ymgal_id, kun_id, name, BGM_TOKEN, enabledSources } =
+		options;
+	const enableBgm = isSourceEnabled(enabledSources, "bgm");
+	const enableVndb = isSourceEnabled(enabledSources, "vndb");
+	const enableYmgal = isSourceEnabled(enabledSources, "ymgal");
+	const enableKun = isSourceEnabled(enabledSources, "kun");
+	const providedIds = [
+		enableBgm ? bgm_id : undefined,
+		enableVndb ? vndb_id : undefined,
+		enableYmgal ? ymgal_id : undefined,
+		enableKun ? kun_id : undefined,
+	].filter(Boolean).length;
 
 	// 场景1: 单个ID提供 - 获取该数据源，然后用名称搜索其他数据源（取第一个结果）
 	if (providedIds === 1) {
@@ -166,36 +181,39 @@ export async function fetchMixedData(options: {
 		let ymgalResult: SafeFetchResult = { data: null, failed: false };
 		let kunResult: SafeFetchResult = { data: null, failed: false };
 
-		if (bgm_id && BGM_TOKEN) {
+		if (enableBgm && bgm_id && BGM_TOKEN) {
 			bgmResult = await getBangumiDataSafely("", BGM_TOKEN, bgm_id);
 			searchName = extractNameFromApi(bgmResult.data);
-		} else if (vndb_id) {
+		} else if (enableVndb && vndb_id) {
 			vndbResult = await getVNDBDataSafely("", vndb_id);
 			searchName = extractNameFromApi(vndbResult.data);
-		} else if (ymgal_id) {
+		} else if (enableYmgal && ymgal_id) {
 			ymgalResult = await getYmgalDataSafely("", ymgal_id);
 			searchName = extractNameFromApi(ymgalResult.data);
-		} else if (kun_id) {
+		} else if (enableKun && kun_id) {
 			kunResult = await getKungalDataSafely("", kun_id);
 			searchName = extractNameFromApi(kunResult.data);
 		}
 
 		if (searchName) {
-			const embeddedVndbResult = extractEmbeddedVndbResult(kunResult.data);
+			const embeddedVndbResult =
+				enableVndb && enableKun
+					? extractEmbeddedVndbResult(kunResult.data)
+					: null;
 			const [nextBgmResult, nextVndbResult, nextYmgalResult, nextKunResult] =
 				await Promise.all([
-					!bgmResult.data && BGM_TOKEN
+					enableBgm && !bgmResult.data && BGM_TOKEN
 						? getBangumiDataSafely(searchName, BGM_TOKEN)
 						: Promise.resolve(bgmResult),
-					!vndbResult.data
+					enableVndb && !vndbResult.data
 						? embeddedVndbResult
 							? Promise.resolve(embeddedVndbResult)
 							: getVNDBDataSafely(searchName)
 						: Promise.resolve(vndbResult),
-					!ymgalResult.data
+					enableYmgal && !ymgalResult.data
 						? getYmgalDataSafely(searchName)
 						: Promise.resolve(ymgalResult),
-					!kunResult.data
+					enableKun && !kunResult.data
 						? getKungalDataSafely(searchName)
 						: Promise.resolve(kunResult),
 				]);
@@ -229,15 +247,20 @@ export async function fetchMixedData(options: {
 	if (name?.trim()) {
 		const searchName = name.trim();
 		const [bgmResult, ymgalResult, kunResult] = await Promise.all([
-			BGM_TOKEN
+			enableBgm && BGM_TOKEN
 				? getBangumiDataSafely(searchName, BGM_TOKEN)
 				: Promise.resolve({ data: null, failed: false }),
-			getYmgalDataSafely(searchName),
-			getKungalDataSafely(searchName),
+			enableYmgal
+				? getYmgalDataSafely(searchName)
+				: Promise.resolve({ data: null, failed: false }),
+			enableKun
+				? getKungalDataSafely(searchName)
+				: Promise.resolve({ data: null, failed: false }),
 		]);
-		const vndbResult =
-			extractEmbeddedVndbResult(kunResult.data) ??
-			(await getVNDBDataSafely(searchName));
+		const vndbResult = enableVndb
+			? ((enableKun ? extractEmbeddedVndbResult(kunResult.data) : null) ??
+				(await getVNDBDataSafely(searchName)))
+			: { data: null, failed: false };
 
 		if (
 			bgmResult.failed &&

@@ -37,7 +37,7 @@ import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataF
 import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
-import { useStore } from "@/store/appStore";
+import { getEnabledMixedSources, useStore } from "@/store/appStore";
 import type { apiSourceType, FullGameData, InsertGameParams } from "@/types";
 import {
 	createAbortableRunner,
@@ -98,6 +98,8 @@ const AddModal: React.FC = () => {
 	const {
 		apiSource,
 		setApiSource,
+		mixedEnableYmgal,
+		mixedEnableKun,
 		addModalOpen,
 		addModalPath,
 		openAddModal,
@@ -107,6 +109,8 @@ const AddModal: React.FC = () => {
 		useShallow((s) => ({
 			apiSource: s.apiSource,
 			setApiSource: s.setApiSource,
+			mixedEnableYmgal: s.mixedEnableYmgal,
+			mixedEnableKun: s.mixedEnableKun,
 			addModalOpen: s.addModalOpen,
 			addModalPath: s.addModalPath,
 			openAddModal: s.openAddModal,
@@ -114,6 +118,10 @@ const AddModal: React.FC = () => {
 			setAddModalPath: s.setAddModalPath,
 		})),
 	);
+	const enabledMixedSources = getEnabledMixedSources({
+		mixedEnableYmgal,
+		mixedEnableKun,
+	});
 
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");
@@ -255,6 +263,8 @@ const AddModal: React.FC = () => {
 			source: apiSource === "mixed" ? undefined : apiSource,
 			bgmToken,
 			isIdSearch: isID,
+			mixedEnabledSources:
+				apiSource === "mixed" ? enabledMixedSources : undefined,
 			defaults: {
 				localpath: addModalPath,
 			},

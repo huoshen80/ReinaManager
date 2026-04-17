@@ -29,11 +29,13 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { gameMetadataService } from "@/api";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
+import { getEnabledMixedSources, useStore } from "@/store/appStore";
 import type { apiSourceType, FullGameData, ScanResult } from "@/types";
 import {
 	createAbortableRunner,
@@ -90,8 +92,18 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const { t, i18n } = useTranslation();
 	const { data: settings } = useAllSettings();
 	const bgmToken = settings?.bgm_token ?? "";
+	const { mixedEnableYmgal, mixedEnableKun } = useStore(
+		useShallow((s) => ({
+			mixedEnableYmgal: s.mixedEnableYmgal,
+			mixedEnableKun: s.mixedEnableKun,
+		})),
+	);
 	const { addGamesFromBulkImport, isAddingGames } = useBulkGameAddActions();
 	const preferredApiSource = bgmToken ? "bgm" : "vndb";
+	const enabledMixedSources = getEnabledMixedSources({
+		mixedEnableYmgal,
+		mixedEnableKun,
+	});
 
 	const [isScanningDirectories, setIsScanningDirectories] = useState(false);
 	const [isMatchingMetadata, setIsMatchingMetadata] = useState(false);
@@ -332,6 +344,8 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 					source: editApiSource === "mixed" ? undefined : editApiSource,
 					bgmToken,
 					isIdSearch: editIsIdSearch,
+					mixedEnabledSources:
+						editApiSource === "mixed" ? enabledMixedSources : undefined,
 				}),
 			);
 

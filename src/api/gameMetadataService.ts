@@ -207,6 +207,7 @@ export interface GameSearchParams {
 	bgmToken?: string; // BGM API访问令牌
 	defaults?: Partial<FullGameData>; // UI相关默认值，会合并到返回的FullGameData中
 	isIdSearch?: boolean; // 是否为ID搜索（由用户通过isID开关控制）
+	mixedEnabledSources?: readonly SourceType[]; // mixed 模式下允许请求的数据源
 }
 
 interface SelectionDetailEnrichRule {
@@ -238,14 +239,21 @@ class GameMetadataService {
 	 * - source 未指定：mixed 搜索（id 返回单个结果，名称返回各源第一个结果）
 	 */
 	async searchGames(params: GameSearchParams): Promise<FullGameData[]> {
-		const { query, source, bgmToken, defaults, isIdSearch } = params;
+		const {
+			query,
+			source,
+			bgmToken,
+			defaults,
+			isIdSearch,
+			mixedEnabledSources,
+		} = params;
 
 		// 使用用户传入的 isIdSearch，若未传入则自动判断
 		const isId = isIdSearch ?? this.isIdQuery(query); // 自动判断预留
 
 		return source
 			? this.searchSingleSource(query, source, bgmToken, defaults, isId)
-			: this.searchMixed(query, bgmToken, defaults, isId);
+			: this.searchMixed(query, bgmToken, defaults, isId, mixedEnabledSources);
 	}
 
 	/**
@@ -282,13 +290,22 @@ class GameMetadataService {
 		bgmToken: string | undefined,
 		defaults: Partial<FullGameData> | undefined,
 		isIdSearch: boolean,
+		mixedEnabledSources?: readonly SourceType[],
 	): Promise<FullGameData[]> {
 		if (isIdSearch) {
-			const result = await this.getMixedGameById(query, bgmToken);
+			const result = await this.getMixedGameById(
+				query,
+				bgmToken,
+				mixedEnabledSources,
+			);
 			return [this.applyDefaults(result, defaults)];
 		}
 
-		const result = await this.getMixedGameByName(query, bgmToken);
+		const result = await this.getMixedGameByName(
+			query,
+			bgmToken,
+			mixedEnabledSources,
+		);
 		if (!result) {
 			return [];
 		}
@@ -406,6 +423,7 @@ class GameMetadataService {
 	private async getMixedGameById(
 		id: string,
 		bgmToken?: string,
+		enabledSources?: readonly SourceType[],
 	): Promise<FullGameData> {
 		const ids = this.parseGameId(id);
 		if (!ids.bgmId && !ids.vndbId && !ids.ymgalId) {
@@ -421,6 +439,7 @@ class GameMetadataService {
 				vndb_id: ids.vndbId,
 				ymgal_id: ids.ymgalId,
 				BGM_TOKEN: bgmToken,
+				enabledSources,
 			});
 
 			return ensureMixedResult(mergeMixedResult(result));
@@ -439,11 +458,13 @@ class GameMetadataService {
 	private async getMixedGameByName(
 		name: string,
 		bgmToken?: string,
+		enabledSources?: readonly SourceType[],
 	): Promise<FullGameData | null> {
 		try {
 			const result = await fetchMixedData({
 				name,
 				BGM_TOKEN: bgmToken,
+				enabledSources,
 			});
 
 			return mergeMixedResult(result);

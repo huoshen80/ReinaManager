@@ -496,6 +496,67 @@ const CollectionSyncSettings = () => {
 	);
 };
 
+const MixedSearchSourceSettings = () => {
+	const { t } = useTranslation();
+	const {
+		mixedEnableYmgal,
+		setMixedEnableYmgal,
+		mixedEnableKun,
+		setMixedEnableKun,
+	} = useStore(
+		useShallow((s) => ({
+			mixedEnableYmgal: s.mixedEnableYmgal,
+			setMixedEnableYmgal: s.setMixedEnableYmgal,
+			mixedEnableKun: s.mixedEnableKun,
+			setMixedEnableKun: s.setMixedEnableKun,
+		})),
+	);
+
+	return (
+		<Box className="mb-6">
+			<InputLabel className="font-semibold mb-4">
+				{t("pages.Settings.mixedSearchSources.title", "Mixed 搜索源")}
+			</InputLabel>
+			<Box className="pl-2 space-y-4">
+				<Typography variant="caption" color="text.secondary" className="block">
+					{t(
+						"pages.Settings.mixedSearchSources.description",
+						"该设置仅影响添加游戏时的 mixed 搜索请求。BGM 和 VNDB 始终启用，YMGal 与 Kungal 可按需关闭。",
+					)}
+				</Typography>
+				<Stack
+					direction="row"
+					spacing={2}
+					useFlexGap
+					flexWrap="wrap"
+					alignItems="center"
+				>
+					<FormControlLabel
+						control={
+							<Checkbox
+								checked={mixedEnableYmgal}
+								onChange={(e) => setMixedEnableYmgal(e.target.checked)}
+								color="primary"
+							/>
+						}
+						label="YMGal"
+					/>
+					<FormControlLabel
+						control={
+							<Checkbox
+								checked={mixedEnableKun}
+								onChange={(e) => setMixedEnableKun(e.target.checked)}
+								color="primary"
+							/>
+						}
+						label="Kungal"
+					/>
+				</Stack>
+			</Box>
+		</Box>
+	);
+};
+
 const AutoStartSettings = () => {
 	const { t } = useTranslation();
 	const [autoStart, setAutoStart] = useState(false);
@@ -1580,6 +1641,10 @@ export const Settings: React.FC = () => {
 
 				{/* 收藏同步设置 */}
 				<CollectionSyncSettings />
+				<Divider sx={{ my: 3 }} />
+
+				{/* Mixed 搜索源设置 */}
+				<MixedSearchSourceSettings />
 				<Divider sx={{ my: 3 }} />
 
 				{/* 语言设置 */}

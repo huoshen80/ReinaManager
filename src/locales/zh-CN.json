@@ -531,6 +531,10 @@
 				"vndbDescription": "添加游戏时尝试读取 VNDB 收藏状态，本地修改状态时同步回 VNDB。",
 				"vndbTitle": "启用 VNDB 收藏同步"
 			},
+			"mixedSearchSources": {
+				"description": "该设置仅影响添加游戏时的 mixed 搜索请求。BGM 和 VNDB 始终启用，YMGal 与 Kungal 可按需开启。",
+				"title": "Mixed 搜索源"
+			},
 			"databaseBackup": {
 				"backing": "备份中...",
 				"backup": "备份数据库",
