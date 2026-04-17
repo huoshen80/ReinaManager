@@ -403,7 +403,6 @@
 			"collapseTags": "タグを折りたたむ",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、YMGal ID、または Kungal ID は空にできません",
 				"customModeWarning": "カスタムモードではデータソースから更新できません。",
 				"dataSource": "データソース",
 				"incompleteYmgalData": "完全な YMGal データが見つかりませんでした。",

@@ -1,9 +1,6 @@
-import type { DataSource } from "@/api/gameMetadataService";
 import { ViewGameBox } from "@/components/AlertBox";
-import type { FullGameData } from "@/types";
+import type { apiSourceType, FullGameData, SourceType } from "@/types";
 import GameSelectDialog from "./GameSelectDialog";
-
-export type GameSearchApiSource = DataSource | "mixed";
 
 interface GameSearchResultDialogProps {
 	open: boolean;
@@ -12,14 +9,14 @@ interface GameSearchResultDialogProps {
 	onSelect: (game: FullGameData, index: number) => void | Promise<void>;
 	onConfirmPreview: () => void;
 	loading?: boolean;
-	apiSource: GameSearchApiSource;
+	apiSource: apiSourceType;
 	isIdSearch: boolean;
 	previewTitle: string;
 	selectTitle?: string;
 }
 
 export function shouldUseGamePreviewDialog(
-	apiSource: GameSearchApiSource,
+	apiSource: apiSourceType,
 	isIdSearch: boolean,
 ): boolean {
 	return apiSource === "mixed" || isIdSearch;
@@ -32,8 +29,8 @@ export function getPrimaryGameSearchResult(
 }
 
 export function getSelectableGameApiSource(
-	apiSource: GameSearchApiSource,
-): DataSource {
+	apiSource: apiSourceType,
+): SourceType {
 	return apiSource === "mixed" ? "bgm" : apiSource;
 }
 

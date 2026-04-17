@@ -78,16 +78,6 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			return;
 		}
 
-		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId) {
-			snackbar.error(
-				t(
-					"pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired",
-					"Bangumi ID、VNDB ID、YMGal ID 或 Kungal ID 不能为空",
-				),
-			);
-			return;
-		}
-
 		try {
 			setIsLoading(true);
 			const result = await fetchMetadataForUpdate({
@@ -204,7 +194,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||
 					(idType === "kun" && !kunId) ||
-					(idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId)
+					(idType === "mixed" && !(bgmId || vndbId || ymgalId || kunId))
 				}
 				onClick={handleFetchAndPreview}
 				startIcon={

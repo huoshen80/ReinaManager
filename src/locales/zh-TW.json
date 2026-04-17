@@ -403,7 +403,6 @@
 			"collapseTags": "折疊標籤",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、YMGal ID 或 Kungal ID 不能為空",
 				"customModeWarning": "自定模式無法從數據源更新。",
 				"dataSource": "數據源",
 				"incompleteYmgalData": "未找到完整的 YMGal 數據。",

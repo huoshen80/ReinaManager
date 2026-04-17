@@ -11,8 +11,8 @@ import { fetchGalgameById, searchGalgame } from "@/api/kun";
 import { fetchMixedData } from "@/api/mixed";
 import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
-import type { FullGameData, SourceType } from "@/types";
-import { SOURCE_KEYS } from "@/types";
+import type { apiSourceType, FullGameData, SourceType } from "@/types";
+import { SOURCE_FIELD_KEYS, SOURCE_KEYS } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 
 interface MixedSourceResult {
@@ -20,6 +20,92 @@ interface MixedSourceResult {
 	vndb_data?: FullGameData | null;
 	ymgal_data?: FullGameData | null;
 	kun_data?: FullGameData | null;
+}
+
+interface MixedSourceMergeRule {
+	source: SourceType;
+	resultKey: keyof MixedSourceResult;
+	getDate: (game: FullGameData) => string | undefined;
+}
+
+interface MixedGameIdParseResult {
+	bgmId?: string;
+	vndbId?: string;
+	ymgalId?: string;
+	kunId?: string;
+}
+
+interface MixedGameIdParseRule {
+	test: (input: string) => boolean;
+	parse: (input: string) => MixedGameIdParseResult;
+}
+
+const mixedSourceMergeRules: readonly MixedSourceMergeRule[] = [
+	{
+		source: "bgm",
+		resultKey: "bgm_data",
+		getDate: (game) => game.bgm_data?.date,
+	},
+	{
+		source: "vndb",
+		resultKey: "vndb_data",
+		getDate: (game) => game.vndb_data?.date,
+	},
+	{
+		source: "ymgal",
+		resultKey: "ymgal_data",
+		getDate: (game) => game.ymgal_data?.date,
+	},
+	{
+		source: "kun",
+		resultKey: "kun_data",
+		getDate: (game) => game.vndb_data?.date,
+	},
+];
+
+const mixedIdTypePriority: readonly SourceType[] = [
+	"kun",
+	"ymgal",
+	"vndb",
+	"bgm",
+];
+
+const mixedGameIdParseRules: readonly MixedGameIdParseRule[] = [
+	{
+		test: (input) => /^v\d+$/i.test(input),
+		parse: (input) => ({ vndbId: input }),
+	},
+	{
+		test: (input) => /^ga\d+$/i.test(input),
+		parse: (input) => ({ ymgalId: input.replace(/^ga/i, "") }),
+	},
+	{
+		test: (input) => /^\d+$/.test(input),
+		parse: (input) => ({ bgmId: input }),
+	},
+];
+
+function assignGameField<Key extends keyof FullGameData>(
+	target: FullGameData,
+	source: FullGameData,
+	key: Key,
+): void {
+	target[key] = source[key];
+}
+
+function mergeSourceIntoGame(
+	target: FullGameData,
+	source: FullGameData,
+	sourceType: SourceType,
+): void {
+	const { id: idKey, data: dataKey } = SOURCE_FIELD_KEYS[sourceType];
+	assignGameField(target, source, idKey);
+	assignGameField(target, source, dataKey);
+}
+
+function hasSourceId(game: Partial<FullGameData>, source: SourceType): boolean {
+	const { id: idKey } = SOURCE_FIELD_KEYS[source];
+	return Boolean(game[idKey]);
 }
 
 function createMetadataError(
@@ -57,19 +143,15 @@ function createStableError(
 function mergeDateFromMixedResult(
 	result: MixedSourceResult,
 ): string | undefined {
-	// 合并日期信息，优先级：BGM > VNDB > YMGal
-	if (result.bgm_data?.bgm_data?.date) {
-		return result.bgm_data.bgm_data.date;
+	// 合并日期信息，优先级由规则数组的顺序决定
+	for (const rule of mixedSourceMergeRules) {
+		const sourceGame = result[rule.resultKey];
+		const date = sourceGame ? rule.getDate(sourceGame) : undefined;
+		if (date) {
+			return date;
+		}
 	}
-	if (result.vndb_data?.vndb_data?.date) {
-		return result.vndb_data.vndb_data.date;
-	}
-	if (result.ymgal_data?.ymgal_data?.date) {
-		return result.ymgal_data.ymgal_data.date;
-	}
-	if (result.kun_data?.date) {
-		return result.kun_data.date;
-	}
+
 	return undefined;
 }
 
@@ -77,22 +159,15 @@ function mergeMixedResult(result: MixedSourceResult): FullGameData | null {
 	const mergedGame: FullGameData = {
 		id_type: "mixed",
 	};
+	let hasMergedSource = false;
 
-	if (result.bgm_data) {
-		mergedGame.bgm_id = result.bgm_data.bgm_id;
-		mergedGame.bgm_data = result.bgm_data.bgm_data;
-	}
-	if (result.vndb_data) {
-		mergedGame.vndb_id = result.vndb_data.vndb_id;
-		mergedGame.vndb_data = result.vndb_data.vndb_data;
-	}
-	if (result.ymgal_data) {
-		mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
-		mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
-	}
-	if (result.kun_data) {
-		mergedGame.kun_id = result.kun_data.kun_id;
-		mergedGame.kun_data = result.kun_data.kun_data;
+	for (const rule of mixedSourceMergeRules) {
+		const sourceGame = result[rule.resultKey];
+		if (!sourceGame) {
+			continue;
+		}
+		hasMergedSource = true;
+		mergeSourceIntoGame(mergedGame, sourceGame, rule.source);
 	}
 
 	const mergedDate = mergeDateFromMixedResult(result);
@@ -100,12 +175,7 @@ function mergeMixedResult(result: MixedSourceResult): FullGameData | null {
 		mergedGame.date = mergedDate;
 	}
 
-	if (
-		!mergedGame.bgm_id &&
-		!mergedGame.vndb_id &&
-		!mergedGame.ymgal_id &&
-		!mergedGame.kun_id
-	) {
+	if (!hasMergedSource) {
 		return null;
 	}
 
@@ -123,11 +193,6 @@ function ensureMixedResult(result: FullGameData | null): FullGameData {
 	return result;
 }
 
-/**
- * 支持的数据源类型
- */
-export type DataSource = SourceType;
-
 function assertNever(value: never): never {
 	throw new Error(`Unhandled source: ${String(value)}`);
 }
@@ -138,21 +203,19 @@ function assertNever(value: never): never {
  */
 export interface GameSearchParams {
 	query: string; // 搜索关键词（可以是ID或名称）
-	source?: DataSource; // 数据源（可选，不指定则为mixed）
+	source?: SourceType; // 数据源（可选，不指定则为mixed）
 	bgmToken?: string; // BGM API访问令牌
 	defaults?: Partial<FullGameData>; // UI相关默认值，会合并到返回的FullGameData中
 	isIdSearch?: boolean; // 是否为ID搜索（由用户通过isID开关控制）
 }
 
-type SelectionSource = DataSource | "mixed";
-
 interface SelectionDetailEnrichRule {
-	source: DataSource;
+	source: SourceType;
 	getId: (game: FullGameData) => string | undefined;
 }
 
 const selectionDetailEnrichRules: Partial<
-	Record<DataSource, SelectionDetailEnrichRule>
+	Record<SourceType, SelectionDetailEnrichRule>
 > = {
 	ymgal: {
 		source: "ymgal",
@@ -180,11 +243,9 @@ class GameMetadataService {
 		// 使用用户传入的 isIdSearch，若未传入则自动判断
 		const isId = isIdSearch ?? this.isIdQuery(query); // 自动判断预留
 
-		if (source) {
-			return this.searchSingleSource(query, source, bgmToken, defaults, isId);
-		}
-
-		return this.searchMixed(query, bgmToken, defaults, isId);
+		return source
+			? this.searchSingleSource(query, source, bgmToken, defaults, isId)
+			: this.searchMixed(query, bgmToken, defaults, isId);
 	}
 
 	/**
@@ -199,7 +260,7 @@ class GameMetadataService {
 	 */
 	private async searchSingleSource(
 		query: string,
-		source: DataSource,
+		source: SourceType,
 		bgmToken: string | undefined,
 		defaults: Partial<FullGameData> | undefined,
 		isIdSearch: boolean,
@@ -240,7 +301,7 @@ class GameMetadataService {
 	 */
 	async getGameById(
 		id: string,
-		source: DataSource,
+		source: SourceType,
 		bgmToken?: string,
 	): Promise<FullGameData> {
 		if (import.meta.env.DEV) {
@@ -286,7 +347,7 @@ class GameMetadataService {
 	 */
 	async enrichSelectedGameDetails(params: {
 		selectedGame: FullGameData;
-		source: SelectionSource;
+		source: apiSourceType;
 		isIdSearch?: boolean;
 	}): Promise<FullGameData> {
 		const { selectedGame, source, isIdSearch = false } = params;
@@ -296,12 +357,8 @@ class GameMetadataService {
 		}
 
 		const enrichRule = selectionDetailEnrichRules[source];
-		if (!enrichRule) {
-			return selectedGame;
-		}
-
-		const selectedId = enrichRule.getId(selectedGame);
-		if (!selectedId) {
+		const selectedId = enrichRule?.getId(selectedGame);
+		if (!enrichRule || !selectedId) {
 			return selectedGame;
 		}
 
@@ -318,7 +375,7 @@ class GameMetadataService {
 	 */
 	private async searchByName(
 		name: string,
-		source: DataSource,
+		source: SourceType,
 		bgmToken?: string,
 	): Promise<FullGameData[]> {
 		try {
@@ -406,14 +463,13 @@ class GameMetadataService {
 		game: FullGameData,
 		defaults?: Partial<FullGameData>,
 	): FullGameData {
-		if (!defaults) return game;
-		return { ...defaults, ...game };
+		return defaults ? { ...defaults, ...game } : game;
 	}
 
 	/**
 	 * 验证游戏 ID 格式 // 目前无用
 	 */
-	isValidGameId(id: string, source: DataSource): boolean {
+	isValidGameId(id: string, source: SourceType): boolean {
 		switch (source) {
 			case "bgm":
 			case "kun":
@@ -546,44 +602,29 @@ class GameMetadataService {
 	 * 只要有任意 2 个 id 就应归为 mixed
 	 */
 	private determineIdType(game: Partial<FullGameData>): string {
-		const hasBgm = !!game.bgm_id;
-		const hasVndb = !!game.vndb_id;
-		const hasYmgal = !!game.ymgal_id;
-		const hasKun = !!game.kun_id;
-		const idCount =
-			(hasBgm ? 1 : 0) +
-			(hasVndb ? 1 : 0) +
-			(hasYmgal ? 1 : 0) +
-			(hasKun ? 1 : 0);
+		const matchedSources = mixedIdTypePriority.filter((source) =>
+			hasSourceId(game, source),
+		);
 
-		if (idCount >= 2) return "mixed";
-		if (hasKun) return "kun";
-		if (hasYmgal) return "ymgal";
-		if (hasVndb) return "vndb";
-		if (hasBgm) return "bgm";
-		return "unknown";
+		if (matchedSources.length >= 2) {
+			return "mixed";
+		}
+
+		return matchedSources[0] ?? "unknown";
 	}
 
 	/**
 	 * 解析复合游戏 ID，返回各数据源的 ID
 	 */
-	parseGameId(input: string): {
-		bgmId?: string;
-		vndbId?: string;
-		ymgalId?: string;
-	} {
-		const result: { bgmId?: string; vndbId?: string; ymgalId?: string } = {};
-
+	parseGameId(input: string): MixedGameIdParseResult {
 		// mixed 的添加链路不解析 kunId，避免与纯数字的 bgmId 冲突。
-		if (/^v\d+$/i.test(input)) {
-			result.vndbId = input;
-		} else if (/^ga\d+$/i.test(input)) {
-			result.ymgalId = input.replace(/^ga/i, "");
-		} else if (/^\d+$/.test(input)) {
-			result.bgmId = input;
+		for (const rule of mixedGameIdParseRules) {
+			if (rule.test(input)) {
+				return rule.parse(input);
+			}
 		}
 
-		return result;
+		return {};
 	}
 }
 

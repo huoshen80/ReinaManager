@@ -30,6 +30,22 @@ interface SafeFetchResult {
 	failed: boolean;
 }
 
+function extractEmbeddedVndbResult(
+	apiData: FullGameData | null,
+): SafeFetchResult | null {
+	if (!apiData?.vndb_data) {
+		return null;
+	}
+
+	return {
+		data: {
+			vndb_id: apiData.vndb_id,
+			vndb_data: apiData.vndb_data,
+		},
+		failed: false,
+	};
+}
+
 // 辅助函数：安全获取 BGM 数据
 async function getBangumiDataSafely(
 	name: string,
@@ -165,13 +181,16 @@ export async function fetchMixedData(options: {
 		}
 
 		if (searchName) {
+			const embeddedVndbResult = extractEmbeddedVndbResult(kunResult.data);
 			const [nextBgmResult, nextVndbResult, nextYmgalResult, nextKunResult] =
 				await Promise.all([
 					!bgmResult.data && BGM_TOKEN
 						? getBangumiDataSafely(searchName, BGM_TOKEN)
 						: Promise.resolve(bgmResult),
 					!vndbResult.data
-						? getVNDBDataSafely(searchName)
+						? embeddedVndbResult
+							? Promise.resolve(embeddedVndbResult)
+							: getVNDBDataSafely(searchName)
 						: Promise.resolve(vndbResult),
 					!ymgalResult.data
 						? getYmgalDataSafely(searchName)
@@ -209,14 +228,16 @@ export async function fetchMixedData(options: {
 	// 场景2: 只有名称（用于搜索）- 同时搜索所有数据源（取第一个结果）
 	if (name?.trim()) {
 		const searchName = name.trim();
-		const [bgmResult, vndbResult, ymgalResult, kunResult] = await Promise.all([
+		const [bgmResult, ymgalResult, kunResult] = await Promise.all([
 			BGM_TOKEN
 				? getBangumiDataSafely(searchName, BGM_TOKEN)
 				: Promise.resolve({ data: null, failed: false }),
-			getVNDBDataSafely(searchName),
 			getYmgalDataSafely(searchName),
 			getKungalDataSafely(searchName),
 		]);
+		const vndbResult =
+			extractEmbeddedVndbResult(kunResult.data) ??
+			(await getVNDBDataSafely(searchName));
 
 		if (
 			bgmResult.failed &&

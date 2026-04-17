@@ -405,7 +405,6 @@
 			"collapseTags": "Collapse Tags",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID, VNDB ID, YMGal ID, or Kungal ID cannot be empty",
 				"customModeWarning": "Custom mode cannot update from data source.",
 				"dataSource": "Data Source",
 				"incompleteYmgalData": "Complete YMGal data was not found.",
