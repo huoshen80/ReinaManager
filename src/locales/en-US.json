@@ -48,7 +48,7 @@
 			"developer": "Developer",
 			"enableCustomMode": "Enable Custom Mode",
 			"gameExists": "Game already exists",
-			"gameIDTips": "Game ID (Enter BGM, VNDB or YMGal ID)",
+			"gameIDTips": "Game ID",
 			"gameName": "Game Name",
 			"idSearch": "Enable ID Search Mode",
 			"noBgmToken": "BGM_TOKEN is missing, unable to fetch data",
@@ -275,7 +275,8 @@
 			"themeLight": "Light",
 			"themeSystem": "System",
 			"vndblink": "View Vndb Page",
-			"ymgallink": "View Ymgal Page"
+			"ymgallink": "View Ymgal Page",
+			"kunlink": "View Kungal Page"
 		},
 		"Tray": {
 			"exit": "Exit",
@@ -404,7 +405,7 @@
 			"collapseTags": "Collapse Tags",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID, VNDB ID, or YMGal ID cannot be empty",
+				"bgmOrVndbIdRequired": "Bangumi ID, VNDB ID, YMGal ID, or Kungal ID cannot be empty",
 				"customModeWarning": "Custom mode cannot update from data source.",
 				"dataSource": "Data Source",
 				"incompleteYmgalData": "Complete YMGal data was not found.",

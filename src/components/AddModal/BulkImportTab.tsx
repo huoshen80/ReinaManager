@@ -75,11 +75,13 @@ function getMatchedGameName(
 		(useChineseName
 			? gameData.bgm_data?.name_cn ||
 				gameData.vndb_data?.name_cn ||
-				gameData.ymgal_data?.name_cn
+				gameData.ymgal_data?.name_cn ||
+				gameData.kun_data?.name_cn
 			: undefined) ||
 		gameData.bgm_data?.name ||
 		gameData.vndb_data?.name ||
 		gameData.ymgal_data?.name ||
+		gameData.kun_data?.name ||
 		""
 	);
 }

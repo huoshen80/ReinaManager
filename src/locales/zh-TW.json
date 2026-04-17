@@ -48,7 +48,7 @@
 			"developer": "開發商",
 			"enableCustomMode": "啟用自定義模式",
 			"gameExists": "遊戲已存在",
-			"gameIDTips": "遊戲ID（輸入BGM、VNDB 或 YMGal ID）",
+			"gameIDTips": "遊戲ID",
 			"gameName": "遊戲名稱",
 			"idSearch": "啟用ID搜尋模式",
 			"noBgmToken": "缺少 BGM_TOKEN，無法獲取數據",
@@ -273,7 +273,8 @@
 			"themeLight": "淺色",
 			"themeSystem": "跟隨系統",
 			"vndblink": "查看Vndb頁面",
-			"ymgallink": "查看Ymgal頁面"
+			"ymgallink": "查看Ymgal頁面",
+			"kunlink": "查看Kungal頁面"
 		},
 		"Tray": {
 			"exit": "退出",
@@ -402,7 +403,7 @@
 			"collapseTags": "折疊標籤",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID 或 YMGal ID 不能為空",
+				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、YMGal ID 或 Kungal ID 不能為空",
 				"customModeWarning": "自定模式無法從數據源更新。",
 				"dataSource": "數據源",
 				"incompleteYmgalData": "未找到完整的 YMGal 數據。",

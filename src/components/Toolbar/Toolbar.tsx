@@ -334,7 +334,7 @@ const MoreButton = () => {
 
 	/**
 	 * 跳转到外部链接
-	 * @param {string} type 链接类型（bgm/vndb/ymgal）
+	 * @param {string} type 链接类型（bgm/vndb/ymgal/kun）
 	 */
 	const handleView = (type: string) => {
 		if (type === "bgm") {
@@ -343,6 +343,8 @@ const MoreButton = () => {
 			openurl(`https://vndb.org/${selectedGame?.vndb_id}`);
 		} else if (type === "ymgal") {
 			openurl(`https://www.ymgal.games/ga${selectedGame?.ymgal_id}`);
+		} else if (type === "kun") {
+			openurl(`https://www.kungal.com/galgame/${selectedGame?.kun_id}`);
 		}
 	};
 
@@ -467,6 +469,20 @@ const MoreButton = () => {
 					</ListItemIcon>
 					<ListItemText>
 						{t("components.Toolbar.ymgallink", "月幕Gal页面")}
+					</ListItemText>
+				</MenuItem>
+				<MenuItem
+					disabled={!selectedGame?.kun_id}
+					onClick={() => {
+						handleView("kun");
+						handleClose();
+					}}
+				>
+					<ListItemIcon>
+						<CallMadeIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>
+						{t("components.Toolbar.kunlink", "查看Kungal页面")}
 					</ListItemText>
 				</MenuItem>
 				<MenuItem onClick={handleToggleLeLaunch}>

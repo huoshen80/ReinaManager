@@ -22,6 +22,7 @@ const listRelevantUpdateFields = new Set<keyof UpdateGameParams>([
 	"bgm_id",
 	"vndb_id",
 	"ymgal_id",
+	"kun_id",
 	"id_type",
 	"date",
 	"localpath",
@@ -29,6 +30,7 @@ const listRelevantUpdateFields = new Set<keyof UpdateGameParams>([
 	"bgm_data",
 	"vndb_data",
 	"ymgal_data",
+	"kun_data",
 	"custom_data",
 ]);
 

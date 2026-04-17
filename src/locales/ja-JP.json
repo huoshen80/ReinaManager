@@ -48,7 +48,7 @@
 			"developer": "開発者",
 			"enableCustomMode": "カスタムモードを有効化",
 			"gameExists": "ゲームはすでに存在します",
-			"gameIDTips": "ゲームID（BGM、VNDB または YMGal IDを入力）",
+			"gameIDTips": "ゲームID",
 			"gameName": "ゲーム名",
 			"idSearch": "ID検索モードを有効化",
 			"noBgmToken": "BGM_TOKENが設定されていません、データを取得できません",
@@ -273,7 +273,8 @@
 			"themeLight": "ライト",
 			"themeSystem": "システムに従う",
 			"vndblink": "Vndbページを見る",
-			"ymgallink": "Ymgalページを見る"
+			"ymgallink": "Ymgalページを見る",
+			"kunlink": "Kungalページを見る"
 		},
 		"Tray": {
 			"exit": "終了",
@@ -402,7 +403,7 @@
 			"collapseTags": "タグを折りたたむ",
 			"DataSourceUpdate": {
 				"bgmId": "Bangumi ID",
-				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、または YMGal ID は空にできません",
+				"bgmOrVndbIdRequired": "Bangumi ID、VNDB ID、YMGal ID、または Kungal ID は空にできません",
 				"customModeWarning": "カスタムモードではデータソースから更新できません。",
 				"dataSource": "データソース",
 				"incompleteYmgalData": "完全な YMGal データが見つかりませんでした。",

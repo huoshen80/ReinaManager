@@ -94,11 +94,12 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 		switch (fullData.id_type) {
 			case "mixed":
 				// 混合数据源：合并所有可用数据
-				if (bgm_data || vndb_data || ymgal_data) {
+				if (bgm_data || vndb_data || ymgal_data || kun_data) {
 					mergeMultipleDataSources(baseData, {
 						bgm_data,
 						vndb_data,
 						ymgal_data,
+						kun_data,
 						custom_data,
 					});
 				}
@@ -202,30 +203,37 @@ function mergeMultipleDataSources(
 		bgm_data?: Nullable<BgmData>;
 		vndb_data?: Nullable<VndbData>;
 		ymgal_data?: Nullable<YmgalData>;
+		kun_data?: Nullable<KunData>;
 		custom_data?: Nullable<CustomData>;
 	},
 ) {
-	const { bgm_data, vndb_data, ymgal_data, custom_data } = sources;
+	const { bgm_data, vndb_data, ymgal_data, kun_data, custom_data } = sources;
 
-	// 基础字段：优先级 BGM > VNDB > YMGal
-	const primarySource = bgm_data || vndb_data || ymgal_data;
+	// 基础字段：优先级 BGM > VNDB > YMGal > Kungal
+	const primarySource = bgm_data || vndb_data || ymgal_data || kun_data;
 	if (primarySource) assignBasicFields(target, primarySource);
 
-	target.image = bgm_data?.image || vndb_data?.image || ymgal_data?.image;
+	target.image =
+		bgm_data?.image || vndb_data?.image || ymgal_data?.image || kun_data?.image;
 
-	// 简介：YMGal 优先
 	target.summary =
-		ymgal_data?.summary || bgm_data?.summary || vndb_data?.summary;
+		ymgal_data?.summary ||
+		kun_data?.summary ||
+		bgm_data?.summary ||
+		vndb_data?.summary;
 
-	// 开发商: VNDB 优先
 	target.developer =
-		vndb_data?.developer || bgm_data?.developer || ymgal_data?.developer;
+		vndb_data?.developer ||
+		kun_data?.developer ||
+		bgm_data?.developer ||
+		ymgal_data?.developer;
 
 	// 标签: 合并所有数据源的标签，去重
 	const allTags = [
 		...(bgm_data?.tags || []),
 		...(vndb_data?.tags || []),
 		...(ymgal_data?.tags || []),
+		...(kun_data?.tags || []),
 		...(custom_data?.tags || []),
 	];
 	target.tags = Array.from(new Set(allTags));
@@ -235,6 +243,7 @@ function mergeMultipleDataSources(
 		...(bgm_data?.aliases || []),
 		...(vndb_data?.aliases || []),
 		...(ymgal_data?.aliases || []),
+		...(kun_data?.aliases || []),
 		...(custom_data?.aliases || []),
 	];
 	target.aliases = Array.from(new Set(allAliases));
@@ -245,8 +254,14 @@ function mergeMultipleDataSources(
 	// BGM 特有字段
 	target.rank = bgm_data?.rank;
 
+	// VNDB 和 Kun 特有字段，合并去重
+	const allTitles = [
+		...(vndb_data?.all_titles || []),
+		...(kun_data?.all_titles || []),
+	];
+	target.all_titles = Array.from(new Set(allTitles));
+
 	// VNDB 特有字段
-	target.all_titles = vndb_data?.all_titles || [];
 	target.average_hours = vndb_data?.average_hours;
 }
 

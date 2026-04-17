@@ -43,6 +43,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	const [kunId, setKunId] = useState<string>(selectedGame?.kun_id || "");
 	const [idType, setIdType] = useState<string>(selectedGame?.id_type || "");
 	const [isLoading, setIsLoading] = useState(false);
+	const showMixedInputs = idType === "mixed";
 
 	useEffect(() => {
 		setBgmId(selectedGame?.bgm_id || "");
@@ -77,11 +78,11 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			return;
 		}
 
-		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId) {
+		if (idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId) {
 			snackbar.error(
 				t(
 					"pages.Detail.DataSourceUpdate.bgmOrVndbIdRequired",
-					"Bangumi ID、VNDB ID 或 YMGal ID 不能为空",
+					"Bangumi ID、VNDB ID、YMGal ID 或 Kungal ID 不能为空",
 				),
 			);
 			return;
@@ -137,7 +138,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			</FormControl>
 
 			{/* Bangumi ID 编辑框 */}
-			{(idType === "bgm" || idType === "mixed") && (
+			{(idType === "bgm" || showMixedInputs) && (
 				<TextField
 					label={t("pages.Detail.DataSourceUpdate.bgmId", "Bangumi ID")}
 					variant="outlined"
@@ -150,7 +151,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			)}
 
 			{/* VNDB ID 编辑框 */}
-			{(idType === "vndb" || idType === "mixed") && (
+			{(idType === "vndb" || showMixedInputs) && (
 				<TextField
 					label={t("pages.Detail.DataSourceUpdate.vndbId", "VNDB ID")}
 					variant="outlined"
@@ -163,7 +164,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			)}
 
 			{/* YMGal ID 编辑框 */}
-			{(idType === "ymgal" || idType === "mixed") && (
+			{(idType === "ymgal" || showMixedInputs) && (
 				<TextField
 					label={t("pages.Detail.DataSourceUpdate.ymgalId", "YMGal ID")}
 					variant="outlined"
@@ -176,7 +177,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			)}
 
 			{/* Kungal ID 编辑框 */}
-			{idType === "kun" && (
+			{(idType === "kun" || showMixedInputs) && (
 				<TextField
 					label={t("pages.Detail.DataSourceUpdate.kunId", "Kungal ID")}
 					variant="outlined"
@@ -203,7 +204,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||
 					(idType === "kun" && !kunId) ||
-					(idType === "mixed" && !bgmId && !vndbId && !ymgalId)
+					(idType === "mixed" && !bgmId && !vndbId && !ymgalId && !kunId)
 				}
 				onClick={handleFetchAndPreview}
 				startIcon={

@@ -1,6 +1,6 @@
 /**
  * @file 多数据源混合获取 API 封装
- * @description 同时从 Bangumi、VNDB 和 YMGal 获取游戏信息，返回三份原始数据
+ * @description 同时从 Bangumi、VNDB、YMGal 和 Kungal 获取游戏信息，返回各源原始数据
  * @module src/api/mixed
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -21,6 +21,7 @@
 import { AppError, toError } from "@/utils/errors";
 import type { FullGameData } from "../types";
 import { fetchBgmById, fetchBgmByName } from "./bgm";
+import { fetchGalgameById, searchGalgame } from "./kun";
 import { fetchVndbById, fetchVndbByName } from "./vndb";
 import { fetchYmById, fetchYmByName } from "./ymgal";
 
@@ -83,6 +84,22 @@ async function getYmgalDataSafely(
 	}
 }
 
+// 辅助函数：安全获取 Kungal 数据
+async function getKungalDataSafely(
+	searchName: string,
+	kun_id?: string,
+): Promise<SafeFetchResult> {
+	try {
+		if (kun_id) {
+			return { data: await fetchGalgameById(kun_id), failed: false };
+		}
+		const result = await searchGalgame(searchName, 1, 12, true);
+		return { data: result[0] ?? null, failed: false };
+	} catch {
+		return { data: null, failed: true };
+	}
+}
+
 function extractNameFromApi(apiData: FullGameData | null): string | undefined {
 	if (!apiData) return undefined;
 
@@ -92,6 +109,8 @@ function extractNameFromApi(apiData: FullGameData | null): string | undefined {
 	if (vndbName) return vndbName;
 	const ymgalName = apiData.ymgal_data?.name;
 	if (ymgalName) return ymgalName;
+	const kunName = apiData.kun_data?.name;
+	if (kunName) return kunName;
 }
 
 /**
@@ -104,20 +123,24 @@ function extractNameFromApi(apiData: FullGameData | null): string | undefined {
  * @param options.bgm_id Bangumi 条目 ID（可选）
  * @param options.vndb_id VNDB 游戏 ID（可选）
  * @param options.ymgal_id YMGal 游戏 ID（可选）
+ * @param options.kun_id Kungal 游戏 ID（可选，仅用于更新等非 mixed ID 输入场景）
  * @param options.name 游戏名称（可选）
  * @param options.BGM_TOKEN Bangumi API 访问令牌（可选）
- * @returns 返回 { bgm_data, vndb_data, ymgal_data } 对象
+ * @returns 返回 { bgm_data, vndb_data, ymgal_data, kun_data } 对象
  */
 export async function fetchMixedData(options: {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
+	kun_id?: string;
 	name?: string;
 	BGM_TOKEN?: string;
 }) {
-	const { bgm_id, vndb_id, ymgal_id, name, BGM_TOKEN } = options;
+	const { bgm_id, vndb_id, ymgal_id, kun_id, name, BGM_TOKEN } = options;
 
-	const providedIds = [bgm_id, vndb_id, ymgal_id].filter(Boolean).length;
+	const providedIds = [bgm_id, vndb_id, ymgal_id, kun_id].filter(
+		Boolean,
+	).length;
 
 	// 场景1: 单个ID提供 - 获取该数据源，然后用名称搜索其他数据源（取第一个结果）
 	if (providedIds === 1) {
@@ -125,6 +148,7 @@ export async function fetchMixedData(options: {
 		let bgmResult: SafeFetchResult = { data: null, failed: false };
 		let vndbResult: SafeFetchResult = { data: null, failed: false };
 		let ymgalResult: SafeFetchResult = { data: null, failed: false };
+		let kunResult: SafeFetchResult = { data: null, failed: false };
 
 		if (bgm_id && BGM_TOKEN) {
 			bgmResult = await getBangumiDataSafely("", BGM_TOKEN, bgm_id);
@@ -135,10 +159,13 @@ export async function fetchMixedData(options: {
 		} else if (ymgal_id) {
 			ymgalResult = await getYmgalDataSafely("", ymgal_id);
 			searchName = extractNameFromApi(ymgalResult.data);
+		} else if (kun_id) {
+			kunResult = await getKungalDataSafely("", kun_id);
+			searchName = extractNameFromApi(kunResult.data);
 		}
 
 		if (searchName) {
-			const [nextBgmResult, nextVndbResult, nextYmgalResult] =
+			const [nextBgmResult, nextVndbResult, nextYmgalResult, nextKunResult] =
 				await Promise.all([
 					!bgmResult.data && BGM_TOKEN
 						? getBangumiDataSafely(searchName, BGM_TOKEN)
@@ -149,13 +176,22 @@ export async function fetchMixedData(options: {
 					!ymgalResult.data
 						? getYmgalDataSafely(searchName)
 						: Promise.resolve(ymgalResult),
+					!kunResult.data
+						? getKungalDataSafely(searchName)
+						: Promise.resolve(kunResult),
 				]);
 			bgmResult = nextBgmResult;
 			vndbResult = nextVndbResult;
 			ymgalResult = nextYmgalResult;
+			kunResult = nextKunResult;
 		}
 
-		if (bgmResult.failed && vndbResult.failed && ymgalResult.failed) {
+		if (
+			bgmResult.failed &&
+			vndbResult.failed &&
+			ymgalResult.failed &&
+			kunResult.failed
+		) {
 			throw new AppError({
 				code: "mixed_sources_failed",
 				message: "All mixed source requests failed for single-id lookup",
@@ -166,21 +202,28 @@ export async function fetchMixedData(options: {
 			bgm_data: bgmResult.data,
 			vndb_data: vndbResult.data,
 			ymgal_data: ymgalResult.data,
+			kun_data: kunResult.data,
 		};
 	}
 
 	// 场景2: 只有名称（用于搜索）- 同时搜索所有数据源（取第一个结果）
 	if (name?.trim()) {
 		const searchName = name.trim();
-		const [bgmResult, vndbResult, ymgalResult] = await Promise.all([
+		const [bgmResult, vndbResult, ymgalResult, kunResult] = await Promise.all([
 			BGM_TOKEN
 				? getBangumiDataSafely(searchName, BGM_TOKEN)
 				: Promise.resolve({ data: null, failed: false }),
 			getVNDBDataSafely(searchName),
 			getYmgalDataSafely(searchName),
+			getKungalDataSafely(searchName),
 		]);
 
-		if (bgmResult.failed && vndbResult.failed && ymgalResult.failed) {
+		if (
+			bgmResult.failed &&
+			vndbResult.failed &&
+			ymgalResult.failed &&
+			kunResult.failed
+		) {
 			throw new AppError({
 				code: "mixed_sources_failed",
 				message: `All mixed source requests failed for search: ${searchName}`,
@@ -192,6 +235,7 @@ export async function fetchMixedData(options: {
 			bgm_data: bgmResult.data,
 			vndb_data: vndbResult.data,
 			ymgal_data: ymgalResult.data,
+			kun_data: kunResult.data,
 		};
 	}
 

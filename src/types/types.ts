@@ -154,7 +154,7 @@ export type SourceDataKey =
 export type apiSourceType = SourceType | "mixed";
 
 export const SOURCE_KEYS = ["bgm", "vndb", "ymgal", "kun"] as const;
-export const MIXED_SOURCE_KEYS = ["bgm", "vndb", "ymgal"] as const;
+export const MIXED_SOURCE_KEYS = ["bgm", "vndb", "ymgal", "kun"] as const;
 
 export const SOURCE_FIELD_KEYS = {
 	bgm: { id: "bgm_id", data: "bgm_data" },

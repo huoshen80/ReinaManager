@@ -118,6 +118,7 @@ export async function fetchMetadataForUpdate({
 			bgmId,
 			vndbId,
 			ymgalId,
+			kunId,
 			bgmToken,
 		});
 	} else if (isSourceType(idType)) {

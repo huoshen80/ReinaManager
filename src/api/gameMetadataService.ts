@@ -19,6 +19,7 @@ interface MixedSourceResult {
 	bgm_data?: FullGameData | null;
 	vndb_data?: FullGameData | null;
 	ymgal_data?: FullGameData | null;
+	kun_data?: FullGameData | null;
 }
 
 function createMetadataError(
@@ -66,6 +67,9 @@ function mergeDateFromMixedResult(
 	if (result.ymgal_data?.ymgal_data?.date) {
 		return result.ymgal_data.ymgal_data.date;
 	}
+	if (result.kun_data?.date) {
+		return result.kun_data.date;
+	}
 	return undefined;
 }
 
@@ -86,13 +90,22 @@ function mergeMixedResult(result: MixedSourceResult): FullGameData | null {
 		mergedGame.ymgal_id = result.ymgal_data.ymgal_id;
 		mergedGame.ymgal_data = result.ymgal_data.ymgal_data;
 	}
+	if (result.kun_data) {
+		mergedGame.kun_id = result.kun_data.kun_id;
+		mergedGame.kun_data = result.kun_data.kun_data;
+	}
 
 	const mergedDate = mergeDateFromMixedResult(result);
 	if (mergedDate) {
 		mergedGame.date = mergedDate;
 	}
 
-	if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+	if (
+		!mergedGame.bgm_id &&
+		!mergedGame.vndb_id &&
+		!mergedGame.ymgal_id &&
+		!mergedGame.kun_id
+	) {
 		return null;
 	}
 
@@ -421,11 +434,12 @@ class GameMetadataService {
 		bgmId?: string;
 		vndbId?: string;
 		ymgalId?: string;
+		kunId?: string;
 		bgmToken?: string;
 		defaults?: Partial<FullGameData>;
 	}): Promise<FullGameData> {
-		const { bgmId, vndbId, ymgalId, bgmToken, defaults } = params;
-		const providedIds = [bgmId, vndbId, ymgalId].filter(Boolean).length;
+		const { bgmId, vndbId, ymgalId, kunId, bgmToken, defaults } = params;
+		const providedIds = [bgmId, vndbId, ymgalId, kunId].filter(Boolean).length;
 
 		if (providedIds === 0) {
 			throw createStableError(
@@ -440,6 +454,7 @@ class GameMetadataService {
 					bgm_id: bgmId,
 					vndb_id: vndbId,
 					ymgal_id: ymgalId,
+					kun_id: kunId,
 					BGM_TOKEN: bgmToken,
 				});
 
@@ -469,7 +484,13 @@ class GameMetadataService {
 				promises.push(Promise.resolve(null));
 			}
 
-			const [bgm, vndb, ymgal] = await Promise.all(promises);
+			if (kunId) {
+				promises.push(this.getGameById(kunId, "kun"));
+			} else {
+				promises.push(Promise.resolve(null));
+			}
+
+			const [bgm, vndb, ymgal, kun] = await Promise.all(promises);
 
 			const mergedGame: FullGameData = {
 				...defaults,
@@ -477,6 +498,7 @@ class GameMetadataService {
 					bgm_id: bgmId,
 					vndb_id: vndbId,
 					ymgal_id: ymgalId,
+					kun_id: kunId,
 				}),
 			};
 
@@ -492,8 +514,17 @@ class GameMetadataService {
 				mergedGame.ymgal_id = ymgal.ymgal_id;
 				mergedGame.ymgal_data = ymgal.ymgal_data;
 			}
+			if (kun) {
+				mergedGame.kun_id = kun.kun_id;
+				mergedGame.kun_data = kun.kun_data;
+			}
 
-			if (!mergedGame.bgm_id && !mergedGame.vndb_id && !mergedGame.ymgal_id) {
+			if (
+				!mergedGame.bgm_id &&
+				!mergedGame.vndb_id &&
+				!mergedGame.ymgal_id &&
+				!mergedGame.kun_id
+			) {
 				throw new AppError({
 					code: "metadata_not_found",
 					message: "No metadata result returned from requested sources",
@@ -518,9 +549,15 @@ class GameMetadataService {
 		const hasBgm = !!game.bgm_id;
 		const hasVndb = !!game.vndb_id;
 		const hasYmgal = !!game.ymgal_id;
-		const idCount = (hasBgm ? 1 : 0) + (hasVndb ? 1 : 0) + (hasYmgal ? 1 : 0);
+		const hasKun = !!game.kun_id;
+		const idCount =
+			(hasBgm ? 1 : 0) +
+			(hasVndb ? 1 : 0) +
+			(hasYmgal ? 1 : 0) +
+			(hasKun ? 1 : 0);
 
 		if (idCount >= 2) return "mixed";
+		if (hasKun) return "kun";
 		if (hasYmgal) return "ymgal";
 		if (hasVndb) return "vndb";
 		if (hasBgm) return "bgm";
@@ -537,6 +574,7 @@ class GameMetadataService {
 	} {
 		const result: { bgmId?: string; vndbId?: string; ymgalId?: string } = {};
 
+		// mixed 的添加链路不解析 kunId，避免与纯数字的 bgmId 冲突。
 		if (/^v\d+$/i.test(input)) {
 			result.vndbId = input;
 		} else if (/^ga\d+$/i.test(input)) {

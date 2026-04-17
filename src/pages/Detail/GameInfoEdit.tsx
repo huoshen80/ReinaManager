@@ -150,6 +150,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		selectedGame?.bgm_id,
 		selectedGame?.vndb_id,
 		selectedGame?.ymgal_id,
+		selectedGame?.kun_id,
 		selectedGame?.id_type,
 		selectedGame?.localpath,
 		// 3. 对于对象类型，使用 JSON 字符串化进行"值比较"
