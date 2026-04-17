@@ -4,12 +4,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use sea_orm::{DatabaseConnection, EntityTrait};
 use tauri::Manager;
 use tauri::command;
 use tauri::http::{Response, StatusCode};
 use tauri_plugin_http::reqwest::Client;
 use tokio::sync::{RwLock, Semaphore, watch};
 
+use crate::entity::prelude::Games;
 use reina_path::get_base_data_dir;
 
 const DEFAULT_COVER_EXTENSION: &str = "jpg";
@@ -35,8 +37,25 @@ pub struct DownloadState {
     semaphore: Arc<Semaphore>,
     /// 内存中已确认缓存完毕的 game_id 集合，避免每次请求都扫描磁盘
     cached_ids: Arc<RwLock<HashSet<u32>>>,
+    /// 删除墓碑：记录已删除游戏，阻止下载任务继续写入封面
+    tombstoned_ids: Arc<RwLock<HashSet<u32>>>,
     /// 正在下载中的任务；同 game_id 的后续请求订阅 watch channel 等待其完成
     downloading: DownloadingMap,
+}
+
+impl DownloadState {
+    pub async fn mark_game_deleted(&self, game_id: u32) {
+        self.cached_ids.write().await.remove(&game_id);
+        self.tombstoned_ids.write().await.insert(game_id);
+    }
+
+    async fn clear_game_deleted(&self, game_id: u32) {
+        self.tombstoned_ids.write().await.remove(&game_id);
+    }
+
+    async fn is_game_deleted_marked(&self, game_id: u32) -> bool {
+        self.tombstoned_ids.read().await.contains(&game_id)
+    }
 }
 
 /// RAII guard：下载结束时（无论成功/失败/panic/取消）自动唤醒等待者，并清理 downloading 表
@@ -180,6 +199,48 @@ async fn remove_file_if_exists(path: &Path) {
     }
 }
 
+#[derive(Debug)]
+enum CoverDownloadError {
+    Retryable(String),
+    GameDeleted(String),
+    NonRetryable(String),
+}
+
+async fn game_exists_in_db(
+    db: &DatabaseConnection,
+    game_id: u32,
+) -> Result<bool, CoverDownloadError> {
+    let game_id = i32::try_from(game_id)
+        .map_err(|_| CoverDownloadError::NonRetryable(format!("game_id 超出范围: {}", game_id)))?;
+
+    Games::find_by_id(game_id)
+        .one(db)
+        .await
+        .map(|game| game.is_some())
+        .map_err(|e| CoverDownloadError::NonRetryable(format!("检查游戏状态失败: {}", e)))
+}
+
+async fn ensure_game_cover_writable(
+    state: &DownloadState,
+    db: &DatabaseConnection,
+    game_id: u32,
+) -> Result<(), CoverDownloadError> {
+    let exists = game_exists_in_db(db, game_id).await?;
+
+    if !exists {
+        state.mark_game_deleted(game_id).await;
+        Err(CoverDownloadError::GameDeleted(format!(
+            "游戏已删除 game_id={}",
+            game_id
+        )))
+    } else {
+        if state.is_game_deleted_marked(game_id).await {
+            state.clear_game_deleted(game_id).await;
+        }
+        Ok(())
+    }
+}
+
 fn make_ok_response(bytes: Vec<u8>, content_type: &'static str) -> Response<Vec<u8>> {
     Response::builder()
         .status(StatusCode::OK)
@@ -244,11 +305,9 @@ async fn try_download_once(
     url: &str,
     game_cover_dir: &Path,
     game_id: u32,
-) -> Result<Vec<u8>, String> {
-    tokio::fs::create_dir_all(game_cover_dir)
-        .await
-        .map_err(|e| format!("创建缓存目录失败: {}", e))?;
-
+    db: &DatabaseConnection,
+    state: &DownloadState,
+) -> Result<Vec<u8>, CoverDownloadError> {
     let extension = infer_cache_extension(url);
     let cache_path = build_cache_path(game_cover_dir, game_id, &extension);
     let temp_path = build_temp_cache_path(game_cover_dir, game_id, &extension);
@@ -257,21 +316,29 @@ async fn try_download_once(
         .get(url)
         .send()
         .await
-        .map_err(|e| format!("发起请求失败: {}", e))?;
+        .map_err(|e| CoverDownloadError::Retryable(format!("发起请求失败: {}", e)))?;
 
     if !response.status().is_success() {
-        return Err(format!("HTTP 状态码异常: {}", response.status()));
+        return Err(CoverDownloadError::NonRetryable(format!(
+            "HTTP 状态码异常: {}",
+            response.status()
+        )));
     }
 
     let bytes = response
         .bytes()
         .await
-        .map_err(|e| format!("读取响应体失败: {}", e))?
+        .map_err(|e| CoverDownloadError::Retryable(format!("读取响应体失败: {}", e)))?
         .to_vec();
+
+    ensure_game_cover_writable(state, db, game_id).await?;
 
     if let Err(e) = tokio::fs::write(&temp_path, &bytes).await {
         remove_file_if_exists(&temp_path).await;
-        return Err(format!("写入临时文件失败: {}", e));
+        return Err(CoverDownloadError::NonRetryable(format!(
+            "写入临时文件失败: {}",
+            e
+        )));
     }
 
     if let Err(e) = tokio::fs::rename(&temp_path, &cache_path).await {
@@ -293,8 +360,16 @@ async fn fetch_and_cache_cover(
     game_id: u32,
     url: &str,
     game_cover_dir: &Path,
-) -> Result<Vec<u8>, String> {
-    let mut last_err = String::new();
+    db: &DatabaseConnection,
+    state: &DownloadState,
+) -> Result<Vec<u8>, CoverDownloadError> {
+    let mut last_retryable_err = String::new();
+
+    // 目录只在进入下载流程时创建一次，避免重试阶段重复创建
+    ensure_game_cover_writable(state, db, game_id).await?;
+    tokio::fs::create_dir_all(game_cover_dir)
+        .await
+        .map_err(|e| CoverDownloadError::NonRetryable(format!("创建缓存目录失败: {}", e)))?;
 
     for attempt in 0..=COVER_MAX_RETRIES {
         if attempt > 0 {
@@ -309,12 +384,12 @@ async fn fetch_and_cache_cover(
             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         }
 
-        match try_download_once(url, game_cover_dir, game_id).await {
+        match try_download_once(url, game_cover_dir, game_id, db, state).await {
             Ok(bytes) => {
                 log::debug!("封面缓存完成 game_id={} attempt={}", game_id, attempt);
                 return Ok(bytes);
             }
-            Err(e) => {
+            Err(CoverDownloadError::Retryable(e)) => {
                 log::warn!(
                     "封面下载失败 game_id={} attempt={}/{}: {}",
                     game_id,
@@ -322,15 +397,35 @@ async fn fetch_and_cache_cover(
                     COVER_MAX_RETRIES,
                     e
                 );
-                last_err = e;
+                last_retryable_err = e;
+            }
+            Err(CoverDownloadError::GameDeleted(e)) => {
+                log::debug!(
+                    "封面下载终止（游戏已删除） game_id={} attempt={}/{}: {}",
+                    game_id,
+                    attempt,
+                    COVER_MAX_RETRIES,
+                    e
+                );
+                return Err(CoverDownloadError::GameDeleted(e));
+            }
+            Err(CoverDownloadError::NonRetryable(e)) => {
+                log::warn!(
+                    "封面下载终止（不可重试） game_id={} attempt={}/{}: {}",
+                    game_id,
+                    attempt,
+                    COVER_MAX_RETRIES,
+                    e
+                );
+                return Err(CoverDownloadError::NonRetryable(e));
             }
         }
     }
 
-    Err(format!(
+    Err(CoverDownloadError::Retryable(format!(
         "下载最终失败（已重试 {} 次）: {}",
-        COVER_MAX_RETRIES, last_err
-    ))
+        COVER_MAX_RETRIES, last_retryable_err
+    )))
 }
 
 pub fn register_game_cover_protocol<R: tauri::Runtime>(
@@ -340,6 +435,7 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
         .manage(DownloadState {
             semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_COVER_DOWNLOADS)),
             cached_ids: Arc::new(RwLock::new(HashSet::new())),
+            tombstoned_ids: Arc::new(RwLock::new(HashSet::new())),
             downloading: Arc::new(Mutex::new(HashMap::new())),
         })
         .register_asynchronous_uri_scheme_protocol("reina-cover", |app, request, responder| {
@@ -378,6 +474,24 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                 };
 
                 let state = app_handle.state::<DownloadState>();
+                let db = app_handle.state::<DatabaseConnection>();
+
+                if state.is_game_deleted_marked(game_id).await {
+                    match ensure_game_cover_writable(&state, db.inner(), game_id).await {
+                        Ok(_) => {}
+                        Err(CoverDownloadError::GameDeleted(_)) => {
+                            responder.respond(make_status_response(StatusCode::NOT_FOUND));
+                            return;
+                        }
+                        Err(CoverDownloadError::NonRetryable(e)) => {
+                            log::warn!("检查游戏状态失败 game_id={}: {}", game_id, e);
+                            responder
+                                .respond(make_status_response(StatusCode::INTERNAL_SERVER_ERROR));
+                            return;
+                        }
+                        Err(CoverDownloadError::Retryable(_)) => unreachable!(),
+                    }
+                }
 
                 // ── 步骤 1：内存集合短路（最快路径，无磁盘 I/O）──────────
                 {
@@ -436,6 +550,10 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                             .respond(make_ok_response(bytes, content_type_for_file(&cache_path)));
                         return;
                     }
+                    if state.is_game_deleted_marked(game_id).await {
+                        responder.respond(make_status_response(StatusCode::NOT_FOUND));
+                        return;
+                    }
                     // 前序下载失败（超时/网络错误），返回 502
                     responder.respond(make_status_response(StatusCode::BAD_GATEWAY));
                     return;
@@ -468,7 +586,8 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                 };
 
                 // 执行下载（含指数退避重试）
-                let fetch_result = fetch_and_cache_cover(game_id, &url, &game_cover_dir).await;
+                let fetch_result =
+                    fetch_and_cache_cover(game_id, &url, &game_cover_dir, db.inner(), &state).await;
                 match fetch_result {
                     Ok(bytes) => {
                         // 回填内存缓存集合
@@ -476,7 +595,15 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                         let content_type = content_type_for_extension(&infer_cache_extension(&url));
                         responder.respond(make_ok_response(bytes, content_type));
                     }
-                    Err(e) => {
+                    Err(CoverDownloadError::GameDeleted(e)) => {
+                        log::debug!("封面下载终止 game_id={}: {}", game_id, e);
+                        responder.respond(make_status_response(StatusCode::NOT_FOUND));
+                    }
+                    Err(CoverDownloadError::NonRetryable(e)) => {
+                        log::warn!("封面下载终止 game_id={}: {}", game_id, e);
+                        responder.respond(make_status_response(StatusCode::INTERNAL_SERVER_ERROR));
+                    }
+                    Err(CoverDownloadError::Retryable(e)) => {
                         log::warn!("封面下载最终失败 game_id={}: {}", game_id, e);
                         responder.respond(make_status_response(StatusCode::BAD_GATEWAY));
                     }

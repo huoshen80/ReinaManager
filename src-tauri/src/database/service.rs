@@ -13,6 +13,7 @@ use crate::database::repository::{
 };
 use crate::entity::{games, savedata, user};
 use crate::utils::fs::delete_game_cover_dir;
+use crate::utils::game_cover::DownloadState;
 
 // ==================== 游戏数据相关 ====================
 
@@ -74,11 +75,19 @@ pub async fn update_game(
 
 /// 删除游戏
 #[tauri::command]
-pub async fn delete_game(db: State<'_, DatabaseConnection>, id: i32) -> Result<u64, String> {
+pub async fn delete_game(
+    db: State<'_, DatabaseConnection>,
+    cover_state: State<'_, DownloadState>,
+    id: i32,
+) -> Result<u64, String> {
     let rows_affected = GamesRepository::delete(&db, id)
         .await
         .map(|result| result.rows_affected)
         .map_err(|e| format!("删除游戏失败: {}", e))?;
+
+    if rows_affected > 0 {
+        cover_state.mark_game_deleted(id as u32).await;
+    }
 
     if rows_affected > 0
         && let Err(err) = delete_game_cover_dir(id).await
@@ -93,12 +102,19 @@ pub async fn delete_game(db: State<'_, DatabaseConnection>, id: i32) -> Result<u
 #[tauri::command]
 pub async fn delete_games_batch(
     db: State<'_, DatabaseConnection>,
+    cover_state: State<'_, DownloadState>,
     ids: Vec<i32>,
 ) -> Result<u64, String> {
     let rows_affected = GamesRepository::delete_many(&db, ids.clone())
         .await
         .map(|result| result.rows_affected)
         .map_err(|e| format!("批量删除游戏失败: {}", e))?;
+
+    for game_id in &ids {
+        if *game_id > 0 {
+            cover_state.mark_game_deleted(*game_id as u32).await;
+        }
+    }
 
     for game_id in ids {
         if let Err(err) = delete_game_cover_dir(game_id).await {
