@@ -1,3 +1,59 @@
+## [0.19.0](https://github.com/huoshen80/ReinaManager/compare/v0.18.2...v0.19.0) (2026-04-17)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- 修复发布工作流 [skip ci] ([9561be1](https://github.com/huoshen80/ReinaManager/commit/9561be16c3d570a3b913aaf7e319959985068820))
+- 更新依赖 ([36a9735](https://github.com/huoshen80/ReinaManager/commit/36a9735c97ae28862e5ceb8112bfdbe0204807e9))
+
+### ✨ 新功能
+
+- 添加 KUNGAL 相关 API，关闭 [#45](https://github.com/huoshen80/ReinaManager/issues/45) ([f2c4ab4](https://github.com/huoshen80/ReinaManager/commit/f2c4ab43a5dc81dfc0196e58f57765627ccba866))
+- *(mixed)* 在混合数据源中新增 KUNGAL ([5427363](https://github.com/huoshen80/ReinaManager/commit/5427363b2a94c359aaad5d9d8adeecedee43a686))
+- *(mixed)* 支持配置混合检索数据源 ([f098e82](https://github.com/huoshen80/ReinaManager/commit/f098e82e5678c61f5226ba7a22622f2698aeccc1))
+- *(Toolbar)* 在更多菜单中显示 API 来源站点图标 ([925159c](https://github.com/huoshen80/ReinaManager/commit/925159c43a5fa4df63c5d11cd0aebb704535c8c0))
+
+### 🐛 Bug 修复
+
+- *(Toolbar)* 修复切换按钮问题 ([a2175ec](https://github.com/huoshen80/ReinaManager/commit/a2175ecb5190e0e477aff0db01767e066a4bff54))
+- *(utils)* 支持 `nsfw=false` 并简化 `getDiff` ([e7512c3](https://github.com/huoshen80/ReinaManager/commit/e7512c3bc400faa6bf9a1f9655376f5c83aafa2e))
+- *(cover)* 修复删除游戏后封面缓存可能被过期任务回写的问题 ([e77c6b3](https://github.com/huoshen80/ReinaManager/commit/e77c6b3aee787c84a9247a3d8856f643b9e59779))
+
+### 🚜 重构
+
+- 简化部分 API 来源详情数据获取逻辑，移除 `IdType` 枚举 [skip ci] ([97f74dc](https://github.com/huoshen80/ReinaManager/commit/97f74dc29fbdabb757fccdb19d2b6925654085c0))
+- *(metadata)* 重构元数据来源处理逻辑 ([0e3b0e6](https://github.com/huoshen80/ReinaManager/commit/0e3b0e61dcb9851b4953d8c102598055afa70921))
+- *(api)* 重构混合来源处理逻辑 ([1b387ef](https://github.com/huoshen80/ReinaManager/commit/1b387ef29766b465f54370d403c0f45c8ba38954))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix release workflow again [skip ci] ([9561be1](https://github.com/huoshen80/ReinaManager/commit/9561be16c3d570a3b913aaf7e319959985068820))
+- Update deps ([36a9735](https://github.com/huoshen80/ReinaManager/commit/36a9735c97ae28862e5ceb8112bfdbe0204807e9))
+
+### ✨ Features
+
+- 添加kungal相关api (#45) ([f2c4ab4](https://github.com/huoshen80/ReinaManager/commit/f2c4ab43a5dc81dfc0196e58f57765627ccba866))
+- *(mixed)* Add Kungal to the mixed api ([5427363](https://github.com/huoshen80/ReinaManager/commit/5427363b2a94c359aaad5d9d8adeecedee43a686))
+- *(mixed)* Allow configuring mixed search sources ([f098e82](https://github.com/huoshen80/ReinaManager/commit/f098e82e5678c61f5226ba7a22622f2698aeccc1))
+- *(Toolbar)* Show api source favicons in more menu ([925159c](https://github.com/huoshen80/ReinaManager/commit/925159c43a5fa4df63c5d11cd0aebb704535c8c0))
+
+### 🐛 Bug Fixes
+
+- *(Toolbar)* Bug of toggle button ([a2175ec](https://github.com/huoshen80/ReinaManager/commit/a2175ecb5190e0e477aff0db01767e066a4bff54))
+- *(utils)* Accept nsfw=false and simplify getDiff ([e7512c3](https://github.com/huoshen80/ReinaManager/commit/e7512c3bc400faa6bf9a1f9655376f5c83aafa2e))
+- *(cover)* Prevent stale cache writes after game deletion ([e77c6b3](https://github.com/huoshen80/ReinaManager/commit/e77c6b3aee787c84a9247a3d8856f643b9e59779))
+
+### 🚜 Refactor
+
+- Simplify the logic for obtaining detailed data of some api sources,remove the enum of IdType [skip ci] ([97f74dc](https://github.com/huoshen80/ReinaManager/commit/97f74dc29fbdabb757fccdb19d2b6925654085c0))
+- *(metadata)* Refactor source handling for metadata ([0e3b0e6](https://github.com/huoshen80/ReinaManager/commit/0e3b0e61dcb9851b4953d8c102598055afa70921))
+- *(api)* Refactor mixed source handling ([1b387ef](https://github.com/huoshen80/ReinaManager/commit/1b387ef29766b465f54370d403c0f45c8ba38954))
+
+
 
 ## [0.18.2] - 2026-04-02
 
