@@ -31,7 +31,7 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import BrightnessAutoIcon from "@mui/icons-material/BrightnessAuto";
-import CallMadeIcon from "@mui/icons-material/CallMade";
+import CloseIcon from "@mui/icons-material/Close";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -39,6 +39,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import TurnRightIcon from "@mui/icons-material/TurnRight";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -71,12 +72,42 @@ import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
-import type { HanleGamesProps } from "@/types";
+import type { HanleGamesProps, SourceType } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
 import { CollectionToolbar } from "./Collection";
 
 type ThemeMode = "light" | "dark" | "system";
+
+const SOURCE_ICON_URLS: Record<SourceType, string> = {
+	bgm: "https://bgm.tv/img/favicon.ico",
+	kun: "https://www.kungal.com/favicon.ico",
+	vndb: "https://vndb.org/favicon.ico",
+	ymgal: "https://www.ymgal.games/favicon.ico",
+};
+
+const SourceLinkIcon = ({ source }: { source: SourceType }) => {
+	const [failed, setFailed] = useState(false);
+
+	if (failed) {
+		return <CloseIcon fontSize="small" sx={{ color: "error.main" }} />;
+	}
+
+	return (
+		<Box
+			component="img"
+			src={SOURCE_ICON_URLS[source]}
+			alt={`${source} favicon`}
+			onError={() => setFailed(true)}
+			sx={{
+				width: 16,
+				height: 16,
+				borderRadius: "4px",
+				objectFit: "contain",
+			}}
+		/>
+	);
+};
 
 /**
  * 主题切换组件（亮色 / 暗色 / 跟随系统）
@@ -433,58 +464,62 @@ const MoreButton = () => {
 				onClose={handleClose}
 				transitionDuration={0}
 			>
-				<MenuItem
-					disabled={!selectedGame?.bgm_id}
-					onClick={() => {
-						handleView("bgm");
-						handleClose();
-					}}
-				>
-					<ListItemIcon>
-						<CallMadeIcon fontSize="small" />
-					</ListItemIcon>
-					<ListItemText>{t("components.Toolbar.bgmlink")}</ListItemText>
-				</MenuItem>
-				<MenuItem
-					disabled={!selectedGame?.vndb_id}
-					onClick={() => {
-						handleView("vndb");
-						handleClose();
-					}}
-				>
-					<ListItemIcon>
-						<CallMadeIcon fontSize="small" />
-					</ListItemIcon>
-					<ListItemText>{t("components.Toolbar.vndblink")}</ListItemText>
-				</MenuItem>
-				<MenuItem
-					disabled={!selectedGame?.ymgal_id}
-					onClick={() => {
-						handleView("ymgal");
-						handleClose();
-					}}
-				>
-					<ListItemIcon>
-						<CallMadeIcon fontSize="small" />
-					</ListItemIcon>
-					<ListItemText>
-						{t("components.Toolbar.ymgallink", "月幕Gal页面")}
-					</ListItemText>
-				</MenuItem>
-				<MenuItem
-					disabled={!selectedGame?.kun_id}
-					onClick={() => {
-						handleView("kun");
-						handleClose();
-					}}
-				>
-					<ListItemIcon>
-						<CallMadeIcon fontSize="small" />
-					</ListItemIcon>
-					<ListItemText>
-						{t("components.Toolbar.kunlink", "查看Kungal页面")}
-					</ListItemText>
-				</MenuItem>
+				{selectedGame?.bgm_id ? (
+					<MenuItem
+						onClick={() => {
+							handleView("bgm");
+							handleClose();
+						}}
+					>
+						<ListItemIcon>
+							<SourceLinkIcon source="bgm" />
+						</ListItemIcon>
+						<ListItemText>{t("components.Toolbar.bgmlink")}</ListItemText>
+					</MenuItem>
+				) : null}
+				{selectedGame?.vndb_id ? (
+					<MenuItem
+						onClick={() => {
+							handleView("vndb");
+							handleClose();
+						}}
+					>
+						<ListItemIcon>
+							<SourceLinkIcon source="vndb" />
+						</ListItemIcon>
+						<ListItemText>{t("components.Toolbar.vndblink")}</ListItemText>
+					</MenuItem>
+				) : null}
+				{selectedGame?.ymgal_id ? (
+					<MenuItem
+						onClick={() => {
+							handleView("ymgal");
+							handleClose();
+						}}
+					>
+						<ListItemIcon>
+							<SourceLinkIcon source="ymgal" />
+						</ListItemIcon>
+						<ListItemText>
+							{t("components.Toolbar.ymgallink", "月幕Gal页面")}
+						</ListItemText>
+					</MenuItem>
+				) : null}
+				{selectedGame?.kun_id ? (
+					<MenuItem
+						onClick={() => {
+							handleView("kun");
+							handleClose();
+						}}
+					>
+						<ListItemIcon>
+							<SourceLinkIcon source="kun" />
+						</ListItemIcon>
+						<ListItemText>
+							{t("components.Toolbar.kunlink", "查看Kungal页面")}
+						</ListItemText>
+					</MenuItem>
+				) : null}
 				<MenuItem onClick={handleToggleLeLaunch}>
 					<ListItemIcon>
 						<TurnRightIcon fontSize="small" />
