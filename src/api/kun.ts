@@ -11,6 +11,7 @@ import { useStore } from "@/store/appStore";
 import type { FullGameData, KunData } from "@/types";
 import { AppError } from "@/utils/errors";
 import http, { USER_AGENT } from "./http";
+import { fetchVndbById } from "./vndb";
 
 const KUN_API_BASE = "https://www.kungal.com/api";
 
@@ -102,7 +103,7 @@ function pickLocalizedText(
 	for (const key of order) {
 		const value = localized[key];
 		if (typeof value === "string" && value.trim()) {
-			return value.trim();
+			return value.replace(/\\\r?\n/g, "\n").trim();
 		}
 	}
 
@@ -196,7 +197,7 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
 			new Set((kunData.alias || []).map((alias) => alias.trim())),
 		),
 		summary,
-		tags,
+		tags: kunData.vndbId ? undefined : tags,
 		developer: extractDeveloper(kunData.official),
 		nsfw: computeNsfw(kunData),
 	};
@@ -204,7 +205,7 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
 	const result: FullGameData = {
 		kun_id: String(kunData.id),
 		vndb_id: kunData.vndbId,
-		id_type: "kun",
+		id_type: kunData.vndbId ? "mixed" : "kun",
 		kun_data,
 	};
 
@@ -236,7 +237,19 @@ export async function fetchGalgameById(id: string): Promise<FullGameData> {
 		});
 	}
 
-	return transformKunData(resp.data);
+	const kunResult = transformKunData(resp.data);
+
+	if (!kunResult.vndb_id) {
+		return kunResult;
+	}
+
+	const vndbResult = await fetchVndbById(kunResult.vndb_id);
+
+	return {
+		...kunResult,
+		vndb_data: vndbResult.vndb_data,
+		date: vndbResult.date,
+	};
 }
 
 /**
