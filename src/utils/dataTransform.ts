@@ -217,8 +217,8 @@ function mergeMultipleDataSources(
 		bgm_data?.image || vndb_data?.image || ymgal_data?.image || kun_data?.image;
 
 	target.summary =
-		ymgal_data?.summary ||
 		kun_data?.summary ||
+		ymgal_data?.summary ||
 		bgm_data?.summary ||
 		vndb_data?.summary;
 

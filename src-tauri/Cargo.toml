@@ -9,7 +9,7 @@ authors = ["huoshen80"]
 license = "GNU AFFERO GENERAL PUBLIC LICENSE"
 repository = "https://github.com/huoshen80/ReinaManager/"
 edition = "2024"
-rust-version = "1.94.1"
+rust-version = "1.95"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -29,13 +29,13 @@ log = "0.4"
 # Tauri core and plugins
 tauri = { version = "~2.10.3", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-autostart = "~2.5.1"
-tauri-plugin-dialog = "~2.6.0"
-tauri-plugin-fs = "~2.4.5"
-tauri-plugin-http = "~2.5.7"
+tauri-plugin-dialog = "~2.7.0"
+tauri-plugin-fs = "~2.5.0"
+tauri-plugin-http = "~2.5.8"
 tauri-plugin-log = "~2.8.0"
 tauri-plugin-shell = "~2.3.5"
-tauri-plugin-single-instance = "~2.4.0"
-tauri-plugin-updater = "~2.10.0"
+tauri-plugin-single-instance = "~2.4.1"
+tauri-plugin-updater = "~2.10.1"
 tauri-plugin-process = "~2.3.1"
 tauri-plugin-window-state = "=2.2.3"
 tauri-plugin-store = "~2.4.2"
@@ -48,8 +48,8 @@ chrono = { version = "0.4.44", features = ["serde"] }
 parking_lot = "0.12"
 
 # Async runtime / DB
-tokio = { version = "1.50.0", features = ["rt-multi-thread", "time", "sync", "fs"] }
-sea-orm = { version = "1.1.19", features = [
+tokio = { version = "1.52.1", features = ["rt-multi-thread", "time", "sync", "fs"] }
+sea-orm = { version = "1.1.20", features = [
     "sqlx-sqlite",
     "runtime-tokio-native-tls",
     "macros",
