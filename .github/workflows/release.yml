@@ -21,28 +21,35 @@ jobs:
     name: Prepare Release
     runs-on: ubuntu-latest
     outputs:
-      pure_changelog: ${{ steps.cliff_pure.outputs.changes }}
+      release_tag: ${{ steps.resolve_tag.outputs.TAG }}
+      pure_changelog: ${{ steps.cliff_pure.outputs.content }}
       release_body: ${{ steps.combine.outputs.content }}
     steps:
+      - name: Resolve release tag
+        id: resolve_tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          TAG="${TAG#refs/tags/}"
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag is $TAG"
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ steps.resolve_tag.outputs.TAG }}
           fetch-depth: 0
 
-      - name: Get version
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version is $VERSION"
-
-      - name: Extract pure changelog from CHANGELOG.md
+      - name: Generate pure changelog
         id: cliff_pure
-        uses: mindsers/changelog-reader-action@v2
+        uses: orhun/git-cliff-action@v4
         with:
-          version: ${{ steps.get_version.outputs.VERSION }}
-          path: ./CHANGELOG.md
+          config: cliff.toml
+          args: --current --strip header
 
       - name: Generate download links
         uses: orhun/git-cliff-action@v4
@@ -51,7 +58,7 @@ jobs:
           INCLUDE_DOWNLOAD_LINKS: "only"
         with:
           config: cliff.toml
-          args: --latest --strip header
+          args: --current --strip header
 
       - name: Combine full release body
         id: combine
@@ -62,7 +69,7 @@ jobs:
           {
             echo "content<<$EOF"
             cat << INNER_EOF
-          ${{ steps.cliff_pure.outputs.changes }}
+          ${{ steps.cliff_pure.outputs.content }}
 
           ${{ steps.cliff_links.outputs.content }}
           INNER_EOF
@@ -84,6 +91,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
@@ -119,8 +128,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           TAURI_UPDATER_ACTIVE: true
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: ${{ github.ref_name }}
+          tagName: ${{ needs.prepare.outputs.release_tag }}
+          releaseName: ${{ needs.prepare.outputs.release_tag }}
           releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
           releaseDraft: true
           prerelease: false
@@ -140,6 +149,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
@@ -198,8 +209,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           TAURI_UPDATER_ACTIVE: true
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: ${{ github.ref_name }}
+          tagName: ${{ needs.prepare.outputs.release_tag }}
+          releaseName: ${{ needs.prepare.outputs.release_tag }}
           releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
           releaseDraft: true
           prerelease: false
@@ -236,7 +247,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" \
+          gh release upload "${{ needs.prepare.outputs.release_tag }}" \
             "src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager_${{ steps.get_version.outputs.VERSION }}_${{ steps.short.outputs.SHORT }}-portable.zip" \
             --clobber
 
@@ -254,7 +265,7 @@ jobs:
         id: release-type
         shell: bash
         run: |
-          if [[ "${{ github.ref_name }}" == *"alpha"* ]] || [[ "${{ github.ref_name }}" == *"beta"* ]] || [[ "${{ github.ref_name }}" == *"rc"* ]] || [[ "${{ github.ref_name }}" == *"pre"* ]] || [[ "${{ github.event.inputs.prerelease }}" == "true" ]]; then
+          if [[ "${{ needs.prepare.outputs.release_tag }}" == *"alpha"* ]] || [[ "${{ needs.prepare.outputs.release_tag }}" == *"beta"* ]] || [[ "${{ needs.prepare.outputs.release_tag }}" == *"rc"* ]] || [[ "${{ needs.prepare.outputs.release_tag }}" == *"pre"* ]] || [[ "${{ github.event.inputs.prerelease }}" == "true" ]]; then
             echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
           else
             echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
@@ -275,7 +286,7 @@ jobs:
           fi
           
           # 3. 强制覆写 Release 正文，并解除草稿状态
-          gh release edit "${{ github.ref_name }}" \
+          gh release edit "${{ needs.prepare.outputs.release_tag }}" \
             --draft=false \
             --notes-file full_release_notes.md \
             $PRERELEASE_FLAG
@@ -283,8 +294,8 @@ jobs:
   update_cdn_urls:
     name: Update CDN URLs in latest.json
     runs-on: ubuntu-latest
-    needs: finalize-release # 等待 release 正式发布
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [prepare, finalize-release] # 等待 release 正式发布
+    if: needs.prepare.outputs.release_tag != ''
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -294,7 +305,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${{ github.ref_name }}"
+          TAG_NAME="${{ needs.prepare.outputs.release_tag }}"
           URL="https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/latest.json"
 
           n=0
