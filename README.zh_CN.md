@@ -43,7 +43,7 @@
 
 ## 功能特性
 
-- 🌐 **多源数据整合** - 无缝获取并合并来自 VNDB、Bangumi 和 YmGal API 的游戏元数据
+- 🌐 **多源数据整合** - 无缝获取并合并来自 VNDB、Bangumi、YmGal 和 Kungal API 的游戏元数据
 - 🔍 **强大的搜索** - 通过游戏标题、别名、自定义名称及其他元数据智能搜索游戏
 - 📚 **收藏管理** - 使用分层的分组和分类来组织游戏，更好地管理游戏库，支持拖拽排序
 - 🎮 **游戏时长追踪** - 自动记录游戏会话，提供详细的游玩时间统计和历史记录
@@ -78,7 +78,6 @@
 ![详情页](screenshots/detail.png)
 ![统计](screenshots/stats.png)
 ![收藏](screenshots/collection.png)
-![设置页](screenshots/setting.png)
 
 更多内容，你可以下载最新的发布版本：[下载](https://github.com/huoshen80/ReinaManager/releases)
 
@@ -124,6 +123,8 @@
 - **[VNDB](https://vndb.org/)** - 视觉小说数据库
 
 - **[Ymgal](https://www.ymgal.games/)** - 月幕Galgame
+
+- **[Kungal](https://www.kungal.com/)** - 鲲 Galgame
 
 特别感谢这些平台提供的公共 API 和数据！
 

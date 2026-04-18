@@ -31,10 +31,12 @@ impl Model {
         self.db_backup_path.as_deref()
     }
 
+    #[cfg(target_os = "windows")]
     pub fn le_path_value(&self) -> Option<&str> {
         self.le_path.as_deref()
     }
 
+    #[cfg(target_os = "windows")]
     pub fn magpie_path_value(&self) -> Option<&str> {
         self.magpie_path.as_deref()
     }

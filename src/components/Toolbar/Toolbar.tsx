@@ -102,6 +102,7 @@ const SourceLinkIcon = ({ source }: { source: SourceType }) => {
 			sx={{
 				width: 16,
 				height: 16,
+				margin: "2px",
 				borderRadius: "4px",
 				objectFit: "contain",
 			}}

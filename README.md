@@ -43,7 +43,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 ## Features
 
-- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from VNDB, Bangumi and YmGal APIs
+- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from VNDB, Bangumi, YmGal and Kungal APIs
 - 🔍 **Powerful Search** - Smart search game from titles, aliases, custom names, and other metadata
 - 📚 **Collection Management** - Organize games with hierarchical groups and categories for better library management, support drag and drop sorting
 - 🎮 **Play Time Tracking** - Automatic gameplay session recording with detailed play time statistics and history
@@ -78,7 +78,6 @@ The migrator helps you seamlessly transfer your game library, play time records,
 ![Detail](screenshots/detail.png)
 ![Stats](screenshots/stats.png)
 ![Collection](screenshots/collection.png)
-![Setting](screenshots/setting.png)
 
 For more, you can download the latest Release Version: [Download](https://github.com/huoshen80/ReinaManager/releases)
 
@@ -125,6 +124,8 @@ If you find this project helpful and would like to support its development, you 
 
 - **[Ymgal](https://www.ymgal.games/)** - 月幕Galgame
 
+- **[Kungal](https://www.kungal.com/)** - 鲲 Galgame
+
 Special thanks to these platforms for providing public APIs and data!
 
 ## License
@@ -134,6 +135,3 @@ This project is licensed under the [AGPL-3.0 license](https://github.com/huoshen
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=huoshen80/ReinaManager&type=Date)](https://star-history.com/#huoshen80/ReinaManager&Date)
-
-
-

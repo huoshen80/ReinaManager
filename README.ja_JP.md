@@ -43,7 +43,7 @@
 
 ## 機能
 
-- 🌐 **マルチソースデータ統合** - VNDB、Bangumi、YmGal API からゲームメタデータをシームレスに取得・統合
+- 🌐 **マルチソースデータ統合** - VNDB、Bangumi、YmGal、Kungal API からゲームメタデータをシームレスに取得・統合
 - 🔍 **強力な検索** - ゲームタイトル、エイリアス、カスタム名、その他のメタデータを通じてゲームをスマート検索
 - 📚 **コレクション管理** - 階層的な分類とカテゴリを使用してゲームを整理し、ゲームライブラリをより効果的に管理、ドラッグ＆ドロップによる並び替えをサポート
 - 🎮 **プレイ時間追跡** - ゲームセッションを自動記録し、詳細なプレイ時間統計と履歴を提供
@@ -78,7 +78,6 @@
 ![詳細](screenshots/detail.png)
 ![統計](screenshots/stats.png)
 ![コレクション](screenshots/collection.png)
-![設定](screenshots/setting.png)
 
 詳細については、最新のリリース版をダウンロードしてください：[ダウンロード](https://github.com/huoshen80/ReinaManager/releases)
 
@@ -124,6 +123,8 @@ ReinaManager へのすべての貢献に感謝します！
 - **[VNDB](https://vndb.org/)** - the visual novel database
 
 - **[Ymgal](https://www.ymgal.games/)** - 月幕Galgame
+
+- **[Kungal](https://www.kungal.com/)** - 鲲 Galgame
 
 これらのプラットフォームが提供するパブリック API とデータに感謝します！
 
