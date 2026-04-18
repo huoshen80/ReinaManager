@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.resolve_tag.outputs.TAG }}
-      pure_changelog: ${{ steps.cliff_pure.outputs.content }}
+      pure_changelog: ${{ steps.changelog_entry.outputs.content }}
       release_body: ${{ steps.combine.outputs.content }}
     steps:
       - name: Resolve release tag
@@ -44,12 +44,33 @@ jobs:
           ref: ${{ steps.resolve_tag.outputs.TAG }}
           fetch-depth: 0
 
-      - name: Generate pure changelog
-        id: cliff_pure
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --current --strip header
+      - name: Extract changelog entry from CHANGELOG.md
+        id: changelog_entry
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve_tag.outputs.TAG }}
+        run: |
+          VERSION="${VERSION#v}"
+          VERSION_REGEX="${VERSION//./\\.}"
+          echo "Looking for version: $VERSION"
+
+          CHANGELOG_FILE=$(mktemp)
+          awk "/^## \\[?v?${VERSION_REGEX}\\]?/ {flag=1} flag {if (started && \$0 ~ /^## /) exit; print; started=1}" CHANGELOG.md > "$CHANGELOG_FILE"
+
+          if [ -s "$CHANGELOG_FILE" ]; then
+            DELIMITER="CHANGELOG_$(openssl rand -hex 8)"
+            {
+              echo "content<<$DELIMITER"
+              cat "$CHANGELOG_FILE"
+              echo "$DELIMITER"
+            } >> "$GITHUB_OUTPUT"
+            echo "Found changelog content for $VERSION"
+          else
+            echo "content=See the assets to download and install this version." >> "$GITHUB_OUTPUT"
+            echo "No matching changelog found for version $VERSION"
+          fi
+
+          rm -f "$CHANGELOG_FILE"
 
       - name: Generate download links
         uses: orhun/git-cliff-action@v4
@@ -69,7 +90,7 @@ jobs:
           {
             echo "content<<$EOF"
             cat << INNER_EOF
-          ${{ steps.cliff_pure.outputs.content }}
+          ${{ steps.changelog_entry.outputs.content }}
 
           ${{ steps.cliff_links.outputs.content }}
           INNER_EOF
