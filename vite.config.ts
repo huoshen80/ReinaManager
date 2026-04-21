@@ -15,7 +15,7 @@ export default defineConfig({
 	// 添加有关当前构建目标的额外前缀，使这些 CLI 设置的 Tauri 环境变量可以在客户端代码中访问
 	envPrefix: ["VITE_", "TAURI_ENV_"],
 	build: {
-		minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
+		minify: !process.env.TAURI_ENV_DEBUG,
 		// 在 debug 构建中生成 sourcemap
 		sourcemap: !!process.env.TAURI_ENV_DEBUG,
 	},
