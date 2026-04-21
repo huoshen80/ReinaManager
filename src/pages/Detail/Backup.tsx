@@ -120,11 +120,13 @@ export const Backup: React.FC = () => {
 		}
 
 		try {
+			const autosaveValue = saveDataPath !== "" ? (autoSaveEnabled ? 1 : 0) : 0;
+			setAutoSaveEnabled(autosaveValue === 1); // 如果路径被清空，强制关闭自动备份
 			await updateGameMutation.mutateAsync({
 				gameId: selectedGame.id,
 				updates: {
 					savepath: saveDataPath,
-					autosave: saveDataPath !== "" ? (autoSaveEnabled ? 1 : 0) : 0,
+					autosave: autosaveValue,
 					maxbackups: maxBackups,
 				},
 			});

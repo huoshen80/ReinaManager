@@ -9,7 +9,12 @@
  * - Mutations：数据操作 hooks
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type QueryClient,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { join } from "pathe";
 import { savedataService } from "@/services/invoke";
 import type { SavedataRecord } from "@/types";
@@ -68,6 +73,22 @@ function useSaveDataBackups(gameId: number | undefined) {
 // ============================================================================
 
 /**
+ * 创建备份并同步刷新缓存 普通异步函数
+ */
+export async function createBackupAndSync(
+	queryClient: QueryClient,
+	{ gameId, savePath }: CreateBackupParams,
+) {
+	const backupInfo = await createGameSavedataBackup(gameId, savePath);
+
+	await queryClient.invalidateQueries({
+		queryKey: saveDataKeys.backups(gameId),
+	});
+
+	return backupInfo;
+}
+
+/**
  * 创建备份
  */
 function useCreateBackup() {
@@ -75,12 +96,7 @@ function useCreateBackup() {
 
 	return useMutation({
 		mutationFn: async ({ gameId, savePath }: CreateBackupParams) => {
-			return createGameSavedataBackup(gameId, savePath);
-		},
-		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({
-				queryKey: saveDataKeys.backups(variables.gameId),
-			});
+			return createBackupAndSync(queryClient, { gameId, savePath });
 		},
 	});
 }

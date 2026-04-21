@@ -1,12 +1,10 @@
 import { listen } from "@tauri-apps/api/event";
+import { createBackupAndSync } from "@/hooks/queries/useSavedata";
+import { queryClient } from "@/providers/queryClient";
 import { gameService, statsService } from "@/services/invoke";
 import type { DailyStats } from "@/services/invoke/types";
 import { useStore } from "@/store/appStore";
-import {
-	createGameSavedataBackup,
-	formatPlayTime,
-	getLocalDateString,
-} from "@/utils/appUtils";
+import { formatPlayTime, getLocalDateString } from "@/utils/appUtils";
 import type { GameSession, GameStatistics, GameTimeStats } from "../types";
 
 // 类型定义
@@ -442,7 +440,10 @@ export function initGameTimeTracking(
 						console.log(
 							`开始自动备份游戏 ${gameId}，存档路径: ${fullgame.savepath}`,
 						);
-						await createGameSavedataBackup(gameId, fullgame.savepath, true);
+						await createBackupAndSync(queryClient, {
+							gameId,
+							savePath: fullgame.savepath,
+						});
 						console.log(`游戏 ${gameId} 自动备份完成`);
 					}
 				} catch (backupError) {

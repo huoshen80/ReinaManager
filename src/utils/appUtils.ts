@@ -540,12 +540,7 @@ export const updateGamePlayStatus = async (
 export async function createGameSavedataBackup(
 	gameId: number,
 	saveDataPath: string,
-	skipPathCheck = false,
 ): Promise<{ folder_name: string; backup_time: number; file_size: number }> {
-	if (!skipPathCheck && !saveDataPath) {
-		throw new Error("存档路径不能为空");
-	}
-
 	try {
 		// 创建备份（备份路径由后端根据配置自动确定）
 		const backupInfo = await savedataService.createBackup(gameId, saveDataPath);
