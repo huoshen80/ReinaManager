@@ -1,3 +1,41 @@
+## [0.19.1](https://github.com/huoshen80/ReinaManager/compare/v0.19.0...v0.19.1) (2026-04-21)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 🐛 Bug 修复
+
+- *(savedata)* 修复自动备份存档时，游戏结束阶段界面更新出现延迟的问题 ([a91ae77](https://github.com/huoshen80/ReinaManager/commit/a91ae776ffdafac85e1d36840949e85721af0d4c))
+- *(savedata)* 修复自动备份后备份列表不会刷新，并调整自动备份开关逻辑 ([b7e237b](https://github.com/huoshen80/ReinaManager/commit/b7e237b0fe9fdff4d83566d7862f0c5aa277261b))
+- *(ThemeSwitcher)* 修复路由切换时重复发送主题设置请求的问题 ([cfee207](https://github.com/huoshen80/ReinaManager/commit/cfee20790dc8a1d1219e61f201161fbe08ade52d))
+
+### 🚀 性能优化
+
+- *(backup)* 备份存档改用 Zstd 压缩，大幅提升备份速度 ([c600e4f](https://github.com/huoshen80/ReinaManager/commit/c600e4f2136d21d5127490a64f7ab6ce359c6d98))
+
+### 🚜 重构
+
+- *(hooks/queries)* 提取查询配置项，新增请求辅助函数，并清理部分未使用函数 ([e868a66](https://github.com/huoshen80/ReinaManager/commit/e868a66dd5446417501185f49ef7e6ce9b60c0b6))
+- *(components)* 重构选中游戏的处理逻辑，并拆分相关界面 ([a83960c](https://github.com/huoshen80/ReinaManager/commit/a83960c8f3fb341dcf9539024a5d05660bdec7f3))
+
+</details>
+
+### 🐛 Bug Fixes
+
+- *(savedata)* Avoid delay UI changes at the end of the game when auto backing up savedata ([a91ae77](https://github.com/huoshen80/ReinaManager/commit/a91ae776ffdafac85e1d36840949e85721af0d4c))
+- *(savedata)* The backup list does not refresh after auto backup and adjust the logic of the autom backup switch ([b7e237b](https://github.com/huoshen80/ReinaManager/commit/b7e237b0fe9fdff4d83566d7862f0c5aa277261b))
+- *(ThemeSwitcher)* Repeatedly sending theme setting requests when switching routes ([cfee207](https://github.com/huoshen80/ReinaManager/commit/cfee20790dc8a1d1219e61f201161fbe08ade52d))
+
+### 🚀 Performance
+
+- *(backup)* Use Zstd compression for savedata backup(Greatly improve backup speed) ([c600e4f](https://github.com/huoshen80/ReinaManager/commit/c600e4f2136d21d5127490a64f7ab6ce359c6d98))
+
+### 🚜 Refactor
+
+- *(hooks/queries)* Extract query options,add fetch helpers and clear some unuse fn ([e868a66](https://github.com/huoshen80/ReinaManager/commit/e868a66dd5446417501185f49ef7e6ce9b60c0b6))
+- *(components)* Refactor selected-game handling and split UI ([a83960c](https://github.com/huoshen80/ReinaManager/commit/a83960c8f3fb341dcf9539024a5d05660bdec7f3))
+
+
 ## [0.19.0](https://github.com/huoshen80/ReinaManager/compare/v0.18.2...v0.19.0) (2026-04-17)
 
 <details>
@@ -11,6 +49,7 @@
 ### ✨ 新功能
 
 - 添加 KUNGAL 相关 API，关闭 [#45](https://github.com/huoshen80/ReinaManager/issues/45) ([f2c4ab4](https://github.com/huoshen80/ReinaManager/commit/f2c4ab43a5dc81dfc0196e58f57765627ccba866))
+- *(api/kun)*: 在获取数据时合并 VNDB 数据，清洗简介，并在需要时获取标签 ([f62983f](https://github.com/huoshen80/ReinaManager/commit/f62983f6a92965f2af00396e9951e5f761b12a03))
 - *(mixed)* 在混合数据源中新增 KUNGAL ([5427363](https://github.com/huoshen80/ReinaManager/commit/5427363b2a94c359aaad5d9d8adeecedee43a686))
 - *(mixed)* 支持配置混合检索数据源 ([f098e82](https://github.com/huoshen80/ReinaManager/commit/f098e82e5678c61f5226ba7a22622f2698aeccc1))
 - *(Toolbar)* 在更多菜单中显示 API 来源站点图标 ([925159c](https://github.com/huoshen80/ReinaManager/commit/925159c43a5fa4df63c5d11cd0aebb704535c8c0))
@@ -37,6 +76,8 @@
 ### ✨ Features
 
 - 添加kungal相关api (#45) ([f2c4ab4](https://github.com/huoshen80/ReinaManager/commit/f2c4ab43a5dc81dfc0196e58f57765627ccba866))
+- *(api/kun)*: merge VNDB data on fetch, sanitize the summary, and fetch
+tags if needed([f62983f(https://github.com/huoshen80/ReinaManager/commit/f62983f6a92965f2af00396e9951e5f761b12a03)])
 - *(mixed)* Add Kungal to the mixed api ([5427363](https://github.com/huoshen80/ReinaManager/commit/5427363b2a94c359aaad5d9d8adeecedee43a686))
 - *(mixed)* Allow configuring mixed search sources ([f098e82](https://github.com/huoshen80/ReinaManager/commit/f098e82e5678c61f5226ba7a22622f2698aeccc1))
 - *(Toolbar)* Show api source favicons in more menu ([925159c](https://github.com/huoshen80/ReinaManager/commit/925159c43a5fa4df63c5d11cd0aebb704535c8c0))

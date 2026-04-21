@@ -1,7 +1,7 @@
 {
 	"name": "reinamanager",
 	"private": true,
-	"version": "0.19.0",
+	"version": "0.19.1",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -25,11 +25,11 @@
 		"@emotion/cache": "^11.14.0",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.1",
-		"@mui/icons-material": "^7.3.9",
-		"@mui/material": "^7.3.9",
-		"@mui/x-charts": "^8.28.0",
-		"@tanstack/react-query": "^5.99.0",
-		"@tanstack/react-query-devtools": "^5.99.0",
+		"@mui/icons-material": "^7.3.10",
+		"@mui/material": "^7.3.10",
+		"@mui/x-charts": "^8.28.2",
+		"@tanstack/react-query": "^5.99.2",
+		"@tanstack/react-query-devtools": "^5.99.2",
 		"@tauri-apps/api": "~2.10.1",
 		"@tauri-apps/plugin-autostart": "~2.5.1",
 		"@tauri-apps/plugin-dialog": "~2.7.0",
@@ -44,9 +44,9 @@
 		"@toolpad/core": "^0.16.0",
 		"fuse.js": "^7.3.0",
 		"html-react-parser": "^6.0.1",
-		"i18next": "^26.0.5",
+		"i18next": "^26.0.6",
 		"i18next-browser-languagedetector": "^8.2.1",
-		"marked": "^18.0.1",
+		"marked": "^18.0.2",
 		"notistack": "^3.0.2",
 		"path-browserify": "^1.0.1",
 		"pathe": "^2.0.3",
@@ -68,10 +68,10 @@
 		"@typescript/native-preview": "7.0.0-dev.20260417.1",
 		"@vitejs/plugin-react": "^6.0.1",
 		"git-cliff": "^2.12.0",
-		"i18next-cli": "^1.54.1",
+		"i18next-cli": "^1.56.0",
 		"typescript": "^6.0.3",
 		"unocss": "^66.6.8",
-		"vite": "^8.0.8"
+		"vite": "^8.0.9"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
