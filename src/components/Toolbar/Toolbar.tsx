@@ -53,7 +53,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openurl } from "@tauri-apps/plugin-shell";
 import type { MouseEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
@@ -78,6 +78,8 @@ import { handleOpenFolder } from "@/utils/appUtils";
 import { CollectionToolbar } from "./Collection";
 
 type ThemeMode = "light" | "dark" | "system";
+
+let lastAppliedWindowTheme: ThemeMode | null = null;
 
 const SOURCE_ICON_URLS: Record<SourceType, string> = {
 	bgm: "https://bgm.tv/img/favicon.ico",
@@ -130,21 +132,17 @@ const ThemeSwitcher = () => {
 	}, [currentMode, systemMode]);
 	const isDualTheme = allColorSchemes.length > 1;
 
-	const updateWindowTheme = useCallback(async (nextMode: ThemeMode) => {
-		try {
-			if (nextMode === "system") {
-				await getCurrentWindow().setTheme(null);
-				return;
-			}
-			await getCurrentWindow().setTheme(nextMode);
-		} catch (error) {
-			console.warn("更新窗口主题失败:", error);
-		}
-	}, []);
-
 	useEffect(() => {
-		updateWindowTheme(currentMode);
-	}, [currentMode, updateWindowTheme]);
+		if (lastAppliedWindowTheme === currentMode) return;
+
+		lastAppliedWindowTheme = currentMode;
+		void getCurrentWindow()
+			.setTheme(currentMode === "system" ? null : currentMode)
+			.catch((error) => {
+				lastAppliedWindowTheme = null;
+				console.warn("更新窗口主题失败:", error);
+			});
+	}, [currentMode]);
 
 	const handleOpenMenu = (event: MouseEvent<HTMLButtonElement>) => {
 		setAnchorEl(event.currentTarget);
