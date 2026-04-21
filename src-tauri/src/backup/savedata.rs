@@ -2,15 +2,13 @@ use crate::database::repository::games_repository::GamesRepository;
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use sevenz_rust2::{ArchiveWriter, decompress_file, encoder_options::Lzma2Options};
+use sevenz_rust2::{ArchiveWriter, decompress_file, encoder_options::ZstandardOptions};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
-// 针对存档备份优化的压缩配置
-// 使用较低的压缩级别以提升速度，存档文件通常已是二进制格式，高压缩率收益有限
-// LZMA2 级别 1-3 为快速，4-6 为正常，7-9 为最大压缩
-const COMPRESSION_LEVEL: u32 = 3;
+// 速度与压缩率折中：使用 Zstd 低压缩等级。
+const ZSTD_COMPRESSION_LEVEL: u32 = 3;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BackupInfo {
@@ -209,8 +207,13 @@ fn create_7z_archive(
     // 创建 ArchiveWriter 并配置压缩方法
     let mut writer = ArchiveWriter::create(archive_path)?;
 
-    // 设置使用 LZMA2 压缩，级别为 3（快速）
-    writer.set_content_methods(vec![Lzma2Options::from_level(COMPRESSION_LEVEL).into()]);
+    // 设置使用 Zstd 压缩，兼顾速度与体积
+    let zstd_options = ZstandardOptions::from_level(ZSTD_COMPRESSION_LEVEL);
+    log::info!(
+        "存档备份压缩参数: codec=ZSTD, level={}",
+        ZSTD_COMPRESSION_LEVEL
+    );
+    writer.set_content_methods(vec![zstd_options.into()]);
 
     // 递归添加源目录中的所有文件
     // 第二个参数是过滤器，这里返回 true 表示包含所有文件

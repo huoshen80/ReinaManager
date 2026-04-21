@@ -43,7 +43,7 @@ tauri-plugin-os = "~2.3.2"
 
 
 # System / utilities
-sevenz-rust2 = "0.20.2"
+sevenz-rust2 = { version = "0.20.2", features = ["zstd"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 parking_lot = "0.12"
 
