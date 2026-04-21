@@ -43,7 +43,7 @@
 		"@tauri-apps/plugin-window-state": "=2.2.3",
 		"@toolpad/core": "^0.16.0",
 		"fuse.js": "^7.3.0",
-		"html-react-parser": "^6.0.1",
+		"html-react-parser": "^5.2.17",
 		"i18next": "^26.0.6",
 		"i18next-browser-languagedetector": "^8.2.1",
 		"marked": "^18.0.2",
