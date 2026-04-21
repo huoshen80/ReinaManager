@@ -82,7 +82,7 @@ function useGameList(
 function useGameDetail(gameId: number | null) {
 	return useQuery({
 		queryKey: gameKeys.detail(gameId ?? 0),
-		queryFn: async () => {
+		queryFn: () => {
 			if (!gameId) return null;
 			return gameService.getGameById(gameId);
 		},

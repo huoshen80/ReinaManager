@@ -30,6 +30,7 @@ import {
 export const saveDataKeys = {
 	all: ["saveData"] as const,
 	backups: (gameId: number) => ["saveData", "backups", gameId] as const,
+	backupCount: (gameId: number) => ["saveData", "backupCount", gameId] as const,
 };
 
 interface CreateBackupParams {
@@ -57,14 +58,22 @@ interface RestoreBackupParams {
  * @param gameId 游戏 ID
  * @returns QueryResult<SavedataRecord[]>
  */
-function useSaveDataBackups(gameId: number | undefined) {
+function useSaveDataBackups(gameId: number) {
 	return useQuery({
-		queryKey: saveDataKeys.backups(gameId ?? 0),
+		queryKey: saveDataKeys.backups(gameId),
 		queryFn: async () => {
-			if (!gameId) return [];
 			return savedataService.getSavedataRecords(gameId);
 		},
 		enabled: !!gameId,
+	});
+}
+
+export function useSaveDataBackupCount(gameId: number) {
+	return useQuery({
+		queryKey: saveDataKeys.backupCount(gameId),
+		queryFn: async () => {
+			return savedataService.getSavedataCount(gameId);
+		},
 	});
 }
 
@@ -83,6 +92,9 @@ export async function createBackupAndSync(
 
 	await queryClient.invalidateQueries({
 		queryKey: saveDataKeys.backups(gameId),
+	});
+	await queryClient.invalidateQueries({
+		queryKey: saveDataKeys.backupCount(gameId),
 	});
 
 	return backupInfo;
@@ -117,6 +129,9 @@ function useDeleteBackup() {
 			queryClient.invalidateQueries({
 				queryKey: saveDataKeys.backups(variables.gameId),
 			});
+			queryClient.invalidateQueries({
+				queryKey: saveDataKeys.backupCount(variables.gameId),
+			});
 		},
 	});
 }
@@ -141,7 +156,7 @@ function useRestoreBackup() {
  * 组合存档备份查询 + mutations
  * 用于页面层单入口消费
  */
-export function useSaveDataResources(gameId: number | undefined) {
+export function useSaveDataResources(gameId: number) {
 	const backupsQuery = useSaveDataBackups(gameId);
 
 	const createBackupMutation = useCreateBackup();

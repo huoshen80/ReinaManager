@@ -4,7 +4,13 @@
  * @module src/hooks/queries/useSettings
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type QueryClient,
+	queryOptions,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { fetchCurrentUserProfile } from "@/api/bgm";
 import { fetchVndbCurrentUserProfile } from "@/api/vndb";
 import { settingsService } from "@/services/invoke";
@@ -33,7 +39,44 @@ type SettingsQueryOptions = {
 };
 
 // ============================================================================
-// Queries - 数据获取 hooks
+// Query Options - 内部复用的查询定义
+// ============================================================================
+
+function allSettingsQueryOptions() {
+	return queryOptions({
+		queryKey: settingsKeys.allSettings(),
+		queryFn: () => settingsService.getAllSettings(),
+	});
+}
+
+function bgmCurrentUserProfileQueryOptions(token: string) {
+	return queryOptions({
+		queryKey: settingsKeys.bgmCurrentUserProfileByToken(token),
+		queryFn: () => fetchCurrentUserProfile(token),
+	});
+}
+
+// ============================================================================
+// Fetch Functions - 非组件 ts 文件使用
+// ============================================================================
+
+/**
+ * 通过 React Query 统一获取设置
+ * 非组件环境也应优先调用这里，以便复用缓存与失效策略
+ */
+export function fetchAllSettings(queryClient: QueryClient) {
+	return queryClient.fetchQuery(allSettingsQueryOptions());
+}
+
+export function fetchBgmCurrentUserProfile(
+	queryClient: QueryClient,
+	token: string,
+) {
+	return queryClient.fetchQuery(bgmCurrentUserProfileQueryOptions(token));
+}
+
+// ============================================================================
+// Hooks - 组件使用
 // ============================================================================
 
 /**
@@ -44,8 +87,7 @@ export function useBgmCurrentUserProfile(options?: SettingsQueryOptions) {
 	const bgmToken = settings?.bgm_token ?? "";
 
 	return useQuery({
-		queryKey: settingsKeys.bgmCurrentUserProfileByToken(bgmToken),
-		queryFn: () => fetchCurrentUserProfile(bgmToken),
+		...bgmCurrentUserProfileQueryOptions(bgmToken),
 		enabled: (options?.enabled ?? true) && Boolean(bgmToken),
 	});
 }
@@ -80,10 +122,8 @@ export function useLogLevel(options?: SettingsQueryOptions) {
  */
 export function useAllSettings(options?: SettingsQueryOptions) {
 	return useQuery({
-		queryKey: settingsKeys.allSettings(),
-		queryFn: () => settingsService.getAllSettings(),
+		...allSettingsQueryOptions(),
 		enabled: options?.enabled,
-		refetchOnWindowFocus: false,
 	});
 }
 

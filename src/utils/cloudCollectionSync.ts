@@ -1,11 +1,10 @@
-import {
-	fetchCurrentUserProfile,
-	fetchUserCollection,
-	updateUserCollection,
-} from "@/api/bgm";
+import { fetchUserCollection, updateUserCollection } from "@/api/bgm";
 import { fetchVndbUserCollection, updateVndbUserCollection } from "@/api/vndb";
+import {
+	fetchAllSettings,
+	fetchBgmCurrentUserProfile,
+} from "@/hooks/queries/useSettings";
 import { queryClient } from "@/providers/queryClient";
-import { settingsService } from "@/services/invoke";
 import { useStore } from "@/store/appStore";
 import type { FullGameData, GameData } from "@/types";
 import { PlayStatus } from "@/types/collection";
@@ -38,7 +37,7 @@ const VNDB_NORMAL_STATUS_LABEL_IDS = [
 
 async function getBgmToken() {
 	try {
-		const settings = await settingsService.getAllSettings();
+		const settings = await fetchAllSettings(queryClient);
 		return settings.bgm_token ?? "";
 	} catch (error) {
 		console.error("获取 BGM Token 失败:", error);
@@ -48,7 +47,7 @@ async function getBgmToken() {
 
 async function getVndbToken() {
 	try {
-		const settings = await settingsService.getAllSettings();
+		const settings = await fetchAllSettings(queryClient);
 		return settings.vndb_token ?? "";
 	} catch (error) {
 		console.error("获取 VNDB Token 失败:", error);
@@ -58,10 +57,7 @@ async function getVndbToken() {
 
 async function getBgmUsername(token: string) {
 	try {
-		const profile = await queryClient.fetchQuery({
-			queryKey: ["settings", "bgmCurrentUserProfile", token],
-			queryFn: () => fetchCurrentUserProfile(token),
-		});
+		const profile = await fetchBgmCurrentUserProfile(queryClient, token);
 		return profile?.username ?? null;
 	} catch (error) {
 		console.error("获取 BGM 用户名失败:", error);

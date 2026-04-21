@@ -15,8 +15,8 @@ import {
 import { LineChart } from "@mui/x-charts/LineChart";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSaveDataBackupCount } from "@/hooks/queries/useSavedata";
 import { useGameStats } from "@/hooks/queries/useStats";
-import { savedataService } from "@/services/invoke";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameTimeStats } from "@/types";
 
@@ -52,8 +52,8 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 	const { t } = useTranslation();
 	const runningGameIds = useGamePlayStore((s) => s.runningGameIds);
 	const gameStatsQuery = useGameStats(gameID);
+	const backupCountQuery = useSaveDataBackupCount(gameID);
 	const stats = gameStatsQuery.data as GameTimeStats | null;
-	const [backupCount, setBackupCount] = useState<number>(0);
 	const [timeRange, setTimeRange] = useState<TimeRange>("7D");
 	// 选中的月份 (YYYY-MM 格式)
 	const [selectedMonth, setSelectedMonth] = useState<string>(() => {
@@ -63,18 +63,6 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 
 	// 存储上一次游戏运行状态，用于检测变化
 	const prevRunningRef = useRef(false);
-
-	useEffect(() => {
-		const loadBackupCount = async () => {
-			try {
-				setBackupCount(await savedataService.getSavedataCount(gameID));
-			} catch (error) {
-				console.error("加载备份数量失败:", error);
-			}
-		};
-
-		loadBackupCount();
-	}, [gameID]);
 
 	/**
 	 * 切换到上个月
@@ -168,10 +156,10 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				color: "primary",
 				icon: <BackupIcon fontSize="small" />,
 				title: t("pages.Detail.backupCount"),
-				value: backupCount,
+				value: backupCountQuery.data ?? 0,
 			},
 		],
-		[stats, t, backupCount],
+		[stats, t, backupCountQuery.data],
 	);
 
 	/**

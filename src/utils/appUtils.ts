@@ -9,16 +9,16 @@ import { extname, join } from "pathe";
 import { fetchBgmByIds } from "@/api/bgm";
 import { fetchVNDBByIds } from "@/api/vndb";
 import { setScrollPosition } from "@/hooks/common/useScrollRestore";
+import { fetchAllSettings } from "@/hooks/queries/useSettings";
+import { queryClient } from "@/providers/queryClient";
 import { snackbar } from "@/providers/snackBar";
 import {
 	fileService,
 	gameService,
 	savedataService,
-	settingsService,
 	statsService,
 } from "@/services/invoke";
 import type { BgmData, GameData, HanleGamesProps, VndbData } from "@/types";
-import { getDisplayGameData } from "./dataTransform";
 import { toError } from "./errors";
 
 /**
@@ -84,7 +84,7 @@ export const getAppDataDirPath = (): string => {
  */
 export const getDbBackupPath = async (): Promise<string> => {
 	try {
-		const settings = await settingsService.getAllSettings();
+		const settings = await fetchAllSettings(queryClient);
 		const backupDir = settings.db_backup_path ?? "";
 		const backupFinalDir = join(getAppDataDirPath(), "data", "backups");
 		return backupDir ? backupDir : backupFinalDir;
@@ -103,7 +103,7 @@ export const getSavedataBackupPath = async (
 	gameId: number,
 ): Promise<string> => {
 	try {
-		const settings = await settingsService.getAllSettings();
+		const settings = await fetchAllSettings(queryClient);
 		const savedataBackupPath = settings.save_root_path ?? "";
 		const backupGameDir = join(savedataBackupPath, "backups", `game_${gameId}`);
 		const savedataBackupFinalDir = join(
@@ -484,50 +484,6 @@ export const getGameCover = (game: GameData): string => {
 	}
 
 	return "/images/default.png";
-};
-
-/**
- * 更新游戏状态的通用函数
- * @param gameId 游戏ID
- * @param newStatus 新的游戏状态 (PlayStatus 枚举值 1-5)
- * @param onSuccess 成功回调函数，返回新的游戏状态
- * @param updateGamesInStore 可选：更新store中games数组的函数
- * @returns Promise<void>
- */
-export const updateGamePlayStatus = async (
-	gameId: number,
-	newStatus: number,
-	onSuccess?: (newStatus: number, gameData: GameData) => void,
-	updateGamesInStore?: (gameId: number, newStatus: number) => void,
-): Promise<void> => {
-	try {
-		const fullgame = await gameService.getGameById(gameId);
-		if (!fullgame) {
-			console.error("游戏数据未找到");
-			return;
-		}
-		const game = getDisplayGameData(fullgame);
-
-		await gameService.updateGame(gameId, {
-			clear: newStatus,
-		});
-
-		// 更新store中的games数组
-		if (updateGamesInStore) {
-			updateGamesInStore(gameId, newStatus);
-		}
-
-		// 调用成功回调
-		if (onSuccess) {
-			onSuccess(newStatus, {
-				...game,
-				clear: newStatus,
-			});
-		}
-	} catch (error) {
-		console.error("更新游戏状态失败:", error);
-		throw error;
-	}
 };
 
 /**
