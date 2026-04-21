@@ -110,6 +110,10 @@ const SourceLinkIcon = ({ source }: { source: SourceType }) => {
 	);
 };
 
+type ToolbarSelectedGame = NonNullable<
+	ReturnType<typeof useSelectedGame>["selectedGame"]
+>;
+
 /**
  * 主题切换组件（亮色 / 暗色 / 跟随系统）
  */
@@ -344,6 +348,33 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 const MoreButton = () => {
 	const selectedGameId = useStore((state) => state.selectedGameId);
 	const { selectedGame } = useSelectedGame(selectedGameId);
+	const { t } = useTranslation();
+
+	if (!selectedGame?.id) {
+		return (
+			<Button
+				startIcon={<MoreVertIcon />}
+				color="inherit"
+				variant="text"
+				disabled
+			>
+				{t("components.Toolbar.more")}
+			</Button>
+		);
+	}
+
+	return (
+		<MoreButtonContent selectedGame={selectedGame} gameId={selectedGame.id} />
+	);
+};
+
+function MoreButtonContent({
+	selectedGame,
+	gameId,
+}: {
+	selectedGame: ToolbarSelectedGame;
+	gameId: number;
+}) {
 	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -370,13 +401,13 @@ const MoreButton = () => {
 	 */
 	const handleView = (type: string) => {
 		if (type === "bgm") {
-			openurl(`https://bgm.tv/subject/${selectedGame?.bgm_id}`);
+			openurl(`https://bgm.tv/subject/${selectedGame.bgm_id}`);
 		} else if (type === "vndb") {
-			openurl(`https://vndb.org/${selectedGame?.vndb_id}`);
+			openurl(`https://vndb.org/${selectedGame.vndb_id}`);
 		} else if (type === "ymgal") {
-			openurl(`https://www.ymgal.games/ga${selectedGame?.ymgal_id}`);
+			openurl(`https://www.ymgal.games/ga${selectedGame.ymgal_id}`);
 		} else if (type === "kun") {
-			openurl(`https://www.kungal.com/galgame/${selectedGame?.kun_id}`);
+			openurl(`https://www.kungal.com/galgame/${selectedGame.kun_id}`);
 		}
 	};
 
@@ -384,18 +415,14 @@ const MoreButton = () => {
 	 * 更新游戏状态
 	 */
 	const handlePlayStatusChange = (newStatus: PlayStatus) => {
-		if (selectedGame?.id === undefined) return;
-		updatePlayStatus({ gameId: selectedGame.id, newStatus });
+		updatePlayStatus({ gameId, newStatus });
 	};
 
 	/**
 	 * 切换LE转区启动状态
 	 */
 	const handleToggleLeLaunch = async () => {
-		const gameId = selectedGame?.id;
-		if (gameId === undefined) return;
-
-		const nextEnabled = selectedGame?.le_launch !== 1;
+		const nextEnabled = selectedGame.le_launch !== 1;
 
 		if (nextEnabled && !hasLePath) {
 			snackbar.warning(
@@ -422,10 +449,7 @@ const MoreButton = () => {
 	 * 切换Magpie放大状态
 	 */
 	const handleToggleMagpie = async () => {
-		const gameId = selectedGame?.id;
-		if (gameId === undefined) return;
-
-		const nextEnabled = selectedGame?.magpie !== 1;
+		const nextEnabled = selectedGame.magpie !== 1;
 
 		if (nextEnabled && !hasMagpiePath) {
 			snackbar.warning(
@@ -465,7 +489,7 @@ const MoreButton = () => {
 				onClose={handleClose}
 				transitionDuration={0}
 			>
-				{selectedGame?.bgm_id ? (
+				{selectedGame.bgm_id ? (
 					<MenuItem
 						onClick={() => {
 							handleView("bgm");
@@ -478,7 +502,7 @@ const MoreButton = () => {
 						<ListItemText>{t("components.Toolbar.bgmlink")}</ListItemText>
 					</MenuItem>
 				) : null}
-				{selectedGame?.vndb_id ? (
+				{selectedGame.vndb_id ? (
 					<MenuItem
 						onClick={() => {
 							handleView("vndb");
@@ -491,7 +515,7 @@ const MoreButton = () => {
 						<ListItemText>{t("components.Toolbar.vndblink")}</ListItemText>
 					</MenuItem>
 				) : null}
-				{selectedGame?.ymgal_id ? (
+				{selectedGame.ymgal_id ? (
 					<MenuItem
 						onClick={() => {
 							handleView("ymgal");
@@ -506,7 +530,7 @@ const MoreButton = () => {
 						</ListItemText>
 					</MenuItem>
 				) : null}
-				{selectedGame?.kun_id ? (
+				{selectedGame.kun_id ? (
 					<MenuItem
 						onClick={() => {
 							handleView("kun");
@@ -526,19 +550,19 @@ const MoreButton = () => {
 						<TurnRightIcon fontSize="small" />
 					</ListItemIcon>
 					<ListItemText>{t("components.Toolbar.leLaunch")}</ListItemText>
-					<Switch checked={selectedGame?.le_launch === 1} size="small" />
+					<Switch checked={selectedGame.le_launch === 1} size="small" />
 				</MenuItem>
 				<MenuItem onClick={handleToggleMagpie}>
 					<ListItemIcon>
 						<OpenInFullIcon fontSize="small" />
 					</ListItemIcon>
 					<ListItemText>{t("components.Toolbar.magpieZoom")}</ListItemText>
-					<Switch checked={selectedGame?.magpie === 1} size="small" />
+					<Switch checked={selectedGame.magpie === 1} size="small" />
 				</MenuItem>
 
 				{/* 游戏状态切换 - 二级菜单 */}
 				<PlayStatusSubmenu
-					currentStatus={selectedGame?.clear}
+					currentStatus={selectedGame.clear}
 					onStatusChange={handlePlayStatusChange}
 					i18nPrefix="components.Toolbar"
 					iconSize="small"
@@ -554,7 +578,7 @@ const MoreButton = () => {
 			/>
 		</>
 	);
-};
+}
 
 /**
  * 顶部按钮组组件，根据页面类型切换显示内容

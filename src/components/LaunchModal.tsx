@@ -36,6 +36,10 @@ import type { UpdateGameParams } from "@/types";
 import { handleExeFile } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
 
+type LaunchSelectedGame = NonNullable<
+	ReturnType<typeof useSelectedGame>["selectedGame"]
+>;
+
 /**
  * 格式化游戏时长显示
  * @param minutes 分钟数
@@ -67,10 +71,38 @@ const formatPlayTime = (minutes: number, seconds: number): string => {
 export const LaunchModal = () => {
 	const { t } = useTranslation();
 	const selectedGameId = useStore((s) => s.selectedGameId);
-	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
-	const updateGameMutation = useUpdateGame();
 	const { selectedGame, isLoadingSelectedGame } =
 		useSelectedGame(selectedGameId);
+	const hasSelectedGame = selectedGameId !== null;
+
+	if (!hasSelectedGame || isLoadingSelectedGame || !selectedGame?.id) {
+		return (
+			<Button startIcon={<PlayArrowIcon />} disabled>
+				{t("components.LaunchModal.launchGame")}
+			</Button>
+		);
+	}
+
+	return (
+		<LaunchModalContent
+			selectedGame={selectedGame}
+			selectedGameId={selectedGameId}
+		/>
+	);
+};
+
+interface LaunchModalContentProps {
+	selectedGame: LaunchSelectedGame;
+	selectedGameId: number;
+}
+
+function LaunchModalContent({
+	selectedGame,
+	selectedGameId,
+}: LaunchModalContentProps) {
+	const { t } = useTranslation();
+	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
+	const updateGameMutation = useUpdateGame();
 	const { launchGame, stopGame, isGameRunning, getGameRealTimeState } =
 		useGamePlayStore();
 
@@ -83,21 +115,11 @@ export const LaunchModal = () => {
 	const [localPath, setLocalPath] = useState<string>("");
 	const [isSaving, setIsSaving] = useState(false);
 
-	// 检查这个特定游戏是否在运行
-	const isThisGameRunning = isGameRunning(
-		selectedGameId === null ? undefined : selectedGameId,
-	);
-	const hasSelectedGame = selectedGameId !== null;
-	const hasLocalPath = Boolean(selectedGame?.localpath?.trim());
+	const isThisGameRunning = isGameRunning(selectedGameId);
+	const hasLocalPath = Boolean(selectedGame.localpath?.trim());
+	const realTimeState = getGameRealTimeState(selectedGameId);
 
-	// 获取实时游戏状态
-	const realTimeState = selectedGameId
-		? getGameRealTimeState(selectedGameId)
-		: null;
-
-	// elapsed 模式下使用 setInterval 每秒更新一次显示（不触发 React re-render）
 	useEffect(() => {
-		// 仅在 elapsed 模式且游戏运行中时启动前端计时器
 		if (
 			timeTrackingMode !== "elapsed" ||
 			!isThisGameRunning ||
@@ -118,7 +140,6 @@ export const LaunchModal = () => {
 			timerRef.current.textContent = formatPlayTime(minutes, seconds);
 		};
 
-		// 立即更新一次
 		updateDisplay();
 
 		const intervalId = setInterval(updateDisplay, 1000);
@@ -128,19 +149,13 @@ export const LaunchModal = () => {
 		};
 	}, [timeTrackingMode, isThisGameRunning, realTimeState?.startTime]);
 
-	/**
-	 * 启动游戏按钮点击事件
-	 */
 	const handleStartGame = async () => {
-		if (!selectedGameId) return;
-
 		try {
-			if (!selectedGame?.localpath) {
+			if (!selectedGame.localpath) {
 				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}
 
-			// 使用游戏启动函数，传递启动选项
 			const result = await launchGame(selectedGame.localpath, selectedGameId, {
 				le_launch: selectedGame.le_launch === 1,
 				magpie: selectedGame.magpie === 1,
@@ -154,9 +169,8 @@ export const LaunchModal = () => {
 			);
 		}
 	};
-	const handleStopGame = async () => {
-		if (!selectedGameId) return;
 
+	const handleStopGame = async () => {
 		setStopping(true);
 		try {
 			const res = await stopGame(selectedGameId);
@@ -171,32 +185,16 @@ export const LaunchModal = () => {
 			setStopping(false);
 		}
 	};
-	// 渲染不同状态的按钮
-	if (stopping) {
-		return (
-			<Button startIcon={<StopIcon />} disabled>
-				{t("components.LaunchModal.stoppingGame")}
-			</Button>
-		);
-	}
 
-	/**
-	 * 打开路径设置对话框
-	 */
-	const handleOpenPathDialog = async () => {
-		if (!selectedGameId) return;
-
+	const handleOpenPathDialog = () => {
 		try {
-			setLocalPath(selectedGame?.localpath || "");
+			setLocalPath(selectedGame.localpath || "");
 			setPathDialogOpen(true);
 		} catch (error) {
 			console.error("Failed to load game data:", error);
 		}
 	};
 
-	/**
-	 * 关闭路径设置对话框
-	 */
 	const handleClosePathDialog = () => {
 		if (!isSaving) {
 			setPathDialogOpen(false);
@@ -204,9 +202,6 @@ export const LaunchModal = () => {
 		}
 	};
 
-	/**
-	 * 选择可执行文件
-	 */
 	const handleSelectExecutable = async () => {
 		try {
 			const selectedPath = await handleExeFile();
@@ -220,11 +215,8 @@ export const LaunchModal = () => {
 		}
 	};
 
-	/**
-	 * 保存路径
-	 */
 	const handleSavePath = async () => {
-		if (!selectedGameId || !localPath.trim()) {
+		if (!localPath.trim()) {
 			snackbar.error(t("components.LaunchModal.pathRequired"));
 			return;
 		}
@@ -250,19 +242,21 @@ export const LaunchModal = () => {
 		}
 	};
 
-	// 渲染不同状态的按钮
-	if (isThisGameRunning && realTimeState) {
-		// playtime 模式：使用后端事件更新的时间
-		// elapsed 模式：使用 ref 显示前端计时器计算的时间
-		const { currentSessionMinutes, currentSessionSeconds } = realTimeState;
+	if (stopping) {
+		return (
+			<Button startIcon={<StopIcon />} disabled>
+				{t("components.LaunchModal.stoppingGame")}
+			</Button>
+		);
+	}
 
-		// playtime 模式的初始显示值
+	if (isThisGameRunning && realTimeState) {
+		const { currentSessionMinutes, currentSessionSeconds } = realTimeState;
 		const initialTimeDisplay = formatPlayTime(
 			currentSessionMinutes,
 			currentSessionSeconds,
 		);
 
-		// elapsed 模式的初始显示值（从 startTime 计算）
 		const elapsedInitial = realTimeState.startTime
 			? Math.floor(Date.now() / 1000) - realTimeState.startTime
 			: 0;
@@ -294,13 +288,10 @@ export const LaunchModal = () => {
 			</Button>
 		);
 	}
-	if (!hasSelectedGame || isLoadingSelectedGame || hasLocalPath) {
+
+	if (hasLocalPath) {
 		return (
-			<Button
-				startIcon={<PlayArrowIcon />}
-				onClick={handleStartGame}
-				disabled={!hasSelectedGame || isLoadingSelectedGame}
-			>
+			<Button startIcon={<PlayArrowIcon />} onClick={handleStartGame}>
 				{t("components.LaunchModal.launchGame")}
 			</Button>
 		);
@@ -316,7 +307,6 @@ export const LaunchModal = () => {
 				{t("components.LaunchModal.syncLocalPath")}
 			</Button>
 
-			{/* 路径设置对话框 */}
 			<Dialog
 				open={pathDialogOpen}
 				onClose={handleClosePathDialog}
@@ -365,4 +355,4 @@ export const LaunchModal = () => {
 			</Dialog>
 		</>
 	);
-};
+}

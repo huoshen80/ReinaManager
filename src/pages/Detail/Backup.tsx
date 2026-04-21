@@ -14,7 +14,6 @@ import {
 	IconButton,
 	List,
 	ListItem,
-	ListItemSecondaryAction,
 	ListItemText,
 	Stack,
 	Switch,
@@ -52,6 +51,15 @@ const formatDate = (timestamp: number): string => {
 	return new Date(timestamp * 1000).toLocaleString();
 };
 
+type SelectedGame = NonNullable<
+	ReturnType<typeof useSelectedGame>["selectedGame"]
+>;
+
+interface BackupContentProps {
+	selectedGame: SelectedGame;
+	gameId: number;
+}
+
 /**
  * Backup 组件
  * 游戏存档备份页面
@@ -59,8 +67,25 @@ const formatDate = (timestamp: number): string => {
 export const Backup: React.FC = () => {
 	const selectedGameId = useStore((state) => state.selectedGameId);
 	const { selectedGame } = useSelectedGame(selectedGameId);
+
+	if (!selectedGame?.id) {
+		return (
+			<Box sx={{ p: 3 }}>
+				<Typography color="textSecondary">请先选择一个游戏</Typography>
+			</Box>
+		);
+	}
+
+	return <BackupContent selectedGame={selectedGame} gameId={selectedGame.id} />;
+};
+
+function BackupContent({ selectedGame, gameId }: BackupContentProps) {
 	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
+	const originalAutoSaveEnabled = selectedGame.autosave === 1;
+	const originalSaveDataPath = selectedGame.savepath || "";
+	const originalMaxBackups = selectedGame.maxbackups ?? 20;
+	const hasSavedGameSavePath = Boolean(originalSaveDataPath);
 
 	// React Query hooks
 	const {
@@ -68,7 +93,7 @@ export const Backup: React.FC = () => {
 		createBackupMutation,
 		deleteBackupMutation,
 		restoreBackupMutation,
-	} = useSaveDataResources(selectedGame?.id);
+	} = useSaveDataResources(gameId);
 
 	// 备份设置 - 本地状态（统一保存）
 	const [saveDataPath, setSaveDataPath] = useState("");
@@ -87,31 +112,31 @@ export const Backup: React.FC = () => {
 
 	// 从 selectedGame 同步设置状态
 	useEffect(() => {
-		setAutoSaveEnabled(selectedGame?.autosave === 1);
-		setSaveDataPath(selectedGame?.savepath || "");
-		setMaxBackups(selectedGame?.maxbackups ?? 20);
-	}, [
-		selectedGame?.autosave,
-		selectedGame?.savepath,
-		selectedGame?.maxbackups,
-	]);
+		setAutoSaveEnabled(originalAutoSaveEnabled);
+		setSaveDataPath(originalSaveDataPath);
+		setMaxBackups(originalMaxBackups);
+	}, [originalAutoSaveEnabled, originalMaxBackups, originalSaveDataPath]);
 
 	// 检测是否有未保存的更改
-	const hasUnsavedChanges = useMemo(() => {
-		if (!selectedGame) return false;
-		return (
-			autoSaveEnabled !== (selectedGame.autosave === 1) ||
-			saveDataPath !== (selectedGame.savepath || "") ||
-			maxBackups !== (selectedGame.maxbackups ?? 20)
-		);
-	}, [autoSaveEnabled, saveDataPath, maxBackups, selectedGame]);
+	const hasUnsavedChanges = useMemo(
+		() =>
+			autoSaveEnabled !== originalAutoSaveEnabled ||
+			saveDataPath !== originalSaveDataPath ||
+			maxBackups !== originalMaxBackups,
+		[
+			autoSaveEnabled,
+			maxBackups,
+			originalAutoSaveEnabled,
+			originalMaxBackups,
+			originalSaveDataPath,
+			saveDataPath,
+		],
+	);
 
 	const isSaving = updateGameMutation.isPending;
 
 	// 统一保存备份设置
 	const handleSaveSettings = async () => {
-		if (!selectedGame?.id) return;
-
 		if (maxBackups < 1) {
 			snackbar.error(
 				t("pages.Detail.Backup.invalidMaxBackups", "最大备份数量必须大于0"),
@@ -120,12 +145,14 @@ export const Backup: React.FC = () => {
 		}
 
 		try {
-			const autosaveValue = saveDataPath !== "" ? (autoSaveEnabled ? 1 : 0) : 0;
-			setAutoSaveEnabled(autosaveValue === 1); // 如果路径被清空，强制关闭自动备份
+			const clearsavePath = saveDataPath.trim();
+			const autosaveValue = clearsavePath ? (autoSaveEnabled ? 1 : 0) : 0;
+			// 如果路径被清空，强制关闭自动备份，避免界面状态与保存结果不一致
+			setAutoSaveEnabled(autosaveValue === 1);
 			await updateGameMutation.mutateAsync({
-				gameId: selectedGame.id,
+				gameId,
 				updates: {
-					savepath: saveDataPath,
+					savepath: clearsavePath,
 					autosave: autosaveValue,
 					maxbackups: maxBackups,
 				},
@@ -150,7 +177,7 @@ export const Backup: React.FC = () => {
 
 	// 创建备份
 	const handleCreateBackup = async () => {
-		if (!selectedGame?.savepath || !selectedGame?.id) {
+		if (!hasSavedGameSavePath) {
 			snackbar.error(
 				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
 			);
@@ -159,8 +186,8 @@ export const Backup: React.FC = () => {
 
 		try {
 			await createBackupMutation.mutateAsync({
-				gameId: selectedGame.id,
-				savePath: selectedGame.savepath,
+				gameId,
+				savePath: originalSaveDataPath,
 			});
 			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
 		} catch (error) {
@@ -172,10 +199,8 @@ export const Backup: React.FC = () => {
 
 	// 打开备份文件夹
 	const handleOpenBackupFolder = async () => {
-		if (!selectedGame?.id) return;
-
 		try {
-			await openGameBackupFolder(selectedGame.id);
+			await openGameBackupFolder(gameId);
 		} catch (error) {
 			snackbar.error(
 				`${t("pages.Detail.Backup.openBackupFolderFailed", "打开备份文件夹失败")}: ${getUserErrorMessage(error, t)}`,
@@ -185,7 +210,7 @@ export const Backup: React.FC = () => {
 
 	// 打开存档文件夹
 	const handleOpenSaveDataFolder = async () => {
-		if (!selectedGame?.savepath) {
+		if (!hasSavedGameSavePath) {
 			snackbar.error(
 				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
 			);
@@ -193,7 +218,7 @@ export const Backup: React.FC = () => {
 		}
 
 		try {
-			await openGameSaveDataFolder(selectedGame.savepath);
+			await openGameSaveDataFolder(originalSaveDataPath);
 		} catch (error) {
 			snackbar.error(
 				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${getUserErrorMessage(error, t)}`,
@@ -209,10 +234,10 @@ export const Backup: React.FC = () => {
 
 	// 删除备份
 	const handleDeleteBackup = async () => {
-		if (!backupToDelete || !selectedGame?.id) return;
+		if (!backupToDelete) return;
 		deleteBackupMutation.mutate(
 			{
-				gameId: selectedGame.id,
+				gameId,
 				backup: backupToDelete,
 			},
 			{
@@ -236,7 +261,7 @@ export const Backup: React.FC = () => {
 
 	// 打开恢复确认对话框
 	const handleRestoreClick = (backup: SavedataRecord) => {
-		if (!selectedGame?.savepath) {
+		if (!hasSavedGameSavePath) {
 			snackbar.error(
 				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
 			);
@@ -248,13 +273,12 @@ export const Backup: React.FC = () => {
 
 	// 确认恢复备份
 	const handleConfirmRestore = async () => {
-		if (!backupToRestore || !selectedGame?.savepath || !selectedGame?.id)
-			return;
+		if (!backupToRestore || !hasSavedGameSavePath) return;
 		try {
 			await restoreBackupMutation.mutateAsync({
-				gameId: selectedGame.id,
+				gameId,
 				backup: backupToRestore,
-				savePath: selectedGame.savepath,
+				savePath: originalSaveDataPath,
 			});
 			snackbar.success(t("pages.Detail.Backup.restoreSuccess", "存档恢复成功"));
 			setRestoreDialogOpen(false);
@@ -302,7 +326,7 @@ export const Backup: React.FC = () => {
 											setMaxBackups(value);
 										}
 									}}
-									disabled={isSaving || !selectedGame}
+									disabled={isSaving}
 								/>
 							</Box>
 
@@ -323,7 +347,7 @@ export const Backup: React.FC = () => {
 									fullWidth
 									value={saveDataPath}
 									onChange={(e) => setSaveDataPath(e.target.value)}
-									disabled={isSaving || !selectedGame}
+									disabled={isSaving}
 									placeholder={t(
 										"pages.Detail.Backup.selectSaveDataFolder",
 										"选择存档文件夹",
@@ -332,7 +356,7 @@ export const Backup: React.FC = () => {
 								<Button
 									variant="outlined"
 									onClick={handleSelectSaveDataPath}
-									disabled={isSaving || !selectedGame}
+									disabled={isSaving}
 									sx={{ minWidth: "40px", px: 1 }}
 								>
 									<FolderOpenIcon />
@@ -345,7 +369,7 @@ export const Backup: React.FC = () => {
 							<Button
 								variant="contained"
 								onClick={handleSaveSettings}
-								disabled={isSaving || !selectedGame || !hasUnsavedChanges}
+								disabled={isSaving || !hasUnsavedChanges}
 								startIcon={
 									isSaving ? <CircularProgress size={16} /> : <SaveIcon />
 								}
@@ -374,7 +398,7 @@ export const Backup: React.FC = () => {
 								fullWidth
 								onClick={handleCreateBackup}
 								disabled={
-									createBackupMutation.isPending || !selectedGame?.savepath
+									createBackupMutation.isPending || !hasSavedGameSavePath
 								}
 								startIcon={
 									createBackupMutation.isPending ? (
@@ -394,8 +418,7 @@ export const Backup: React.FC = () => {
 								<Button
 									variant="outlined"
 									size="medium"
-									onClick={() => handleOpenBackupFolder()}
-									disabled={!selectedGame}
+									onClick={handleOpenBackupFolder}
 									startIcon={<FolderOpenIcon />}
 									sx={{ flex: 1 }}
 								>
@@ -405,8 +428,8 @@ export const Backup: React.FC = () => {
 								<Button
 									variant="outlined"
 									size="medium"
-									onClick={() => handleOpenSaveDataFolder()}
-									disabled={!selectedGame?.savepath}
+									onClick={handleOpenSaveDataFolder}
+									disabled={!hasSavedGameSavePath}
 									startIcon={<FolderOpenIcon />}
 									sx={{ flex: 1 }}
 								>
@@ -434,7 +457,65 @@ export const Backup: React.FC = () => {
 						) : (
 							<List>
 								{backupList.map((backup) => (
-									<ListItem key={backup.id} divider>
+									<ListItem
+										key={backup.id}
+										divider
+										secondaryAction={
+											<>
+												<Tooltip
+													title={
+														!hasSavedGameSavePath
+															? t(
+																	"pages.Detail.Backup.setPathForRestore",
+																	"请先设置存档路径以恢复备份",
+																)
+															: t(
+																	"pages.Detail.Backup.restoreBackup",
+																	"恢复备份",
+																)
+													}
+												>
+													<span>
+														<IconButton
+															edge="end"
+															onClick={() => handleRestoreClick(backup)}
+															disabled={
+																createBackupMutation.isPending ||
+																restoreBackupMutation.isPending ||
+																!hasSavedGameSavePath
+															}
+															color="primary"
+															sx={{ mr: 1 }}
+														>
+															{restoreBackupMutation.isPending &&
+															restoreBackupMutation.variables?.backup.id ===
+																backup.id ? (
+																<CircularProgress size={24} />
+															) : (
+																<RestoreIcon />
+															)}
+														</IconButton>
+													</span>
+												</Tooltip>
+												<IconButton
+													edge="end"
+													onClick={() => handleDeleteClick(backup)}
+													disabled={
+														createBackupMutation.isPending ||
+														restoreBackupMutation.isPending ||
+														deleteBackupMutation.isPending
+													}
+													color="error"
+												>
+													{deleteBackupMutation.isPending ? (
+														<CircularProgress size={24} color="error" />
+													) : (
+														<DeleteIcon />
+													)}
+												</IconButton>
+											</>
+										}
+									>
 										<ListItemText
 											primary={backup.file}
 											secondary={
@@ -459,56 +540,6 @@ export const Backup: React.FC = () => {
 												</>
 											}
 										/>
-										<ListItemSecondaryAction>
-											<Tooltip
-												title={
-													!saveDataPath
-														? t(
-																"pages.Detail.Backup.setPathForRestore",
-																"请先设置存档路径以恢复备份",
-															)
-														: t("pages.Detail.Backup.restoreBackup", "恢复备份")
-												}
-											>
-												<span>
-													<IconButton
-														edge="end"
-														onClick={() => handleRestoreClick(backup)}
-														disabled={
-															createBackupMutation.isPending ||
-															restoreBackupMutation.isPending ||
-															!selectedGame?.savepath
-														}
-														color="primary"
-														sx={{ mr: 1 }}
-													>
-														{restoreBackupMutation.isPending &&
-														restoreBackupMutation.variables?.backup.id ===
-															backup.id ? (
-															<CircularProgress size={24} />
-														) : (
-															<RestoreIcon />
-														)}
-													</IconButton>
-												</span>
-											</Tooltip>
-											<IconButton
-												edge="end"
-												onClick={() => handleDeleteClick(backup)}
-												disabled={
-													createBackupMutation.isPending ||
-													restoreBackupMutation.isPending ||
-													deleteBackupMutation.isPending
-												}
-												color="error"
-											>
-												{deleteBackupMutation.isPending ? (
-													<CircularProgress size={24} color="error" />
-												) : (
-													<DeleteIcon />
-												)}
-											</IconButton>
-										</ListItemSecondaryAction>
 									</ListItem>
 								))}
 							</List>
@@ -548,4 +579,4 @@ export const Backup: React.FC = () => {
 			/>
 		</Box>
 	);
-};
+}
