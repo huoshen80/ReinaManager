@@ -1,3 +1,27 @@
+## [0.19.2](https://github.com/huoshen80/ReinaManager/compare/v0.19.1...v0.19.2) (2026-04-21)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- 将 KUN 简介切换到末尾 ([7bc721e](https://github.com/huoshen80/ReinaManager/commit/7bc721e3d8362c4de42693b7158623b1250c717c))
+
+### 🐛 Bug 修复
+
+- 修复软件内更新日志链接打开的问题 ([90b605c](https://github.com/huoshen80/ReinaManager/commit/90b605cc78849f3ad81fcd4a4e4e7b84f5434))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- Switch the kun summary to the end ([7bc721e](https://github.com/huoshen80/ReinaManager/commit/7bc721e3d8362c4de42693b7158623b1250c717c))
+
+### 🐛 Bug Fixes
+
+- The link to the changelog opens in the software ([90b605c](https://github.com/huoshen80/ReinaManager/commit/90b605cc78849f3ad81fcd4a4e4be4e7b84f5434))
+
+
 ## [0.19.1](https://github.com/huoshen80/ReinaManager/compare/v0.19.0...v0.19.1) (2026-04-21)
 
 <details>
