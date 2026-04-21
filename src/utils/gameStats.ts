@@ -425,29 +425,31 @@ export function initGameTimeTracking(
 			// 记录游戏会话
 			await recordGameSession(gameId, minutesToRecord, startTime, endTime);
 
-			// 检查是否需要自动备份
-			try {
-				const fullgame = await gameService.getGameById(gameId);
-				if (!fullgame) {
-					console.error("游戏数据未找到，无法进行自动备份");
-					return;
-				}
-				if (fullgame.autosave === 1 && fullgame.savepath) {
-					console.log(
-						`开始自动备份游戏 ${gameId}，存档路径: ${fullgame.savepath}`,
-					);
-					await createGameSavedataBackup(gameId, fullgame.savepath, true);
-					console.log(`游戏 ${gameId} 自动备份完成`);
-				}
-			} catch (backupError) {
-				console.error("自动备份失败:", backupError);
-				// 备份失败不应影响会话记录
-			}
-
-			// 调用回调函数
+			// 先通知前端更新会话结束状态，避免被自动备份耗时阻塞 UI
 			if (onSessionEnd) {
 				onSessionEnd(gameId, minutesToRecord);
 			}
+
+			// 自动备份改为后台执行，不阻塞前端结束状态显示
+			void (async () => {
+				try {
+					const fullgame = await gameService.getGameById(gameId);
+					if (!fullgame) {
+						console.error("游戏数据未找到，无法进行自动备份");
+						return;
+					}
+					if (fullgame.autosave === 1 && fullgame.savepath) {
+						console.log(
+							`开始自动备份游戏 ${gameId}，存档路径: ${fullgame.savepath}`,
+						);
+						await createGameSavedataBackup(gameId, fullgame.savepath, true);
+						console.log(`游戏 ${gameId} 自动备份完成`);
+					}
+				} catch (backupError) {
+					console.error("自动备份失败:", backupError);
+					// 备份失败不应影响会话记录
+				}
+			})();
 		} catch (error) {
 			console.error("处理游戏结束事件失败:", error);
 
