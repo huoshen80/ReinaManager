@@ -132,7 +132,8 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           key: ${{ matrix.rust_target }}
-          shared-key: "reina-manager-build"
+          shared-key: ${{ matrix.rust_target }}
+          save-if: false
       - name: Install Mold
         uses: rui314/setup-mold@v1
       - name: Install system dependencies
@@ -147,7 +148,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          TAURI_UPDATER_ACTIVE: true
+          TAURI_UPDATER_ACTIVE: true,
+          CARGO_INCREMENTAL: 0
         with:
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: ${{ needs.prepare.outputs.release_tag }}
@@ -228,7 +230,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          TAURI_UPDATER_ACTIVE: true
+          TAURI_UPDATER_ACTIVE: true,
+          CARGO_INCREMENTAL: 0
         with:
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: ${{ needs.prepare.outputs.release_tag }}
@@ -299,13 +302,13 @@ jobs:
         run: |
           # 1. 将包含下载链接的完整内容写入临时文件
           echo "$FULL_RELEASE_BODY" > full_release_notes.md
-          
+
           # 2. 判断是否添加 prerelease 标签
           PRERELEASE_FLAG=""
           if [ "${{ steps.release-type.outputs.IS_PRERELEASE }}" == "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
-          
+
           # 3. 强制覆写 Release 正文，并解除草稿状态
           gh release edit "${{ needs.prepare.outputs.release_tag }}" \
             --draft=false \
