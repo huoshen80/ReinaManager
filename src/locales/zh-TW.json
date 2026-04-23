@@ -109,7 +109,6 @@
 			"deleteGameTitle": "刪除遊戲",
 			"gameName": "遊戲名稱",
 			"kunData": "Kungal 資料",
-			"noData": "沒有資料",
 			"processing": "處理中...",
 			"vndbData": "VNDB 資料",
 			"ymgalData": "Ymgal 資料"
@@ -405,8 +404,6 @@
 				"bgmId": "Bangumi ID",
 				"customModeWarning": "自定模式無法從數據源更新。",
 				"dataSource": "數據源",
-				"incompleteYmgalData": "未找到完整的 YMGal 數據。",
-				"incompleteKungalData": "未找到完整的 Kungal 數據。",
 				"invalidIdType": "無效的ID類型",
 				"kunId": "Kungal ID",
 				"loading": "正在獲取...",

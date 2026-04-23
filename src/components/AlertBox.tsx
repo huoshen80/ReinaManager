@@ -27,6 +27,14 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { FullGameData } from "@/types";
 
+interface ViewGameSourceItem {
+	key: "bgm_data" | "vndb_data" | "ymgal_data" | "kun_data";
+	label: string;
+	name: string | undefined;
+	image?: string;
+	alt: string;
+}
+
 /**
  * 通用提示框属性类型
  */
@@ -67,7 +75,7 @@ interface AlertConfirmBoxProps {
 
 // 定义 ViewGameBoxProps 接口
 interface ViewGameBoxProps {
-	fullgame: FullGameData | null;
+	fullgame: FullGameData;
 	open: boolean;
 	setOpen: (value: boolean) => void;
 	onConfirm: () => void;
@@ -225,6 +233,49 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 	isLoading = false,
 }) => {
 	const { t } = useTranslation();
+	// 1. 定义配置项
+	const sourceConfigs = [
+		{
+			id: "bgm_data",
+			labelKey: "bgmData",
+			fallback: "BGM 数据",
+			prefix: "BGM",
+		},
+		{
+			id: "vndb_data",
+			labelKey: "vndbData",
+			fallback: "VNDB 数据",
+			prefix: "VNDB",
+		},
+		{
+			id: "ymgal_data",
+			labelKey: "ymgalData",
+			fallback: "YMGal 数据",
+			prefix: "YMGal",
+		},
+		{
+			id: "kun_data",
+			labelKey: "kunData",
+			fallback: "Kungal 数据",
+			prefix: "Kungal",
+		},
+	] as const;
+
+	// 2. 遍历并执行逻辑
+	const viewGameSources: ViewGameSourceItem[] = [];
+
+	sourceConfigs.forEach(({ id, labelKey, fallback, prefix }) => {
+		const data = fullgame[id]; // 获取对应的属性数据
+		if (data) {
+			viewGameSources.push({
+				key: id,
+				label: t(`components.AlertBox.${labelKey}`, fallback),
+				name: data.name,
+				image: data.image,
+				alt: `${prefix} ${data.name}`,
+			});
+		}
+	});
 
 	// 根据 showExtraButton 切换标题：有查看更多按钮时表示添加流程，否则为更新流程
 	return (
@@ -233,81 +284,25 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 			setOpen={setOpen}
 			title={title}
 			message={
-				fullgame ? (
-					<Box className="flex gap-2 items-start w-full">
-						{fullgame.bgm_data && (
-							<Box className="text-left">
-								<Typography variant="subtitle1" gutterBottom>
-									{t("components.AlertBox.bgmData", "BGM 数据")}
-								</Typography>
-								<Typography variant="body2" className="mb-1">
-									{t("components.AlertBox.gameName")}: {fullgame.bgm_data.name}
-								</Typography>
-								{fullgame.bgm_data.image && (
-									<img
-										src={fullgame.bgm_data.image}
-										alt={`BGM ${fullgame.bgm_data.name}`}
-										className="w-full h-auto max-h-64 object-contain rounded"
-									/>
-								)}
-							</Box>
-						)}
-						{fullgame.vndb_data && (
-							<Box className="text-left">
-								<Typography variant="subtitle1" gutterBottom>
-									{t("components.AlertBox.vndbData", "VNDB 数据")}
-								</Typography>
-								<Typography variant="body2" className="mb-1">
-									{t("components.AlertBox.gameName")}: {fullgame.vndb_data.name}
-								</Typography>
-								{fullgame.vndb_data.image && (
-									<img
-										src={fullgame.vndb_data.image}
-										alt={`VNDB ${fullgame.vndb_data.name}`}
-										className="w-full h-auto max-h-64 object-contain rounded"
-									/>
-								)}
-							</Box>
-						)}
-						{fullgame.ymgal_data && (
-							<Box className="text-left">
-								<Typography variant="subtitle1" gutterBottom>
-									{t("components.AlertBox.ymgalData", "YMGal 数据")}
-								</Typography>
-								<Typography variant="body2" className="mb-1">
-									{t("components.AlertBox.gameName")}:{" "}
-									{fullgame.ymgal_data.name_cn || fullgame.ymgal_data.name}
-								</Typography>
-								{fullgame.ymgal_data.image && (
-									<img
-										src={fullgame.ymgal_data.image}
-										alt={`YMGal ${fullgame.ymgal_data.name_cn || fullgame.ymgal_data.name}`}
-										className="w-full h-auto max-h-64 object-contain rounded"
-									/>
-								)}
-							</Box>
-						)}
-						{fullgame.kun_data && (
-							<Box className="text-left">
-								<Typography variant="subtitle1" gutterBottom>
-									{t("components.AlertBox.kunData", "Kungal 数据")}
-								</Typography>
-								<Typography variant="body2" className="mb-1">
-									{t("components.AlertBox.gameName")}: {fullgame.kun_data.name}
-								</Typography>
-								{fullgame.kun_data.image && (
-									<img
-										src={fullgame.kun_data.image}
-										alt={`Kungal ${fullgame.kun_id || fullgame.kun_data.name || "game"}`}
-										className="w-full h-auto max-h-64 object-contain rounded"
-									/>
-								)}
-							</Box>
-						)}
-					</Box>
-				) : (
-					<Typography>{t("components.AlertBox.noData", "没有数据")}</Typography>
-				)
+				<Box className="flex gap-2 items-start w-full">
+					{viewGameSources.map((source) => (
+						<Box key={source.key} className="text-left">
+							<Typography variant="subtitle1" gutterBottom>
+								{source.label}
+							</Typography>
+							<Typography variant="body2" className="mb-1">
+								{t("components.AlertBox.gameName")}: {source.name}
+							</Typography>
+							{source.image && (
+								<img
+									src={source.image}
+									alt={source.alt}
+									className="w-full h-auto max-h-64 object-contain rounded"
+								/>
+							)}
+						</Box>
+					))}
+				</Box>
 			}
 			onConfirm={onConfirm}
 			confirmText={t("components.AlertBox.confirm")}

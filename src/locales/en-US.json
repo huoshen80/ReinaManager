@@ -110,7 +110,6 @@
 			"deleteGameTitle": "Delete Game",
 			"gameName": "Game Name",
 			"kunData": "Kungal Data",
-			"noData": "No data",
 			"processing": "Processing...",
 			"vndbData": "VNDB Data",
 			"ymgalData": "Ymgal Data"
@@ -407,8 +406,6 @@
 				"bgmId": "Bangumi ID",
 				"customModeWarning": "Custom mode cannot update from data source.",
 				"dataSource": "Data Source",
-				"incompleteYmgalData": "Complete YMGal data was not found.",
-				"incompleteKungalData": "Complete Kungal data was not found.",
 				"invalidIdType": "Invalid ID type",
 				"kunId": "Kungal ID",
 				"loading": "Loading...",

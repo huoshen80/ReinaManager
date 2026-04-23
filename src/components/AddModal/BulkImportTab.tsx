@@ -43,9 +43,7 @@ import {
 	isAbortError,
 } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
-import GameSearchResultDialog, {
-	getPrimaryGameSearchResult,
-} from "./GameSearchResultDialog";
+import GameSearchResultDialog from "./GameSearchResultDialog";
 
 interface ImportItem extends ScanResult {
 	status: "pending" | "matched" | "imported" | "error" | "not found";
@@ -375,9 +373,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	};
 
 	const handleEditRowPreviewConfirm = () => {
-		const previewGameData = getPrimaryGameSearchResult(
-			searchResultState.results,
-		);
+		const previewGameData = searchResultState.results[0];
 		if (!previewGameData || !editItemPath) return;
 
 		const nextItems = [...items];

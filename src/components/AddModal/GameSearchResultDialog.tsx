@@ -22,12 +22,6 @@ export function shouldUseGamePreviewDialog(
 	return apiSource === "mixed" || isIdSearch;
 }
 
-export function getPrimaryGameSearchResult(
-	results: FullGameData[],
-): FullGameData | null {
-	return results[0] ?? null;
-}
-
 export function getSelectableGameApiSource(
 	apiSource: apiSourceType,
 ): SourceType {
@@ -51,7 +45,7 @@ const GameSearchResultDialog: React.FC<GameSearchResultDialogProps> = ({
 	}
 
 	if (shouldUseGamePreviewDialog(apiSource, isIdSearch)) {
-		const previewGameData = getPrimaryGameSearchResult(results);
+		const previewGameData = results[0];
 
 		return (
 			<ViewGameBox

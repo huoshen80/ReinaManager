@@ -47,9 +47,7 @@ import {
 } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
 import BulkImportTab from "./BulkImportTab";
-import GameSearchResultDialog, {
-	getPrimaryGameSearchResult,
-} from "./GameSearchResultDialog";
+import GameSearchResultDialog from "./GameSearchResultDialog";
 
 /**
  * 常量定义
@@ -208,7 +206,7 @@ const AddModal: React.FC = () => {
 	 * 处理预览确认弹窗的确认操作
 	 */
 	const handleConfirmAdd = useCallback(async () => {
-		const finaldata = getPrimaryGameSearchResult(searchResultState.results);
+		const finaldata = searchResultState.results[0];
 		if (!finaldata) return;
 
 		try {

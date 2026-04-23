@@ -109,7 +109,6 @@
 			"deleteGameTitle": "ゲームを削除",
 			"gameName": "ゲーム名",
 			"kunData": "Kungal データ",
-			"noData": "データがありません",
 			"processing": "処理中...",
 			"vndbData": "VNDB データ",
 			"ymgalData": "Ymgal データ"
@@ -405,8 +404,6 @@
 				"bgmId": "Bangumi ID",
 				"customModeWarning": "カスタムモードではデータソースから更新できません。",
 				"dataSource": "データソース",
-				"incompleteYmgalData": "完全な YMGal データが見つかりませんでした。",
-				"incompleteKungalData": "完全な Kungal データが見つかりませんでした。",
 				"invalidIdType": "無効なIDタイプ",
 				"kunId": "Kungal ID",
 				"loading": "読み込み中...",

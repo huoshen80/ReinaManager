@@ -68,13 +68,18 @@ export const Edit: React.FC = () => {
 	return (
 		<Box sx={{ p: 3 }}>
 			{/* 游戏更新确认弹窗 */}
-			<ViewGameBox
-				open={openViewBox}
-				setOpen={setOpenViewBox}
-				onConfirm={handleConfirmGameUpdate}
-				fullgame={gameData}
-				title={t("components.AlertBox.confirmUpdateTitle", "确认更新游戏信息")}
-			/>
+			{gameData && (
+				<ViewGameBox
+					open={openViewBox}
+					setOpen={setOpenViewBox}
+					onConfirm={handleConfirmGameUpdate}
+					fullgame={gameData}
+					title={t(
+						"components.AlertBox.confirmUpdateTitle",
+						"确认更新游戏信息",
+					)}
+				/>
+			)}
 
 			<Stack spacing={4}>
 				{/* 第一部分：数据源更新 */}
