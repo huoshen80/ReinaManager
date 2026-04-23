@@ -40,7 +40,7 @@ function isSourceEnabled(
 function extractEmbeddedVndbResult(
 	apiData: FullGameData | null,
 ): SafeFetchResult | null {
-	if (!apiData?.vndb_data) {
+	if (!apiData?.vndb_id) {
 		return null;
 	}
 
@@ -49,6 +49,7 @@ function extractEmbeddedVndbResult(
 			vndb_id: apiData.vndb_id,
 			vndb_data: apiData.vndb_data,
 		},
+		// kun 源已成功带回 vndb_id，此处视为可用结果，不再标记失败。
 		failed: false,
 	};
 }

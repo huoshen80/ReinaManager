@@ -182,7 +182,6 @@ function buildKunAuthHeaders() {
  * @returns 转换后的 FullGameData
  */
 const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
-	const tags = extractKunTags(kunData.tag);
 	const summary = pickLocalizedText(kunData.markdown);
 
 	const kun_data: KunData = {
@@ -197,7 +196,7 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
 			new Set((kunData.alias || []).map((alias) => alias.trim())),
 		),
 		summary,
-		tags: kunData.vndbId ? undefined : tags,
+		tags: kunData.vndbId ? undefined : extractKunTags(kunData.tag),
 		developer: extractDeveloper(kunData.official),
 		nsfw: computeNsfw(kunData),
 	};
@@ -243,13 +242,32 @@ export async function fetchGalgameById(id: string): Promise<FullGameData> {
 		return kunResult;
 	}
 
-	const vndbResult = await fetchVndbById(kunResult.vndb_id);
+	try {
+		const vndbResult = await fetchVndbById(kunResult.vndb_id);
 
-	return {
-		...kunResult,
-		vndb_data: vndbResult.vndb_data,
-		date: vndbResult.date,
-	};
+		return {
+			...kunResult,
+			vndb_data: vndbResult.vndb_data,
+			date: vndbResult.date,
+		};
+	} catch (error) {
+		if (import.meta.env.DEV) {
+			console.warn(
+				`[Kungal API] VNDB 增强失败，回退到 Kungal 原始数据: ${kunResult.vndb_id}`,
+				error,
+			);
+		}
+
+		return {
+			...kunResult,
+			id_type: "kun",
+			kun_data: {
+				...kunResult.kun_data,
+				// VNDB 不可用时，保留鲲源自身 tags，避免 kun 源整体失效。
+				tags: extractKunTags(resp.data.tag),
+			},
+		};
+	}
 }
 
 /**
