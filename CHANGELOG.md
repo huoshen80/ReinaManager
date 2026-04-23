@@ -1,3 +1,40 @@
+## [0.19.3](https://github.com/huoshen80/ReinaManager/compare/v0.19.2...v0.19.3) (2026-04-23)
+
+!!! warning 由于 Vndb 源站服务器迁移问题，该源暂时不可用，本次更新会修复 Kun 源在 Vndb 源宕机时无法正常使用的问题，建议尽快更新。
+
+!!! warning Due to the server migration of the Vndb source, the source is temporarily unavailable. This update will fix the problem that the Kun source cannot be used normally when the Vndb source is down. It is recommended to update as soon as possible.
+
+### 更新日志(Changelog)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+- *(Ci)* 修复所有平台使用中的缓存问题 ([d431252](https://github.com/huoshen80/ReinaManager/commit/d43125271f8c52e52d95409f3ad7b619dbd6dc90))
+
+### 🐛 Bug 修复
+
+- *(api/kun)* 当 VNDB 失败时回退到 kun 数据 ([0c260a4](https://github.com/huoshen80/ReinaManager/commit/0c260a4432314e54f8e8f62cbbd4be96bc77b6c8))
+
+### 🚜 重构
+
+- *(components)* 简化游戏预览 ([5245196](https://github.com/huoshen80/ReinaManager/commit/5245196c9a461dd2fa0a5fd7a97e67430c14031a))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(Ci)* Fix cache using problem in all platforms ([d431252](https://github.com/huoshen80/ReinaManager/commit/d43125271f8c52e52d95409f3ad7b619dbd6dc90))
+
+### 🐛 Bug Fixes
+
+- *(api/kun)* Fall back to kun data when VNDB fails ([0c260a4](https://github.com/huoshen80/ReinaManager/commit/0c260a4432314e54f8e8f62cbbd4be96bc77b6c8))
+
+### 🚜 Refactor
+
+- *(components)* Simplify game preview ([5245196](https://github.com/huoshen80/ReinaManager/commit/5245196c9a461dd2fa0a5fd7a97e67430c14031a))
+
+
 ## [0.19.2](https://github.com/huoshen80/ReinaManager/compare/v0.19.1...v0.19.2) (2026-04-21)
 
 <details>

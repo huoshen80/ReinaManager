@@ -142,6 +142,16 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libsoup-3.0-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf clang
       - name: Install dependencies
         run: pnpm install
+      - name: Configure Rust linker
+        shell: bash
+        run: |
+          mkdir -p .cargo
+          echo "Configuring mold for Linux..."
+          cat >> .cargo/config.toml <<EOF
+          [target.x86_64-unknown-linux-gnu]
+          linker = "clang"
+          rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+          EOF
       - name: Build and Upload to Draft Release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -200,10 +210,10 @@ jobs:
           echo "Configuring lld for Windows..."
           cat >> .cargo/config.toml <<EOF
           [target.x86_64-pc-windows-msvc]
-          linker = "rust-lld"
+          linker = "rust-lld.exe"
 
           [target.aarch64-pc-windows-msvc]
-          linker = "rust-lld"
+          linker = "rust-lld.exe"
           EOF
       - name: Install dependencies
         run: pnpm install
