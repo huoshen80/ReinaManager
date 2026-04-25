@@ -15,7 +15,7 @@ import {
 	useLocation,
 	useNavigate,
 	useSearchParams,
-} from "react-router";
+} from "react-router-dom";
 import { saveScrollPosition } from "@/utils/appUtils";
 
 interface ToolpadLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
