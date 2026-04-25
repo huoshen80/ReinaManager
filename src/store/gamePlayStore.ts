@@ -219,23 +219,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 			// 调用工具函数停止游戏
 			const result = await stopGameWithTracking(gameId);
 
-			// 停止成功后，清除运行状态（后端会触发 game-session-ended 事件，前端自动处理）
-			// 这里做一个保险的清理
-			if (result.success) {
-				set((state) => {
-					const newRunningGames = new Set(state.runningGameIds);
-					newRunningGames.delete(gameId);
-
-					const newRealTimeStates = { ...state.gameRealTimeStates };
-					delete newRealTimeStates[gameId];
-
-					return {
-						runningGameIds: newRunningGames,
-						gameRealTimeStates: newRealTimeStates,
-					};
-				});
-			}
-
 			return result;
 		} catch (error) {
 			const errorMessage = toError(error, "Failed to stop game").message;
@@ -279,7 +262,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 					});
 				},
 				// 会话结束回调
-				async (gameId: number, _minutes: number) => {
+				async (gameId: number, minutes: number) => {
 					// 只清除运行状态
 					set((state) => {
 						const newRunningGames = new Set(state.runningGameIds);
@@ -296,7 +279,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 					// ====== 游戏结束后刷新Cards组件 ======
 					// 获取主store的状态，检查当前排序选项
 					const store = useStore.getState();
-					if (_minutes && store.sortOption === "lastplayed") {
+					if (minutes && store.sortOption === "lastplayed") {
 						// 如果当前排序是"最近游玩"，刷新游戏列表查询以更新顺序
 						await queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
 					}
