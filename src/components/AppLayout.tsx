@@ -7,26 +7,15 @@ import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import {
-	type DashboardHeaderProps,
-	DashboardLayout,
-} from "@toolpad/core/DashboardLayout";
+import { DashboardLayout } from "@toolpad/core/DashboardLayout";
 import { PageContainer } from "@toolpad/core/PageContainer";
-import { useMemo } from "react";
 import { KeepAlive } from "react-activation";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AddModal from "@/components/AddModal";
 import { SearchBox } from "@/components/SearchBox";
 import { Toolbars } from "@/components/Toolbar";
-
-/**
- * 自定义应用标题组件属性类型
- */
-interface CustomAppTitleProps {
-	isLibraries: boolean;
-	currentPath: string;
-}
+import { saveScrollPosition } from "@/utils/appUtils";
 
 /**
  * 侧边栏底部信息组件
@@ -52,13 +41,18 @@ function SidebarFooter() {
 
 /**
  * 自定义应用标题组件
- * @param {CustomAppTitleProps} props
  * @returns {JSX.Element}
  */
-const CustomAppTitle = ({ isLibraries, currentPath }: CustomAppTitleProps) => {
+const CustomAppTitle = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { t } = useTranslation();
-	const canBack = currentPath !== "/";
+	const isLibraries = location.pathname === "/libraries";
+
+	const handleBack = () => {
+		saveScrollPosition(location.pathname);
+		navigate(-1);
+	};
 
 	return (
 		<Stack
@@ -71,9 +65,8 @@ const CustomAppTitle = ({ isLibraries, currentPath }: CustomAppTitleProps) => {
 				<span>
 					<IconButton
 						aria-label={t("components.AppLayout.back", "返回")}
-						onClick={() => navigate(-1)}
+						onClick={handleBack}
 						size="large"
-						disabled={!canBack}
 					>
 						<ArrowBackRoundedIcon />
 					</IconButton>
@@ -91,6 +84,45 @@ const CustomAppTitle = ({ isLibraries, currentPath }: CustomAppTitleProps) => {
 	);
 };
 
+const Header = () => (
+	<AppBar
+		color="inherit"
+		position="absolute"
+		className="print:hidden border-0 border-b border-solid shadow-none"
+		sx={{
+			borderColor: "divider",
+			zIndex: (theme) => theme.zIndex.drawer + 1,
+		}}
+	>
+		<Toolbar
+			className="bg-inherit"
+			sx={{
+				mx: {
+					xs: -0.75,
+					sm: -1,
+				},
+			}}
+		>
+			<Stack
+				direction="row"
+				justifyContent="space-between"
+				alignItems="center"
+				className="w-full flex-wrap"
+			>
+				<CustomAppTitle />
+				<Stack
+					direction="row"
+					alignItems="center"
+					spacing={1}
+					className="ml-auto"
+				>
+					<Toolbars />
+				</Stack>
+			</Stack>
+		</Toolbar>
+	</AppBar>
+);
+
 /**
  * 应用主布局组件
  * 集成侧边栏、顶部工具栏、页面容器等，支持自定义标题、国际化和响应式布局。
@@ -99,53 +131,8 @@ const CustomAppTitle = ({ isLibraries, currentPath }: CustomAppTitleProps) => {
  * @returns {JSX.Element} 应用主布局
  */
 export const Layout: React.FC = () => {
-	const path = useLocation().pathname;
-	const isLibraries = path === "/libraries";
-	const AppTitle = useMemo(() => {
-		return () => (
-			<CustomAppTitle isLibraries={isLibraries} currentPath={path} />
-		);
-	}, [isLibraries, path]);
-	const Header = useMemo(() => {
-		return (_props: DashboardHeaderProps) => (
-			<AppBar
-				color="inherit"
-				position="absolute"
-				className="print:hidden border-0 border-b border-solid shadow-none"
-				sx={{
-					borderColor: "divider",
-					zIndex: (theme) => theme.zIndex.drawer + 1,
-				}}
-			>
-				<Toolbar
-					className="bg-inherit"
-					sx={{
-						mx: {
-							xs: -0.75,
-							sm: -1,
-						},
-					}}
-				>
-					<Stack
-						direction="row"
-						justifyContent="space-between"
-						alignItems="center"
-						className="w-full flex-wrap"
-					>
-						<AppTitle />
-						<Stack
-							direction="row"
-							alignItems="center"
-							spacing={1}
-							className="ml-auto"
-						>
-							<Toolbars />
-						</Stack>
-					</Stack>
-				</Toolbar>
-			</AppBar>
-		);
-	}, [AppTitle]);
+	const location = useLocation();
+	const isLibraries = location.pathname === "/libraries";
 
 	return (
 		<>

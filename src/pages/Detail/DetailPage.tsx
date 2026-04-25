@@ -28,14 +28,7 @@ import {
 } from "@mui/material";
 import { PageContainer } from "@toolpad/core/PageContainer";
 import { useActivePage } from "@toolpad/core/useActivePage";
-import {
-	lazy,
-	Suspense,
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
@@ -46,17 +39,9 @@ import { useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
 import { getGameCover, getGameDisplayName } from "@/utils/appUtils";
 import { translateTags } from "@/utils/tagTranslation";
-
-// 使用 React.lazy 懒加载 Tab 内容组件
-const Backup = lazy(() =>
-	import("./Backup").then((module) => ({ default: module.Backup })),
-);
-const Edit = lazy(() =>
-	import("./Edit").then((module) => ({ default: module.Edit })),
-);
-const InfoBox = lazy(() =>
-	import("./InfoBox").then((module) => ({ default: module.InfoBox })),
-);
+import { Backup } from "./Backup";
+import { Edit } from "./Edit";
+import { InfoBox } from "./InfoBox";
 
 // Tab面板组件
 interface TabPanelProps {
@@ -110,6 +95,14 @@ export const Detail: React.FC = () => {
 	const virtualCategories = useVirtualCategories(displayAllGames);
 	const [tabIndex, setTabIndex] = useState(0);
 	const [showAllTags, setShowAllTags] = useState(false); // 控制标签折叠状态
+
+	useLayoutEffect(() => {
+		const container = document.querySelector<HTMLElement>("main");
+		if (container) {
+			container.scrollTop = 0;
+		}
+		setSelectedGameId(id);
+	}, [id, setSelectedGameId]);
 
 	const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
 		setTabIndex(newValue);
@@ -175,13 +168,6 @@ export const Detail: React.FC = () => {
 		// 仅在标题存在时追加末级面包屑
 		return title ? [...base, { title, path }] : base;
 	}, [activePage?.breadcrumbs, location.pathname, title]);
-
-	// 同步当前选中游戏ID
-	useEffect(() => {
-		if (id) {
-			setSelectedGameId(id);
-		}
-	}, [id, setSelectedGameId]);
 
 	// 派生状态：基于selectedGame和isDetailLoading计算当前状态
 	const isLoading =
@@ -432,11 +418,7 @@ export const Detail: React.FC = () => {
 
 					{/* 统计信息Tab */}
 					<TabPanel value={tabIndex} index={0}>
-						{tabIndex === 0 && (
-							<Suspense fallback={<CircularProgress />}>
-								<InfoBox gameID={id} />
-							</Suspense>
-						)}
+						{tabIndex === 0 && <InfoBox gameID={id} />}
 					</TabPanel>
 					<TabPanel value={tabIndex} index={1}>
 						{tabIndex === 1 && (
@@ -455,18 +437,10 @@ export const Detail: React.FC = () => {
 						)}
 					</TabPanel>
 					<TabPanel value={tabIndex} index={2}>
-						{tabIndex === 2 && (
-							<Suspense fallback={<CircularProgress />}>
-								<Edit />
-							</Suspense>
-						)}
+						{tabIndex === 2 && <Edit />}
 					</TabPanel>
 					<TabPanel value={tabIndex} index={3}>
-						{tabIndex === 3 && (
-							<Suspense fallback={<CircularProgress />}>
-								<Backup />
-							</Suspense>
-						)}
+						{tabIndex === 3 && <Backup />}
 					</TabPanel>
 				</Box>
 			</Box>
