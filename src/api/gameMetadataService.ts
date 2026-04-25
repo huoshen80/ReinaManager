@@ -488,7 +488,7 @@ class GameMetadataService {
 	}
 
 	/**
-	 * 验证游戏 ID 格式 // 目前无用
+	 * 验证游戏 ID 格式
 	 */
 	isValidGameId(id: string, source: SourceType): boolean {
 		switch (source) {
@@ -498,7 +498,7 @@ class GameMetadataService {
 			case "vndb":
 				return /^v\d+$/i.test(id);
 			case "ymgal":
-				return /^ga\d+$/i.test(id) || /^\d+$/.test(id);
+				return /^ga\d+$/i.test(id);
 			default:
 				return assertNever(source);
 		}

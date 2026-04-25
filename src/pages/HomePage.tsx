@@ -98,10 +98,7 @@ interface ActivityItem {
  * @param language 当前语言
  * @returns 包含 sessions、added、activities 的对象
  */
-async function getGameActivities(
-	games: GameData[],
-	language: string,
-): Promise<{
+async function getGameActivities(games: GameData[]): Promise<{
 	sessions: RecentSession[];
 	added: RecentGame[];
 	activities: ActivityItem[];
@@ -123,7 +120,7 @@ async function getGameActivities(
 		if (!game.id || typeof game.id !== "number") continue;
 
 		const gameSessions = allSessionsMap.get(game.id) || [];
-		const gameTitle = getGameDisplayName(game, language);
+		const gameTitle = getGameDisplayName(game);
 		const imageUrl = getGameCover(game);
 
 		for (const s of gameSessions.filter(
@@ -163,7 +160,7 @@ async function getGameActivities(
 		// created_at 是秒级时间戳
 		const timestamp = game.created_at as number;
 		const addedDate = new Date(timestamp * 1000);
-		const gameTitle = getGameDisplayName(game, language);
+		const gameTitle = getGameDisplayName(game);
 
 		const item: ActivityItem = {
 			id: `add-${game.id}`,
@@ -220,18 +217,18 @@ export const Home: React.FC = () => {
 		loading: true,
 	});
 
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 
 	// 同步计算的数据 - 立即显示，无需 loading 状态
 	const gamesList = useMemo(
 		() =>
 			displayAllGames.map((game) => ({
-				title: getGameDisplayName(game, i18n.language),
+				title: getGameDisplayName(game),
 				id: game.id,
 				isLocal: !!game.localpath,
 				imageUrl: getGameCover(game),
 			})),
-		[displayAllGames, i18n.language],
+		[displayAllGames],
 	);
 
 	const gamesLocalCount = useMemo(
@@ -301,7 +298,7 @@ export const Home: React.FC = () => {
 	useEffect(() => {
 		const fetchActivityData = async () => {
 			try {
-				const result = await getGameActivities(displayAllGames, i18n.language);
+				const result = await getGameActivities(displayAllGames);
 				setActivityData({
 					sessions: result.sessions,
 					added: result.added,
@@ -315,7 +312,7 @@ export const Home: React.FC = () => {
 		};
 
 		fetchActivityData();
-	}, [displayAllGames, i18n.language]);
+	}, [displayAllGames]);
 
 	return (
 		<Box className="p-6 pt-4 flex flex-col gap-4">

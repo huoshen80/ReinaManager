@@ -45,7 +45,6 @@ import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
 import { getGameCover, getGameDisplayName } from "@/utils/appUtils";
-import i18n from "@/utils/i18n";
 import { translateTags } from "@/utils/tagTranslation";
 
 // 使用 React.lazy 懒加载 Tab 内容组件
@@ -167,7 +166,7 @@ export const Detail: React.FC = () => {
 	const activePage = useActivePage();
 	const location = useLocation();
 	const title = selectedGame
-		? getGameDisplayName(selectedGame, i18n.language)
+		? getGameDisplayName(selectedGame)
 		: t("pages.Detail.loading");
 	const breadcrumbs = useMemo(() => {
 		const base = activePage?.breadcrumbs ?? [];
@@ -239,7 +238,7 @@ export const Detail: React.FC = () => {
 						<img
 							src={getGameCover(selectedGame)}
 							loading="lazy"
-							alt={getGameDisplayName(selectedGame, i18n.language)}
+							alt={getGameDisplayName(selectedGame)}
 							className="max-h-65 max-w-40 lg:max-w-80 rounded-lg shadow-lg select-none"
 							onDragStart={(event) => event.preventDefault()}
 						/>

@@ -350,9 +350,9 @@ export const CardItem = memo(
 					<CardActionArea
 						{...handlers}
 						className={`
-							duration-100 
-							hover:shadow-lg hover:scale-105 
-							active:shadow-sm active:scale-95 
+							duration-100
+							hover:shadow-lg hover:scale-105
+							active:shadow-sm active:scale-95
 							${isLongPressing ? "ring-2 ring-blue-500 shadow-lg" : ""}
 							${isOverlay ? "shadow-lg scale-105" : ""}
 						`}
@@ -544,7 +544,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		(card: GameData): SortableCardItemProps => ({
 			card,
 			isActive: selectedGameId === card.id,
-			displayName: getGameDisplayName(card, i18n.language),
+			displayName: getGameDisplayName(card),
 			useDelayedClick: cardClickMode === "navigate" && doubleClickLaunch,
 			onContextMenu: (e: React.MouseEvent) =>
 				card.id != null && handleContextMenu(e, card.id),
@@ -555,7 +555,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		}),
 		[
 			selectedGameId,
-			i18n.language,
 			cardClickMode,
 			doubleClickLaunch,
 			handleContextMenu,
@@ -615,7 +614,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 							card={activeGame}
 							isActive
 							isOverlay
-							displayName={getGameDisplayName(activeGame, i18n.language)}
+							displayName={getGameDisplayName(activeGame)}
 							useDelayedClick={false}
 							onContextMenu={() => {}}
 							onClick={() => {}}

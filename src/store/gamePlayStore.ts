@@ -22,12 +22,8 @@ import { create } from "zustand";
 import { gameKeys } from "@/hooks/queries/useGames";
 import { queryClient } from "@/providers/queryClient";
 import { useStore } from "@/store/appStore";
-import {
-	type GameLaunchOptions,
-	launchGameWithTracking,
-	type StopGameResult,
-	stopGameWithTracking,
-} from "@/utils/appUtils";
+import type { GameLaunchOptions, StopGameResult } from "@/types";
+import { launchGameWithTracking, stopGameWithTracking } from "@/utils/appUtils";
 import { toError } from "@/utils/errors";
 import { initGameTimeTracking } from "@/utils/gameStats";
 

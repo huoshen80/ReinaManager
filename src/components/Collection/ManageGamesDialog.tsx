@@ -55,7 +55,7 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 	categoryId,
 	categoryName,
 }) => {
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 	const displayAllGames = useAllGameListFacade();
 	const categoryGameIdsQuery = useCategoryGameIds(categoryId);
 	const updateCategoryGamesMutation = useUpdateCategoryGames();
@@ -177,7 +177,7 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 						size="small"
 					/>
 					<ListItemText
-						primary={getGameDisplayName(game, i18n.language)}
+						primary={getGameDisplayName(game)}
 						primaryTypographyProps={{ variant: "body2" }}
 					/>
 				</ListItemButton>

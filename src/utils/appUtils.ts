@@ -18,17 +18,15 @@ import {
 	savedataService,
 	statsService,
 } from "@/services/invoke";
-import type { BgmData, GameData, HanleGamesProps, VndbData } from "@/types";
+import type {
+	BgmData,
+	GameData,
+	GameLaunchOptions,
+	HanleGamesProps,
+	StopGameResult,
+	VndbData,
+} from "@/types";
 import { toError } from "./errors";
-
-/**
- * 停止游戏结果类型
- */
-export interface StopGameResult {
-	success: boolean;
-	message: string;
-	terminated_count: number;
-}
 
 // ==================== 路径管理缓存 ====================
 
@@ -38,7 +36,7 @@ let cachedAppDataDir: string | null = null;
 /**
  * 路径初始化结果类型
  */
-export interface PathInitResult {
+interface PathInitResult {
 	resourceDir: string; // 资源目录路径
 	appDataDir: string; // 应用基础数据根目录（便携或标准）
 }
@@ -128,7 +126,7 @@ export const getLocalDateString = (timestamp?: number): string => {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
-export interface AbortableRunner {
+interface AbortableRunner {
 	controller: AbortController;
 	withAbort: <T>(promise: Promise<T>) => Promise<T>;
 }
@@ -181,12 +179,6 @@ export const handleOpenFolder = async ({
 		console.error("打开文件夹失败:", error);
 	}
 };
-
-// 游戏启动选项
-export interface GameLaunchOptions {
-	le_launch?: boolean;
-	magpie?: boolean;
-}
 
 // 启动游戏并开始监控
 export async function launchGameWithTracking(
@@ -295,6 +287,7 @@ export function formatPlayTime(minutes: number): string {
 	}
 	return i18next.t("utils.formatPlayTime.hours", { count: hours });
 }
+
 export const handleFolder = async () => {
 	const path = await openDirectory({
 		multiple: false,
@@ -309,6 +302,7 @@ export const handleFolder = async () => {
 	if (path === null) return null;
 	return path;
 };
+
 export const handleExeFile = async (defaultPath: string = "") => {
 	const path = await openDirectory({
 		multiple: false,
@@ -334,7 +328,7 @@ export const handleExeFile = async (defaultPath: string = "") => {
  * @param filePath 文件路径
  * @returns 是否为可执行文件
  */
-export const isExecutableFile = (filePath: string): boolean => {
+const isExecutableFile = (filePath: string): boolean => {
 	const ext = extname(filePath).toLowerCase();
 	return [".exe", ".bat", ".cmd"].includes(ext);
 };
@@ -344,7 +338,7 @@ export const isExecutableFile = (filePath: string): boolean => {
  * @param dirPath 目录路径
  * @returns 可执行文件路径数组
  */
-export const getExecutablesInDirectory = async (
+const getExecutablesInDirectory = async (
 	dirPath: string,
 ): Promise<string[]> => {
 	try {
@@ -431,24 +425,22 @@ export const handleGetFolder = async (defaultPath?: string) => {
 	return path;
 };
 
-export const getGameDisplayName = (
-	game: GameData,
-	language?: string,
-): string => {
-	const currentLanguage = language || i18next.language;
+export const getGameDisplayName = (game: GameData): string => {
 	if (game.custom_data?.name) {
 		return game.custom_data.name;
 	}
 	// 只有当语言为zh-CN时才使用name_cn，其他语言都使用name
-	return currentLanguage === "zh-CN" && game.name_cn
+	return i18next.language === "zh-CN" && game.name_cn
 		? game.name_cn
 		: game.name || "";
 };
+
 export const getcustomCoverFolder = (gameID: number): string => {
 	const resourceFolder = getAppDataDirPath();
 	const customCoverFolder = join(resourceFolder, "covers", `game_${gameID}`);
 	return customCoverFolder;
 };
+
 export const getGameCover = (game: GameData): string => {
 	// 如果有自定义封面扩展名，构造自定义封面路径
 	if (game.custom_data?.image && game.id) {

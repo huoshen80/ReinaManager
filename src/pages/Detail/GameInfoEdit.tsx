@@ -33,7 +33,6 @@ import {
 	uploadSelectedImage,
 } from "@/utils/customCover";
 import { getUserErrorMessage } from "@/utils/errors";
-import i18n from "@/utils/i18n";
 import { buildGameInfoUpdatePayload } from "@/utils/metadata";
 
 // 公共样式常量
@@ -113,7 +112,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	const initForm = useCallback(
 		(game: GameData) => {
 			setLocalPath(game.localpath ?? "");
-			setGameNote(getGameDisplayName(game, i18n.language));
+			setGameNote(getGameDisplayName(game));
 			setAliases(game.custom_data?.aliases ?? []);
 			setSummary(game.summary ?? "");
 			setTags(game.custom_data?.tags ?? []);
@@ -174,7 +173,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		if (!selectedGame) return false;
 
 		// 获取展平后的原始值（与 useEffect 初始化时一致）
-		const currentDisplayName = getGameDisplayName(selectedGame, i18n.language);
+		const currentDisplayName = getGameDisplayName(selectedGame);
 		const currentCustomName =
 			selectedGame.custom_data?.name || currentDisplayName;
 		const originalSummary = selectedGame.summary ?? "";
@@ -349,7 +348,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			const updateData = buildGameInfoUpdatePayload(selectedGame, {
 				newLocalPath: localPath,
 				newName: gameNote,
-				language: i18n.language,
 				newImageExt: uploadedImageExt,
 				newAliases: aliases,
 				newSummary: summary,
@@ -483,7 +481,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 								disabled={isLoading || disabled || !selectedGame}
 								placeholder={
 									selectedGame
-										? getGameDisplayName(selectedGame, i18n.language)
+										? getGameDisplayName(selectedGame)
 										: t(
 												"pages.Detail.GameInfoEdit.enterGameNote",
 												"请输入游戏备注",

@@ -27,7 +27,6 @@ import i18n from "@/utils/i18n";
 export interface GameInfoUpdateDraft {
 	newLocalPath: string;
 	newName: string;
-	language: string;
 	newImageExt?: string | null;
 	newAliases?: string[];
 	newSummary?: string;
@@ -224,7 +223,7 @@ export function buildGameInfoUpdatePayload(
 	}
 
 	const currentCustomData = originalGame.custom_data || {};
-	const displayName = getGameDisplayName(originalGame, draft.language);
+	const displayName = getGameDisplayName(originalGame);
 	const currentCustomName = currentCustomData.name || displayName;
 	const originalSummary = originalGame.summary ?? "";
 	const originalDeveloper = originalGame.developer ?? "";
