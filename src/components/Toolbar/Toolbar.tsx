@@ -56,7 +56,6 @@ import type { MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
@@ -588,23 +587,18 @@ export const Buttongroup = ({
 	isDetail,
 	isCollection,
 }: ButtonGroupProps) => {
-	const id = Number(useLocation().pathname.split("/").pop());
 	const { t } = useTranslation();
-	const { openAddModal } = useStore(
-		useShallow((state) => ({
-			selectedGameId: state.selectedGameId,
-			openAddModal: state.openAddModal,
-		})),
-	);
+	const selectedGameId = useStore((state) => state.selectedGameId);
+	const openAddModal = useStore((state) => state.openAddModal);
 	const getGameById = useGetGameById();
 
 	return (
 		<>
-			{isDetail && id && (
+			{isDetail && selectedGameId && (
 				<>
 					<LaunchModal />
-					<OpenFolder id={id} getGameById={getGameById} />
-					<DeleteModal id={id} />
+					<OpenFolder id={selectedGameId} getGameById={getGameById} />
+					<DeleteModal id={selectedGameId} />
 					<MoreButton />
 					<ThemeSwitcher />
 				</>
