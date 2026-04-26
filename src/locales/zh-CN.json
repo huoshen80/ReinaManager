@@ -479,7 +479,6 @@
 				"docs": "使用文档",
 				"feedback": "问题反馈",
 				"github": "项目地址",
-				"title": "关于",
 				"updateFound": "发现新版本：{{version}}",
 				"version": "版本"
 			},
@@ -622,6 +621,21 @@
 			},
 			"vndbData": {
 				"title": "VNDB 数据设置"
+			},
+			"navigation": "设置分类导航",
+			"sections": {
+				"account": "账号与同步",
+				"accountDescription": "管理数据源账号令牌和收藏同步行为。",
+				"dataSource": "数据源",
+				"dataSourceDescription": "配置搜索源、VNDB 数据处理和批量数据维护。",
+				"display": "显示与交互",
+				"displayDescription": "调整语言、内容过滤和游戏卡片交互方式。",
+				"system": "系统",
+				"systemDescription": "管理启动、日志、关闭行为和计时模式。",
+				"storage": "路径与备份",
+				"storageDescription": "配置本地路径，执行数据库备份和恢复。",
+				"about": "关于",
+				"aboutDescription": "查看版本、更新状态、文档和反馈入口。"
 			}
 		}
 	},

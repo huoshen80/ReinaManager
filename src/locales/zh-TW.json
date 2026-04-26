@@ -95,7 +95,8 @@
 			"importSummary": "成功匯入 {{success}}/{{total}} 個遊戲",
 			"importPartialFailed": "{{failed}} 個遊戲匯入失敗",
 			"gamesCount_other": "共 {{count}} 個遊戲",
-			"matchCancelled": "已取消匹配任務"
+			"matchCancelled": "已取消匹配任務",
+			"gamesCount": "{{count}} 個遊戲"
 		},
 		"AlertBox": {
 			"bgmData": "BGM 資料",
@@ -119,7 +120,8 @@
 				"updateCategoryGamesFailed": "更新分類遊戲失敗，請重試"
 			},
 			"success": {
-				"categoryGamesUpdated_other": "已更新分類遊戲：{{count}} 個"
+				"categoryGamesUpdated_other": "已更新分類遊戲：{{count}} 個",
+				"categoryGamesUpdated": "分類遊戲已更新"
 			}
 		},
 		"FilterModal": {
@@ -290,7 +292,8 @@
 			"runningExitDialog": {
 				"exitApp": "仍然退出",
 				"message": "目前仍有 {{count}} 個遊戲正在執行。退出應用後不會關閉這些遊戲，但會遺失遊戲時長記錄。確定要退出應用嗎？",
-				"title": "退出提醒"
+				"title": "退出提醒",
+				"message_other": "目前仍有 {{count}} 個遊戲正在執行。退出應用後不會關閉這些遊戲，但會遺失遊戲時長記錄。確定要退出應用嗎？"
 			},
 			"UpdateModal": {
 				"cancel": "取消",
@@ -479,7 +482,6 @@
 				"docs": "使用文件",
 				"feedback": "問題回饋",
 				"github": "專案倉庫",
-				"title": "關於",
 				"updateFound": "發現新版本：{{version}}",
 				"version": "版本"
 			},
@@ -622,6 +624,21 @@
 			},
 			"vndbData": {
 				"title": "VNDB資料設定"
+			},
+			"navigation": "設定分類導覽",
+			"sections": {
+				"account": "帳號與同步",
+				"accountDescription": "管理資料來源帳號令牌與收藏同步行為。",
+				"dataSource": "資料來源",
+				"dataSourceDescription": "設定搜尋來源、VNDB 資料處理與批量資料維護。",
+				"display": "顯示與互動",
+				"displayDescription": "調整語言、內容過濾與遊戲卡片互動方式。",
+				"system": "系統",
+				"systemDescription": "管理啟動、日誌、關閉行為與計時模式。",
+				"storage": "路徑與備份",
+				"storageDescription": "設定本地路徑，執行資料庫備份與還原。",
+				"about": "關於",
+				"aboutDescription": "查看版本、更新狀態、文件與回饋入口。"
 			}
 		}
 	},
@@ -629,7 +646,9 @@
 		"formatPlayTime": {
 			"hours_other": "{{count}}小時",
 			"hoursAndMinutes": "{{hours}}小時{{minutes}}分鐘",
-			"minutes_other": "{{count}}分鐘"
+			"minutes_other": "{{count}}分鐘",
+			"hours": "{{hours}} 小時",
+			"minutes": "{{minutes}} 分鐘"
 		},
 		"handleDirectory": {
 			"allFiles": "所有檔案",
@@ -641,7 +660,10 @@
 			"hoursAgo_other": "{{count}}小時前",
 			"justNow": "剛剛",
 			"lastWeek": "上週",
-			"minutesAgo_other": "{{count}}分鐘前"
+			"minutesAgo_other": "{{count}}分鐘前",
+			"daysAgo": "{{count}} 天前",
+			"hoursAgo": "{{count}} 小時前",
+			"minutesAgo": "{{count}} 分鐘前"
 		}
 	}
 }

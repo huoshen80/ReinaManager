@@ -28,7 +28,7 @@ const Collection = lazy(() =>
 	})),
 );
 const Settings = lazy(() =>
-	import("@/pages/SettingsPage").then((module) => ({
+	import("@/pages/Settings").then((module) => ({
 		default: module.Settings,
 	})),
 );

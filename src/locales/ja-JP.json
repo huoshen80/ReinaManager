@@ -95,7 +95,8 @@
 			"importSummary": "{{total}} 件中 {{success}} 件のゲームをインポートしました",
 			"importPartialFailed": "{{failed}} 件のゲームのインポートに失敗しました",
 			"gamesCount_other": "全 {{count}} 件",
-			"matchCancelled": "マッチングタスクをキャンセルしました"
+			"matchCancelled": "マッチングタスクをキャンセルしました",
+			"gamesCount": "{{count}} 本のゲーム"
 		},
 		"AlertBox": {
 			"bgmData": "BGM データ",
@@ -119,7 +120,8 @@
 				"updateCategoryGamesFailed": "カテゴリゲームの更新に失敗しました。もう一度お試しください"
 			},
 			"success": {
-				"categoryGamesUpdated_other": "カテゴリゲームを更新しました：{{count}} 個"
+				"categoryGamesUpdated_other": "カテゴリゲームを更新しました：{{count}} 個",
+				"categoryGamesUpdated": "カテゴリのゲームを更新しました"
 			}
 		},
 		"FilterModal": {
@@ -290,7 +292,8 @@
 			"runningExitDialog": {
 				"exitApp": "そのまま終了",
 				"message": "現在 {{count}} 件のゲームが実行中です。アプリを終了してもゲーム自体は閉じませんが、このセッションのプレイ時間記録は失われます。それでも終了しますか？",
-				"title": "終了の確認"
+				"title": "終了の確認",
+				"message_other": "現在 {{count}} 件のゲームが実行中です。アプリを終了してもゲーム自体は閉じませんが、このセッションのプレイ時間記録は失われます。それでも終了しますか？"
 			},
 			"UpdateModal": {
 				"cancel": "キャンセル",
@@ -479,7 +482,6 @@
 				"docs": "ドキュメント",
 				"feedback": "問題を報告",
 				"github": "プロジェクトリポジトリ",
-				"title": "について",
 				"updateFound": "新しいバージョンを検出しました: {{version}}",
 				"version": "バージョン"
 			},
@@ -622,6 +624,21 @@
 			},
 			"vndbData": {
 				"title": "VNDBデータ設定"
+			},
+			"navigation": "設定カテゴリナビゲーション",
+			"sections": {
+				"account": "アカウントと同期",
+				"accountDescription": "データソースのアカウントトークンとコレクション同期動作を管理します。",
+				"dataSource": "データソース",
+				"dataSourceDescription": "検索ソース、VNDB データ処理、バッチデータ保守を設定します。",
+				"display": "表示と操作",
+				"displayDescription": "言語、コンテンツフィルタ、ゲームカードの操作方法を調整します。",
+				"system": "システム",
+				"systemDescription": "起動、ログ、終了動作、時間計測モードを管理します。",
+				"storage": "パスとバックアップ",
+				"storageDescription": "ローカルパスを設定し、データベースのバックアップと復元を実行します。",
+				"about": "について",
+				"aboutDescription": "バージョン、更新状態、ドキュメント、フィードバックリンクを確認します。"
 			}
 		}
 	},
@@ -629,7 +646,9 @@
 		"formatPlayTime": {
 			"hours_other": "{{count}}時間",
 			"hoursAndMinutes": "{{hours}}時間{{minutes}}分",
-			"minutes_other": "{{count}}分"
+			"minutes_other": "{{count}}分",
+			"hours": "{{hours}} 時間",
+			"minutes": "{{minutes}} 分"
 		},
 		"handleDirectory": {
 			"allFiles": "すべてのファイル",
@@ -641,7 +660,10 @@
 			"hoursAgo_other": "{{count}}時間前",
 			"justNow": "たった今",
 			"lastWeek": "先週",
-			"minutesAgo_other": "{{count}}分前"
+			"minutesAgo_other": "{{count}}分前",
+			"daysAgo": "{{count}} 日前",
+			"hoursAgo": "{{count}} 時間前",
+			"minutesAgo": "{{count}} 分前"
 		}
 	}
 }

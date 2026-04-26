@@ -96,7 +96,8 @@
 			"importPartialFailed": "{{failed}} games failed to import",
 			"gamesCount_one": "{{count}} game",
 			"gamesCount_other": "{{count}} games",
-			"matchCancelled": "Match task cancelled"
+			"matchCancelled": "Match task cancelled",
+			"gamesCount": "{{count}} games"
 		},
 		"AlertBox": {
 			"bgmData": "BGM Data",
@@ -121,7 +122,8 @@
 			},
 			"success": {
 				"categoryGamesUpdated_one": "Category games updated: {{count}} game",
-				"categoryGamesUpdated_other": "Category games updated: {{count}} games"
+				"categoryGamesUpdated_other": "Category games updated: {{count}} games",
+				"categoryGamesUpdated": "Category games updated"
 			}
 		},
 		"FilterModal": {
@@ -292,7 +294,9 @@
 			"runningExitDialog": {
 				"exitApp": "Exit Anyway",
 				"message": "{{count}} game(s) are still running. Exiting the app will not close those games, but the recorded playtime for this session will be lost. Do you still want to exit?",
-				"title": "Exit Reminder"
+				"title": "Exit Reminder",
+				"message_one": "{{count}} game is still running. Exiting the app will not close it, but the recorded playtime for this session will be lost. Do you still want to exit?",
+				"message_other": "{{count}} games are still running. Exiting the app will not close them, but the recorded playtime for this session will be lost. Do you still want to exit?"
 			},
 			"UpdateModal": {
 				"cancel": "Cancel",
@@ -481,7 +485,6 @@
 				"docs": "Documentation",
 				"feedback": "Report an Issue",
 				"github": "Project Repository",
-				"title": "About",
 				"updateFound": "New version found: {{version}}",
 				"version": "Version"
 			},
@@ -624,6 +627,21 @@
 			},
 			"vndbData": {
 				"title": "VNDB Data Settings"
+			},
+			"navigation": "Settings category navigation",
+			"sections": {
+				"account": "Account & Sync",
+				"accountDescription": "Manage data source account tokens and collection sync behavior.",
+				"dataSource": "Data Sources",
+				"dataSourceDescription": "Configure search sources, VNDB data handling, and batch data maintenance.",
+				"display": "Display & Interaction",
+				"displayDescription": "Adjust language, content filtering, and game card interactions.",
+				"system": "System",
+				"systemDescription": "Manage startup, logs, close behavior, and time tracking mode.",
+				"storage": "Paths & Backup",
+				"storageDescription": "Configure local paths, and run database backup or restore.",
+				"about": "About",
+				"aboutDescription": "View version, update status, documentation, and feedback links."
 			}
 		}
 	},
@@ -633,7 +651,9 @@
 			"hours_other": "{{count}} hours",
 			"hoursAndMinutes": "{{hours}}h {{minutes}}min",
 			"minutes_one": "{{count}} minute",
-			"minutes_other": "{{count}} minutes"
+			"minutes_other": "{{count}} minutes",
+			"hours": "{{hours}}h",
+			"minutes": "{{minutes}}m"
 		},
 		"handleDirectory": {
 			"allFiles": "All Files",
@@ -648,7 +668,10 @@
 			"justNow": "Just now",
 			"lastWeek": "Last week",
 			"minutesAgo_one": "{{count}} minute ago",
-			"minutesAgo_other": "{{count}} minutes ago"
+			"minutesAgo_other": "{{count}} minutes ago",
+			"daysAgo": "{{count}} days ago",
+			"hoursAgo": "{{count}} hours ago",
+			"minutesAgo": "{{count}} minutes ago"
 		}
 	}
 }
