@@ -68,6 +68,10 @@ export interface SearchResultGalgame {
 
 type KunLocaleKey = keyof KunLanguage;
 
+interface KunFetchOptions {
+	enrichVndb?: boolean;
+}
+
 const KUN_LOCALE_ORDER: KunLocaleKey[] = ["zh-cn", "ja-jp", "en-us", "zh-tw"];
 
 function toKunLocale(language: string): KunLocaleKey {
@@ -219,7 +223,11 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
  * 根据 ID 获取 Kungal 游戏详情
  * @param id Kungal 游戏 ID
  */
-export async function fetchGalgameById(id: string): Promise<FullGameData> {
+export async function fetchGalgameById(
+	id: string,
+	options: KunFetchOptions = {},
+): Promise<FullGameData> {
+	const { enrichVndb = true } = options;
 	const url = `${KUN_API_BASE}/galgame/${id}`;
 
 	const resp = await http.get<GalgameDetailResponse>(url, {
@@ -238,7 +246,7 @@ export async function fetchGalgameById(id: string): Promise<FullGameData> {
 
 	const kunResult = transformKunData(resp.data);
 
-	if (!kunResult.vndb_id) {
+	if (!enrichVndb || !kunResult.vndb_id) {
 		return kunResult;
 	}
 
@@ -283,6 +291,7 @@ export async function searchGalgame(
 	page = 1,
 	limit = 12,
 	fetchDetailById = false,
+	options: KunFetchOptions = {},
 ): Promise<FullGameData[]> {
 	const resp = await http.get<SearchResultGalgame[]>(`${KUN_API_BASE}/search`, {
 		params: {
@@ -312,7 +321,7 @@ export async function searchGalgame(
 
 	// 如果启用二步请求且有结果，用第一个结果的 ID 获取完整详情
 	if (fetchDetailById && results.length > 0 && results[0].kun_id) {
-		const detailedData = await fetchGalgameById(results[0].kun_id);
+		const detailedData = await fetchGalgameById(results[0].kun_id, options);
 		return [detailedData];
 	}
 

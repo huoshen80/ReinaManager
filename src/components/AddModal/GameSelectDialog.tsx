@@ -40,7 +40,7 @@ interface GameSelectDialogProps {
  * 从 FullGameData 中提取显示信息
  * 由于条件渲染，传入的 results 只包含单一数据源的数据
  */
-function extractDisplayInfo(
+export function extractDisplayInfo(
 	item: FullGameData,
 	apiSource: SourceType,
 ): {

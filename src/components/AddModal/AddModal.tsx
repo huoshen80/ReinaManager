@@ -32,6 +32,11 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { gameMetadataService } from "@/api";
+import type {
+	MixedSourceCandidates,
+	MixedSourceEnabled,
+	MixedSourceSelection,
+} from "@/api/gameMetadataService";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useAddGame } from "@/hooks/queries/useGames";
@@ -48,6 +53,7 @@ import {
 import { getUserErrorMessage } from "@/utils/errors";
 import BulkImportTab from "./BulkImportTab";
 import GameSearchResultDialog from "./GameSearchResultDialog";
+import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 
 /**
  * 常量定义
@@ -61,7 +67,19 @@ interface SearchResultState {
 	isIdSearch: boolean;
 }
 
+interface MixedCandidateState {
+	open: boolean;
+	candidates: MixedSourceCandidates;
+}
+
 type AddModalTab = "single" | "bulk";
+
+const EMPTY_MIXED_CANDIDATES: MixedSourceCandidates = {
+	bgm: [],
+	vndb: [],
+	ymgal: [],
+	kun: [],
+};
 
 /**
  * 从文件路径中提取文件夹名称并清洗（纯函数，置于组件外以保证稳定引用）
@@ -136,6 +154,11 @@ const AddModal: React.FC = () => {
 			isIdSearch: false,
 		},
 	);
+	const [mixedCandidateState, setMixedCandidateState] =
+		useState<MixedCandidateState>({
+			open: false,
+			candidates: EMPTY_MIXED_CANDIDATES,
+		});
 
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
@@ -178,6 +201,10 @@ const AddModal: React.FC = () => {
 	 */
 	const resetState = useCallback(() => {
 		setSearchResultState({ open: false, results: [], isIdSearch: false });
+		setMixedCandidateState({
+			open: false,
+			candidates: EMPTY_MIXED_CANDIDATES,
+		});
 		setFormText("");
 		setActiveTab("single");
 		setAddModalPath("");
@@ -200,6 +227,13 @@ const AddModal: React.FC = () => {
 
 	const handleCloseSearchResult = useCallback(() => {
 		setSearchResultState({ open: false, results: [], isIdSearch: false });
+	}, []);
+
+	const handleCloseMixedCandidates = useCallback(() => {
+		setMixedCandidateState({
+			open: false,
+			candidates: EMPTY_MIXED_CANDIDATES,
+		});
 	}, []);
 
 	/**
@@ -297,6 +331,52 @@ const AddModal: React.FC = () => {
 		return searchResults;
 	};
 
+	const fetchMixedCandidates = async (): Promise<MixedSourceCandidates> => {
+		const candidates = await gameMetadataService.searchMixedSourceCandidates({
+			query: formText,
+			bgmToken,
+			mixedEnabledSources: enabledMixedSources,
+			defaults: {
+				localpath: addModalPath,
+			},
+		});
+		const hasAnyCandidate = Object.values(candidates).some(
+			(sourceCandidates) => sourceCandidates.length > 0,
+		);
+
+		if (!hasAnyCandidate) {
+			throw new Error(t("components.AddModal.noResultsMixed"));
+		}
+
+		return candidates;
+	};
+
+	const handleConfirmMixedSelection = useCallback(
+		async (selection: MixedSourceSelection, enabled: MixedSourceEnabled) => {
+			try {
+				setLoading(true);
+				const enrichedSelection =
+					await gameMetadataService.enrichMixedSourceSelection(
+						selection,
+						enabled,
+					);
+				const gameData = gameMetadataService.buildGameFromMixedSelection({
+					selection: enrichedSelection,
+					enabled,
+					defaults: {
+						localpath: addModalPath,
+					},
+				});
+				await handleAddGame(gameData);
+			} catch (error) {
+				showError(getUserErrorMessage(error, t));
+			} finally {
+				setLoading(false);
+			}
+		},
+		[addModalPath, handleAddGame, showError, t],
+	);
+
 	/**
 	 * 提交表单，处理添加游戏的逻辑。
 	 * - 自定义模式下直接添加本地游戏。
@@ -336,6 +416,15 @@ const AddModal: React.FC = () => {
 				const gameId = await addGameMutation.mutateAsync(customGameData);
 				closeAddModal();
 				showGameAddedSuccess({ gameId, navigate, t });
+				return;
+			}
+
+			if (apiSource === "mixed") {
+				const candidates = await withAbort(fetchMixedCandidates());
+				setMixedCandidateState({
+					open: true,
+					candidates,
+				});
 				return;
 			}
 
@@ -574,6 +663,14 @@ const AddModal: React.FC = () => {
 				isIdSearch={searchResultState.isIdSearch}
 				previewTitle={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
+			/>
+			<MixedSourceConfirmDialog
+				open={mixedCandidateState.open}
+				onClose={handleCloseMixedCandidates}
+				candidates={mixedCandidateState.candidates}
+				onConfirm={handleConfirmMixedSelection}
+				loading={isBusy}
+				title={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 			/>
 		</>
 	);

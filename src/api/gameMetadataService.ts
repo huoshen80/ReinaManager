@@ -22,11 +22,24 @@ interface MixedSourceResult {
 	kun_data?: FullGameData | null;
 }
 
+interface MixedSourceListResult {
+	bgm_data?: FullGameData[];
+	vndb_data?: FullGameData[];
+	ymgal_data?: FullGameData[];
+	kun_data?: FullGameData[];
+}
+
 interface MixedSourceMergeRule {
 	source: SourceType;
 	resultKey: keyof MixedSourceResult;
 	getDate: (game: FullGameData) => string | undefined;
 }
+
+export type MixedSourceCandidates = Record<SourceType, FullGameData[]>;
+export type MixedSourceSelection = Partial<
+	Record<SourceType, FullGameData | null>
+>;
+export type MixedSourceEnabled = Partial<Record<SourceType, boolean>>;
 
 const mixedSourceMergeRules: readonly MixedSourceMergeRule[] = [
 	{
@@ -155,6 +168,17 @@ function mergeMixedResult(result: MixedSourceResult): FullGameData | null {
 	return mergedGame;
 }
 
+function pickFirstMixedResult(
+	result: MixedSourceListResult,
+): MixedSourceResult {
+	return {
+		bgm_data: result.bgm_data?.[0] ?? null,
+		vndb_data: result.vndb_data?.[0] ?? null,
+		ymgal_data: result.ymgal_data?.[0] ?? null,
+		kun_data: result.kun_data?.[0] ?? null,
+	};
+}
+
 function ensureMixedResult(result: FullGameData | null): FullGameData {
 	if (!result) {
 		throw new AppError({
@@ -273,6 +297,47 @@ class GameMetadataService {
 	}
 
 	/**
+	 * 获取 mixed 名称搜索的每源候选列表，供用户逐源选择。
+	 */
+	async searchMixedSourceCandidates(params: {
+		query: string;
+		bgmToken?: string;
+		defaults?: Partial<FullGameData>;
+		mixedEnabledSources?: readonly SourceType[];
+	}): Promise<MixedSourceCandidates> {
+		const { query, bgmToken, defaults, mixedEnabledSources } = params;
+
+		try {
+			const result = await fetchMixedData({
+				name: query,
+				BGM_TOKEN: bgmToken,
+				enabledSources: mixedEnabledSources,
+			});
+
+			return {
+				bgm: (result.bgm_data ?? []).map((game) =>
+					this.applyDefaults(game, defaults),
+				),
+				vndb: (result.vndb_data ?? []).map((game) =>
+					this.applyDefaults(game, defaults),
+				),
+				ymgal: (result.ymgal_data ?? []).map((game) =>
+					this.applyDefaults(game, defaults),
+				),
+				kun: (result.kun_data ?? []).map((game) =>
+					this.applyDefaults(game, defaults),
+				),
+			};
+		} catch (error) {
+			throw createMetadataError(
+				"Failed to search mixed source candidates by name",
+				error,
+				"Mixed metadata candidate search failed",
+			);
+		}
+	}
+
+	/**
 	 * 根据 ID 获取单个数据源的游戏
 	 */
 	async getGameById(
@@ -346,6 +411,110 @@ class GameMetadataService {
 	}
 
 	/**
+	 * Mixed 候选确认后的详情补全。
+	 * Kun 在 mixed 入口下不触发内部 VNDB 补全，避免抢占 VNDB 源选择权。
+	 */
+	async enrichMixedSourceSelection(
+		selection: MixedSourceSelection,
+		enabled: MixedSourceEnabled,
+	): Promise<MixedSourceSelection> {
+		const nextSelection: MixedSourceSelection = { ...selection };
+
+		await Promise.all(
+			mixedSourceMergeRules.map(async ({ source }) => {
+				if (!enabled[source]) {
+					return;
+				}
+
+				const selectedGame = selection[source];
+				if (!selectedGame) {
+					return;
+				}
+
+				if (source === "ymgal" && selectedGame.ymgal_id) {
+					const detailedData = await this.getGameById(
+						selectedGame.ymgal_id,
+						"ymgal",
+					);
+					nextSelection[source] = {
+						...selectedGame,
+						...detailedData,
+						localpath: selectedGame.localpath ?? detailedData.localpath,
+					};
+				}
+
+				if (source === "kun" && selectedGame.kun_id) {
+					const detailedData = await fetchGalgameById(selectedGame.kun_id, {
+						enrichVndb: false,
+					});
+					nextSelection[source] = {
+						...selectedGame,
+						...detailedData,
+						localpath: selectedGame.localpath ?? detailedData.localpath,
+					};
+				}
+			}),
+		);
+
+		return nextSelection;
+	}
+
+	/**
+	 * 将 mixed 多源选择结果合并成最终添加数据。
+	 * 只选一个源时降级为该单源，选多个源时保持 mixed。
+	 */
+	buildGameFromMixedSelection(params: {
+		selection: MixedSourceSelection;
+		enabled: MixedSourceEnabled;
+		defaults?: Partial<FullGameData>;
+	}): FullGameData {
+		const { selection, enabled, defaults } = params;
+		const selectedEntries = mixedSourceMergeRules
+			.map(({ source }) => ({
+				source,
+				game: enabled[source] ? selection[source] : null,
+			}))
+			.filter((entry): entry is { source: SourceType; game: FullGameData } =>
+				Boolean(entry.game),
+			);
+
+		if (selectedEntries.length === 0) {
+			throw createStableError(
+				"invalid_game_id",
+				"At least one mixed source must be selected",
+			);
+		}
+
+		if (selectedEntries.length === 1) {
+			const [{ source, game }] = selectedEntries;
+			const result: FullGameData = {
+				...defaults,
+				id_type: source,
+			};
+			mergeSourceIntoGame(result, game, source);
+
+			const date =
+				mixedSourceMergeRules
+					.find((rule) => rule.source === source)
+					?.getDate(game) ?? game.date;
+			if (date) {
+				result.date = date;
+			}
+
+			return result;
+		}
+
+		const mixedResult = mergeMixedResult({
+			bgm_data: enabled.bgm ? selection.bgm : null,
+			vndb_data: enabled.vndb ? selection.vndb : null,
+			ymgal_data: enabled.ymgal ? selection.ymgal : null,
+			kun_data: enabled.kun ? selection.kun : null,
+		});
+
+		return this.applyDefaults(ensureMixedResult(mixedResult), defaults);
+	}
+
+	/**
 	 * 根据名称搜索单个数据源
 	 */
 	private async searchByName(
@@ -390,7 +559,7 @@ class GameMetadataService {
 				enabledSources,
 			});
 
-			return mergeMixedResult(result);
+			return mergeMixedResult(pickFirstMixedResult(result));
 		} catch (error) {
 			throw createMetadataError(
 				"Failed to search mixed metadata by name",
@@ -459,7 +628,7 @@ class GameMetadataService {
 				});
 
 				return this.applyDefaults(
-					ensureMixedResult(mergeMixedResult(result)),
+					ensureMixedResult(mergeMixedResult(pickFirstMixedResult(result))),
 					defaults,
 				);
 			}
