@@ -3,6 +3,7 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import SaveIcon from "@mui/icons-material/Save";
 import {
+	Autocomplete,
 	Box,
 	Button,
 	Card,
@@ -469,27 +470,38 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 						{/* 右侧：基本信息 */}
 						<Stack spacing={3} sx={{ flex: 1 }}>
 							{/* 自定义游戏名称 */}
-							<TextField
-								label={t(
-									"pages.Detail.GameInfoEdit.customGameName",
-									"自定义游戏名称",
-								)}
-								variant="outlined"
-								fullWidth
-								value={gameNote}
-								onChange={(e) => setGameNote(e.target.value)}
+							<Autocomplete
+								freeSolo
+								openOnFocus
+								clearOnBlur={false}
+								options={selectedGame?.aliases ?? []}
+								inputValue={gameNote}
+								onInputChange={(_, value) => setGameNote(value)}
+								onChange={(_, value) => {
+									if (typeof value === "string") {
+										setGameNote(value);
+									}
+								}}
+								filterOptions={(options) => options}
 								disabled={isLoading || disabled || !selectedGame}
-								placeholder={
-									selectedGame
-										? getGameDisplayName(selectedGame)
-										: t(
-												"pages.Detail.GameInfoEdit.enterGameNote",
-												"请输入游戏备注",
-											)
-								}
-								helperText={t(
-									"pages.Detail.GameInfoEdit.noteHelperText",
-									"您可以为游戏设置一个自定义的显示名称，留空则使用默认名称",
+								fullWidth
+								renderInput={(params) => (
+									<TextField
+										{...params}
+										label={t(
+											"pages.Detail.GameInfoEdit.customGameName",
+											"自定义游戏名称",
+										)}
+										variant="outlined"
+										placeholder={
+											selectedGame
+												? getGameDisplayName(selectedGame)
+												: t(
+														"pages.Detail.GameInfoEdit.enterGameNote",
+														"请输入游戏备注",
+													)
+										}
+									/>
 								)}
 							/>
 
