@@ -57,8 +57,6 @@ interface PlayStatusSubmenuProps {
 	onStatusChange: (newStatus: PlayStatus) => void;
 	/** 是否禁用 */
 	disabled?: boolean;
-	/** i18n key 前缀，用于适配不同场景的文案 */
-	i18nPrefix?: "components.RightMenu" | "components.Toolbar";
 	/** 图标大小，Toolbar 使用 small */
 	iconSize?: "small" | "medium";
 	/** 展开方向，Toolbar 向左展开 */
@@ -132,7 +130,6 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 	currentStatus,
 	onStatusChange,
 	disabled = false,
-	i18nPrefix = "components.RightMenu",
 	iconSize = "medium",
 	expandDirection = "right",
 }) => {
@@ -285,7 +282,7 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 						<EmojiEventsOutlinedIcon fontSize={iconSize} />
 					)}
 				</ListItemIcon>
-				<ListItemText primary={t(`${i18nPrefix}.changePlayStatus`)} />
+				<ListItemText primary={t("common.changePlayStatus")} />
 				{getArrowIcon()}
 			</MenuItem>
 

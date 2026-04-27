@@ -35,6 +35,7 @@
 	},
 	"common": {
 		"cancel": "Cancel",
+		"changePlayStatus": "Change Play Status",
 		"confirm": "Confirm",
 		"locale": "en-US",
 		"saving": "Saving..."
@@ -203,7 +204,6 @@
 				"renameGroup": "Rename Group",
 				"renameGroupTitle": "Rename Group"
 			},
-			"changePlayStatus": "Change Play Status",
 			"deleteGame": "Delete Game",
 			"enterDetails": "Game Details",
 			"label": "Context Menu",
@@ -268,7 +268,6 @@
 			"lePathNotSet": "LE region switching software path not set, please configure the path first",
 			"magpiePathNotSet": "Magpie software path not set, please configure the path first",
 			"magpieZoom": "Magpie Zoom",
-			"changePlayStatus": "Change Play Status",
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
 			"theme": "Theme",
@@ -444,7 +443,6 @@
 				"hasCustomCover": "Custom cover set",
 				"invalidGameId": "Invalid game ID",
 				"localPath": "Executable Path",
-				"noteHelperText": "You can set a custom display name for the game, leave blank to use the default name",
 				"nsfw": "NSFW",
 				"previewSelected": "New image selected, will take effect after saving",
 				"releaseDate": "Release Date",

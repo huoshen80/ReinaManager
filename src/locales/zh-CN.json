@@ -35,6 +35,7 @@
 	},
 	"common": {
 		"cancel": "取消",
+		"changePlayStatus": "修改游戏状态",
 		"confirm": "确认",
 		"locale": "zh-CN",
 		"saving": "保存中..."
@@ -199,7 +200,6 @@
 				"renameGroup": "重命名分组",
 				"renameGroupTitle": "重命名分组"
 			},
-			"changePlayStatus": "修改游戏状态",
 			"deleteGame": "删除游戏",
 			"enterDetails": "进入详情页",
 			"label": "右键菜单",
@@ -264,7 +264,6 @@
 			"lePathNotSet": "未设置LE转区软件路径，请先配置路径",
 			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
 			"magpieZoom": "Magpie放大",
-			"changePlayStatus": "修改游戏状态",
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
 			"theme": "主题",
@@ -438,7 +437,6 @@
 				"hasCustomCover": "已设置自定义封面",
 				"invalidGameId": "无效的游戏ID",
 				"localPath": "可执行文件路径",
-				"noteHelperText": "您可以为游戏设置一个自定义的显示名称，留空则使用默认名称",
 				"nsfw": "NSFW (18+)",
 				"previewSelected": "已选择新图片，保存后生效",
 				"releaseDate": "发行日期",

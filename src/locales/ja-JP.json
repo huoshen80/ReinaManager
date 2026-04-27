@@ -35,6 +35,7 @@
 	},
 	"common": {
 		"cancel": "キャンセル",
+		"changePlayStatus": "プレイ状態を変更",
 		"confirm": "確認",
 		"locale": "ja-JP",
 		"saving": "保存中..."
@@ -201,7 +202,6 @@
 				"renameGroup": "グループの名前を変更",
 				"renameGroupTitle": "グループの名前を変更"
 			},
-			"changePlayStatus": "プレイ状態を変更",
 			"deleteGame": "ゲームを削除",
 			"enterDetails": "詳細ページへ",
 			"label": "右クリックメニュー",
@@ -266,7 +266,6 @@
 			"lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
 			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
 			"magpieZoom": "Magpieズーム",
-			"changePlayStatus": "プレイ状態を変更",
 			"more": "その他",
 			"openGameFolder": "ゲームフォルダを開く",
 			"theme": "テーマ",
@@ -441,7 +440,6 @@
 				"hasCustomCover": "カスタムカバーが設定されています",
 				"invalidGameId": "無効なゲームID",
 				"localPath": "実行可能ファイルのパス",
-				"noteHelperText": "ゲームのカスタム表示名を設定できます。デフォルト名を使用するには空白のままにしてください",
 				"nsfw": "NSFW",
 				"previewSelected": "新しい画像が選択されました。保存後に有効になります",
 				"releaseDate": "リリース日",
