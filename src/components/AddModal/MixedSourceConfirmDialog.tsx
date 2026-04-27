@@ -11,13 +11,13 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { SourceType } from "@/types";
+import { SOURCE_KEYS } from "@/types";
 import type {
 	MixedSourceCandidates,
 	MixedSourceEnabled,
 	MixedSourceSelection,
-} from "@/api/gameMetadataService";
-import type { SourceType } from "@/types";
-import { SOURCE_KEYS } from "@/types";
+} from "@/utils/metadata";
 import GameSelectDialog, { extractDisplayInfo } from "./GameSelectDialog";
 
 interface MixedSourceConfirmDialogProps {

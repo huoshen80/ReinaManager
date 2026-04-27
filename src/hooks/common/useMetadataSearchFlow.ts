@@ -1,14 +1,14 @@
 import type { TFunction } from "i18next";
 import { useCallback, useMemo, useState } from "react";
 import { gameMetadataService } from "@/api";
+import type { apiSourceType, FullGameData, SourceType } from "@/types";
+import { isAbortError } from "@/utils/appUtils";
+import { getUserErrorMessage } from "@/utils/errors";
 import type {
 	MixedSourceCandidates,
 	MixedSourceEnabled,
 	MixedSourceSelection,
-} from "@/api/gameMetadataService";
-import type { apiSourceType, FullGameData, SourceType } from "@/types";
-import { isAbortError } from "@/utils/appUtils";
-import { getUserErrorMessage } from "@/utils/errors";
+} from "@/utils/metadata";
 
 interface SearchResultState {
 	open: boolean;
@@ -205,13 +205,8 @@ export function useMetadataSearchFlow({
 		async (selection: MixedSourceSelection, enabled: MixedSourceEnabled) => {
 			setIsSearching(true);
 			try {
-				const enrichedSelection =
-					await gameMetadataService.enrichMixedSourceSelection(
-						selection,
-						enabled,
-					);
-				const gameData = gameMetadataService.buildGameFromMixedSelection({
-					selection: enrichedSelection,
+				const gameData = await gameMetadataService.resolveMixedSourceSelection({
+					selection,
 					enabled,
 					defaults: lastMixedDefaults,
 				});

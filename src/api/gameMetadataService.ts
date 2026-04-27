@@ -14,55 +14,14 @@ import { fetchYmById, fetchYmByName } from "@/api/ymgal";
 import type { apiSourceType, FullGameData, SourceType } from "@/types";
 import { SOURCE_FIELD_KEYS } from "@/types";
 import { AppError, toError } from "@/utils/errors";
-
-interface MixedSourceResult {
-	bgm_data?: FullGameData | null;
-	vndb_data?: FullGameData | null;
-	ymgal_data?: FullGameData | null;
-	kun_data?: FullGameData | null;
-}
-
-interface MixedSourceListResult {
-	bgm_data?: FullGameData[];
-	vndb_data?: FullGameData[];
-	ymgal_data?: FullGameData[];
-	kun_data?: FullGameData[];
-}
-
-interface MixedSourceMergeRule {
-	source: SourceType;
-	resultKey: keyof MixedSourceResult;
-	getDate: (game: FullGameData) => string | undefined;
-}
-
-export type MixedSourceCandidates = Record<SourceType, FullGameData[]>;
-export type MixedSourceSelection = Partial<
-	Record<SourceType, FullGameData | null>
->;
-export type MixedSourceEnabled = Partial<Record<SourceType, boolean>>;
-
-const mixedSourceMergeRules: readonly MixedSourceMergeRule[] = [
-	{
-		source: "bgm",
-		resultKey: "bgm_data",
-		getDate: (game) => game.bgm_data?.date,
-	},
-	{
-		source: "vndb",
-		resultKey: "vndb_data",
-		getDate: (game) => game.vndb_data?.date,
-	},
-	{
-		source: "ymgal",
-		resultKey: "ymgal_data",
-		getDate: (game) => game.ymgal_data?.date,
-	},
-	{
-		source: "kun",
-		resultKey: "kun_data",
-		getDate: (game) => game.vndb_data?.date,
-	},
-];
+import {
+	buildGameFromMixedSelection,
+	type MixedSourceCandidates,
+	type MixedSourceEnabled,
+	type MixedSourceSelection,
+	mergeMixedResult,
+	pickFirstMixedResult,
+} from "@/utils/metadata";
 
 const mixedIdTypePriority: readonly SourceType[] = [
 	"kun",
@@ -70,24 +29,6 @@ const mixedIdTypePriority: readonly SourceType[] = [
 	"vndb",
 	"bgm",
 ];
-
-function assignGameField<Key extends keyof FullGameData>(
-	target: FullGameData,
-	source: FullGameData,
-	key: Key,
-): void {
-	target[key] = source[key];
-}
-
-function mergeSourceIntoGame(
-	target: FullGameData,
-	source: FullGameData,
-	sourceType: SourceType,
-): void {
-	const { id: idKey, data: dataKey } = SOURCE_FIELD_KEYS[sourceType];
-	assignGameField(target, source, idKey);
-	assignGameField(target, source, dataKey);
-}
 
 function hasSourceId(game: Partial<FullGameData>, source: SourceType): boolean {
 	const { id: idKey } = SOURCE_FIELD_KEYS[source];
@@ -120,63 +61,6 @@ function createStableError(
 		code,
 		message,
 	});
-}
-
-/**
- * 从多个数据源的结果中合并日期信息
- * 优先级：BGM > VNDB > YMGal
- */
-function mergeDateFromMixedResult(
-	result: MixedSourceResult,
-): string | undefined {
-	// 合并日期信息，优先级由规则数组的顺序决定
-	for (const rule of mixedSourceMergeRules) {
-		const sourceGame = result[rule.resultKey];
-		const date = sourceGame ? rule.getDate(sourceGame) : undefined;
-		if (date) {
-			return date;
-		}
-	}
-
-	return undefined;
-}
-
-function mergeMixedResult(result: MixedSourceResult): FullGameData | null {
-	const mergedGame: FullGameData = {
-		id_type: "mixed",
-	};
-	let hasMergedSource = false;
-
-	for (const rule of mixedSourceMergeRules) {
-		const sourceGame = result[rule.resultKey];
-		if (!sourceGame) {
-			continue;
-		}
-		hasMergedSource = true;
-		mergeSourceIntoGame(mergedGame, sourceGame, rule.source);
-	}
-
-	const mergedDate = mergeDateFromMixedResult(result);
-	if (mergedDate) {
-		mergedGame.date = mergedDate;
-	}
-
-	if (!hasMergedSource) {
-		return null;
-	}
-
-	return mergedGame;
-}
-
-function pickFirstMixedResult(
-	result: MixedSourceListResult,
-): MixedSourceResult {
-	return {
-		bgm_data: result.bgm_data?.[0] ?? null,
-		vndb_data: result.vndb_data?.[0] ?? null,
-		ymgal_data: result.ymgal_data?.[0] ?? null,
-		kun_data: result.kun_data?.[0] ?? null,
-	};
 }
 
 function ensureMixedResult(result: FullGameData | null): FullGameData {
@@ -414,14 +298,14 @@ class GameMetadataService {
 	 * Mixed 候选确认后的详情补全。
 	 * Kun 在 mixed 入口下不触发内部 VNDB 补全，避免抢占 VNDB 源选择权。
 	 */
-	async enrichMixedSourceSelection(
+	private async enrichMixedSourceSelection(
 		selection: MixedSourceSelection,
 		enabled: MixedSourceEnabled,
 	): Promise<MixedSourceSelection> {
 		const nextSelection: MixedSourceSelection = { ...selection };
 
 		await Promise.all(
-			mixedSourceMergeRules.map(async ({ source }) => {
+			mixedIdTypePriority.map(async (source) => {
 				if (!enabled[source]) {
 					return;
 				}
@@ -460,58 +344,24 @@ class GameMetadataService {
 	}
 
 	/**
-	 * 将 mixed 多源选择结果合并成最终添加数据。
-	 * 只选一个源时降级为该单源，选多个源时保持 mixed。
+	 * 解析 mixed 候选确认结果。
+	 * 服务层负责补详情，纯数据合并交给 metadata 工具。
 	 */
-	buildGameFromMixedSelection(params: {
+	async resolveMixedSourceSelection(params: {
 		selection: MixedSourceSelection;
 		enabled: MixedSourceEnabled;
 		defaults?: Partial<FullGameData>;
-	}): FullGameData {
+	}): Promise<FullGameData> {
 		const { selection, enabled, defaults } = params;
-		const selectedEntries = mixedSourceMergeRules
-			.map(({ source }) => ({
-				source,
-				game: enabled[source] ? selection[source] : null,
-			}))
-			.filter((entry): entry is { source: SourceType; game: FullGameData } =>
-				Boolean(entry.game),
-			);
-
-		if (selectedEntries.length === 0) {
-			throw createStableError(
-				"invalid_game_id",
-				"At least one mixed source must be selected",
-			);
-		}
-
-		if (selectedEntries.length === 1) {
-			const [{ source, game }] = selectedEntries;
-			const result: FullGameData = {
-				...defaults,
-				id_type: source,
-			};
-			mergeSourceIntoGame(result, game, source);
-
-			const date =
-				mixedSourceMergeRules
-					.find((rule) => rule.source === source)
-					?.getDate(game) ?? game.date;
-			if (date) {
-				result.date = date;
-			}
-
-			return result;
-		}
-
-		const mixedResult = mergeMixedResult({
-			bgm_data: enabled.bgm ? selection.bgm : null,
-			vndb_data: enabled.vndb ? selection.vndb : null,
-			ymgal_data: enabled.ymgal ? selection.ymgal : null,
-			kun_data: enabled.kun ? selection.kun : null,
+		const enrichedSelection = await this.enrichMixedSourceSelection(
+			selection,
+			enabled,
+		);
+		return buildGameFromMixedSelection({
+			selection: enrichedSelection,
+			enabled,
+			defaults,
 		});
-
-		return this.applyDefaults(ensureMixedResult(mixedResult), defaults);
 	}
 
 	/**

@@ -1,4 +1,3 @@
-import { gameMetadataService } from "@/api";
 import type {
 	CustomData,
 	FullGameData,
@@ -53,8 +52,186 @@ interface SourceUpdateParams {
 	bgmToken?: string;
 }
 
+export interface MixedSourceResult {
+	bgm_data?: FullGameData | null;
+	vndb_data?: FullGameData | null;
+	ymgal_data?: FullGameData | null;
+	kun_data?: FullGameData | null;
+}
+
+export interface MixedSourceListResult {
+	bgm_data?: FullGameData[];
+	vndb_data?: FullGameData[];
+	ymgal_data?: FullGameData[];
+	kun_data?: FullGameData[];
+}
+
+interface MixedSourceMergeRule {
+	source: SourceType;
+	resultKey: keyof MixedSourceResult;
+	getDate: (game: FullGameData) => string | undefined;
+}
+
+export type MixedSourceCandidates = Record<SourceType, FullGameData[]>;
+export type MixedSourceSelection = Partial<
+	Record<SourceType, FullGameData | null>
+>;
+export type MixedSourceEnabled = Partial<Record<SourceType, boolean>>;
+
+const mixedSourceMergeRules: readonly MixedSourceMergeRule[] = [
+	{
+		source: "bgm",
+		resultKey: "bgm_data",
+		getDate: (game) => game.bgm_data?.date,
+	},
+	{
+		source: "vndb",
+		resultKey: "vndb_data",
+		getDate: (game) => game.vndb_data?.date,
+	},
+	{
+		source: "ymgal",
+		resultKey: "ymgal_data",
+		getDate: (game) => game.ymgal_data?.date,
+	},
+	{
+		source: "kun",
+		resultKey: "kun_data",
+		getDate: (game) => game.vndb_data?.date,
+	},
+];
+
 function assertNever(value: never): never {
 	throw new Error(`Unhandled source: ${String(value)}`);
+}
+
+function assignGameField<Key extends keyof FullGameData>(
+	target: FullGameData,
+	source: FullGameData,
+	key: Key,
+): void {
+	target[key] = source[key];
+}
+
+function mergeSourceIntoGame(
+	target: FullGameData,
+	source: FullGameData,
+	sourceType: SourceType,
+): void {
+	const { id: idKey, data: dataKey } = SOURCE_FIELD_KEYS[sourceType];
+	assignGameField(target, source, idKey);
+	assignGameField(target, source, dataKey);
+}
+
+/**
+ * 从多个数据源的结果中合并日期信息
+ * 优先级：BGM > VNDB > YMGal
+ */
+function mergeDateFromMixedResult(
+	result: MixedSourceResult,
+): string | undefined {
+	// 合并日期信息，优先级由规则数组的顺序决定
+	for (const rule of mixedSourceMergeRules) {
+		const sourceGame = result[rule.resultKey];
+		const date = sourceGame ? rule.getDate(sourceGame) : undefined;
+		if (date) {
+			return date;
+		}
+	}
+
+	return undefined;
+}
+
+export function mergeMixedResult(
+	result: MixedSourceResult,
+): FullGameData | null {
+	const mergedGame: FullGameData = {
+		id_type: "mixed",
+	};
+	let hasMergedSource = false;
+
+	for (const rule of mixedSourceMergeRules) {
+		const sourceGame = result[rule.resultKey];
+		if (!sourceGame) {
+			continue;
+		}
+		hasMergedSource = true;
+		mergeSourceIntoGame(mergedGame, sourceGame, rule.source);
+	}
+
+	const mergedDate = mergeDateFromMixedResult(result);
+	if (mergedDate) {
+		mergedGame.date = mergedDate;
+	}
+
+	if (!hasMergedSource) {
+		return null;
+	}
+
+	return mergedGame;
+}
+
+export function pickFirstMixedResult(
+	result: MixedSourceListResult,
+): MixedSourceResult {
+	return {
+		bgm_data: result.bgm_data?.[0] ?? null,
+		vndb_data: result.vndb_data?.[0] ?? null,
+		ymgal_data: result.ymgal_data?.[0] ?? null,
+		kun_data: result.kun_data?.[0] ?? null,
+	};
+}
+
+export function buildGameFromMixedSelection(params: {
+	selection: MixedSourceSelection;
+	enabled: MixedSourceEnabled;
+	defaults?: Partial<FullGameData>;
+}): FullGameData {
+	const { selection, enabled, defaults } = params;
+	const selectedEntries = mixedSourceMergeRules
+		.map(({ source }) => ({
+			source,
+			game: enabled[source] ? selection[source] : null,
+		}))
+		.filter((entry): entry is { source: SourceType; game: FullGameData } =>
+			Boolean(entry.game),
+		);
+
+	if (selectedEntries.length === 0) {
+		throw new Error("At least one mixed source must be selected");
+	}
+
+	if (selectedEntries.length === 1) {
+		const [{ source, game }] = selectedEntries;
+		const result: FullGameData = {
+			...defaults,
+			id_type: source,
+		};
+		mergeSourceIntoGame(result, game, source);
+
+		const date =
+			mixedSourceMergeRules
+				.find((rule) => rule.source === source)
+				?.getDate(game) ?? game.date;
+		if (date) {
+			result.date = date;
+		}
+
+		return result;
+	}
+
+	const mixedResult = mergeMixedResult({
+		bgm_data: enabled.bgm ? selection.bgm : null,
+		vndb_data: enabled.vndb ? selection.vndb : null,
+		ymgal_data: enabled.ymgal ? selection.ymgal : null,
+		kun_data: enabled.kun ? selection.kun : null,
+	});
+
+	if (!mixedResult) {
+		throw new Error("At least one mixed source must be selected");
+	}
+
+	return defaults ? { ...defaults, ...mixedResult } : mixedResult;
 }
 
 function getSourceUpdateId(
@@ -113,6 +290,7 @@ export async function fetchMetadataForUpdate({
 	let apiData: FullGameData;
 
 	if (idType === "mixed") {
+		const { gameMetadataService } = await import("@/api/gameMetadataService");
 		apiData = await gameMetadataService.getGameByIds({
 			bgmId,
 			vndbId,
@@ -131,6 +309,7 @@ export async function fetchMetadataForUpdate({
 			);
 		}
 
+		const { gameMetadataService } = await import("@/api/gameMetadataService");
 		apiData = await gameMetadataService.getGameById(sourceId, idType, bgmToken);
 	} else {
 		throw new Error(
