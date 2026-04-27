@@ -7,7 +7,6 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -41,7 +40,7 @@ const SOURCE_LABELS: Record<SourceType, string> = {
 
 function getDialogMaxWidth(sourceCount: number): "xs" | "sm" | "md" | "lg" {
 	if (sourceCount >= 4) {
-		return "lg";
+		return "sm";
 	}
 	if (sourceCount === 3) {
 		return "md";
@@ -50,6 +49,23 @@ function getDialogMaxWidth(sourceCount: number): "xs" | "sm" | "md" | "lg" {
 		return "sm";
 	}
 	return "xs";
+}
+
+function getSourceGridClassName(sourceCount: number): string {
+	if (sourceCount >= 4) {
+		return "grid grid-cols-2 gap-3";
+	}
+	if (sourceCount === 3) {
+		return "grid grid-cols-3 gap-3";
+	}
+	if (sourceCount === 2) {
+		return "grid grid-cols-2 gap-3";
+	}
+	return "grid grid-cols-1 gap-3";
+}
+
+function getCoverClassName(): string {
+	return "h-32 w-24";
 }
 
 function buildInitialState(candidates: MixedSourceCandidates): {
@@ -102,8 +118,8 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 		() => SOURCE_KEYS.filter((source) => (candidates[source]?.length ?? 0) > 0),
 		[candidates],
 	);
-	const desktopColumnCount = Math.max(1, Math.min(4, availableSources.length));
-	const tabletColumnCount = Math.max(1, Math.min(2, availableSources.length));
+	const sourceGridClassName = getSourceGridClassName(availableSources.length);
+	const coverClassName = getCoverClassName();
 
 	const activeSourceResults = activeSource ? candidates[activeSource] : [];
 
@@ -120,17 +136,7 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 					{title || t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 				</DialogTitle>
 				<DialogContent dividers>
-					<Box
-						sx={{
-							display: "grid",
-							gridTemplateColumns: {
-								xs: "1fr",
-								sm: `repeat(${tabletColumnCount}, minmax(0, 1fr))`,
-								md: `repeat(${desktopColumnCount}, minmax(0, 1fr))`,
-							},
-							gap: 1.5,
-						}}
-					>
+					<Box className={sourceGridClassName}>
 						{availableSources.map((source) => {
 							const selectedGame = selection[source] ?? null;
 							const displayInfo = selectedGame
@@ -140,15 +146,10 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 							return (
 								<Box
 									key={source}
-									sx={{
-										border: "1px solid",
-										borderColor: "divider",
-										borderRadius: 1,
-										p: 1,
-										minWidth: 0,
-									}}
+									className="min-w-0 border border-solid rounded p-3"
+									sx={{ borderColor: "divider" }}
 								>
-									<Stack spacing={1}>
+									<div className="flex min-w-0 flex-col gap-3">
 										<FormControlLabel
 											control={
 												<Checkbox
@@ -167,32 +168,18 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 										/>
 
 										{displayInfo ? (
-											<Stack direction="row" spacing={1.25} minWidth={0}>
+											<div className="flex min-w-0 items-start gap-3">
 												{displayInfo.image ? (
 													<Box
 														component="img"
 														src={displayInfo.image}
 														alt={displayInfo.name}
-														sx={{
-															width: 72,
-															height: 96,
-															objectFit: "cover",
-															borderRadius: 1,
-															flexShrink: 0,
-														}}
+														className={`${coverClassName} flex-shrink-0 rounded object-cover`}
 													/>
 												) : (
 													<Box
-														sx={{
-															width: 72,
-															height: 96,
-															bgcolor: "action.hover",
-															borderRadius: 1,
-															display: "flex",
-															alignItems: "center",
-															justifyContent: "center",
-															flexShrink: 0,
-														}}
+														className={`${coverClassName} flex flex-shrink-0 items-center justify-center rounded`}
+														sx={{ bgcolor: "action.hover" }}
 													>
 														<Typography
 															variant="caption"
@@ -202,7 +189,7 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 														</Typography>
 													</Box>
 												)}
-												<Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
+												<div className="min-w-0 flex-1 pt-0.5">
 													<Typography variant="subtitle2" noWrap>
 														{displayInfo.name_cn || displayInfo.name}
 													</Typography>
@@ -234,8 +221,8 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 															{displayInfo.date}
 														</Typography>
 													)}
-												</Box>
-											</Stack>
+												</div>
+											</div>
 										) : null}
 
 										<Button
@@ -246,7 +233,7 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 										>
 											{t("components.AddModal.viewMore", "查看更多")}
 										</Button>
-									</Stack>
+									</div>
 								</Box>
 							);
 						})}
