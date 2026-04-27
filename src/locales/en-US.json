@@ -51,7 +51,6 @@
 			"gameExists": "Game already exists",
 			"gameIDTips": "Game ID",
 			"gameName": "Game Name",
-			"idSearch": "Enable ID Search Mode",
 			"noBgmToken": "BGM_TOKEN is missing, unable to fetch data",
 			"noExecutableSelected": "No executable selected",
 			"noResults": "No results found",
@@ -69,7 +68,8 @@
 			"selectGame": "Select Game",
 			"selectLauncher": "Select Launcher",
 			"singleTab": "Single Add",
-			"timeout": "Request timed out, please try again later"
+			"timeout": "Request timed out, please try again later",
+			"viewMore": "View More"
 		},
 		"BulkImportModal": {
 			"selectRootFolder": "Select Root Folder",

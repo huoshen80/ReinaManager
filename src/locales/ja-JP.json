@@ -51,7 +51,6 @@
 			"gameExists": "ゲームはすでに存在します",
 			"gameIDTips": "ゲームID",
 			"gameName": "ゲーム名",
-			"idSearch": "ID検索モードを有効化",
 			"noBgmToken": "BGM_TOKENが設定されていません、データを取得できません",
 			"noExecutableSelected": "実行ファイルが選択されていません",
 			"noResults": "結果が見つかりませんでした",
@@ -69,7 +68,8 @@
 			"selectGame": "ゲームを選択",
 			"selectLauncher": "ランチャーを選択",
 			"singleTab": "単体追加",
-			"timeout": "タイムアウトしました。しばらくしてから再試行してください"
+			"timeout": "タイムアウトしました。しばらくしてから再試行してください",
+			"viewMore": "もっと見る"
 		},
 		"BulkImportModal": {
 			"selectRootFolder": "ルートフォルダを選択",

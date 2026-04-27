@@ -1,4 +1,14 @@
-import { Box, Card, CardContent, Stack, Typography } from "@mui/material";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import {
+	Accordion,
+	AccordionDetails,
+	AccordionSummary,
+	Box,
+	Card,
+	CardContent,
+	Stack,
+	Typography,
+} from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ViewGameBox } from "@/components/AlertBox";
@@ -90,18 +100,24 @@ function EditContent({ selectedGame }: { selectedGame: SelectedGameWithId }) {
 
 			<Stack spacing={4}>
 				{/* 第一部分：数据源更新 */}
-				<Card>
-					<CardContent>
-						<Typography variant="h6" gutterBottom>
+				<Accordion>
+					<AccordionSummary
+						expandIcon={<ArrowDropDownIcon />}
+						aria-controls="data-source-update-content"
+						id="data-source-update-header"
+					>
+						<Typography variant="h6" component="span">
 							{t("pages.Detail.Edit.dataSourceUpdate", "数据源更新")}
 						</Typography>
+					</AccordionSummary>
+					<AccordionDetails>
 						<DataSourceUpdate
 							bgmToken={bgmToken}
 							selectedGame={selectedGame}
 							onDataFetched={handleDataSourceFetched}
 						/>
-					</CardContent>
-				</Card>
+					</AccordionDetails>
+				</Accordion>
 
 				{/* 第二部分：游戏资料编辑 */}
 				<Card>

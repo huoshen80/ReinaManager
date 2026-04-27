@@ -117,8 +117,7 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 				aria-labelledby="mixed-source-confirm-dialog-title"
 			>
 				<DialogTitle id="mixed-source-confirm-dialog-title">
-					{title ||
-						t("components.AddModal.confirmMixedSources", "确认 Mixed 数据源")}
+					{title || t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 				</DialogTitle>
 				<DialogContent dividers>
 					<Box

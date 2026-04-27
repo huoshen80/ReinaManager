@@ -51,7 +51,6 @@
 			"gameExists": "游戏已存在",
 			"gameIDTips": "游戏ID",
 			"gameName": "游戏名称",
-			"idSearch": "启用ID搜索模式",
 			"noBgmToken": "缺少 BGM_TOKEN，无法获取数据",
 			"noExecutableSelected": "未选择可执行程序",
 			"noResults": "没有找到结果",
@@ -69,7 +68,8 @@
 			"selectGame": "选择游戏",
 			"selectLauncher": "选择启动程序",
 			"singleTab": "单个添加",
-			"timeout": "请求超时，请稍后重试"
+			"timeout": "请求超时，请稍后重试",
+			"viewMore": "查看更多"
 		},
 		"BulkImportModal": {
 			"selectRootFolder": "选择根文件夹",
