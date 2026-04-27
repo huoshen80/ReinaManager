@@ -13,8 +13,7 @@ import { getUserErrorMessage } from "@/utils/errors";
 interface SearchResultState {
 	open: boolean;
 	results: FullGameData[];
-	isIdSearch: boolean;
-	apiSource: apiSourceType;
+	apiSource: SourceType;
 }
 
 interface MixedCandidateState {
@@ -48,7 +47,6 @@ const EMPTY_MIXED_CANDIDATES: MixedSourceCandidates = {
 const initialSearchResultState: SearchResultState = {
 	open: false,
 	results: [],
-	isIdSearch: false,
 	apiSource: "bgm",
 };
 
@@ -157,10 +155,14 @@ export function useMetadataSearchFlow({
 					throw new Error(getNoResultsText(source));
 				}
 
+				if (gameMetadataService.shouldUseIdSearch(query, source)) {
+					await onResolved(results[0]);
+					return;
+				}
+
 				setSearchResultState({
 					open: true,
 					results,
-					isIdSearch: gameMetadataService.shouldUseIdSearch(query, source),
 					apiSource: source,
 				});
 			} catch (error) {
@@ -172,25 +174,8 @@ export function useMetadataSearchFlow({
 				setIsSearching(false);
 			}
 		},
-		[bgmToken, getNoResultsText, mixedEnabledSources, onError, t],
+		[bgmToken, getNoResultsText, mixedEnabledSources, onError, onResolved, t],
 	);
-
-	const confirmPreview = useCallback(async () => {
-		const previewGameData = searchResultState.results[0];
-		if (!previewGameData) {
-			return;
-		}
-
-		setIsSearching(true);
-		try {
-			await onResolved(previewGameData);
-			closeSearchResult();
-		} catch (error) {
-			onError(getUserErrorMessage(error, t));
-		} finally {
-			setIsSearching(false);
-		}
-	}, [closeSearchResult, onError, onResolved, searchResultState.results, t]);
 
 	const selectGame = useCallback(
 		async (selectedGame: FullGameData) => {
@@ -250,7 +235,6 @@ export function useMetadataSearchFlow({
 			closeSearchResult,
 			closeMixedCandidates,
 			reset,
-			confirmPreview,
 			selectGame,
 			confirmMixedSelection,
 		}),
@@ -258,7 +242,6 @@ export function useMetadataSearchFlow({
 			closeMixedCandidates,
 			closeSearchResult,
 			confirmMixedSelection,
-			confirmPreview,
 			isSearching,
 			mixedCandidateState,
 			reset,

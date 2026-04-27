@@ -43,7 +43,7 @@ import {
 	isAbortError,
 } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
-import GameSearchResultDialog from "./GameSearchResultDialog";
+import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 
 interface ImportItem extends ScanResult {
@@ -746,20 +746,14 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 				</DialogActions>
 			</Dialog>
 
-			<GameSearchResultDialog
+			<GameSelectDialog
 				open={metadataSearchFlow.searchResultState.open}
 				onClose={metadataSearchFlow.closeSearchResult}
 				results={metadataSearchFlow.searchResultState.results}
 				onSelect={metadataSearchFlow.selectGame}
-				onConfirmPreview={metadataSearchFlow.confirmPreview}
 				loading={searchResultLoading}
-				apiSource={editApiSource}
-				isIdSearch={metadataSearchFlow.searchResultState.isIdSearch}
-				previewTitle={t(
-					"components.BulkImportModal.editMetadata",
-					"编辑游戏信息",
-				)}
-				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
+				title={t("components.AddModal.selectGame", "选择游戏")}
+				apiSource={metadataSearchFlow.searchResultState.apiSource}
 			/>
 			<MixedSourceConfirmDialog
 				open={metadataSearchFlow.mixedCandidateState.open}

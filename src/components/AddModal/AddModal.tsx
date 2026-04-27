@@ -46,7 +46,7 @@ import {
 } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
 import BulkImportTab from "./BulkImportTab";
-import GameSearchResultDialog from "./GameSearchResultDialog";
+import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 
 /**
@@ -489,17 +489,14 @@ const AddModal: React.FC = () => {
 				)}
 			</Dialog>
 
-			<GameSearchResultDialog
+			<GameSelectDialog
 				open={metadataSearchFlow.searchResultState.open}
 				onClose={metadataSearchFlow.closeSearchResult}
 				results={metadataSearchFlow.searchResultState.results}
 				onSelect={metadataSearchFlow.selectGame}
-				onConfirmPreview={metadataSearchFlow.confirmPreview}
 				loading={isBusy}
-				apiSource={apiSource}
-				isIdSearch={metadataSearchFlow.searchResultState.isIdSearch}
-				previewTitle={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
-				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
+				title={t("components.AddModal.selectGame", "选择游戏")}
+				apiSource={metadataSearchFlow.searchResultState.apiSource}
 			/>
 			<MixedSourceConfirmDialog
 				open={metadataSearchFlow.mixedCandidateState.open}
