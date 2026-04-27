@@ -12,7 +12,7 @@ import { fetchMixedData } from "@/api/mixed";
 import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
 import type { apiSourceType, FullGameData, SourceType } from "@/types";
-import { SOURCE_FIELD_KEYS, SOURCE_KEYS } from "@/types";
+import { SOURCE_FIELD_KEYS } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 
 interface MixedSourceResult {
@@ -26,18 +26,6 @@ interface MixedSourceMergeRule {
 	source: SourceType;
 	resultKey: keyof MixedSourceResult;
 	getDate: (game: FullGameData) => string | undefined;
-}
-
-interface MixedGameIdParseResult {
-	bgmId?: string;
-	vndbId?: string;
-	ymgalId?: string;
-	kunId?: string;
-}
-
-interface MixedGameIdParseRule {
-	test: (input: string) => boolean;
-	parse: (input: string) => MixedGameIdParseResult;
 }
 
 const mixedSourceMergeRules: readonly MixedSourceMergeRule[] = [
@@ -68,21 +56,6 @@ const mixedIdTypePriority: readonly SourceType[] = [
 	"ymgal",
 	"vndb",
 	"bgm",
-];
-
-const mixedGameIdParseRules: readonly MixedGameIdParseRule[] = [
-	{
-		test: (input) => /^v\d+$/i.test(input),
-		parse: (input) => ({ vndbId: input }),
-	},
-	{
-		test: (input) => /^ga\d+$/i.test(input),
-		parse: (input) => ({ ymgalId: input.replace(/^ga/i, "") }),
-	},
-	{
-		test: (input) => /^\d+$/.test(input),
-		parse: (input) => ({ bgmId: input }),
-	},
 ];
 
 function assignGameField<Key extends keyof FullGameData>(
@@ -206,7 +179,6 @@ export interface GameSearchParams {
 	source?: SourceType; // 数据源（可选，不指定则为mixed）
 	bgmToken?: string; // BGM API访问令牌
 	defaults?: Partial<FullGameData>; // UI相关默认值，会合并到返回的FullGameData中
-	isIdSearch?: boolean; // 是否为ID搜索（由用户通过isID开关控制）
 	mixedEnabledSources?: readonly SourceType[]; // mixed 模式下允许请求的数据源
 }
 
@@ -235,32 +207,29 @@ const selectionDetailEnrichRules: Partial<
 class GameMetadataService {
 	/**
 	 * 游戏搜索主入口
-	 * - source 指定：单数据源搜索（id 返回单个游戏，名称返回列表）
-	 * - source 未指定：mixed 搜索（id 返回单个结果，名称返回各源第一个结果）
+	 * - source 指定：按当前数据源自动判断 ID 搜索，否则按名称返回列表
+	 * - source 未指定：mixed 名称搜索，返回各源第一个结果
 	 */
 	async searchGames(params: GameSearchParams): Promise<FullGameData[]> {
-		const {
-			query,
-			source,
-			bgmToken,
-			defaults,
-			isIdSearch,
-			mixedEnabledSources,
-		} = params;
-
-		// 使用用户传入的 isIdSearch，若未传入则自动判断
-		const isId = isIdSearch ?? this.isIdQuery(query); // 自动判断预留
+		const { query, source, bgmToken, defaults, mixedEnabledSources } = params;
 
 		return source
-			? this.searchSingleSource(query, source, bgmToken, defaults, isId)
-			: this.searchMixed(query, bgmToken, defaults, isId, mixedEnabledSources);
+			? this.searchSingleSource(
+					query,
+					source,
+					bgmToken,
+					defaults,
+					this.shouldUseIdSearch(query, source),
+				)
+			: this.searchMixed(query, bgmToken, defaults, mixedEnabledSources);
 	}
 
 	/**
-	 * 判断查询字符串是否为 ID
+	 * 根据当前数据源判断是否启用 ID 搜索。
+	 * Mixed 添加链路固定走名称搜索，避免单 ID 隐式扩散到所有源。
 	 */
-	private isIdQuery(query: string): boolean {
-		return SOURCE_KEYS.some((source) => this.isValidGameId(query, source));
+	shouldUseIdSearch(query: string, source: apiSourceType): boolean {
+		return source !== "mixed" && this.isValidGameId(query.trim(), source);
 	}
 
 	/**
@@ -289,18 +258,8 @@ class GameMetadataService {
 		query: string,
 		bgmToken: string | undefined,
 		defaults: Partial<FullGameData> | undefined,
-		isIdSearch: boolean,
 		mixedEnabledSources?: readonly SourceType[],
 	): Promise<FullGameData[]> {
-		if (isIdSearch) {
-			const result = await this.getMixedGameById(
-				query,
-				bgmToken,
-				mixedEnabledSources,
-			);
-			return [this.applyDefaults(result, defaults)];
-		}
-
 		const result = await this.getMixedGameByName(
 			query,
 			bgmToken,
@@ -341,7 +300,7 @@ class GameMetadataService {
 				case "vndb":
 					return await fetchVndbById(id);
 				case "ymgal":
-					return await fetchYmById(Number(id));
+					return await fetchYmById(id);
 				case "kun":
 					return await fetchGalgameById(id);
 				default:
@@ -359,17 +318,16 @@ class GameMetadataService {
 	/**
 	 * 处理“用户从搜索结果中选择一项”后的详情补全。
 	 * 规则：
-	 * - mixed 或 ID 搜索：直接返回原数据
+	 * - mixed 搜索：直接返回原数据
 	 * - 单源名称搜索：仅 ymgal/kun 需要按 id 拉取完整详情
 	 */
 	async enrichSelectedGameDetails(params: {
 		selectedGame: FullGameData;
 		source: apiSourceType;
-		isIdSearch?: boolean;
 	}): Promise<FullGameData> {
-		const { selectedGame, source, isIdSearch = false } = params;
+		const { selectedGame, source } = params;
 
-		if (isIdSearch || source === "mixed") {
+		if (source === "mixed") {
 			return selectedGame;
 		}
 
@@ -413,41 +371,6 @@ class GameMetadataService {
 				`Failed to search ${source} metadata by name`,
 				error,
 				`Metadata request failed for ${source} name search`,
-			);
-		}
-	}
-
-	/**
-	 * 根据单个 ID 获取 mixed 游戏数据
-	 */
-	private async getMixedGameById(
-		id: string,
-		bgmToken?: string,
-		enabledSources?: readonly SourceType[],
-	): Promise<FullGameData> {
-		const ids = this.parseGameId(id);
-		if (!ids.bgmId && !ids.vndbId && !ids.ymgalId) {
-			throw createStableError(
-				"invalid_game_id",
-				`Invalid mixed game id format: ${id}`,
-			);
-		}
-
-		try {
-			const result = await fetchMixedData({
-				bgm_id: ids.bgmId,
-				vndb_id: ids.vndbId,
-				ymgal_id: ids.ymgalId,
-				BGM_TOKEN: bgmToken,
-				enabledSources,
-			});
-
-			return ensureMixedResult(mergeMixedResult(result));
-		} catch (error) {
-			throw createMetadataError(
-				"Failed to fetch mixed metadata by id",
-				error,
-				"Mixed metadata lookup failed",
 			);
 		}
 	}
@@ -498,7 +421,7 @@ class GameMetadataService {
 			case "vndb":
 				return /^v\d+$/i.test(id);
 			case "ymgal":
-				return /^ga\d+$/i.test(id);
+				return /^(ga)?\d+$/i.test(id);
 			default:
 				return assertNever(source);
 		}
@@ -632,20 +555,6 @@ class GameMetadataService {
 		}
 
 		return matchedSources[0] ?? "unknown";
-	}
-
-	/**
-	 * 解析复合游戏 ID，返回各数据源的 ID
-	 */
-	parseGameId(input: string): MixedGameIdParseResult {
-		// mixed 的添加链路不解析 kunId，避免与纯数字的 bgmId 冲突。
-		for (const rule of mixedGameIdParseRules) {
-			if (rule.test(input)) {
-				return rule.parse(input);
-			}
-		}
-
-		return {};
 	}
 }
 

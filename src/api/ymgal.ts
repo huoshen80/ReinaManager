@@ -321,7 +321,7 @@ export async function fetchYmByName(
 	// 注意：详情请求失败时降级为首条轻量数据，避免上层 mixed 链路整体失败。
 	if (fetchDetailById && results.length > 0 && results[0].ymgal_id) {
 		try {
-			const detailedData = await fetchYmById(Number(results[0].ymgal_id));
+			const detailedData = await fetchYmById(results[0].ymgal_id);
 			return [detailedData];
 		} catch {
 			return [results[0]];
@@ -337,11 +337,12 @@ export async function fetchYmByName(
  * @param {number} gid YMGal 游戏 ID
  * @returns {Promise<FullGameData>} 游戏详细信息
  */
-export async function fetchYmById(gid: number): Promise<FullGameData> {
+export async function fetchYmById(gid: string): Promise<FullGameData> {
+	const id = Number(gid.replace(/^ga/i, ""));
 	const data = await ymApiRequest<{
 		game?: YmGameDetail;
 	}>("/open/archive", {
-		gid,
+		gid: id,
 	});
 
 	if (!data?.game) {
@@ -359,29 +360,4 @@ export async function fetchYmById(gid: number): Promise<FullGameData> {
 	}
 
 	return result;
-}
-
-/**
- * 批量获取 YMGal 游戏信息（通过 gid 数组）
- *
- * @param {number[]} gids YMGal 游戏 ID 数组
- * @returns {Promise<FullGameData[]>} 游戏信息数组
- */
-export async function fetchYmByIds(gids: number[]): Promise<FullGameData[]> {
-	const results = await Promise.allSettled(gids.map((gid) => fetchYmById(gid)));
-	const fulfilledResults = results
-		.filter(
-			(result): result is PromiseFulfilledResult<FullGameData> =>
-				result.status === "fulfilled",
-		)
-		.map((result) => result.value);
-
-	if (fulfilledResults.length === 0 && gids.length > 0) {
-		throw new AppError({
-			code: "metadata_request_failed",
-			message: `YMGal batch fetch failed for ${gids.length} ids`,
-		});
-	}
-
-	return fulfilledResults;
 }

@@ -58,6 +58,7 @@ const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
 interface SearchResultState {
 	open: boolean;
 	results: FullGameData[];
+	isIdSearch: boolean;
 }
 
 type AddModalTab = "single" | "bulk";
@@ -125,8 +126,6 @@ const AddModal: React.FC = () => {
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [customMode, setCustomMode] = useState(false);
-	// 保留 ID 搜索状态
-	const [isID, setisID] = useState(false);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const previousFocus = useRef<HTMLElement | null>(null);
 
@@ -134,6 +133,7 @@ const AddModal: React.FC = () => {
 		{
 			open: false,
 			results: [],
+			isIdSearch: false,
 		},
 	);
 
@@ -177,7 +177,7 @@ const AddModal: React.FC = () => {
 	 * 重置所有状态
 	 */
 	const resetState = useCallback(() => {
-		setSearchResultState({ open: false, results: [] });
+		setSearchResultState({ open: false, results: [], isIdSearch: false });
 		setFormText("");
 		setActiveTab("single");
 		setAddModalPath("");
@@ -199,7 +199,7 @@ const AddModal: React.FC = () => {
 	);
 
 	const handleCloseSearchResult = useCallback(() => {
-		setSearchResultState({ open: false, results: [] });
+		setSearchResultState({ open: false, results: [], isIdSearch: false });
 	}, []);
 
 	/**
@@ -240,7 +240,6 @@ const AddModal: React.FC = () => {
 					await gameMetadataService.enrichSelectedGameDetails({
 						selectedGame,
 						source: apiSource,
-						isIdSearch: isID,
 					});
 				await handleAddGame(resolvedGame);
 			} catch (error) {
@@ -249,7 +248,7 @@ const AddModal: React.FC = () => {
 				setLoading(false);
 			}
 		},
-		[apiSource, handleAddGame, isBusy, isID, showError, t],
+		[apiSource, handleAddGame, isBusy, showError, t],
 	);
 
 	/**
@@ -260,7 +259,6 @@ const AddModal: React.FC = () => {
 			query: formText,
 			source: apiSource === "mixed" ? undefined : apiSource,
 			bgmToken,
-			isIdSearch: isID,
 			mixedEnabledSources:
 				apiSource === "mixed" ? enabledMixedSources : undefined,
 			defaults: {
@@ -302,7 +300,7 @@ const AddModal: React.FC = () => {
 	/**
 	 * 提交表单，处理添加游戏的逻辑。
 	 * - 自定义模式下直接添加本地游戏。
-	 * - mixed 或 ID 搜索使用预览确认弹窗。
+	 * - mixed 或自动识别出的 ID 搜索使用预览确认弹窗。
 	 * - 单一数据源的名称搜索使用列表选择弹窗，并在选择后直接添加。
 	 */
 	const handleSubmit = async () => {
@@ -346,6 +344,7 @@ const AddModal: React.FC = () => {
 			setSearchResultState({
 				open: true,
 				results,
+				isIdSearch: gameMetadataService.shouldUseIdSearch(formText, apiSource),
 			});
 		} catch (error) {
 			if (isAbortError(error)) {
@@ -511,18 +510,6 @@ const AddModal: React.FC = () => {
 									disabled={isBusy}
 								/>
 							</RadioGroup>
-							<FormControlLabel
-								control={
-									<Switch
-										checked={isID}
-										onChange={() => {
-											setisID(!isID);
-										}}
-										disabled={isBusy}
-									/>
-								}
-								label={t("components.AddModal.idSearch")}
-							/>
 						</Stack>
 						{/* 游戏名称输入框 */}
 						<TextField
@@ -531,9 +518,11 @@ const AddModal: React.FC = () => {
 							id="name"
 							name="game-name"
 							label={
-								!isID
+								apiSource === "mixed"
 									? t("components.AddModal.gameName")
-									: t("components.AddModal.gameIDTips")
+									: `${t("components.AddModal.gameName")} / ${t(
+											"components.AddModal.gameIDTips",
+										)}`
 							}
 							type="text"
 							fullWidth
@@ -582,7 +571,7 @@ const AddModal: React.FC = () => {
 				onConfirmPreview={handleConfirmAdd}
 				loading={isBusy}
 				apiSource={apiSource}
-				isIdSearch={isID}
+				isIdSearch={searchResultState.isIdSearch}
 				previewTitle={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
 			/>

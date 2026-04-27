@@ -17,7 +17,6 @@ import {
 	RadioGroup,
 	Select,
 	Stack,
-	Switch,
 	Table,
 	TableBody,
 	TableCell,
@@ -60,6 +59,7 @@ interface BulkImportTabProps {
 interface SearchResultState {
 	open: boolean;
 	results: FullGameData[];
+	isIdSearch: boolean;
 }
 
 function getMatchedGameName(
@@ -110,11 +110,11 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const [editItemPath, setEditItemPath] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editApiSource, setEditApiSource] = useState<apiSourceType>("bgm");
-	const [editIsIdSearch, setEditIsIdSearch] = useState(false);
 	const [searchResultState, setSearchResultState] = useState<SearchResultState>(
 		{
 			open: false,
 			results: [],
+			isIdSearch: false,
 		},
 	);
 	const [searchResultLoading, setSearchResultLoading] = useState(false);
@@ -136,8 +136,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		setEditItemPath(null);
 		setEditName("");
 		setEditApiSource(preferredApiSource);
-		setEditIsIdSearch(false);
-		setSearchResultState({ open: false, results: [] });
+		setSearchResultState({ open: false, results: [], isIdSearch: false });
 		setSearchResultLoading(false);
 	}, [preferredApiSource]);
 
@@ -148,7 +147,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	}, [resetState]);
 
 	const handleCloseSearchResult = useCallback(() => {
-		setSearchResultState({ open: false, results: [] });
+		setSearchResultState({ open: false, results: [], isIdSearch: false });
 	}, []);
 
 	const handleCloseEditDialog = useCallback(() => {
@@ -341,7 +340,6 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 					query: editName,
 					source: editApiSource === "mixed" ? undefined : editApiSource,
 					bgmToken,
-					isIdSearch: editIsIdSearch,
 					mixedEnabledSources:
 						editApiSource === "mixed" ? enabledMixedSources : undefined,
 				}),
@@ -356,6 +354,10 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 			setSearchResultState({
 				open: true,
 				results: searchResults,
+				isIdSearch: gameMetadataService.shouldUseIdSearch(
+					editName,
+					editApiSource,
+				),
 			});
 		} catch (error) {
 			if (isAbortError(error)) {
@@ -397,7 +399,6 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 			const resolvedData = await gameMetadataService.enrichSelectedGameDetails({
 				selectedGame: selectedData,
 				source: editApiSource,
-				isIdSearch: editIsIdSearch,
 			});
 
 			const nextItems = [...items];
@@ -637,7 +638,6 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 														setEditItemPath(item.path);
 														setEditName(item.name);
 														setEditApiSource(preferredApiSource);
-														setEditIsIdSearch(false);
 													}}
 													disabled={item.status === "imported" || loading}
 												>
@@ -709,12 +709,11 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 					<Stack spacing={2} sx={{ mt: 1 }}>
 						<TextField
 							label={
-								!editIsIdSearch
+								editApiSource === "mixed"
 									? t("components.AddModal.gameName", "游戏名称")
-									: t(
+									: `${t("components.AddModal.gameName")} / ${t(
 											"components.AddModal.gameIDTips",
-											"游戏ID(输入BGM、VNDB 或 YMGal ID)",
-										)
+										)}`
 							}
 							value={editName}
 							onChange={(event) => setEditName(event.target.value)}
@@ -767,20 +766,6 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								/>
 							</RadioGroup>
 						</FormControl>
-						<FormControlLabel
-							control={
-								<Switch
-									checked={editIsIdSearch}
-									onChange={(event) => {
-										setEditIsIdSearch(event.target.checked);
-										setEditName("");
-									}}
-									size="small"
-									disabled={searchResultLoading}
-								/>
-							}
-							label={t("components.AddModal.idSearch", "启用ID搜索模式")}
-						/>
 					</Stack>
 				</DialogContent>
 				<DialogActions>
@@ -820,7 +805,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 				onConfirmPreview={handleEditRowPreviewConfirm}
 				loading={searchResultLoading}
 				apiSource={editApiSource}
-				isIdSearch={editIsIdSearch}
+				isIdSearch={searchResultState.isIdSearch}
 				previewTitle={t(
 					"components.BulkImportModal.editMetadata",
 					"编辑游戏信息",

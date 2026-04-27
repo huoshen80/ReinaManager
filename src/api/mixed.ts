@@ -97,7 +97,7 @@ async function getYmgalDataSafely(
 ): Promise<SafeFetchResult> {
 	try {
 		if (ymgal_id) {
-			return { data: await fetchYmById(Number(ymgal_id)), failed: false };
+			return { data: await fetchYmById(ymgal_id), failed: false };
 		}
 		// mixed 模式固定为“搜索后取索引0并补全详情”。
 		// 这样可以保证 mixed 预览尽量完整，同时避免对整页结果逐条补全。
