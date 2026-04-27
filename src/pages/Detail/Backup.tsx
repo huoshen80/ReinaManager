@@ -24,11 +24,13 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
-import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import {
+	SelectedGameGuard,
+	type SelectedGameWithId,
+} from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { snackbar } from "@/providers/snackBar";
-import { useStore } from "@/store/appStore";
 import type { SavedataRecord } from "@/types";
 import {
 	handleGetFolder,
@@ -51,12 +53,8 @@ const formatDate = (timestamp: number): string => {
 	return new Date(timestamp * 1000).toLocaleString();
 };
 
-type SelectedGame = NonNullable<
-	ReturnType<typeof useSelectedGame>["selectedGame"]
->;
-
 interface BackupContentProps {
-	selectedGame: SelectedGame;
+	selectedGame: SelectedGameWithId;
 	gameId: number;
 }
 
@@ -65,18 +63,13 @@ interface BackupContentProps {
  * 游戏存档备份页面
  */
 export const Backup: React.FC = () => {
-	const selectedGameId = useStore((state) => state.selectedGameId);
-	const { selectedGame } = useSelectedGame(selectedGameId);
-
-	if (!selectedGame?.id) {
-		return (
-			<Box sx={{ p: 3 }}>
-				<Typography color="textSecondary">请先选择一个游戏</Typography>
-			</Box>
-		);
-	}
-
-	return <BackupContent selectedGame={selectedGame} gameId={selectedGame.id} />;
+	return (
+		<SelectedGameGuard>
+			{(selectedGame) => (
+				<BackupContent selectedGame={selectedGame} gameId={selectedGame.id} />
+			)}
+		</SelectedGameGuard>
+	);
 };
 
 function BackupContent({ selectedGame, gameId }: BackupContentProps) {

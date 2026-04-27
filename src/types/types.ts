@@ -348,15 +348,6 @@ export interface GameData {
 }
 
 /**
- * 操作游戏相关属性类型
- */
-export interface HanleGamesProps {
-	id?: number;
-	getGameById: (id: number) => Promise<GameData>;
-	canUse?: () => boolean;
-}
-
-/**
  * 游戏会话记录
  */
 export interface GameSession {

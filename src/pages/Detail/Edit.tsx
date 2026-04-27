@@ -1,9 +1,11 @@
 import { Box, Card, CardContent, Stack, Typography } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
 import { ViewGameBox } from "@/components/AlertBox";
-import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import {
+	SelectedGameGuard,
+	type SelectedGameWithId,
+} from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
@@ -22,12 +24,19 @@ import { GameInfoEdit } from "./GameInfoEdit";
  * @returns 编辑页面
  */
 export const Edit: React.FC = () => {
+	return (
+		<SelectedGameGuard>
+			{(selectedGame) => <EditContent selectedGame={selectedGame} />}
+		</SelectedGameGuard>
+	);
+};
+
+function EditContent({ selectedGame }: { selectedGame: SelectedGameWithId }) {
 	const { data: settings } = useAllSettings();
 	const bgmToken = settings?.bgm_token ?? "";
-	const id = Number(useLocation().pathname.split("/").pop());
-	const { selectedGame } = useSelectedGame(id);
 	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
+	const id = selectedGame.id;
 
 	// UI 状态
 	const [gameData, setGameData] = useState<FullGameData | null>(null);
@@ -52,8 +61,6 @@ export const Edit: React.FC = () => {
 
 	// 处理游戏信息保存
 	const handleGameInfoSave = async (data: UpdateGameParams) => {
-		if (!selectedGame) return;
-
 		try {
 			await updateGameMutation.mutateAsync({ gameId: id, updates: data });
 			snackbar.success(
@@ -111,4 +118,4 @@ export const Edit: React.FC = () => {
 			</Stack>
 		</Box>
 	);
-};
+}

@@ -22,7 +22,6 @@ import type {
 	BgmData,
 	GameData,
 	GameLaunchOptions,
-	HanleGamesProps,
 	StopGameResult,
 	VndbData,
 } from "@/types";
@@ -156,17 +155,11 @@ export const isAbortError = (error: unknown): boolean => {
 	return error instanceof DOMException && error.name === "AbortError";
 };
 
-export const handleOpenFolder = async ({
-	id,
-	getGameById,
-}: HanleGamesProps) => {
-	if (!id) {
-		console.error("未选择游戏");
-		return;
-	}
+export const handleOpenFolder = async (
+	selectedGame: Pick<GameData, "localpath">,
+) => {
 	try {
-		const selectedGame = await getGameById(id);
-		if (!selectedGame?.localpath) {
+		if (!selectedGame.localpath) {
 			console.error("游戏路径未找到");
 			return;
 		}

@@ -81,6 +81,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const { t } = useTranslation();
+	const haslocalpath = selectedGame?.localpath;
 
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
@@ -93,8 +94,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 * @returns {boolean}
 	 */
 	const canUse = () => {
-		if (id !== undefined && id !== null)
-			return selectedGame?.localpath && !isThisGameRunning;
+		if (id) return haslocalpath && !isThisGameRunning;
 	};
 
 	/**
@@ -210,10 +210,10 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 				{/* 打开游戏文件夹 */}
 				<MenuItem
-					disabled={id == null || !selectedGame?.localpath}
+					disabled={id == null || !haslocalpath}
 					onClick={() => {
-						if (id != null) {
-							handleOpenFolder({ id, getGameById });
+						if (haslocalpath) {
+							handleOpenFolder(selectedGame);
 						}
 						setAnchorEl(null);
 					}}

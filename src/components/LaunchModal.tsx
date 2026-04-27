@@ -27,7 +27,10 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import {
+	SelectedGameGuard,
+	type SelectedGameWithId,
+} from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
@@ -35,10 +38,6 @@ import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { UpdateGameParams } from "@/types";
 import { handleExeFile } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
-
-type LaunchSelectedGame = NonNullable<
-	ReturnType<typeof useSelectedGame>["selectedGame"]
->;
 
 /**
  * 格式化游戏时长显示
@@ -60,7 +59,7 @@ const formatPlayTime = (minutes: number, seconds: number): string => {
 /**
  * LaunchModal 组件
  * 判断游戏是否可启动、是否正在运行，并渲染启动按钮。
- * 仅本地游戏且未运行时可启动
+ * 仅本地游戏且未运行时可启动。
  * 运行时显示实时游戏时长。
  * 支持两种计时模式：
  * - playtime: 真实游戏时间（仅活跃时间，通过后端事件更新）
@@ -70,41 +69,38 @@ const formatPlayTime = (minutes: number, seconds: number): string => {
  */
 export const LaunchModal = () => {
 	const { t } = useTranslation();
-	const selectedGameId = useStore((s) => s.selectedGameId);
-	const { selectedGame, isLoadingSelectedGame } =
-		useSelectedGame(selectedGameId);
-	const hasSelectedGame = selectedGameId !== null;
-
-	if (!hasSelectedGame || isLoadingSelectedGame || !selectedGame?.id) {
-		return (
-			<Button startIcon={<PlayArrowIcon />} disabled>
-				{t("components.LaunchModal.launchGame")}
-			</Button>
-		);
-	}
+	const disabledFallback = (
+		<Button startIcon={<PlayArrowIcon />} disabled>
+			{t("components.LaunchModal.launchGame")}
+		</Button>
+	);
 
 	return (
-		<LaunchModalContent
-			selectedGame={selectedGame}
-			selectedGameId={selectedGameId}
-		/>
+		<SelectedGameGuard
+			fallback={disabledFallback}
+			loadingFallback={disabledFallback}
+			notFoundFallback={disabledFallback}
+		>
+			{(selectedGame) => <LaunchModalContent selectedGame={selectedGame} />}
+		</SelectedGameGuard>
 	);
 };
 
 interface LaunchModalContentProps {
-	selectedGame: LaunchSelectedGame;
-	selectedGameId: number;
+	selectedGame: SelectedGameWithId;
 }
 
-function LaunchModalContent({
-	selectedGame,
-	selectedGameId,
-}: LaunchModalContentProps) {
+function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 	const { t } = useTranslation();
 	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
 	const updateGameMutation = useUpdateGame();
 	const { launchGame, stopGame, isGameRunning, getGameRealTimeState } =
 		useGamePlayStore();
+
+	const selectedGameId = selectedGame.id;
+	const isThisGameRunning = isGameRunning(selectedGameId);
+	const hasLocalPath = Boolean(selectedGame.localpath);
+	const realTimeState = getGameRealTimeState(selectedGameId);
 
 	// 用于 elapsed 模式下的前端计时器显示
 	const timerRef = useRef<HTMLSpanElement>(null);
@@ -114,10 +110,6 @@ function LaunchModalContent({
 	const [pathDialogOpen, setPathDialogOpen] = useState(false);
 	const [localPath, setLocalPath] = useState<string>("");
 	const [isSaving, setIsSaving] = useState(false);
-
-	const isThisGameRunning = isGameRunning(selectedGameId);
-	const hasLocalPath = Boolean(selectedGame.localpath?.trim());
-	const realTimeState = getGameRealTimeState(selectedGameId);
 
 	useEffect(() => {
 		if (

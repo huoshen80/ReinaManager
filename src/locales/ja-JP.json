@@ -151,6 +151,10 @@
 			"stoppingGame": "ゲームを停止中...",
 			"syncLocalPath": "ローカル同期"
 		},
+		"SelectedGameGuard": {
+			"noSelected": "先にゲームを選択してください",
+			"notFound": "ゲームが存在しないか、削除されました"
+		},
 		"PathSettingsModal": {
 			"close": "閉じる",
 			"dbBackupPath": {

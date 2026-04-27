@@ -61,17 +61,17 @@ import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
-import SortModal from "@/components/SortModal";
 import {
-	useGetGameById,
-	useSelectedGame,
-} from "@/hooks/features/games/useGameFacade";
+	SelectedGameGuard,
+	type SelectedGameWithId,
+} from "@/components/SelectedGameGuard";
+import SortModal from "@/components/SortModal";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
-import type { HanleGamesProps, SourceType } from "@/types";
+import type { SourceType } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
 import { CollectionToolbar } from "./Collection";
@@ -110,10 +110,6 @@ const SourceLinkIcon = ({ source }: { source: SourceType }) => {
 		/>
 	);
 };
-
-type ToolbarSelectedGame = NonNullable<
-	ReturnType<typeof useSelectedGame>["selectedGame"]
->;
 
 /**
  * 主题切换组件（亮色 / 暗色 / 跟随系统）
@@ -261,13 +257,11 @@ export const useModal = () => {
 /**
  * 打开游戏文件夹按钮
  * 订阅 allGames 确保当游戏 localpath 更新时按钮状态同步
- * @param {HanleGamesProps} props
  * @returns {JSX.Element}
  */
-const OpenFolder = ({ id, getGameById }: HanleGamesProps) => {
+const OpenFolder = ({ selectedGame }: { selectedGame: SelectedGameWithId }) => {
 	const { t } = useTranslation();
-	const { selectedGame } = useSelectedGame(id);
-	const isDisabled = selectedGame?.localpath == null;
+	const isDisabled = selectedGame.localpath == null;
 
 	return (
 		<Button
@@ -275,7 +269,7 @@ const OpenFolder = ({ id, getGameById }: HanleGamesProps) => {
 			color="primary"
 			variant="text"
 			disabled={isDisabled}
-			onClick={() => handleOpenFolder({ id, getGameById })}
+			onClick={() => handleOpenFolder(selectedGame)}
 		>
 			{t("components.Toolbar.openGameFolder")}
 		</Button>
@@ -300,8 +294,6 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 	 * 删除游戏操作
 	 */
 	const handleDeleteGame = async () => {
-		if (!id) return;
-
 		try {
 			setIsDeleting(true);
 			await deleteGameMutation.mutateAsync(id);
@@ -342,36 +334,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
  * 详情页更多操作按钮（外链等）
  * @returns {JSX.Element}
  */
-const MoreButton = () => {
-	const selectedGameId = useStore((state) => state.selectedGameId);
-	const { selectedGame } = useSelectedGame(selectedGameId);
-	const { t } = useTranslation();
-
-	if (!selectedGame?.id) {
-		return (
-			<Button
-				startIcon={<MoreVertIcon />}
-				color="inherit"
-				variant="text"
-				disabled
-			>
-				{t("components.Toolbar.more")}
-			</Button>
-		);
-	}
-
-	return (
-		<MoreButtonContent selectedGame={selectedGame} gameId={selectedGame.id} />
-	);
-};
-
-function MoreButtonContent({
-	selectedGame,
-	gameId,
-}: {
-	selectedGame: ToolbarSelectedGame;
-	gameId: number;
-}) {
+const MoreButton = ({ selectedGame }: { selectedGame: SelectedGameWithId }) => {
 	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -383,6 +346,7 @@ function MoreButtonContent({
 
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
+	const gameId = selectedGame.id;
 
 	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -561,7 +525,6 @@ function MoreButtonContent({
 				<PlayStatusSubmenu
 					currentStatus={selectedGame.clear}
 					onStatusChange={handlePlayStatusChange}
-					i18nPrefix="components.Toolbar"
 					iconSize="small"
 					expandDirection="left"
 				/>
@@ -575,7 +538,7 @@ function MoreButtonContent({
 			/>
 		</>
 	);
-}
+};
 
 /**
  * 顶部按钮组组件，根据页面类型切换显示内容
@@ -588,20 +551,27 @@ export const Buttongroup = ({
 	isCollection,
 }: ButtonGroupProps) => {
 	const { t } = useTranslation();
-	const selectedGameId = useStore((state) => state.selectedGameId);
 	const openAddModal = useStore((state) => state.openAddModal);
-	const getGameById = useGetGameById();
+	const detailFallback = <ThemeSwitcher />;
 
 	return (
 		<>
-			{isDetail && selectedGameId && (
-				<>
-					<LaunchModal />
-					<OpenFolder id={selectedGameId} getGameById={getGameById} />
-					<DeleteModal id={selectedGameId} />
-					<MoreButton />
-					<ThemeSwitcher />
-				</>
+			{isDetail && (
+				<SelectedGameGuard
+					fallback={detailFallback}
+					loadingFallback={detailFallback}
+					notFoundFallback={detailFallback}
+				>
+					{(selectedGame) => (
+						<>
+							<LaunchModal />
+							<OpenFolder selectedGame={selectedGame} />
+							<DeleteModal id={selectedGame.id} />
+							<MoreButton selectedGame={selectedGame} />
+							<ThemeSwitcher />
+						</>
+					)}
+				</SelectedGameGuard>
 			)}
 			{isLibraries && (
 				<>

@@ -153,6 +153,10 @@
 			"stoppingGame": "Stopping game...",
 			"syncLocalPath": "Sync Local"
 		},
+		"SelectedGameGuard": {
+			"noSelected": "Please select a game first",
+			"notFound": "Game not found or has been deleted"
+		},
 		"PathSettingsModal": {
 			"close": "Close",
 			"dbBackupPath": {

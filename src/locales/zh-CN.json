@@ -149,6 +149,10 @@
 			"stoppingGame": "停止游戏中...",
 			"syncLocalPath": "同步本地"
 		},
+		"SelectedGameGuard": {
+			"noSelected": "请先选择游戏",
+			"notFound": "游戏不存在或已被删除"
+		},
 		"PathSettingsModal": {
 			"close": "关闭",
 			"dbBackupPath": {
