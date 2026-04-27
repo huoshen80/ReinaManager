@@ -31,12 +31,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { gameMetadataService } from "@/api";
-import type {
-	MixedSourceCandidates,
-	MixedSourceEnabled,
-	MixedSourceSelection,
-} from "@/api/gameMetadataService";
+import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
 import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useAddGame } from "@/hooks/queries/useGames";
@@ -47,7 +42,6 @@ import type { apiSourceType, FullGameData, InsertGameParams } from "@/types";
 import {
 	createAbortableRunner,
 	handleExeFile,
-	isAbortError,
 	trimDirnameToSearchName,
 } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
@@ -61,25 +55,7 @@ import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 const REQUEST_TIMEOUT_MS = 100000; // 请求超时时间
 const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
 
-interface SearchResultState {
-	open: boolean;
-	results: FullGameData[];
-	isIdSearch: boolean;
-}
-
-interface MixedCandidateState {
-	open: boolean;
-	candidates: MixedSourceCandidates;
-}
-
 type AddModalTab = "single" | "bulk";
-
-const EMPTY_MIXED_CANDIDATES: MixedSourceCandidates = {
-	bgm: [],
-	vndb: [],
-	ymgal: [],
-	kun: [],
-};
 
 /**
  * 从文件路径中提取文件夹名称并清洗（纯函数，置于组件外以保证稳定引用）
@@ -142,34 +118,13 @@ const AddModal: React.FC = () => {
 
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
+	const [customLoading, setCustomLoading] = useState(false);
 	const [customMode, setCustomMode] = useState(false);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const previousFocus = useRef<HTMLElement | null>(null);
 
-	const [searchResultState, setSearchResultState] = useState<SearchResultState>(
-		{
-			open: false,
-			results: [],
-			isIdSearch: false,
-		},
-	);
-	const [mixedCandidateState, setMixedCandidateState] =
-		useState<MixedCandidateState>({
-			open: false,
-			candidates: EMPTY_MIXED_CANDIDATES,
-		});
-
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
-	const isBusy = loading || isAddingGame;
-
-	const { isDragging } = useTauriDragDrop({
-		onValidPath: (selectedPath) => {
-			if (isBusy) return;
-			openAddModal(selectedPath);
-		},
-	});
 
 	const showError = useCallback((message: string) => {
 		setError(message);
@@ -196,26 +151,6 @@ const AddModal: React.FC = () => {
 		}
 	}, [addModalOpen]);
 
-	/**
-	 * 重置所有状态
-	 */
-	const resetState = useCallback(() => {
-		setSearchResultState({ open: false, results: [], isIdSearch: false });
-		setMixedCandidateState({
-			open: false,
-			candidates: EMPTY_MIXED_CANDIDATES,
-		});
-		setFormText("");
-		setActiveTab("single");
-		setAddModalPath("");
-		setError("");
-	}, [setAddModalPath]);
-
-	const handleCloseModal = useCallback(() => {
-		if (isBusy) return;
-		closeAddModal();
-	}, [closeAddModal, isBusy]);
-
 	const handleAddGame = useCallback(
 		async (gameData: FullGameData) => {
 			const gameId = await addGameFromMetadata(gameData);
@@ -225,157 +160,67 @@ const AddModal: React.FC = () => {
 		[addGameFromMetadata, closeAddModal, navigate, t],
 	);
 
-	const handleCloseSearchResult = useCallback(() => {
-		setSearchResultState({ open: false, results: [], isIdSearch: false });
-	}, []);
+	const metadataSearchFlow = useMetadataSearchFlow({
+		bgmToken,
+		mixedEnabledSources: enabledMixedSources,
+		t,
+		onResolved: handleAddGame,
+		onError: showError,
+		getNoResultsMessage: (source) => {
+			if (source === "mixed") {
+				return t("components.AddModal.noResultsMixed");
+			}
+			if (source === "bgm") {
+				if (!bgmToken) {
+					return t("components.AddModal.noBgmToken");
+				}
+				return t("components.AddModal.noResultsBgm");
+			}
+			if (source === "vndb") {
+				return t("components.AddModal.noResultsVndb");
+			}
+			if (source === "ymgal") {
+				return t("components.AddModal.noResultsYmgal");
+			}
+			if (source === "kun") {
+				return t("components.AddModal.noResultsKun", "Kungal 未找到相关结果");
+			}
+			return t("components.AddModal.noResults");
+		},
+	});
+	const isBusy =
+		customLoading || metadataSearchFlow.isSearching || isAddingGame;
 
-	const handleCloseMixedCandidates = useCallback(() => {
-		setMixedCandidateState({
-			open: false,
-			candidates: EMPTY_MIXED_CANDIDATES,
-		});
-	}, []);
+	const { isDragging } = useTauriDragDrop({
+		onValidPath: (selectedPath) => {
+			if (isBusy) return;
+			openAddModal(selectedPath);
+		},
+	});
 
 	/**
-	 * 处理预览确认弹窗的确认操作
+	 * 重置所有状态
 	 */
-	const handleConfirmAdd = useCallback(async () => {
-		const finaldata = searchResultState.results[0];
-		if (!finaldata) return;
+	const resetState = useCallback(() => {
+		metadataSearchFlow.reset();
+		setFormText("");
+		setActiveTab("single");
+		setAddModalPath("");
+		setError("");
+	}, [metadataSearchFlow, setAddModalPath]);
 
-		try {
-			await handleAddGame(finaldata);
-		} catch (error) {
-			showError(getUserErrorMessage(error, t));
-		}
-	}, [handleAddGame, searchResultState.results, showError, t]);
+	const handleCloseModal = useCallback(() => {
+		if (isBusy) return;
+		closeAddModal();
+	}, [closeAddModal, isBusy]);
 
 	const cancelOngoingRequest = useCallback(() => {
 		if (abortControllerRef.current) {
 			abortControllerRef.current.abort();
 		}
 		abortControllerRef.current = null;
-		setLoading(false);
 		closeAddModal();
 	}, [closeAddModal]);
-
-	/**
-	 * 处理从列表中选择游戏
-	 */
-	const handleSelectGame = useCallback(
-		async (selectedGame: FullGameData) => {
-			if (!selectedGame || isBusy) {
-				return;
-			}
-
-			try {
-				setLoading(true);
-				const resolvedGame =
-					await gameMetadataService.enrichSelectedGameDetails({
-						selectedGame,
-						source: apiSource,
-					});
-				await handleAddGame(resolvedGame);
-			} catch (error) {
-				showError(getUserErrorMessage(error, t));
-			} finally {
-				setLoading(false);
-			}
-		},
-		[apiSource, handleAddGame, isBusy, showError, t],
-	);
-
-	/**
-	 * 获取搜索结果，并根据数据源决定使用哪种弹窗
-	 */
-	const fetchFromDataSource = async (): Promise<FullGameData[]> => {
-		const searchResults = await gameMetadataService.searchGames({
-			query: formText,
-			source: apiSource === "mixed" ? undefined : apiSource,
-			bgmToken,
-			mixedEnabledSources:
-				apiSource === "mixed" ? enabledMixedSources : undefined,
-			defaults: {
-				localpath: addModalPath,
-			},
-		});
-
-		if (searchResults.length === 0) {
-			// 根据数据源和搜索类型抛出更具体的错误
-			if (apiSource === "mixed") {
-				throw new Error(t("components.AddModal.noResultsMixed"));
-			}
-			if (apiSource === "bgm") {
-				// 检查 BGM 数据源是否缺少 token
-				if (!bgmToken) {
-					throw new Error(t("components.AddModal.noBgmToken"));
-				}
-
-				throw new Error(t("components.AddModal.noResultsBgm"));
-			}
-			if (apiSource === "vndb") {
-				throw new Error(t("components.AddModal.noResultsVndb"));
-			}
-			if (apiSource === "ymgal") {
-				throw new Error(t("components.AddModal.noResultsYmgal"));
-			}
-			if (apiSource === "kun") {
-				throw new Error(
-					t("components.AddModal.noResultsKun", "Kungal 未找到相关结果"),
-				);
-			}
-			// 默认错误
-			throw new Error(t("components.AddModal.noResults"));
-		}
-
-		return searchResults;
-	};
-
-	const fetchMixedCandidates = async (): Promise<MixedSourceCandidates> => {
-		const candidates = await gameMetadataService.searchMixedSourceCandidates({
-			query: formText,
-			bgmToken,
-			mixedEnabledSources: enabledMixedSources,
-			defaults: {
-				localpath: addModalPath,
-			},
-		});
-		const hasAnyCandidate = Object.values(candidates).some(
-			(sourceCandidates) => sourceCandidates.length > 0,
-		);
-
-		if (!hasAnyCandidate) {
-			throw new Error(t("components.AddModal.noResultsMixed"));
-		}
-
-		return candidates;
-	};
-
-	const handleConfirmMixedSelection = useCallback(
-		async (selection: MixedSourceSelection, enabled: MixedSourceEnabled) => {
-			try {
-				setLoading(true);
-				const enrichedSelection =
-					await gameMetadataService.enrichMixedSourceSelection(
-						selection,
-						enabled,
-					);
-				const gameData = gameMetadataService.buildGameFromMixedSelection({
-					selection: enrichedSelection,
-					enabled,
-					defaults: {
-						localpath: addModalPath,
-					},
-				});
-				await handleAddGame(gameData);
-			} catch (error) {
-				showError(getUserErrorMessage(error, t));
-			} finally {
-				setLoading(false);
-			}
-		},
-		[addModalPath, handleAddGame, showError, t],
-	);
 
 	/**
 	 * 提交表单，处理添加游戏的逻辑。
@@ -395,8 +240,6 @@ const AddModal: React.FC = () => {
 		}, REQUEST_TIMEOUT_MS);
 
 		try {
-			setLoading(true);
-
 			const defaultdata = {
 				localpath: addModalPath,
 			};
@@ -406,6 +249,7 @@ const AddModal: React.FC = () => {
 					showError(t("components.AddModal.noExecutableSelected"));
 					return;
 				}
+				setCustomLoading(true);
 				const customGameData: InsertGameParams = {
 					...defaultdata,
 					id_type: "custom", // 标记为自定义
@@ -419,33 +263,22 @@ const AddModal: React.FC = () => {
 				return;
 			}
 
-			if (apiSource === "mixed") {
-				const candidates = await withAbort(fetchMixedCandidates());
-				setMixedCandidateState({
-					open: true,
-					candidates,
-				});
-				return;
-			}
-
-			// 场景2-4: 通过 API 获取数据
-			const results = await withAbort(fetchFromDataSource());
-			setSearchResultState({
-				open: true,
-				results,
-				isIdSearch: gameMetadataService.shouldUseIdSearch(formText, apiSource),
+			await metadataSearchFlow.searchMetadata({
+				query: formText,
+				source: apiSource,
+				defaults: {
+					localpath: addModalPath,
+				},
+				withAbort,
 			});
 		} catch (error) {
-			if (isAbortError(error)) {
-				return;
-			}
 			showError(getUserErrorMessage(error, t));
 		} finally {
 			window.clearTimeout(timeoutId);
 			if (abortControllerRef.current === controller) {
 				abortControllerRef.current = null;
 			}
-			setLoading(false);
+			setCustomLoading(false);
 		}
 	};
 
@@ -632,7 +465,11 @@ const AddModal: React.FC = () => {
 						{/* 取消按钮 */}
 						<Button
 							variant="outlined"
-							onClick={loading ? cancelOngoingRequest : handleCloseModal}
+							onClick={
+								metadataSearchFlow.isSearching
+									? cancelOngoingRequest
+									: handleCloseModal
+							}
 							disabled={isAddingGame}
 						>
 							{t("components.AddModal.cancel")}
@@ -653,22 +490,22 @@ const AddModal: React.FC = () => {
 			</Dialog>
 
 			<GameSearchResultDialog
-				open={searchResultState.open}
-				onClose={handleCloseSearchResult}
-				results={searchResultState.results}
-				onSelect={handleSelectGame}
-				onConfirmPreview={handleConfirmAdd}
+				open={metadataSearchFlow.searchResultState.open}
+				onClose={metadataSearchFlow.closeSearchResult}
+				results={metadataSearchFlow.searchResultState.results}
+				onSelect={metadataSearchFlow.selectGame}
+				onConfirmPreview={metadataSearchFlow.confirmPreview}
 				loading={isBusy}
 				apiSource={apiSource}
-				isIdSearch={searchResultState.isIdSearch}
+				isIdSearch={metadataSearchFlow.searchResultState.isIdSearch}
 				previewTitle={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
 			/>
 			<MixedSourceConfirmDialog
-				open={mixedCandidateState.open}
-				onClose={handleCloseMixedCandidates}
-				candidates={mixedCandidateState.candidates}
-				onConfirm={handleConfirmMixedSelection}
+				open={metadataSearchFlow.mixedCandidateState.open}
+				onClose={metadataSearchFlow.closeMixedCandidates}
+				candidates={metadataSearchFlow.mixedCandidateState.candidates}
+				onConfirm={metadataSearchFlow.confirmMixedSelection}
 				loading={isBusy}
 				title={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 			/>

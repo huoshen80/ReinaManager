@@ -30,11 +30,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { gameMetadataService } from "@/api";
-import type {
-	MixedSourceCandidates,
-	MixedSourceEnabled,
-	MixedSourceSelection,
-} from "@/api/gameMetadataService";
+import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
@@ -61,24 +57,6 @@ interface BulkImportTabProps {
 	hidden: boolean;
 	onClose: () => void;
 }
-
-interface SearchResultState {
-	open: boolean;
-	results: FullGameData[];
-	isIdSearch: boolean;
-}
-
-interface MixedCandidateState {
-	open: boolean;
-	candidates: MixedSourceCandidates;
-}
-
-const EMPTY_MIXED_CANDIDATES: MixedSourceCandidates = {
-	bgm: [],
-	vndb: [],
-	ymgal: [],
-	kun: [],
-};
 
 function getMatchedGameName(
 	gameData: FullGameData | undefined,
@@ -128,22 +106,42 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const [editItemPath, setEditItemPath] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editApiSource, setEditApiSource] = useState<apiSourceType>("bgm");
-	const [searchResultState, setSearchResultState] = useState<SearchResultState>(
-		{
-			open: false,
-			results: [],
-			isIdSearch: false,
-		},
-	);
-	const [mixedCandidateState, setMixedCandidateState] =
-		useState<MixedCandidateState>({
-			open: false,
-			candidates: EMPTY_MIXED_CANDIDATES,
-		});
-	const [searchResultLoading, setSearchResultLoading] = useState(false);
 	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
 	const matchAbortControllerRef = useRef<AbortController | null>(null);
 	const loading = isMatchingMetadata || isScanningDirectories || isAddingGames;
+
+	const handleResolvedEditMetadata = useCallback(
+		async (resolvedData: FullGameData) => {
+			if (!editItemPath) return;
+
+			setItems((prevItems) => {
+				const nextItems = [...prevItems];
+				const itemIndex = nextItems.findIndex(
+					(item) => item.path === editItemPath,
+				);
+				if (itemIndex !== -1) {
+					nextItems[itemIndex].name = editName;
+					nextItems[itemIndex].matchedData = resolvedData;
+					nextItems[itemIndex].status = "matched";
+				}
+				return nextItems;
+			});
+			setEditItemPath(null);
+		},
+		[editItemPath, editName],
+	);
+
+	const metadataSearchFlow = useMetadataSearchFlow({
+		bgmToken,
+		mixedEnabledSources: enabledMixedSources,
+		t,
+		onResolved: handleResolvedEditMetadata,
+		onError: (message) => snackbar.error(message),
+		getNoResultsMessage: () =>
+			t("components.AddModal.noResults", "没有找到结果"),
+	});
+	const searchResultLoading = metadataSearchFlow.isSearching;
+
 	const resetState = useCallback(() => {
 		if (editSearchAbortControllerRef.current) {
 			editSearchAbortControllerRef.current.abort();
@@ -159,13 +157,8 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		setEditItemPath(null);
 		setEditName("");
 		setEditApiSource(preferredApiSource);
-		setSearchResultState({ open: false, results: [], isIdSearch: false });
-		setMixedCandidateState({
-			open: false,
-			candidates: EMPTY_MIXED_CANDIDATES,
-		});
-		setSearchResultLoading(false);
-	}, [preferredApiSource]);
+		metadataSearchFlow.reset();
+	}, [metadataSearchFlow, preferredApiSource]);
 
 	useEffect(() => {
 		if (!open) {
@@ -173,28 +166,15 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		}
 	}, [resetState]);
 
-	const handleCloseSearchResult = useCallback(() => {
-		setSearchResultState({ open: false, results: [], isIdSearch: false });
-	}, []);
-
-	const handleCloseMixedCandidates = useCallback(() => {
-		setMixedCandidateState({
-			open: false,
-			candidates: EMPTY_MIXED_CANDIDATES,
-		});
-	}, []);
-
 	const handleCloseEditDialog = useCallback(() => {
 		if (editSearchAbortControllerRef.current) {
 			editSearchAbortControllerRef.current.abort();
 			editSearchAbortControllerRef.current = null;
 		}
 
-		setSearchResultLoading(false);
-		handleCloseSearchResult();
-		handleCloseMixedCandidates();
+		metadataSearchFlow.reset();
 		setEditItemPath(null);
-	}, [handleCloseSearchResult, handleCloseMixedCandidates]);
+	}, [metadataSearchFlow]);
 
 	const handleCancel = useCallback(() => {
 		if (isMatchingMetadata && matchAbortControllerRef.current) {
@@ -368,54 +348,11 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		const { controller, withAbort } = createAbortableRunner();
 		editSearchAbortControllerRef.current = controller;
 
-		setSearchResultLoading(true);
 		try {
-			if (editApiSource === "mixed") {
-				const candidates = await withAbort(
-					gameMetadataService.searchMixedSourceCandidates({
-						query: editName,
-						bgmToken,
-						mixedEnabledSources: enabledMixedSources,
-					}),
-				);
-				const hasAnyCandidate = Object.values(candidates).some(
-					(sourceCandidates) => sourceCandidates.length > 0,
-				);
-
-				if (!hasAnyCandidate) {
-					snackbar.info(t("components.AddModal.noResults", "没有找到结果"));
-					handleCloseMixedCandidates();
-					return;
-				}
-
-				setMixedCandidateState({
-					open: true,
-					candidates,
-				});
-				return;
-			}
-
-			const searchResults = await withAbort(
-				gameMetadataService.searchGames({
-					query: editName,
-					source: editApiSource,
-					bgmToken,
-				}),
-			);
-
-			if (searchResults.length === 0) {
-				snackbar.info(t("components.AddModal.noResults", "没有找到结果"));
-				handleCloseSearchResult();
-				return;
-			}
-
-			setSearchResultState({
-				open: true,
-				results: searchResults,
-				isIdSearch: gameMetadataService.shouldUseIdSearch(
-					editName,
-					editApiSource,
-				),
+			await metadataSearchFlow.searchMetadata({
+				query: editName,
+				source: editApiSource,
+				withAbort,
 			});
 		} catch (error) {
 			if (isAbortError(error)) {
@@ -423,95 +360,11 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 			}
 
 			snackbar.error(getUserErrorMessage(error, t));
-			handleCloseSearchResult();
+			metadataSearchFlow.closeSearchResult();
 		} finally {
 			if (editSearchAbortControllerRef.current === controller) {
 				editSearchAbortControllerRef.current = null;
-				setSearchResultLoading(false);
 			}
-		}
-	};
-
-	const handleEditRowPreviewConfirm = () => {
-		const previewGameData = searchResultState.results[0];
-		if (!previewGameData || !editItemPath) return;
-
-		const nextItems = [...items];
-		const itemIndex = nextItems.findIndex((item) => item.path === editItemPath);
-		if (itemIndex !== -1) {
-			nextItems[itemIndex].name = editName;
-			nextItems[itemIndex].matchedData = previewGameData;
-			nextItems[itemIndex].status = "matched";
-			setItems(nextItems);
-		}
-
-		handleCloseSearchResult();
-		setEditItemPath(null);
-	};
-
-	const handleEditRowSelect = async (selectedData: FullGameData) => {
-		if (!selectedData || !editItemPath) return;
-
-		try {
-			setSearchResultLoading(true);
-			const resolvedData = await gameMetadataService.enrichSelectedGameDetails({
-				selectedGame: selectedData,
-				source: editApiSource,
-			});
-
-			const nextItems = [...items];
-			const itemIndex = nextItems.findIndex(
-				(item) => item.path === editItemPath,
-			);
-			if (itemIndex !== -1) {
-				nextItems[itemIndex].name = editName;
-				nextItems[itemIndex].matchedData = resolvedData;
-				nextItems[itemIndex].status = "matched";
-				setItems(nextItems);
-			}
-			setEditItemPath(null);
-		} catch (error) {
-			snackbar.error(getUserErrorMessage(error, t));
-		} finally {
-			setSearchResultLoading(false);
-		}
-	};
-
-	const handleConfirmMixedSelection = async (
-		selection: MixedSourceSelection,
-		enabled: MixedSourceEnabled,
-	) => {
-		if (!editItemPath) return;
-
-		try {
-			setSearchResultLoading(true);
-			const enrichedSelection =
-				await gameMetadataService.enrichMixedSourceSelection(
-					selection,
-					enabled,
-				);
-			const resolvedData = gameMetadataService.buildGameFromMixedSelection({
-				selection: enrichedSelection,
-				enabled,
-			});
-
-			const nextItems = [...items];
-			const itemIndex = nextItems.findIndex(
-				(item) => item.path === editItemPath,
-			);
-			if (itemIndex !== -1) {
-				nextItems[itemIndex].name = editName;
-				nextItems[itemIndex].matchedData = resolvedData;
-				nextItems[itemIndex].status = "matched";
-				setItems(nextItems);
-			}
-
-			handleCloseMixedCandidates();
-			setEditItemPath(null);
-		} catch (error) {
-			snackbar.error(getUserErrorMessage(error, t));
-		} finally {
-			setSearchResultLoading(false);
 		}
 	};
 
@@ -894,14 +747,14 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 			</Dialog>
 
 			<GameSearchResultDialog
-				open={searchResultState.open}
-				onClose={handleCloseSearchResult}
-				results={searchResultState.results}
-				onSelect={handleEditRowSelect}
-				onConfirmPreview={handleEditRowPreviewConfirm}
+				open={metadataSearchFlow.searchResultState.open}
+				onClose={metadataSearchFlow.closeSearchResult}
+				results={metadataSearchFlow.searchResultState.results}
+				onSelect={metadataSearchFlow.selectGame}
+				onConfirmPreview={metadataSearchFlow.confirmPreview}
 				loading={searchResultLoading}
 				apiSource={editApiSource}
-				isIdSearch={searchResultState.isIdSearch}
+				isIdSearch={metadataSearchFlow.searchResultState.isIdSearch}
 				previewTitle={t(
 					"components.BulkImportModal.editMetadata",
 					"编辑游戏信息",
@@ -909,10 +762,10 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 				selectTitle={t("components.AddModal.selectGame", "选择游戏")}
 			/>
 			<MixedSourceConfirmDialog
-				open={mixedCandidateState.open}
-				onClose={handleCloseMixedCandidates}
-				candidates={mixedCandidateState.candidates}
-				onConfirm={handleConfirmMixedSelection}
+				open={metadataSearchFlow.mixedCandidateState.open}
+				onClose={metadataSearchFlow.closeMixedCandidates}
+				candidates={metadataSearchFlow.mixedCandidateState.candidates}
+				onConfirm={metadataSearchFlow.confirmMixedSelection}
 				loading={searchResultLoading}
 				title={t("components.BulkImportModal.editMetadata", "编辑游戏信息")}
 			/>
