@@ -21,7 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useImagePreview } from "@/hooks/common/useImagePreview";
 import { snackbar } from "@/providers/snackBar";
-import type { GameData, UpdateGameParams } from "@/types";
+import type { GameData, SelectedGameWithId, UpdateGameParams } from "@/types";
 import {
 	getGameCover,
 	getGameDisplayName,
@@ -64,7 +64,7 @@ const CHIP_INPUT_STYLE = {
 } as const;
 
 interface GameInfoEditProps {
-	selectedGame: GameData | null;
+	selectedGame: SelectedGameWithId;
 	onSave: (data: UpdateGameParams) => Promise<void>;
 	disabled?: boolean;
 }
@@ -129,50 +129,35 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 同步 selectedGame prop 到内部状态
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <防止不必要的同步>
 	useEffect(() => {
-		if (selectedGame) {
-			initForm(selectedGame);
-		} else {
-			// 处理 selectedGame 为 null 的情况
-			setLocalPath("");
-			setGameNote("");
-			setAliases([]);
-			setSummary("");
-			setTags([]);
-			setDeveloper("");
-			setNsfw(false);
-			setReleaseDate("");
-			setShouldDeleteImage(false);
-		}
+		initForm(selectedGame);
 	}, [
 		// 1. 切换游戏必重置
-		selectedGame?.id,
+		selectedGame.id,
 		// 2. 只有当这些"静态属性"被保存更新后，才触发重置
-		selectedGame?.bgm_id,
-		selectedGame?.vndb_id,
-		selectedGame?.ymgal_id,
-		selectedGame?.kun_id,
-		selectedGame?.id_type,
-		selectedGame?.localpath,
+		selectedGame.bgm_id,
+		selectedGame.vndb_id,
+		selectedGame.ymgal_id,
+		selectedGame.kun_id,
+		selectedGame.id_type,
+		selectedGame.localpath,
 		// 3. 对于对象类型，使用 JSON 字符串化进行"值比较"
 		//    否则每次父组件刷新，custom_data 对象引用都会变，导致无限重置
-		JSON.stringify(selectedGame?.custom_data),
+		JSON.stringify(selectedGame.custom_data),
 		initForm,
 	]);
 
 	// 当父级数据（selectedGame）已经更新到最新封面时，解除临时封面锁定
 	useEffect(() => {
 		if (!pendingCoverImage) return;
-		if (selectedGame?.custom_data?.image === pendingCoverImage) {
+		if (selectedGame.custom_data?.image === pendingCoverImage) {
 			setPendingCoverImage(null);
 			setTempCoverUrl(null);
 		}
-	}, [pendingCoverImage, selectedGame?.custom_data?.image]);
+	}, [pendingCoverImage, selectedGame.custom_data?.image]);
 
 	// 检查是否有任何更改
 	// 重要：比较时必须使用"展平后的原始值"作为基准，与初始化时一致
 	const hasChanges = () => {
-		if (!selectedGame) return false;
-
 		// 获取展平后的原始值（与 useEffect 初始化时一致）
 		const currentDisplayName = getGameDisplayName(selectedGame);
 		const currentCustomName =
@@ -214,13 +199,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 	// 处理自定义封面文件选择 - 只选择，不立即上传
 	const handleCustomCoverSelect = async () => {
-		if (!selectedGame || typeof selectedGame.id !== "number") {
-			snackbar.error(
-				t("pages.Detail.GameInfoEdit.invalidGameId", "无效的游戏ID"),
-			);
-			return;
-		}
-
 		try {
 			// 选择图片文件
 			const imagePath = await selectImageFile();
@@ -241,7 +219,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 获取当前要显示的封面URL
 	const getCurrentCoverUrl = () => {
 		// 如果标记为删除，显示原始默认封面（无自定义）
-		if (shouldDeleteImage && selectedGame) {
+		if (shouldDeleteImage) {
 			// 返回不含 custom_data.image 的封面
 			return getGameCover({
 				...selectedGame,
@@ -258,7 +236,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		if (previewUrl) return previewUrl;
 
 		// 最后使用实际封面
-		if (!selectedGame) return "";
 		return getGameCover(selectedGame);
 	};
 
@@ -326,7 +303,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 	// 统一保存所有更改
 	const handleSaveAll = async () => {
-		if (!selectedGame || !hasChanges()) return;
+		if (!hasChanges()) return;
 
 		setIsLoading(true);
 
@@ -421,13 +398,13 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 										variant="outlined"
 										onClick={handleCustomCoverSelect}
 										startIcon={<PhotoCameraIcon />}
-										disabled={isLoading || disabled || !selectedGame}
+										disabled={isLoading || disabled}
 										size="small"
 									>
 										{t("pages.Detail.GameInfoEdit.selectImage", "选择图片")}
 									</Button>
 
-									{selectedGame?.custom_data?.image && !shouldDeleteImage && (
+									{selectedGame.custom_data?.image && !shouldDeleteImage && (
 										<Button
 											variant="outlined"
 											onClick={handleRemoveCustomCover}
@@ -443,7 +420,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 										</Button>
 									)}
 								</Stack>
-								{selectedGame?.custom_data?.image &&
+								{selectedGame.custom_data?.image &&
 									!shouldDeleteImage &&
 									!selectedImagePath && (
 										<Typography variant="caption" color="textSecondary">
@@ -474,7 +451,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 								freeSolo
 								openOnFocus
 								clearOnBlur={false}
-								options={selectedGame?.aliases ?? []}
+								options={selectedGame.aliases ?? []}
 								inputValue={gameNote}
 								onInputChange={(_, value) => setGameNote(value)}
 								onChange={(_, value) => {
@@ -483,7 +460,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 									}
 								}}
 								filterOptions={(options) => options}
-								disabled={isLoading || disabled || !selectedGame}
+								disabled={isLoading || disabled}
 								fullWidth
 								renderInput={(params) => (
 									<TextField
@@ -493,14 +470,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 											"自定义游戏名称",
 										)}
 										variant="outlined"
-										placeholder={
-											selectedGame
-												? getGameDisplayName(selectedGame)
-												: t(
-														"pages.Detail.GameInfoEdit.enterGameNote",
-														"请输入游戏备注",
-													)
-										}
+										placeholder={getGameDisplayName(selectedGame)}
 									/>
 								)}
 							/>
@@ -543,7 +513,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 													)
 												: ""
 										}
-										disabled={isLoading || disabled || !selectedGame}
+										disabled={isLoading || disabled}
 										style={CHIP_INPUT_STYLE}
 									/>
 								</Box>
@@ -556,7 +526,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 								fullWidth
 								value={developer}
 								onChange={(e) => setDeveloper(e.target.value)}
-								disabled={isLoading || disabled || !selectedGame}
+								disabled={isLoading || disabled}
 								placeholder={t(
 									"pages.Detail.GameInfoEdit.developerPlaceholder",
 									"多个开发商请使用 / 分隔",
@@ -575,7 +545,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 								type="date"
 								value={releaseDate}
 								onChange={(e) => setReleaseDate(e.target.value)}
-								disabled={isLoading || disabled || !selectedGame}
+								disabled={isLoading || disabled}
 								InputLabelProps={{ shrink: true }}
 								helperText={t(
 									"pages.Detail.GameInfoEdit.releaseDateHelperText",
@@ -590,7 +560,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 										<Switch
 											checked={nsfw}
 											onChange={(e) => setNsfw(e.target.checked)}
-											disabled={isLoading || disabled || !selectedGame}
+											disabled={isLoading || disabled}
 											color="warning"
 										/>
 									}
@@ -620,7 +590,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 							maxRows={12}
 							value={summary}
 							onChange={(e) => setSummary(e.target.value)}
-							disabled={isLoading || disabled || !selectedGame}
+							disabled={isLoading || disabled}
 							placeholder={t(
 								"pages.Detail.GameInfoEdit.summaryPlaceholder",
 								"请输入游戏简介",
@@ -677,7 +647,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 												)
 											: ""
 									}
-									disabled={isLoading || disabled || !selectedGame}
+									disabled={isLoading || disabled}
 									style={CHIP_INPUT_STYLE}
 								/>
 							</Box>
@@ -699,12 +669,12 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 							fullWidth
 							value={localPath}
 							onChange={(e) => setLocalPath(e.target.value)}
-							disabled={isLoading || disabled || !selectedGame}
+							disabled={isLoading || disabled}
 						/>
 						<Button
 							variant="outlined"
 							onClick={handleSelectLocalPath}
-							disabled={isLoading || disabled || !selectedGame}
+							disabled={isLoading || disabled}
 							className="min-w-10 px-1"
 						>
 							<FolderOpenIcon />
@@ -720,7 +690,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 				size="large"
 				fullWidth
 				onClick={handleSaveAll}
-				disabled={isLoading || disabled || !selectedGame || !hasChanges()}
+				disabled={isLoading || disabled || !hasChanges()}
 				startIcon={
 					isLoading ? (
 						<CircularProgress size={20} color="inherit" />

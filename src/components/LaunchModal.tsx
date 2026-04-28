@@ -27,15 +27,12 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-	SelectedGameGuard,
-	type SelectedGameWithId,
-} from "@/components/SelectedGameGuard";
+import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
-import type { UpdateGameParams } from "@/types";
+import type { SelectedGameWithId, UpdateGameParams } from "@/types";
 import { handleExeFile } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
 

@@ -61,17 +61,14 @@ import { FilterModal } from "@/components/FilterModal";
 import { LaunchModal } from "@/components/LaunchModal";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
-import {
-	SelectedGameGuard,
-	type SelectedGameWithId,
-} from "@/components/SelectedGameGuard";
+import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import SortModal from "@/components/SortModal";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
-import type { SourceType } from "@/types";
+import type { SelectedGameWithId, SourceType } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
 import { CollectionToolbar } from "./Collection";

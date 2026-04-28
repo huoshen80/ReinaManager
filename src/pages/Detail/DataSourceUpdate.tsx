@@ -13,13 +13,13 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/providers/snackBar";
-import type { FullGameData, GameData } from "@/types";
+import type { FullGameData, SelectedGameWithId } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { fetchMetadataForUpdate } from "@/utils/metadata";
 
 interface DataSourceUpdateProps {
 	bgmToken: string;
-	selectedGame: GameData | null;
+	selectedGame: SelectedGameWithId;
 	onDataFetched: (data: FullGameData) => void;
 	disabled?: boolean;
 }
@@ -37,37 +37,30 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	const { t } = useTranslation();
 
 	// 数据源更新相关状态
-	const [bgmId, setBgmId] = useState<string>(selectedGame?.bgm_id || "");
-	const [vndbId, setVndbId] = useState<string>(selectedGame?.vndb_id || "");
-	const [ymgalId, setYmgalId] = useState<string>(selectedGame?.ymgal_id || "");
-	const [kunId, setKunId] = useState<string>(selectedGame?.kun_id || "");
-	const [idType, setIdType] = useState<string>(selectedGame?.id_type || "");
+	const [bgmId, setBgmId] = useState<string>(selectedGame.bgm_id || "");
+	const [vndbId, setVndbId] = useState<string>(selectedGame.vndb_id || "");
+	const [ymgalId, setYmgalId] = useState<string>(selectedGame.ymgal_id || "");
+	const [kunId, setKunId] = useState<string>(selectedGame.kun_id || "");
+	const [idType, setIdType] = useState<string>(selectedGame.id_type || "");
 	const [isLoading, setIsLoading] = useState(false);
 	const showMixedInputs = idType === "mixed";
 
 	useEffect(() => {
-		setBgmId(selectedGame?.bgm_id || "");
-		setVndbId(selectedGame?.vndb_id || "");
-		setYmgalId(selectedGame?.ymgal_id || "");
-		setKunId(selectedGame?.kun_id || "");
-		setIdType(selectedGame?.id_type || "");
+		setBgmId(selectedGame.bgm_id || "");
+		setVndbId(selectedGame.vndb_id || "");
+		setYmgalId(selectedGame.ymgal_id || "");
+		setKunId(selectedGame.kun_id || "");
+		setIdType(selectedGame.id_type || "");
 	}, [
-		selectedGame?.bgm_id,
-		selectedGame?.vndb_id,
-		selectedGame?.ymgal_id,
-		selectedGame?.kun_id,
-		selectedGame?.id_type,
+		selectedGame.bgm_id,
+		selectedGame.vndb_id,
+		selectedGame.ymgal_id,
+		selectedGame.kun_id,
+		selectedGame.id_type,
 	]);
 
 	// 获取并预览游戏数据
 	const handleFetchAndPreview = async () => {
-		if (!selectedGame) {
-			snackbar.error(
-				t("pages.Detail.DataSourceUpdate.noGameSelected", "未选择游戏"),
-			);
-			return;
-		}
-
 		if (idType === "custom") {
 			snackbar.error(
 				t(
@@ -105,7 +98,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	return (
 		<Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 			{/* ID 类型选择框 */}
-			<FormControl fullWidth disabled={isLoading || disabled || !selectedGame}>
+			<FormControl fullWidth disabled={isLoading || disabled}>
 				<InputLabel id="id-type-label">
 					{t("pages.Detail.DataSourceUpdate.dataSource", "数据源")}
 				</InputLabel>
@@ -189,7 +182,6 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					idType === "custom" ||
 					isLoading ||
 					disabled ||
-					!selectedGame ||
 					(idType === "bgm" && !bgmId) ||
 					(idType === "vndb" && !vndbId) ||
 					(idType === "ymgal" && !ymgalId) ||

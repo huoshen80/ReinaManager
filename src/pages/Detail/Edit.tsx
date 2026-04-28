@@ -12,15 +12,16 @@ import {
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ViewGameBox } from "@/components/AlertBox";
-import {
-	SelectedGameGuard,
-	type SelectedGameWithId,
-} from "@/components/SelectedGameGuard";
+import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
-import type { FullGameData, UpdateGameParams } from "@/types";
+import type {
+	FullGameData,
+	SelectedGameWithId,
+	UpdateGameParams,
+} from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { buildMetadataUpdatePayload } from "@/utils/metadata";
 import { DataSourceUpdate } from "./DataSourceUpdate";

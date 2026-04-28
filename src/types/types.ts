@@ -347,6 +347,8 @@ export interface GameData {
 	nsfw?: boolean;
 }
 
+export type SelectedGameWithId = GameData & { id: number };
+
 /**
  * 游戏会话记录
  */

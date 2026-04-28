@@ -24,14 +24,11 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
-import {
-	SelectedGameGuard,
-	type SelectedGameWithId,
-} from "@/components/SelectedGameGuard";
+import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { snackbar } from "@/providers/snackBar";
-import type { SavedataRecord } from "@/types";
+import type { SavedataRecord, SelectedGameWithId } from "@/types";
 import {
 	handleGetFolder,
 	openGameBackupFolder,

@@ -3,9 +3,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useStore } from "@/store/appStore";
-import type { GameData } from "@/types";
-
-export type SelectedGameWithId = GameData & { id: number };
+import type { SelectedGameWithId } from "@/types";
 
 interface SelectedGameGuardProps {
 	children: (selectedGame: SelectedGameWithId) => ReactNode;
