@@ -137,7 +137,7 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 	const [submenuOpen, setSubmenuOpen] = useState(false);
 	const menuItemRef = useRef<HTMLLIElement>(null);
 	const submenuRef = useRef<HTMLDivElement>(null);
-	const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// 清除关闭定时器
 	const clearCloseTimer = () => {

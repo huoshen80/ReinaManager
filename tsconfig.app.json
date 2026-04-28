@@ -1,9 +1,8 @@
 {
 	"compilerOptions": {
 		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-		"target": "ES2020",
-		"useDefineForClassFields": true,
-		"lib": ["ES2020", "DOM", "DOM.Iterable"],
+		"target": "ESNext",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
 		"skipLibCheck": true,
 		/* Bundler mode */
@@ -23,7 +22,7 @@
 			"@/*": ["./src/*"],
 			"@pkg": ["./package.json"]
 		},
-		"types": ["node", "vite/client"]
+		"types": ["vite/client"]
 	},
 	"include": ["src"]
 }

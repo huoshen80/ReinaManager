@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { path } from "@tauri-apps/api";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { resourceDir } from "@tauri-apps/api/path";

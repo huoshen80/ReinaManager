@@ -115,8 +115,10 @@ function useCardInteraction(options: {
 	const { onClick, onDoubleClick, onLongPress, useDelayedClick } = options;
 
 	// 使用 ref 管理计时器，避免 state 更新导致重渲染
-	const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 	const hasLongPressedRef = useRef(false);
 	const [isLongPressing, setIsLongPressing] = useState(false);
 
