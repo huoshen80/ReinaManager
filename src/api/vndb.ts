@@ -156,7 +156,7 @@ function transformVndbData(
 	const filtered_tags = (
 		VNDBdata.tags as { rating: number; name: string; spoiler: number }[]
 	)
-		.sort((a, b) => b.rating - a.rating)
+		.toSorted((a, b) => b.rating - a.rating)
 		.filter(({ spoiler }) => spoiler <= filterLevel)
 		.map(({ name }) => name);
 

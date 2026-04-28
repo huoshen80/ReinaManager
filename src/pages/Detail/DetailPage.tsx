@@ -74,7 +74,8 @@ const TabPanel = (props: TabPanelProps) => {
  * @returns {JSX.Element} 游戏详情页面
  */
 export const Detail: React.FC = () => {
-	const id = Number(useLocation().pathname.split("/").pop());
+	const location = useLocation();
+	const id = Number(location.pathname.split("/").at(-1));
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const {
@@ -157,7 +158,6 @@ export const Detail: React.FC = () => {
 	}, [selectedGame, t, handleDeveloperClick]);
 
 	const activePage = useActivePage();
-	const location = useLocation();
 	const title = selectedGame
 		? getGameDisplayName(selectedGame)
 		: t("pages.Detail.loading");

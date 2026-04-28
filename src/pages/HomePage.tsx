@@ -181,20 +181,19 @@ async function getGameActivities(games: GameData[]): Promise<{
 	}
 
 	// 合并所有动态，按时间排序
-	const allActivities = [...playItems, ...addItems].sort(
+	const allActivities = [...playItems, ...addItems].toSorted(
 		(a, b) => b.time - a.time,
 	);
 
 	// 排序最近游玩和最近添加
-	sessions.sort((a, b) => b.end_time - a.end_time);
-	added.sort((a, b) => {
-		if (a.time && b.time) return b.time.getTime() - a.time.getTime();
-		return 0;
-	});
+	const sortedSessions = sessions.toSorted((a, b) => b.end_time - a.end_time);
+	const sortedAdded = added.toSorted(
+		(a, b) => b.time.getTime() - a.time.getTime(),
+	);
 
 	return {
-		sessions: sessions.slice(0, 6),
-		added: added.slice(0, 6),
+		sessions: sortedSessions.slice(0, 6),
+		added: sortedAdded.slice(0, 6),
 		activities: allActivities.slice(0, 10),
 	};
 }

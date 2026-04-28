@@ -56,14 +56,14 @@ function generateVirtualCategories<T>(
 		const keyArray = Array.isArray(keys) ? keys : [keys];
 
 		for (const key of keyArray) {
-			categoryMap.set(key, (categoryMap.get(key) || 0) + 1);
+			categoryMap.set(key, (categoryMap.get(key) ?? 0) + 1);
 		}
 	}
 
 	// 转换为数组并排序
 	let entries = Array.from(categoryMap.entries());
 	if (config.sortResults) {
-		entries = entries.sort(config.sortResults);
+		entries = entries.toSorted(config.sortResults);
 	}
 
 	// 映射为Category对象

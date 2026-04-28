@@ -137,8 +137,7 @@ function extractKunTags(tags?: GalgameDetailTag[]): string[] {
 	const filterLevel = useStore.getState().spoilerLevel;
 
 	return tags
-		.slice()
-		.sort((a, b) => (b.galgameCount || 0) - (a.galgameCount || 0))
+		.toSorted((a, b) => (b.galgameCount || 0) - (a.galgameCount || 0))
 		.filter((tag) => (tag.spoilerLevel ?? 0) <= filterLevel)
 		.map((tag) => tag.name?.trim())
 		.filter((name): name is string => Boolean(name));

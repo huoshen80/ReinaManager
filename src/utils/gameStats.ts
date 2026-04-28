@@ -91,7 +91,7 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
 
 			if (isSameDay) {
 				// 同一天，直接添加时间
-				const currentValue = sessionsStatsMap.get(startDateStr) || 0;
+				const currentValue = sessionsStatsMap.get(startDateStr) ?? 0;
 				sessionsStatsMap.set(startDateStr, currentValue + session.duration);
 			} else {
 				// 跨天情况，按比例分配时间
@@ -118,10 +118,10 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
 				const secondDayMinutes = session.duration - firstDayMinutes;
 
 				// 添加到对应日期
-				const firstDayValue = sessionsStatsMap.get(startDateStr) || 0;
+				const firstDayValue = sessionsStatsMap.get(startDateStr) ?? 0;
 				sessionsStatsMap.set(startDateStr, firstDayValue + firstDayMinutes);
 
-				const secondDayValue = sessionsStatsMap.get(endDateStr) || 0;
+				const secondDayValue = sessionsStatsMap.get(endDateStr) ?? 0;
 				sessionsStatsMap.set(endDateStr, secondDayValue + secondDayMinutes);
 			}
 		}
@@ -187,7 +187,7 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
 		}
 
 		// 6. 按日期降序排序
-		dailyStats.sort((a, b) => b.date.localeCompare(a.date));
+		dailyStats = dailyStats.toSorted((a, b) => b.date.localeCompare(a.date));
 
 		// 7. 通过后端服务更新统计表
 		await statsService.updateGameStatistics(

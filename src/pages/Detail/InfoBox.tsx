@@ -191,7 +191,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				const dateStr = `${year}-${month}-${day}`;
 				result.push({
 					date: dateStr,
-					playtime: datePlaytimeMap.get(dateStr) || 0,
+					playtime: datePlaytimeMap.get(dateStr) ?? 0,
 				});
 			}
 		} else if (timeRange === "MONTH") {
@@ -205,7 +205,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 				result.push({
 					date: dateStr,
-					playtime: datePlaytimeMap.get(dateStr) || 0,
+					playtime: datePlaytimeMap.get(dateStr) ?? 0,
 				});
 			}
 		} else if (timeRange === "1Y") {
@@ -213,7 +213,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 			const monthlyMap = new Map<string, number>();
 			for (const [dateStr, playtime] of datePlaytimeMap) {
 				const monthKey = dateStr.substring(0, 7); // YYYY-MM
-				monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + playtime);
+				monthlyMap.set(monthKey, (monthlyMap.get(monthKey) ?? 0) + playtime);
 			}
 
 			// 生成过去12个月（修复跨年问题）
@@ -224,27 +224,27 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				const monthKey = `${year}-${month}`;
 				result.push({
 					date: monthKey,
-					playtime: monthlyMap.get(monthKey) || 0,
+					playtime: monthlyMap.get(monthKey) ?? 0,
 				});
 			}
 		} else if (timeRange === "ALL") {
 			// 全部：判断数据量决定是否按月聚合
-			const allDates = Array.from(datePlaytimeMap.keys()).sort();
+			const allDates = Array.from(datePlaytimeMap.keys()).toSorted();
 
 			if (allDates.length > 60) {
 				// 数据点较多，按月聚合
 				const monthlyMap = new Map<string, number>();
 				for (const [dateStr, playtime] of datePlaytimeMap) {
 					const monthKey = dateStr.substring(0, 7); // YYYY-MM
-					monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + playtime);
+					monthlyMap.set(monthKey, (monthlyMap.get(monthKey) ?? 0) + playtime);
 				}
 
 				// 按月排序输出
-				const sortedMonths = Array.from(monthlyMap.keys()).sort();
+				const sortedMonths = Array.from(monthlyMap.keys()).toSorted();
 				for (const monthKey of sortedMonths) {
 					result.push({
 						date: monthKey,
-						playtime: monthlyMap.get(monthKey) || 0,
+						playtime: monthlyMap.get(monthKey) ?? 0,
 					});
 				}
 			} else {
@@ -252,7 +252,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				for (const dateStr of allDates) {
 					result.push({
 						date: dateStr,
-						playtime: datePlaytimeMap.get(dateStr) || 0,
+						playtime: datePlaytimeMap.get(dateStr) ?? 0,
 					});
 				}
 			}

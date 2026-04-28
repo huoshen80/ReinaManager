@@ -329,7 +329,7 @@ export function getSearchSuggestions(
 
 	// 按优先级排序并去重
 	const sortedSuggestions = prioritySuggestions
-		.sort((a, b) => b.priority - a.priority)
+		.toSorted((a, b) => b.priority - a.priority)
 		.map((s) => s.name)
 		.filter((name, index, arr) => arr.indexOf(name) === index) // 去重
 		.slice(0, limit);

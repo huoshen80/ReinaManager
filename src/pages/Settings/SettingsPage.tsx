@@ -225,7 +225,8 @@ export const Settings: React.FC = () => {
 			(entries) => {
 				const visibleEntry = entries
 					.filter((entry) => entry.isIntersecting)
-					.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+					.toSorted((a, b) => b.intersectionRatio - a.intersectionRatio)
+					.at(0);
 
 				if (visibleEntry) {
 					setActiveSectionId(visibleEntry.target.id);

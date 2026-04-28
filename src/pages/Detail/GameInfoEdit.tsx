@@ -271,7 +271,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		) {
 			// 退格键删除最后一个标签
 			e.preventDefault();
-			setAliases(aliases.slice(0, -1));
+			setAliases(aliases.toSpliced(-1));
 		}
 	};
 
@@ -297,7 +297,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		} else if (e.key === "Backspace" && tagInput === "" && tags.length > 0) {
 			// 退格键删除最后一个标签
 			e.preventDefault();
-			setTags(tags.slice(0, -1));
+			setTags(tags.toSpliced(-1));
 		}
 	};
 
