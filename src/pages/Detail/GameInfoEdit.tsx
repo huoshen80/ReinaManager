@@ -451,7 +451,13 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 								freeSolo
 								openOnFocus
 								clearOnBlur={false}
-								options={selectedGame.aliases ?? []}
+								options={[
+									...new Set(
+										[selectedGame.aliases, selectedGame.all_titles]
+											.flat()
+											.filter(Boolean),
+									),
+								]}
 								inputValue={gameNote}
 								onInputChange={(_, value) => setGameNote(value)}
 								onChange={(_, value) => {
