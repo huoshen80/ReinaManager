@@ -21,7 +21,10 @@ import { useTranslation } from "react-i18next";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
 import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
-import { getSearchSuggestions } from "@/utils/enhancedSearch";
+import {
+	getSearchSuggestionsFromData,
+	preprocessSuggestionData,
+} from "@/utils/enhancedSearch";
 
 // 配置常量
 const DEBOUNCE_SEARCH = 300;
@@ -73,7 +76,13 @@ export const SearchBox = () => {
 		setSearchKeyword(debouncedKeyword);
 	}, [debouncedKeyword, setSearchKeyword]);
 
-	// 生成搜索建议（使用 useMemo 缓存）
+	// 拼音预处理只依赖游戏列表，输入变化时复用
+	const suggestionEntries = useMemo(
+		() => preprocessSuggestionData(displayAllGames),
+		[displayAllGames],
+	);
+
+	// 生成搜索建议（只做字符串匹配，不再调用 pinyin）
 	const currentSuggestions = useMemo(() => {
 		if (
 			!debouncedSuggestions?.trim() ||
@@ -83,8 +92,8 @@ export const SearchBox = () => {
 		}
 
 		try {
-			return getSearchSuggestions(
-				displayAllGames,
+			return getSearchSuggestionsFromData(
+				suggestionEntries,
 				debouncedSuggestions,
 				MAX_SUGGESTIONS,
 			);
@@ -92,7 +101,7 @@ export const SearchBox = () => {
 			console.error("生成搜索建议失败:", error);
 			return [];
 		}
-	}, [debouncedSuggestions, displayAllGames]);
+	}, [debouncedSuggestions, suggestionEntries]);
 
 	// 同步建议到状态
 	useEffect(() => {

@@ -3,7 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAllGames, useGameList } from "@/hooks/queries/useGames";
 import { useStore } from "@/store/appStore";
 import { applyNsfwFilter, getDisplayGameDataList } from "@/utils/appUtils";
-import { enhancedSearch } from "@/utils/enhancedSearch";
+import { createSearchIndex, searchWithIndex } from "@/utils/enhancedSearch";
 
 export function useGameListFacade() {
 	const { gameFilterType, sortOption, sortOrder, nsfwFilter, searchKeyword } =
@@ -27,15 +27,21 @@ export function useGameListFacade() {
 		return applyNsfwFilter(displayGames, nsfwFilter);
 	}, [displayGames, nsfwFilter]);
 
+	// 搜索索引只依赖游戏列表，搜索词变化时复用索引
+	const searchIndex = useMemo(
+		() => createSearchIndex(nsfwFilteredGames),
+		[nsfwFilteredGames],
+	);
+
 	const searchedGames = useMemo(() => {
 		if (!searchKeyword.trim()) {
 			return nsfwFilteredGames;
 		}
 
-		return enhancedSearch(nsfwFilteredGames, searchKeyword).map(
+		return searchWithIndex(searchIndex, searchKeyword).map(
 			(result) => result.item,
 		);
-	}, [nsfwFilteredGames, searchKeyword]);
+	}, [searchIndex, searchKeyword, nsfwFilteredGames]);
 
 	return {
 		games: searchedGames,

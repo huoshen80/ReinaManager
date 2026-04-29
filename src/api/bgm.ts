@@ -40,15 +40,8 @@ function buildBgmAuthHeaders(token?: string) {
 	};
 }
 
-// 敏感关键词集合，提升为模块级常量避免每次调用重复创建
-const SENSITIVE_KEYWORDS: ReadonlySet<string> = new Set([
-	"台独",
-	"港独",
-	"藏独",
-	"分裂",
-	"反华",
-	"辱华",
-]);
+const SENSITIVE_KEYWORDS = ["台独", "港独", "藏独", "分裂", "反华", "辱华"];
+const DEVELOPER_KEYWORDS = ["开发", "游戏开发商", "开发商"];
 
 /**
  * 过滤掉包含敏感关键词的标签。
@@ -57,12 +50,9 @@ const SENSITIVE_KEYWORDS: ReadonlySet<string> = new Set([
  * @returns 过滤后的标签字符串数组，不包含敏感词。
  */
 function filterSensitiveTags(tags: string[]): string[] {
-	return tags.filter((tag) => {
-		for (const keyword of SENSITIVE_KEYWORDS) {
-			if (tag.includes(keyword)) return false;
-		}
-		return true;
-	});
+	return tags.filter(
+		(tag) => !SENSITIVE_KEYWORDS.some((kw) => tag.includes(kw)),
+	);
 }
 
 // 新增：将 BGM API 返回对象转换为统一的结构
@@ -106,7 +96,7 @@ const transformBgmData = (BGMdata: any): FullGameData => {
 			const developers =
 				BGMdata.infobox?.flatMap(
 					(item: { key: string; value: string | unknown }) => {
-						if (["开发", "游戏开发商", "开发商"].includes(item.key)) {
+						if (DEVELOPER_KEYWORDS.includes(item.key)) {
 							if (typeof item.value !== "string") return [];
 							return item.value
 								.split(/、|×/g)

@@ -33,6 +33,28 @@ interface GameDataWithSearchFields extends GameData {
 }
 
 /**
+ * 搜索索引，包含预处理后的数据和 Fuse.js 实例。
+ * 只依赖游戏列表，与搜索词无关，可以安全缓存。
+ */
+export interface SearchIndex {
+	fuse: Fuse<GameDataWithSearchFields>;
+}
+
+/**
+ * 搜索建议的预处理条目。
+ * 每个条目对应一个游戏的一个可搜索名称，拼音在预处理阶段计算完成。
+ */
+export interface SuggestionEntry {
+	name: string;
+	lower: string;
+	pinyinFull: string;
+	pinyinSpaced: string;
+	pinyinFirst: string;
+}
+
+const DEFAULT_SEARCH_THRESHOLD = 0.4;
+
+/**
  * 预处理游戏数据，添加搜索相关字段
  * @param games 原始游戏数据数组
  * @returns 带搜索字段的游戏数据数组
@@ -50,23 +72,20 @@ function preprocessGameData(games: GameData[]): GameDataWithSearchFields[] {
 		const allTitlesString = allTitles.join(" ");
 		const aliasesString = aliases.join(" ");
 
-		// 生成搜索关键词（避免重复 displayName 中已包含的内容）
-		const keywords = [
+		// 生成搜索关键词和拼音源文本（复用同一基础数组）
+		const baseTexts = [
 			displayName,
 			game.developer || "",
 			...allTitles,
 			...aliases,
-		].filter(Boolean);
-
+		];
+		const keywords = baseTexts.filter(Boolean);
 		const searchKeywords = keywords.join(" ").toLowerCase();
 
 		// 生成拼音 - 只处理包含中文的文本
-		const chineseTexts = [
-			displayName,
-			game.developer || "",
-			...allTitles,
-			...aliases,
-		].filter((text) => text && /[\u4e00-\u9fff]/.test(text));
+		const chineseTexts = keywords.filter((text) =>
+			/[\u4e00-\u9fff]/.test(text),
+		);
 
 		// 完整拼音 (带空格分隔)
 		const pinyinFull = chineseTexts
@@ -110,7 +129,7 @@ function preprocessGameData(games: GameData[]): GameDataWithSearchFields[] {
  */
 function createFuseInstance(
 	processedGames: GameDataWithSearchFields[],
-	threshold: number = 0.6,
+	threshold: number = DEFAULT_SEARCH_THRESHOLD,
 ): Fuse<GameDataWithSearchFields> {
 	const fuseOptions: IFuseOptions<GameDataWithSearchFields> = {
 		// 搜索阈值：使用传入的阈值
@@ -171,40 +190,42 @@ function createFuseInstance(
 }
 
 /**
- * 增强搜索函数
+ * 创建搜索索引（预处理层）。
+ * 只依赖游戏列表，与搜索词无关。调用方应基于游戏列表变化缓存此结果。
  * @param games 游戏数据数组
- * @param keyword 搜索关键词
+ * @param threshold Fuse.js 搜索阈值 (0-1)
+ * @returns 搜索索引
+ */
+export function createSearchIndex(
+	games: GameData[],
+	threshold = DEFAULT_SEARCH_THRESHOLD,
+): SearchIndex {
+	const processedGames = preprocessGameData(games);
+	const fuse = createFuseInstance(processedGames, threshold);
+	return { fuse };
+}
+
+/**
+ * 使用预构建的索引执行搜索（搜索层）。
+ * 调用方应先通过 createSearchIndex 创建索引并缓存，然后每次搜索词变化时调用此函数。
+ * @param index 预构建的搜索索引
+ * @param keyword 搜索关键词（必须非空）
  * @param options 搜索选项
  * @returns 搜索结果数组，按相关性排序
  */
-export function enhancedSearch(
-	games: GameData[],
+export function searchWithIndex(
+	index: SearchIndex,
 	keyword: string,
 	options: {
-		limit?: number; // 返回结果数量限制
-		threshold?: number; // 搜索阈值 (0-1)
-		enablePinyin?: boolean; // 是否启用拼音搜索
+		limit?: number;
+		enablePinyin?: boolean;
 	} = {},
 ): SearchResult[] {
-	// 如果没有关键词，返回所有游戏
-	if (!keyword || keyword.trim() === "") {
-		return games.map((game) => ({
-			item: game,
-			score: 1,
-		}));
-	}
-
-	const { limit = 50, threshold = 0.4, enablePinyin = true } = options;
-
-	// 预处理游戏数据
-	const processedGames = preprocessGameData(games);
-
-	// 创建搜索实例
-	const fuse = createFuseInstance(processedGames, threshold);
+	const { limit = 50, enablePinyin = true } = options;
 
 	// 执行搜索
 	const searchTerm = keyword.trim().toLowerCase();
-	let fuseResults = fuse.search(searchTerm, { limit });
+	let fuseResults = index.fuse.search(searchTerm, { limit });
 
 	// 如果启用拼音搜索且结果较少，尝试拼音搜索
 	if (enablePinyin && fuseResults.length < 5) {
@@ -216,7 +237,7 @@ export function enhancedSearch(
 		}).toLowerCase();
 
 		if (keywordPinyin !== searchTerm) {
-			const pinyinResults = fuse.search(keywordPinyin, { limit });
+			const pinyinResults = index.fuse.search(keywordPinyin, { limit });
 
 			// 合并结果并去重
 			const existingIds = new Set(fuseResults.map((r) => r.item.id));
@@ -227,20 +248,175 @@ export function enhancedSearch(
 		}
 	}
 
-	// 转换为统一的搜索结果格式（移除重复的阈值过滤）
-	const results: SearchResult[] = fuseResults
+	// 转换为统一的搜索结果格式
+	return fuseResults
 		.map((result) => ({
 			item: result.item,
 			score: 1 - (result.score || 0), // Fuse.js 的 score 越小越好，转换为越大越好
 			matches: result.matches,
 		}))
 		.slice(0, limit);
-
-	return results;
 }
 
 /**
- * 获取搜索建议（自动补全）
+ * 增强搜索函数（便捷 wrapper）。
+ * 内部调用 createSearchIndex + searchWithIndex。
+ * 适用于无缓存需求的场景；热路径建议分别使用 createSearchIndex 和 searchWithIndex。
+ * @param games 游戏数据数组
+ * @param keyword 搜索关键词
+ * @param options 搜索选项
+ * @returns 搜索结果数组，按相关性排序
+ */
+export function enhancedSearch(
+	games: GameData[],
+	keyword: string,
+	options: {
+		limit?: number;
+		threshold?: number;
+		enablePinyin?: boolean;
+	} = {},
+): SearchResult[] {
+	// 如果没有关键词，返回所有游戏
+	if (!keyword || keyword.trim() === "") {
+		return games.map((game) => ({
+			item: game,
+			score: 1,
+		}));
+	}
+
+	const {
+		limit = 50,
+		threshold = DEFAULT_SEARCH_THRESHOLD,
+		enablePinyin = true,
+	} = options;
+	const index = createSearchIndex(games, threshold);
+	return searchWithIndex(index, keyword, { limit, enablePinyin });
+}
+
+/**
+ * 预处理搜索建议数据（拼音预计算层）。
+ * 对每个游戏的每个可搜索名称生成拼音变体，只在游戏列表变化时调用。
+ * @param games 游戏数据数组
+ * @returns 预处理后的建议条目数组
+ */
+export function preprocessSuggestionData(games: GameData[]): SuggestionEntry[] {
+	const entries: SuggestionEntry[] = [];
+
+	for (const game of games) {
+		const displayName = getGameDisplayName(game);
+		const allTitles = Array.isArray(game.all_titles) ? game.all_titles : [];
+		const aliases = Array.isArray(game.aliases) ? game.aliases : [];
+
+		const names = [
+			displayName,
+			game.developer,
+			...allTitles,
+			...aliases,
+		].filter(Boolean) as string[];
+
+		for (const name of names) {
+			const lower = name.toLowerCase();
+			let pinyinFull = "";
+			let pinyinSpaced = "";
+			let pinyinFirst = "";
+
+			if (/[\u4e00-\u9fff]/.test(name)) {
+				try {
+					pinyinSpaced = pinyin(name, {
+						toneType: "none",
+						type: "string",
+						separator: " ",
+					}).toLowerCase();
+
+					// 从带空格拼音派生无空格拼音，避免重复调用 pinyin()
+					pinyinFull = pinyinSpaced.replaceAll(" ", "");
+
+					pinyinFirst = pinyin(name, {
+						pattern: "first",
+						toneType: "none",
+						type: "string",
+						separator: "",
+					}).toLowerCase();
+				} catch {
+					// 拼音转换失败时保持空字符串
+				}
+			}
+
+			entries.push({ name, lower, pinyinFull, pinyinSpaced, pinyinFirst });
+		}
+	}
+
+	return entries;
+}
+
+/**
+ * 从预处理数据中获取搜索建议（搜索层）。
+ * 只做字符串匹配，不调用 pinyin()，适合高频调用。
+ * @param entries 预处理后的建议条目
+ * @param input 输入的部分关键词
+ * @param limit 返回建议数量限制
+ * @returns 搜索建议数组
+ */
+export function getSearchSuggestionsFromData(
+	entries: SuggestionEntry[],
+	input: string,
+	limit: number = 8,
+): string[] {
+	if (!input || input.trim() === "") {
+		return [];
+	}
+
+	const inputLower = input.toLowerCase().trim();
+
+	// 同名建议只保留最高优先级，减少后续排序数量
+	const suggestionPriority = new Map<string, number>();
+
+	const addSuggestion = (name: string, priority: number) => {
+		const currentPriority = suggestionPriority.get(name) ?? 0;
+		if (priority > currentPriority) {
+			suggestionPriority.set(name, priority);
+		}
+	};
+
+	for (const entry of entries) {
+		// 直接名称匹配
+		if (entry.lower.includes(inputLower)) {
+			let priority = 1;
+			if (entry.lower === inputLower) {
+				priority = 4; // 精确匹配优先级最高
+			} else if (entry.lower.startsWith(inputLower)) {
+				priority = 3; // 开头匹配优先级高
+			}
+			addSuggestion(entry.name, priority);
+		}
+
+		// 拼音匹配
+		if (entry.pinyinFull) {
+			if (
+				entry.pinyinFull.includes(inputLower) ||
+				entry.pinyinSpaced.includes(inputLower)
+			) {
+				addSuggestion(entry.name, 2);
+			} else if (
+				entry.pinyinFirst.includes(inputLower) &&
+				inputLower.length >= 2
+			) {
+				addSuggestion(entry.name, 1);
+			}
+		}
+	}
+
+	// 按优先级排序并限制数量
+	return Array.from(suggestionPriority.entries())
+		.toSorted((a, b) => b[1] - a[1])
+		.map(([name]) => name)
+		.slice(0, limit);
+}
+
+/**
+ * 获取搜索建议（便捷 wrapper）。
+ * 内部调用 preprocessSuggestionData + getSearchSuggestionsFromData。
+ * 适用于无缓存需求的场景；热路径建议分别使用预处理和搜索函数。
  * @param games 游戏数据数组
  * @param input 输入的部分关键词
  * @param limit 返回建议数量限制
@@ -255,91 +431,6 @@ export function getSearchSuggestions(
 		return [];
 	}
 
-	const inputLower = input.toLowerCase().trim();
-
-	// 优先级排序的建议
-	const prioritySuggestions: Array<{ name: string; priority: number }> = [];
-
-	for (const game of games) {
-		const displayName = getGameDisplayName(game);
-		const allTitles = Array.isArray(game.all_titles) ? game.all_titles : [];
-		const aliases = Array.isArray(game.aliases) ? game.aliases : [];
-
-		const names = [
-			displayName,
-			game.developer,
-			...allTitles,
-			...aliases,
-		].filter(Boolean);
-
-		// 直接名称匹配
-		for (const name of names) {
-			if (!name) continue;
-			const lower = name.toLowerCase();
-			if (lower.includes(inputLower)) {
-				let priority = 1;
-				if (lower.startsWith(inputLower)) {
-					priority = 3; // 开头匹配优先级高
-				} else if (lower === inputLower) {
-					priority = 4; // 精确匹配优先级最高
-				}
-				prioritySuggestions.push({ name, priority });
-			}
-		}
-
-		// 拼音匹配建议 - 只对包含中文的内容进行拼音处理
-		const chineseNames = names.filter(
-			(name): name is string => name != null && /[\u4e00-\u9fff]/.test(name),
-		);
-		for (const chineseName of chineseNames) {
-			try {
-				// 完整拼音
-				const pinyinFull = pinyin(chineseName, {
-					toneType: "none",
-					type: "string",
-					separator: "",
-				}).toLowerCase();
-
-				// 带空格拼音
-				const pinyinSpaced = pinyin(chineseName, {
-					toneType: "none",
-					type: "string",
-					separator: " ",
-				}).toLowerCase();
-
-				// 拼音首字母
-				const pinyinFirst = pinyin(chineseName, {
-					pattern: "first",
-					toneType: "none",
-					type: "string",
-					separator: "",
-				}).toLowerCase();
-
-				if (
-					pinyinFull.includes(inputLower) ||
-					pinyinSpaced.includes(inputLower)
-				) {
-					prioritySuggestions.push({ name: chineseName, priority: 2 });
-				} else if (pinyinFirst.includes(inputLower) && inputLower.length >= 2) {
-					prioritySuggestions.push({ name: chineseName, priority: 1 });
-				}
-			} catch (error) {
-				console.warn("拼音建议生成失败:", error);
-			}
-		}
-	}
-
-	// 按优先级排序并用 Set 去重
-	const seen = new Set<string>();
-	const sortedSuggestions = prioritySuggestions
-		.toSorted((a, b) => b.priority - a.priority)
-		.filter((s) => {
-			if (seen.has(s.name)) return false;
-			seen.add(s.name);
-			return true;
-		})
-		.map((s) => s.name)
-		.slice(0, limit);
-
-	return sortedSuggestions;
+	const entries = preprocessSuggestionData(games);
+	return getSearchSuggestionsFromData(entries, input, limit);
 }

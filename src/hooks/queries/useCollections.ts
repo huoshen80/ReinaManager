@@ -92,9 +92,19 @@ function useCategoryGames(
 		}
 
 		const ids = categoryGameIdsQuery.data ?? [];
-		const games = ids
-			.map((id) => allGames.find((game) => game.id === id))
-			.filter((game): game is GameData => Boolean(game));
+		const gameById = new Map<number, GameData>();
+		for (const game of allGames) {
+			if (typeof game.id === "number") {
+				gameById.set(game.id, game);
+			}
+		}
+		const games: GameData[] = [];
+		for (const id of ids) {
+			const game = gameById.get(id);
+			if (game) {
+				games.push(game);
+			}
+		}
 
 		return applyNsfwFilter(games, nsfwFilter);
 	}, [

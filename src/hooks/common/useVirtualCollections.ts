@@ -30,6 +30,22 @@ interface VirtualCategoryConfig<T> {
 	sortResults?: (a: [T, number], b: [T, number]) => number;
 }
 
+function getDeveloperNames(
+	developer: string | null | undefined,
+	unknownDeveloper: string,
+): string[] {
+	const developerStr = developer || unknownDeveloper;
+	const developers: string[] = [];
+	for (const dev of developerStr.split("/")) {
+		const trimmed = dev.trim();
+		if (trimmed) {
+			developers.push(trimmed);
+		}
+	}
+
+	return developers.length > 0 ? developers : [unknownDeveloper];
+}
+
 /**
  * 通用虚拟分类生成器
  * 抽取公共逻辑：遍历游戏、统计、转换为Category数组
@@ -89,15 +105,10 @@ export function useDeveloperCategories(allGames: GameData[]): Category[] {
 				allGames,
 				{
 					extractKeys: (game, t) => {
-						const developerStr =
-							game.developer || t("category.unknownDeveloper");
-						const developers = developerStr
-							.split("/")
-							.map((dev) => dev.trim())
-							.filter((dev) => dev.length > 0);
-						return developers.length > 0
-							? developers
-							: [t("category.unknownDeveloper")];
+						return getDeveloperNames(
+							game.developer,
+							t("category.unknownDeveloper"),
+						);
 					},
 					generateId: (_, index = 0) => -(index + 101),
 					generateName: (name) => name,
@@ -194,17 +205,16 @@ export function getVirtualCategoryGames(
 			allGames,
 			{
 				matchGame: (game, t) => {
-					const developerStr = game.developer || t("category.unknownDeveloper");
-					const developers = developerStr
-						.split("/")
-						.map((dev) => dev.trim())
-						.filter((dev) => dev.length > 0);
-
-					if (developers.length === 0) {
-						developers.push(t("category.unknownDeveloper"));
+					const developers = getDeveloperNames(
+						game.developer,
+						t("category.unknownDeveloper"),
+					);
+					for (const developer of developers) {
+						if (developer === categoryName) {
+							return true;
+						}
 					}
-
-					return developers.includes(categoryName);
+					return false;
 				},
 			},
 			t,

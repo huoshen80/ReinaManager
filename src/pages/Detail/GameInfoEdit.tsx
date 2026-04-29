@@ -63,6 +63,18 @@ const CHIP_INPUT_STYLE = {
 	color: "inherit",
 } as const;
 
+function stringArraysEqual(
+	current: string[],
+	original: readonly string[] | null | undefined,
+): boolean {
+	const normalizedOriginal = original ?? [];
+	if (current.length !== normalizedOriginal.length) {
+		return false;
+	}
+
+	return current.every((value, index) => value === normalizedOriginal[index]);
+}
+
 interface GameInfoEditProps {
 	selectedGame: SelectedGameWithId;
 	onSave: (data: UpdateGameParams) => Promise<void>;
@@ -172,11 +184,9 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			gameNote !== currentCustomName ||
 			selectedImagePath !== null || // 有选择的图片但未保存
 			shouldDeleteImage ||
-			JSON.stringify(aliases) !==
-				JSON.stringify(selectedGame.custom_data?.aliases ?? []) ||
+			!stringArraysEqual(aliases, selectedGame.custom_data?.aliases) ||
 			summary !== originalSummary ||
-			JSON.stringify(tags) !==
-				JSON.stringify(selectedGame.custom_data?.tags ?? []) ||
+			!stringArraysEqual(tags, selectedGame.custom_data?.tags) ||
 			developer !== originalDeveloper ||
 			nsfw !== originalNsfw ||
 			releaseDate !== originalDate

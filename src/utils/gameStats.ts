@@ -55,16 +55,17 @@ export async function updateGameStatistics(gameId: number): Promise<void> {
 		]);
 
 		// 3. 计算基础统计信息（总时间、会话数等）
+		let totalTime = 0;
+		let lastPlayed = 0;
+		for (const session of sessions) {
+			totalTime += session.duration || 0;
+			lastPlayed = Math.max(lastPlayed, session.end_time || 0);
+		}
+
 		const stats = {
-			total_time: sessions.reduce(
-				(sum: number, session) => sum + (session.duration || 0),
-				0,
-			),
+			total_time: totalTime,
 			session_count: sessions.length,
-			last_played:
-				sessions.length > 0
-					? Math.max(...sessions.map((s) => s.end_time || 0))
-					: null,
+			last_played: sessions.length > 0 ? lastPlayed : null,
 		};
 
 		// 4. 处理每日统计数据 - 从会话数据中计算

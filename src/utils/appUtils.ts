@@ -317,6 +317,8 @@ export const handleExeFile = async (defaultPath: string = "") => {
 	return path;
 };
 
+const EXECUTABLE_EXTENSIONS = [".exe", ".bat", ".cmd"];
+
 /**
  * 判断文件是否为可执行文件
  * @param filePath 文件路径
@@ -324,7 +326,7 @@ export const handleExeFile = async (defaultPath: string = "") => {
  */
 const isExecutableFile = (filePath: string): boolean => {
 	const ext = extname(filePath).toLowerCase();
-	return [".exe", ".bat", ".cmd"].includes(ext);
+	return EXECUTABLE_EXTENSIONS.includes(ext);
 };
 
 /**
@@ -579,6 +581,10 @@ export async function moveBackupFolder(
 	}
 }
 
+// 纯 ASCII 字符正则，提升为模块级常量避免循环中重复创建
+// biome-ignore lint/suspicious/noControlCharactersInRegex: 允许 ASCII 范围检查
+const ASCII_ONLY_RE = /^[\x00-\x7F]+$/;
+
 /**
  * 根据tags判断是否为NSFW
  * @param tags
@@ -592,8 +598,7 @@ const isNsfwGame = (tags: string[]): boolean => {
 	}
 
 	// 2. 纯英文标签且无 "No Sexual Content" (沿用你原本的逻辑)
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: 允许 ASCII 范围检查
-	const isAllEnglish = tags.every((tag) => /^[\x00-\x7F]+$/.test(tag));
+	const isAllEnglish = tags.every((tag) => ASCII_ONLY_RE.test(tag));
 	return isAllEnglish && !tags.includes("No Sexual Content");
 };
 
@@ -683,6 +688,13 @@ async function batchUpdateCommon(
 		const resultsTemp = token
 			? await fetchFunction(ids, token)
 			: await fetchFunction(ids);
+		const resultByApiId = new Map<string, (typeof resultsTemp)[number]>();
+		for (const result of resultsTemp) {
+			const apiId = type === "bgm" ? result.bgm_id : result.vndb_id;
+			if (apiId) {
+				resultByApiId.set(apiId, result);
+			}
+		}
 
 		// 4. 构建更新数据
 		const updates: Array<
@@ -690,12 +702,7 @@ async function batchUpdateCommon(
 		> = [];
 
 		for (const [gameId, apiId] of idPairs) {
-			const data = resultsTemp.find((result) => {
-				if (type === "bgm") {
-					return result.bgm_id === apiId;
-				}
-				return result.vndb_id === apiId;
-			});
+			const data = resultByApiId.get(apiId);
 
 			if (data?.[updateKeyName]) {
 				updates.push([gameId, { [updateKeyName]: data[updateKeyName] }]);
@@ -813,8 +820,10 @@ export function getArrayDiff<T>(
 ): T[] | null | undefined {
 	const normOriginal = original ?? [];
 
-	// 使用 JSON 比较（适用于简单类型数组）
-	if (JSON.stringify(current) === JSON.stringify(normOriginal)) {
+	if (
+		current.length === normOriginal.length &&
+		current.every((value, index) => Object.is(value, normOriginal[index]))
+	) {
 		return undefined; // 没变
 	}
 

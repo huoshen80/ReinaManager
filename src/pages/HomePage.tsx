@@ -109,7 +109,7 @@ async function getGameActivities(games: GameData[]): Promise<{
 
 	// 提取所有有效的游戏ID
 	const validGameIds = games
-		.filter((game) => game.id && typeof game.id === "number")
+		.filter((game) => typeof game.id === "number")
 		.map((game) => game.id as number);
 
 	// 一次性获取所有游戏的会话记录，避免循环中的多次数据库查询
@@ -153,10 +153,9 @@ async function getGameActivities(games: GameData[]): Promise<{
 	const added: RecentGame[] = [];
 
 	// 过滤有效的游戏数据(有 ID 和创建时间)
-	const filteredGames = games.filter(
+	for (const game of games.filter(
 		(game) => typeof game.id === "number" && game.created_at,
-	);
-	for (const game of filteredGames) {
+	)) {
 		// created_at 是秒级时间戳
 		const timestamp = game.created_at as number;
 		const addedDate = new Date(timestamp * 1000);
