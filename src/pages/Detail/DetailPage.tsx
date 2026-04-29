@@ -32,7 +32,10 @@ import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { useVirtualCategories } from "@/hooks/common/useVirtualCollections";
+import {
+	getDeveloperNames,
+	useVirtualCategories,
+} from "@/hooks/common/useVirtualCollections";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
@@ -136,15 +139,11 @@ export const Detail: React.FC = () => {
 
 	const developerChips = useMemo(() => {
 		if (!selectedGame) return [];
-		const developerStr =
-			selectedGame.developer || t("category.unknownDeveloper");
-		const developers = developerStr
-			.split("/")
-			.map((dev) => dev.trim())
-			.filter((dev) => dev.length > 0);
-		const normalized =
-			developers.length > 0 ? developers : [t("category.unknownDeveloper")];
-		return normalized.map((developer) => (
+		const developers = getDeveloperNames(
+			selectedGame.developer,
+			t("category.unknownDeveloper"),
+		);
+		return developers.map((developer) => (
 			<Chip
 				key={developer}
 				label={developer}

@@ -30,7 +30,7 @@ interface VirtualCategoryConfig<T> {
 	sortResults?: (a: [T, number], b: [T, number]) => number;
 }
 
-function getDeveloperNames(
+export function getDeveloperNames(
 	developer: string | null | undefined,
 	unknownDeveloper: string,
 ): string[] {

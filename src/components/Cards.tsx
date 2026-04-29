@@ -40,7 +40,6 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import RightMenu from "@/components/RightMenu";
-import { useGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useUpdateCategoryGames } from "@/hooks/queries/useCollections";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
@@ -85,8 +84,8 @@ type SortableCardItemProps = Omit<CardItemProps, "style" | "ref">;
 
 /** Cards 组件的 Props */
 interface CardsProps {
-	/** 外部传入的游戏数据（可选，用于分类页面） */
-	gamesData?: GameData[];
+	/** 游戏数据（由调用方提供） */
+	gamesData: GameData[];
 	/** 分类 ID（可选，用于启用拖拽排序） */
 	categoryId?: number;
 }
@@ -216,23 +215,23 @@ function useCardInteraction(options: {
  * 拖拽排序 Hook - 管理拖拽相关状态和逻辑
  */
 function useDragSort(options: {
-	sourceGames: GameData[];
+	gamesData: GameData[];
 	categoryId?: number;
 	enabled: boolean;
 }) {
-	const { sourceGames, categoryId, enabled } = options;
+	const { gamesData, categoryId, enabled } = options;
 	const updateCategoryGamesMutation = useUpdateCategoryGames();
 
-	const [games, setGames] = useState(sourceGames);
+	const [games, setGames] = useState(gamesData);
 	const [activeId, setActiveId] = useState<number | null>(null);
 	const isDraggingRef = useRef(false);
 
 	// 同步外部数据到本地状态（仅在非拖拽状态下）
 	useEffect(() => {
 		if (!isDraggingRef.current) {
-			setGames(sourceGames);
+			setGames(gamesData);
 		}
-	}, [sourceGames]);
+	}, [gamesData]);
 
 	// 传感器配置
 	const sensors = useSensors(
@@ -345,7 +344,7 @@ export const CardItem = memo(
 			return (
 				<Card
 					ref={ref}
-					className={`min-w-24 max-w-full transition-transform ${isActive ? "scale-y-105" : "scale-y-100"}`}
+					className={`min-w-24 max-w-full transition-transform [content-visibility:auto] [contain-intrinsic-size:auto_280px] ${isActive ? "scale-y-105" : "scale-y-100"}`}
 					onContextMenu={onContextMenu}
 					{...props}
 				>
@@ -452,14 +451,10 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			longPressLaunch: s.longPressLaunch,
 		})),
 	);
-	const { games: gamesFromFacade } = useGameListFacade();
 	const launchGame = useGamePlayStore((s) => s.launchGame);
 
 	// 右键菜单状态
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-
-	// 数据源
-	const sourceGames = gamesData ?? gamesFromFacade;
 
 	// 判断是否启用拖拽排序
 	const isSortable =
@@ -468,10 +463,13 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	// 拖拽排序 Hook
 	const { games, activeGame, sensors, handleDragStart, handleDragEnd } =
 		useDragSort({
-			sourceGames,
+			gamesData,
 			categoryId,
 			enabled: isSortable,
 		});
+
+	// 缓存 SortableContext 的 items 数组，避免每次渲染重新创建
+	const sortableIds = useMemo(() => games.map((g) => g.id as number), [games]);
 
 	// 卡片事件处理器
 	const handleCardClick = useCallback(
@@ -604,10 +602,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				onDragStart={handleDragStart}
 				onDragEnd={handleDragEnd}
 			>
-				<SortableContext
-					items={games.map((g) => g.id as number)}
-					strategy={rectSortingStrategy}
-				>
+				<SortableContext items={sortableIds} strategy={rectSortingStrategy}>
 					{cardList}
 				</SortableContext>
 				<DragOverlay>
