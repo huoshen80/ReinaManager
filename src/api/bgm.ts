@@ -40,6 +40,16 @@ function buildBgmAuthHeaders(token?: string) {
 	};
 }
 
+// 敏感关键词集合，提升为模块级常量避免每次调用重复创建
+const SENSITIVE_KEYWORDS: ReadonlySet<string> = new Set([
+	"台独",
+	"港独",
+	"藏独",
+	"分裂",
+	"反华",
+	"辱华",
+]);
+
 /**
  * 过滤掉包含敏感关键词的标签。
  *
@@ -47,9 +57,11 @@ function buildBgmAuthHeaders(token?: string) {
  * @returns 过滤后的标签字符串数组，不包含敏感词。
  */
 function filterSensitiveTags(tags: string[]): string[] {
-	const sensitiveKeywords = ["台独", "港独", "藏独", "分裂", "反华", "辱华"];
 	return tags.filter((tag) => {
-		return !sensitiveKeywords.some((keyword) => tag.includes(keyword));
+		for (const keyword of SENSITIVE_KEYWORDS) {
+			if (tag.includes(keyword)) return false;
+		}
+		return true;
 	});
 }
 

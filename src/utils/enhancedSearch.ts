@@ -274,11 +274,13 @@ export function getSearchSuggestions(
 
 		// 直接名称匹配
 		for (const name of names) {
-			if (name?.toLowerCase().includes(inputLower)) {
+			if (!name) continue;
+			const lower = name.toLowerCase();
+			if (lower.includes(inputLower)) {
 				let priority = 1;
-				if (name.toLowerCase().startsWith(inputLower)) {
+				if (lower.startsWith(inputLower)) {
 					priority = 3; // 开头匹配优先级高
-				} else if (name.toLowerCase() === inputLower) {
+				} else if (lower === inputLower) {
 					priority = 4; // 精确匹配优先级最高
 				}
 				prioritySuggestions.push({ name, priority });
@@ -327,45 +329,17 @@ export function getSearchSuggestions(
 		}
 	}
 
-	// 按优先级排序并去重
+	// 按优先级排序并用 Set 去重
+	const seen = new Set<string>();
 	const sortedSuggestions = prioritySuggestions
 		.toSorted((a, b) => b.priority - a.priority)
+		.filter((s) => {
+			if (seen.has(s.name)) return false;
+			seen.add(s.name);
+			return true;
+		})
 		.map((s) => s.name)
-		.filter((name, index, arr) => arr.indexOf(name) === index) // 去重
 		.slice(0, limit);
 
 	return sortedSuggestions;
-}
-
-// 暂时无用
-/**
- * 高亮搜索关键词
- * @param text 原文本
- * @param keyword 搜索关键词
- * @returns 带有高亮标记的文本
- */
-export function highlightSearchTerm(text: string, keyword: string): string {
-	if (!keyword || keyword.trim() === "" || !text) {
-		return text;
-	}
-
-	const searchTerm = keyword.trim();
-
-	// 创建正则表达式，忽略大小写
-	const regex = new RegExp(
-		`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-		"gi",
-	);
-
-	return text.replace(regex, "<mark>$1</mark>");
-}
-
-// 暂时无用
-/**
- * 检查是否包含中文字符
- * @param text 文本
- * @returns 是否包含中文
- */
-export function containsChinese(text: string): boolean {
-	return /[\u4e00-\u9fff]/.test(text);
 }

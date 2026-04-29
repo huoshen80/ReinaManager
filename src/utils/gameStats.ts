@@ -48,11 +48,11 @@ export async function recordGameSession(
 // 更新游戏统计信息函数 - 使用后端服务
 export async function updateGameStatistics(gameId: number): Promise<void> {
 	try {
-		// 1. 获取现有统计数据
-		const existingStats = await statsService.getGameStatistics(gameId);
-
-		// 2. 获取最新的会话数据
-		const sessions = await statsService.getGameSessions(gameId, 1000, 0);
+		// 1. 并行获取现有统计数据和最新会话数据
+		const [existingStats, sessions] = await Promise.all([
+			statsService.getGameStatistics(gameId),
+			statsService.getGameSessions(gameId, 1000, 0),
+		]);
 
 		// 3. 计算基础统计信息（总时间、会话数等）
 		const stats = {

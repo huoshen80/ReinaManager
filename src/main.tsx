@@ -37,15 +37,16 @@ const emotionCache = createCache({
 document.addEventListener("drop", (e) => e.preventDefault());
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("contextmenu", (e) => e.preventDefault());
+// 禁用的快捷键集合，提升为模块级常量避免每次按键重复创建
+const DISABLED_FUNCTION_KEYS = new Set(["F3", "F5", "F7"]);
+const DISABLED_CTRL_KEYS = new Set(["r", "u", "p", "l", "j", "g", "f", "s"]);
+
 document.addEventListener("keydown", (e) => {
-	if (["F3", "F5", "F7"].includes(e.key.toUpperCase())) {
+	if (DISABLED_FUNCTION_KEYS.has(e.key.toUpperCase())) {
 		e.preventDefault();
 	}
 
-	if (
-		e.ctrlKey &&
-		["r", "u", "p", "l", "j", "g", "f", "s"].includes(e.key.toLowerCase())
-	) {
+	if (e.ctrlKey && DISABLED_CTRL_KEYS.has(e.key.toLowerCase())) {
 		e.preventDefault();
 	}
 });
