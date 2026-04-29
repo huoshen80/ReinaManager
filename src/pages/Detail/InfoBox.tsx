@@ -228,10 +228,21 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				});
 			}
 		} else if (timeRange === "ALL") {
-			// 全部：判断数据量决定是否按月聚合
+			// 全部：根据数据量和时间跨度决定是否按月聚合
 			const allDates = Array.from(datePlaytimeMap.keys()).toSorted();
 
-			if (allDates.length > 60) {
+			// 计算数据跨越的时间天数
+			const spanDays =
+				allDates.length > 1
+					? Math.ceil(
+							(new Date(allDates[allDates.length - 1]).getTime() -
+								new Date(allDates[0]).getTime()) /
+								(1000 * 60 * 60 * 24),
+						)
+					: 0;
+
+			// 数据点较多 或 时间跨度超过180天 → 按月聚合
+			if (allDates.length > 60 || spanDays > 180) {
 				// 数据点较多，按月聚合
 				const monthlyMap = new Map<string, number>();
 				for (const [dateStr, playtime] of datePlaytimeMap) {
@@ -267,7 +278,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 	const xAxisFormatter = useCallback(
 		(value: string) => {
 			if (timeRange === "1Y" || (timeRange === "ALL" && value.length === 7)) {
-				// 月份格式：YYYY-MM
+				// 按月聚合：YYYY-MM
 				return value;
 			}
 			// 日期格式：YYYY-MM-DD
@@ -275,7 +286,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 				// 月度视图只显示日期（DD）
 				return value.substring(8);
 			}
-			// 其他情况显示 MM-DD
+			// 按天显示：MM-DD（跨度≤180天走按天，基本同年内）
 			return value.substring(5);
 		},
 		[timeRange],
