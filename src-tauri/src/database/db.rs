@@ -98,7 +98,7 @@ fn generate_backup_filename() -> String {
 }
 
 /// 解析备份目标目录（按需读取 user.db_backup_path）
-async fn resolve_backup_dir(db: &DatabaseConnection) -> Result<PathBuf, String> {
+pub async fn resolve_backup_dir(db: &DatabaseConnection) -> Result<PathBuf, String> {
     use crate::database::repository::settings_repository::DbSettingsExt;
 
     let settings = db.get_settings().await?;

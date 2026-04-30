@@ -543,6 +543,12 @@
 				"backupError": "Database backup failed: {{error}}",
 				"backupFailed": "Backup failed",
 				"backupSuccess": "Database backup successful: {{path}}",
+				"backingCovers": "Backing up covers...",
+				"backupCovers": "Backup Custom Covers",
+				"coverBackupError": "Custom cover backup failed: {{error}}",
+				"coverBackupFailed": "Failed to backup custom covers",
+				"coverBackupSuccess": "Custom covers backup successful: {{path}}",
+				"noCoversToBackup": "No custom covers to backup",
 				"importError": "Failed to import database: {{error}}",
 				"importFailed": "Import failed",
 				"importing": "Importing...",
@@ -550,10 +556,9 @@
 				"openFolder": "Open Backup Folder",
 				"openFolderError": "Failed to open backup folder: {{error}}",
 				"openFolderFailed": "Failed to open folder",
-				"pathNote": "Leave empty to use the default path (AppData/data/backups), or the program directory in portable mode",
 				"restore": "Restore Database",
 				"restoreWarning": "Restoring database will overwrite existing data, please use with caution. The application will restart automatically after import.",
-				"title": "Database Backup & Restore"
+				"title": "Data Backup and Restore"
 			},
 			"dev": {
 				"title": "Experimental Features",
@@ -639,7 +644,7 @@
 				"system": "System",
 				"systemDescription": "Manage startup, logs, close behavior, and time tracking mode.",
 				"storage": "Paths & Backup",
-				"storageDescription": "Configure local paths, and run database backup or restore.",
+				"storageDescription": "Configure local paths, and run data backup or restore.",
 				"about": "About",
 				"aboutDescription": "View version, update status, documentation, and feedback links."
 			}

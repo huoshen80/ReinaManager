@@ -29,6 +29,28 @@ export async function backupDatabase(): Promise<BackupResult> {
 }
 
 /**
+ * 备份自定义封面（仅自定义封面，不含云端缓存）
+ *
+ * 扫描所有 game_{id} 目录，仅复制匹配 cover_{id}_* 的文件，
+ * 无自定义封面的目录不会包含在备份中。
+ * 备份路径跟随数据库备份路径逻辑。
+ *
+ * @returns 备份结果，包含备份文件的路径
+ */
+export async function backupCustomCovers(): Promise<BackupResult> {
+	try {
+		const result = await fileService.backupCustomCovers();
+		if (result.path) {
+			console.log(`自定义封面已备份到: ${result.path}`);
+		}
+		return result;
+	} catch (error) {
+		console.error("备份自定义封面失败:", error);
+		throw error;
+	}
+}
+
+/**
  * 导入数据库文件（覆盖现有数据库）
  *
  * 流程：

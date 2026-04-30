@@ -85,6 +85,13 @@ class FileService extends BaseService {
 	}
 
 	/**
+	 * 备份自定义封面（仅自定义封面，不含云端缓存）
+	 */
+	async backupCustomCovers(): Promise<BackupResult> {
+		return this.invoke<BackupResult>("backup_custom_covers");
+	}
+
+	/**
 	 * 导入数据库
 	 */
 	async importDatabase(sourcePath: string): Promise<ImportResult> {

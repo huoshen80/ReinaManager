@@ -540,6 +540,12 @@
 				"backupError": "資料庫備份失敗: {{error}}",
 				"backupFailed": "備份失敗",
 				"backupSuccess": "資料庫備份成功: {{path}}",
+				"backingCovers": "備份封面中...",
+				"backupCovers": "備份自訂封面",
+				"coverBackupError": "自訂封面備份失敗: {{error}}",
+				"coverBackupFailed": "備份自訂封面失敗",
+				"coverBackupSuccess": "自訂封面備份成功: {{path}}",
+				"noCoversToBackup": "沒有自訂封面需要備份",
 				"importError": "資料庫匯入失敗: {{error}}",
 				"importFailed": "匯入失敗",
 				"importing": "匯入中...",
@@ -547,10 +553,9 @@
 				"openFolder": "開啟備份資料夾",
 				"openFolderError": "開啟備份資料夾失敗: {{error}}",
 				"openFolderFailed": "開啟資料夾失敗",
-				"pathNote": "留空將使用預設路徑（AppData/data/backups），或攜帶式模式下的程式目錄",
 				"restore": "還原資料庫",
 				"restoreWarning": "還原資料庫將覆蓋現有資料，請謹慎操作。匯入後應用程式將自動重新啟動。",
-				"title": "資料庫備份與還原"
+				"title": "資料備份與還原"
 			},
 			"dev": {
 				"title": "實驗性功能",
@@ -636,7 +641,7 @@
 				"system": "系統",
 				"systemDescription": "管理啟動、日誌、關閉行為與計時模式。",
 				"storage": "路徑與備份",
-				"storageDescription": "設定本地路徑，執行資料庫備份與還原。",
+				"storageDescription": "設定本地路徑，執行資料備份與還原。",
 				"about": "關於",
 				"aboutDescription": "查看版本、更新狀態、文件與回饋入口。"
 			}

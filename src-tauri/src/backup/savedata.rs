@@ -1,14 +1,11 @@
+use super::archive::{create_7z_archive, extract_7z_archive};
 use crate::database::repository::games_repository::GamesRepository;
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use sevenz_rust2::{ArchiveWriter, decompress_file, encoder_options::ZstandardOptions};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
-
-// 速度与压缩率折中：使用 Zstd 低压缩等级。
-const ZSTD_COMPRESSION_LEVEL: u32 = 3;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BackupInfo {
@@ -192,41 +189,6 @@ async fn resolve_savedata_backup_root(db: &DatabaseConnection) -> Result<PathBuf
     Ok(backup_root)
 }
 
-/// 创建7z压缩包
-///
-/// # Arguments
-/// * `source_dir` - 源目录路径
-/// * `archive_path` - 目标压缩包路径
-///
-/// # Returns
-/// * `Result<u64, Box<dyn std::error::Error>>` - 压缩包文件大小或错误
-fn create_7z_archive(
-    source_dir: &Path,
-    archive_path: &Path,
-) -> Result<u64, Box<dyn std::error::Error>> {
-    // 创建 ArchiveWriter 并配置压缩方法
-    let mut writer = ArchiveWriter::create(archive_path)?;
-
-    // 设置使用 Zstd 压缩，兼顾速度与体积
-    let zstd_options = ZstandardOptions::from_level(ZSTD_COMPRESSION_LEVEL);
-    log::info!(
-        "存档备份压缩参数: codec=ZSTD, level={}",
-        ZSTD_COMPRESSION_LEVEL
-    );
-    writer.set_content_methods(vec![zstd_options.into()]);
-
-    // 递归添加源目录中的所有文件
-    // 第二个参数是过滤器，这里返回 true 表示包含所有文件
-    writer.push_source_path(source_dir, |_| true)?;
-
-    // 完成压缩
-    writer.finish()?;
-
-    // 获取压缩包文件大小
-    let metadata = fs::metadata(archive_path)?;
-    Ok(metadata.len())
-}
-
 /// 清理超出数量限制的旧备份（基于数据库记录，异步处理）
 ///
 /// 从 games 表中读取该游戏的 maxbackups 设置
@@ -291,40 +253,5 @@ async fn cleanup_old_backups(
         );
     }
 
-    Ok(())
-}
-
-/// 解压7z压缩包（覆盖模式）
-///
-/// 在解压前会先清空目标目录的所有内容，确保恢复的存档是完整且干净的
-///
-/// # Arguments
-/// * `archive_path` - 压缩包路径
-/// * `target_dir` - 目标解压目录
-///
-/// # Returns
-/// * `Result<(), Box<dyn std::error::Error>>` - 成功或错误
-fn extract_7z_archive(
-    archive_path: &Path,
-    target_dir: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // 如果目标目录存在，先清空内容以实现覆盖
-    if target_dir.exists() {
-        for entry in fs::read_dir(target_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                fs::remove_dir_all(&path)?;
-            } else {
-                fs::remove_file(&path)?;
-            }
-        }
-    } else {
-        // 如果目标目录不存在，创建它
-        fs::create_dir_all(target_dir)?;
-    }
-
-    // 使用 sevenz-rust2 提供的辅助函数进行解压
-    decompress_file(archive_path, target_dir)?;
     Ok(())
 }

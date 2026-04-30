@@ -537,6 +537,12 @@
 				"backupError": "数据库备份失败: {{error}}",
 				"backupFailed": "备份失败",
 				"backupSuccess": "数据库备份成功: {{path}}",
+				"backingCovers": "备份封面中...",
+				"backupCovers": "备份自定义封面",
+				"coverBackupError": "自定义封面备份失败: {{error}}",
+				"coverBackupFailed": "备份自定义封面失败",
+				"coverBackupSuccess": "自定义封面备份成功: {{path}}",
+				"noCoversToBackup": "没有自定义封面需要备份",
 				"importError": "数据库导入失败: {{error}}",
 				"importFailed": "导入失败",
 				"importing": "导入中...",
@@ -544,10 +550,9 @@
 				"openFolder": "打开备份文件夹",
 				"openFolderError": "打开备份文件夹失败: {{error}}",
 				"openFolderFailed": "打开文件夹失败",
-				"pathNote": "备份路径配置已移至下方的「数据库备份路径」设置中",
 				"restore": "恢复数据库",
 				"restoreWarning": "恢复数据库将覆盖现有数据，请谨慎操作。导入后应用将自动重启。",
-				"title": "数据库备份与恢复"
+				"title": "数据备份与恢复"
 			},
 			"dev": {
 				"title": "实验性功能",
@@ -633,7 +638,7 @@
 				"system": "系统",
 				"systemDescription": "管理启动、日志、关闭行为和计时模式。",
 				"storage": "路径与备份",
-				"storageDescription": "配置本地路径，执行数据库备份和恢复。",
+				"storageDescription": "配置本地路径，执行数据备份和恢复。",
 				"about": "关于",
 				"aboutDescription": "查看版本、更新状态、文档和反馈入口。"
 			}

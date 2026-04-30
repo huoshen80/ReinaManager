@@ -540,6 +540,12 @@
 				"backupError": "データベースバックアップに失敗しました: {{error}}",
 				"backupFailed": "バックアップに失敗しました",
 				"backupSuccess": "データベースバックアップが成功しました: {{path}}",
+				"backingCovers": "カバーをバックアップ中...",
+				"backupCovers": "カスタムカバーをバックアップ",
+				"coverBackupError": "カスタムカバーのバックアップに失敗しました: {{error}}",
+				"coverBackupFailed": "カスタムカバーのバックアップに失敗しました",
+				"coverBackupSuccess": "カスタムカバーのバックアップが成功しました: {{path}}",
+				"noCoversToBackup": "バックアップするカスタムカバーがありません",
 				"importError": "データベースのインポートに失敗しました: {{error}}",
 				"importFailed": "インポートに失敗しました",
 				"importing": "インポート中...",
@@ -547,10 +553,9 @@
 				"openFolder": "バックアップフォルダを開く",
 				"openFolderError": "バックアップフォルダを開くのに失敗しました: {{error}}",
 				"openFolderFailed": "フォルダを開くのに失敗しました",
-				"pathNote": "空白のままにするとデフォルトパス（AppData/data/backups）を使用します。ポータブルモードの場合はプログラムディレクトリになります",
 				"restore": "データベースを復元",
 				"restoreWarning": "データベースの復元は既存のデータを上書きします。ご注意ください。インポート後、アプリは自動的に再起動します。",
-				"title": "データベースバックアップと復元"
+				"title": "データバックアップと復元"
 			},
 			"dev": {
 				"title": "実験性機能",
@@ -636,7 +641,7 @@
 				"system": "システム",
 				"systemDescription": "起動、ログ、終了動作、時間計測モードを管理します。",
 				"storage": "パスとバックアップ",
-				"storageDescription": "ローカルパスを設定し、データベースのバックアップと復元を実行します。",
+				"storageDescription": "ローカルパスを設定し、データのバックアップと復元を実行します。",
 				"about": "について",
 				"aboutDescription": "バージョン、更新状態、ドキュメント、フィードバックリンクを確認します。"
 			}

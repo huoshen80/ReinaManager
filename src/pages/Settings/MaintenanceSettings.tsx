@@ -1,5 +1,6 @@
 import BackupIcon from "@mui/icons-material/Backup";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import ImageIcon from "@mui/icons-material/Image";
 import RestoreIcon from "@mui/icons-material/Restore";
 import { CircularProgress, Typography } from "@mui/material";
 import Box from "@mui/material/Box";
@@ -11,12 +12,17 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/providers/snackBar";
 import { openDatabaseBackupFolder } from "@/utils/appUtils";
-import { backupDatabase, importDatabase } from "@/utils/database";
+import {
+	backupCustomCovers,
+	backupDatabase,
+	importDatabase,
+} from "@/utils/database";
 import { getUserErrorMessage } from "@/utils/errors";
 
 export const DatabaseBackupSettings = () => {
 	const { t } = useTranslation();
 	const [isBackingUp, setIsBackingUp] = useState(false);
+	const [isBackingCovers, setIsBackingCovers] = useState(false);
 	const [isImporting, setIsImporting] = useState(false);
 
 	const handleBackupDatabase = async () => {
@@ -48,6 +54,48 @@ export const DatabaseBackupSettings = () => {
 			);
 		} finally {
 			setIsBackingUp(false);
+		}
+	};
+
+	const handleBackupCustomCovers = async () => {
+		setIsBackingCovers(true);
+
+		try {
+			const result = await backupCustomCovers();
+			if (result.success) {
+				snackbar.success(
+					result.path
+						? t("pages.Settings.databaseBackup.coverBackupSuccess", {
+								path: result.path,
+							})
+						: t(
+								"pages.Settings.databaseBackup.noCoversToBackup",
+								"没有自定义封面需要备份",
+							),
+				);
+			} else {
+				snackbar.error(
+					t("pages.Settings.databaseBackup.coverBackupError", {
+						error: result.message,
+					}),
+				);
+			}
+		} catch (error) {
+			const errorMessage = getUserErrorMessage(
+				error,
+				t,
+				t(
+					"pages.Settings.databaseBackup.coverBackupFailed",
+					"备份自定义封面失败",
+				),
+			);
+			snackbar.error(
+				t("pages.Settings.databaseBackup.coverBackupError", {
+					error: errorMessage,
+				}),
+			);
+		} finally {
+			setIsBackingCovers(false);
 		}
 	};
 
@@ -109,10 +157,16 @@ export const DatabaseBackupSettings = () => {
 	return (
 		<Box className="mb-6">
 			<InputLabel className="font-semibold mb-4">
-				{t("pages.Settings.databaseBackup.title", "数据库备份与恢复")}
+				{t("pages.Settings.databaseBackup.title", "数据备份与恢复")}
 			</InputLabel>
 
-			<Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+			<Stack
+				direction="row"
+				spacing={2}
+				useFlexGap
+				alignItems="center"
+				flexWrap="wrap"
+			>
 				<Button
 					variant="contained"
 					color="primary"
@@ -130,6 +184,25 @@ export const DatabaseBackupSettings = () => {
 					{isBackingUp
 						? t("pages.Settings.databaseBackup.backing", "备份中...")
 						: t("pages.Settings.databaseBackup.backup", "备份数据库")}
+				</Button>
+
+				<Button
+					variant="outlined"
+					color="primary"
+					onClick={handleBackupCustomCovers}
+					disabled={isBackingCovers}
+					startIcon={
+						isBackingCovers ? (
+							<CircularProgress size={16} color="inherit" />
+						) : (
+							<ImageIcon />
+						)
+					}
+					className="px-6 py-2"
+				>
+					{isBackingCovers
+						? t("pages.Settings.databaseBackup.backingCovers", "备份封面中...")
+						: t("pages.Settings.databaseBackup.backupCovers", "备份自定义封面")}
 				</Button>
 
 				<Button
@@ -169,16 +242,6 @@ export const DatabaseBackupSettings = () => {
 				{t(
 					"pages.Settings.databaseBackup.restoreWarning",
 					"恢复数据库将覆盖现有数据，请谨慎操作。导入后应用将自动重启。",
-				)}
-			</Typography>
-			<Typography
-				variant="caption"
-				color="text.secondary"
-				className="block mt-1"
-			>
-				{t(
-					"pages.Settings.databaseBackup.pathNote",
-					"备份路径配置已移至下方的「数据库备份路径」设置中",
 				)}
 			</Typography>
 		</Box>

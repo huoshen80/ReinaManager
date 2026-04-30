@@ -172,7 +172,7 @@ export const Settings: React.FC = () => {
 				label: t("pages.Settings.sections.storage", "路径与备份"),
 				description: t(
 					"pages.Settings.sections.storageDescription",
-					"配置本地路径，执行数据库备份和恢复。",
+					"配置本地路径，执行数据备份和恢复。",
 				),
 				content: (
 					<>
