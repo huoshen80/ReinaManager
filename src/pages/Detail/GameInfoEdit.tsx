@@ -321,10 +321,10 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			let uploadedImageExt: string | null | undefined;
 
 			// 1. 先处理副作用：上传图片或删除图片
-			if (shouldDeleteImage && selectedGame.id) {
+			if (shouldDeleteImage) {
 				await deleteGameCustomCovers(selectedGame.id);
 				uploadedImageExt = null; // 标记删除
-			} else if (selectedImagePath && selectedGame.id) {
+			} else if (selectedImagePath) {
 				// 上传本地选择的图片
 				uploadedImageExt = await uploadSelectedImage(
 					selectedGame.id,

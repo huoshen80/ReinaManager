@@ -49,9 +49,6 @@ export const selectImageFile = async (): Promise<string | null> => {
  */
 export const deleteGameCustomCovers = async (gameId: number): Promise<void> => {
 	const customCoverFolder = getcustomCoverFolder(gameId);
-	if (!customCoverFolder) {
-		throw new Error("资源目录路径未初始化");
-	}
 
 	try {
 		await fileService.deleteGameCovers(gameId, customCoverFolder);
