@@ -125,17 +125,32 @@
 				"categoryGamesUpdated": "カテゴリのゲームを更新しました"
 			}
 		},
-		"FilterModal": {
+		"Cards": {
+			"removeFromCategory": "現在のカテゴリから削除",
+			"removeFromCategoryFailed": "カテゴリからの削除に失敗しました",
+			"removeFromCategorySuccess": "現在のカテゴリから削除しました"
+		},
+		"FilterSortModal": {
 			"allGames": "すべてのゲーム",
-			"apply": "適用",
 			"cancel": "キャンセル",
 			"clearGames": "クリア済みゲーム",
+			"confirm": "確認",
 			"customGames": "カスタムゲーム",
 			"filter": "フィルター",
-			"filterTitle": "フィルター",
 			"localGames": "ローカルゲーム",
 			"noclearGames": "未クリアのゲーム",
-			"onlineGames": "オンラインゲーム"
+			"onlineGames": "オンラインゲーム",
+			"title": "フィルター・並べ替え",
+			"addTime": "追加時間(デフォルト)",
+			"ascending": "昇順",
+			"bgmRank": "BGMランキング",
+			"descending": "降順",
+			"lastPlayed": "最近プレイ",
+			"nameSort": "名前ソート",
+			"releaseTime": "ゲーム発売時間",
+			"sortMethod": "並べ替え方法",
+			"sortOrder": "並べ替え方向",
+			"vndbRank": "VNDBランキング"
 		},
 		"LaunchModal": {
 			"gamePathNotFound": "ゲームパスが見つかりません",
@@ -221,25 +236,30 @@
 			"gameAddedSuccess": "ゲームが正常に追加されました",
 			"viewDetails": "詳細を表示"
 		},
-		"SortModal": {
-			"addTime": "追加時間(デフォルト)",
-			"ascending": "昇順",
-			"bgmRank": "BGMランキング",
-			"cancel": "キャンセル",
-			"confirm": "確認",
-			"descending": "降順",
-			"lastPlayed": "最近プレイ",
-			"nameSort": "名前ソート",
-			"releaseTime": "ゲーム発売時間",
-			"sort": "並べ替え",
-			"sortMethod": "並べ替え方法：",
-			"vndbRank": "VNDBランキング"
-		},
 		"AppLayout": {
 			"back": "戻る"
 		},
 		"Toolbar": {
 			"bgmlink": "Bangumiページを見る",
+			"Batch": {
+				"addToCollection": "コレクションに追加",
+				"addToCollectionFailed": "コレクションへの追加に失敗しました",
+				"addToCollectionSuccess": "{{count}} 個のゲームをコレクションに追加しました",
+				"category": "カテゴリ",
+				"clearSelection": "選択をクリア",
+				"deleteFailed": "選択したゲームの削除に失敗しました",
+				"deleteMessage": "選択した {{count}} 個のゲームを削除しますか？この操作は元に戻せません。",
+				"deleteSelected": "選択したゲームを削除",
+				"deleteSuccess": "{{count}} 個のゲームを削除しました",
+				"deleteTitle": "ゲームを一括削除",
+				"group": "グループ",
+				"removeFromCategory": "現在のカテゴリから削除",
+				"removeFromCategoryFailed": "カテゴリからの削除に失敗しました",
+				"removeFromCategorySuccess": "{{count}} 個のゲームを現在のカテゴリから削除しました",
+				"selectAll": "すべて選択",
+				"selectedCount": "{{count}} 個選択中",
+				"start": "一括操作"
+			},
 			"Category": {
 				"availableGames": "利用可能なゲーム",
 				"gamesInCategory": "カテゴリ内のゲーム",

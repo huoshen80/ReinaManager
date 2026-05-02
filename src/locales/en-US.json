@@ -127,17 +127,32 @@
 				"categoryGamesUpdated": "Category games updated"
 			}
 		},
-		"FilterModal": {
+		"Cards": {
+			"removeFromCategory": "Remove from Current Category",
+			"removeFromCategoryFailed": "Failed to remove from category",
+			"removeFromCategorySuccess": "Removed from current category"
+		},
+		"FilterSortModal": {
 			"allGames": "All Games",
-			"apply": "Apply",
 			"cancel": "Cancel",
 			"clearGames": "Completed Games",
+			"confirm": "Confirm",
 			"customGames": "Custom Games",
 			"filter": "Filter",
-			"filterTitle": "Filter",
 			"localGames": "Local Games",
 			"noclearGames": "Not Completed Games",
-			"onlineGames": "Online Games"
+			"onlineGames": "Online Games",
+			"title": "Filter & Sort",
+			"addTime": "Add Time (Default)",
+			"ascending": "Ascending",
+			"bgmRank": "BGM Rank",
+			"descending": "Descending",
+			"lastPlayed": "Last Played",
+			"nameSort": "Name Sort",
+			"releaseTime": "Game Release Time",
+			"sortMethod": "Sort Method",
+			"sortOrder": "Sort Order",
+			"vndbRank": "VNDB Rank"
 		},
 		"LaunchModal": {
 			"gamePathNotFound": "Game path not found",
@@ -223,25 +238,30 @@
 			"gameAddedSuccess": "Game added successfully",
 			"viewDetails": "View Details"
 		},
-		"SortModal": {
-			"addTime": "Add Time (Default)",
-			"ascending": "Ascending",
-			"bgmRank": "BGM Rank",
-			"cancel": "Cancel",
-			"confirm": "Confirm",
-			"descending": "Descending",
-			"lastPlayed": "Last Played",
-			"nameSort": "Name Sort",
-			"releaseTime": "Game Release Time",
-			"sort": "Sort",
-			"sortMethod": "Sort Method:",
-			"vndbRank": "VNDB Rank"
-		},
 		"AppLayout": {
 			"back": "Back"
 		},
 		"Toolbar": {
 			"bgmlink": "View Bangumi Page",
+			"Batch": {
+				"addToCollection": "Add to Collection",
+				"addToCollectionFailed": "Failed to add to collection",
+				"addToCollectionSuccess": "Added {{count}} game(s) to collection",
+				"category": "Category",
+				"clearSelection": "Clear Selection",
+				"deleteFailed": "Failed to delete selected games",
+				"deleteMessage": "Delete {{count}} selected game(s)? This cannot be undone.",
+				"deleteSelected": "Delete Selected Games",
+				"deleteSuccess": "Deleted {{count}} game(s)",
+				"deleteTitle": "Delete Games",
+				"group": "Group",
+				"removeFromCategory": "Remove from Current Category",
+				"removeFromCategoryFailed": "Failed to remove from category",
+				"removeFromCategorySuccess": "Removed {{count}} game(s) from current category",
+				"selectAll": "Select All",
+				"selectedCount": "{{count}} selected",
+				"start": "Batch Actions"
+			},
 			"Category": {
 				"availableGames": "Available Games",
 				"gamesInCategory": "Games in Category",

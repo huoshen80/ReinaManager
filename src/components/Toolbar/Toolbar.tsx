@@ -18,8 +18,7 @@
  * - @mui/icons-material
  * - @toolpad/core/DashboardLayout
  * - @/components/AddModal
- * - @/components/SortModal
- * - @/components/FilterModal
+ * - @/components/FilterSortModal
  * - @/components/LaunchModal
  * - @/components/AlertBox
  * - @/store
@@ -57,12 +56,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertConfirmBox } from "@/components/AlertBox";
-import { FilterModal } from "@/components/FilterModal";
+import { FilterSortModal } from "@/components/FilterSortModal";
 import { LaunchModal } from "@/components/LaunchModal";
 import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { SelectedGameGuard } from "@/components/SelectedGameGuard";
-import SortModal from "@/components/SortModal";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
@@ -576,8 +574,7 @@ export const Buttongroup = ({
 					<Button onClick={() => openAddModal("")} startIcon={<AddIcon />}>
 						{t("components.AddModal.addGame")}
 					</Button>
-					<SortModal />
-					<FilterModal />
+					<FilterSortModal />
 					<ThemeSwitcher />
 				</>
 			)}
@@ -600,6 +597,7 @@ export const Toolbars = () => {
 	const isLibraries = path === "/libraries";
 	const isDetail = path.startsWith("/libraries/") && path !== "/libraries/";
 	const isCollection = path === "/collection";
+
 	return (
 		<Stack direction="row">
 			<Buttongroup

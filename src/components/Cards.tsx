@@ -24,9 +24,14 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import CheckIcon from "@mui/icons-material/Check";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
 import CardMedia from "@mui/material/CardMedia";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import {
 	forwardRef,
 	memo,
@@ -39,8 +44,12 @@ import {
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
+import { CardsBatchBar } from "@/components/CardsBatchBar";
 import RightMenu from "@/components/RightMenu";
-import { useUpdateCategoryGames } from "@/hooks/queries/useCollections";
+import {
+	useCategoryGameIds,
+	useUpdateCategoryGames,
+} from "@/hooks/queries/useCollections";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
@@ -63,6 +72,16 @@ interface CardItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	card: GameData;
 	/** 是否为当前选中的卡片 */
 	isActive: boolean;
+	/** 是否被批量选择 */
+	isBatchSelected?: boolean;
+	/** 是否显示批量选择标志 */
+	showBatchMarker?: boolean;
+	/** 是否显示移出分类按钮 */
+	showRemoveFromCategory?: boolean;
+	/** 移出分类事件 */
+	onRemoveFromCategory?: () => void;
+	/** 移出分类提示 */
+	removeFromCategoryTitle?: string;
 	/** 是否为拖拽时的浮层预览 */
 	isOverlay?: boolean;
 	/** 右键菜单事件 */
@@ -317,6 +336,11 @@ export const CardItem = memo(
 			{
 				card,
 				isActive,
+				isBatchSelected,
+				showBatchMarker,
+				showRemoveFromCategory,
+				onRemoveFromCategory,
+				removeFromCategoryTitle,
 				isOverlay,
 				onContextMenu,
 				onClick,
@@ -344,10 +368,37 @@ export const CardItem = memo(
 			return (
 				<Card
 					ref={ref}
-					className={`min-w-24 max-w-full transition-transform [content-visibility:auto] [contain-intrinsic-size:auto_280px] ${isActive ? "scale-y-105" : "scale-y-100"}`}
+					className={`group relative min-w-24 max-w-full transition-transform [content-visibility:auto] [contain-intrinsic-size:auto_280px] ${isActive ? "scale-y-105" : "scale-y-100"}`}
 					onContextMenu={onContextMenu}
 					{...props}
 				>
+					{showBatchMarker && isBatchSelected && (
+						<Box
+							className="absolute top-1.5 left-1.5 z-2 h-5 w-5 flex items-center justify-center shadow-md"
+							sx={{
+								bgcolor: "primary.main",
+								color: "primary.contrastText",
+							}}
+						>
+							<CheckIcon className="text-18px" />
+						</Box>
+					)}
+					{showRemoveFromCategory && (
+						<Tooltip title={removeFromCategoryTitle} enterDelay={1000}>
+							<IconButton
+								size="small"
+								color="error"
+								className="!absolute right-1 top-1 z-2 !p-0 opacity-0 !bg-transparent hover:!bg-transparent group-hover:opacity-100"
+								onClick={(event) => {
+									event.stopPropagation();
+									onRemoveFromCategory?.();
+								}}
+								onMouseDown={(event) => event.stopPropagation()}
+							>
+								<RemoveCircleOutlineIcon className="text-28px" />
+							</IconButton>
+						</Tooltip>
+					)}
 					<CardActionArea
 						{...handlers}
 						className={`
@@ -430,10 +481,12 @@ SortableCardItem.displayName = "SortableCardItem";
  * Cards - 游戏卡片网格列表
  */
 const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
-	const { i18n } = useTranslation();
+	const { i18n, t } = useTranslation();
 	const navigate = useNavigate();
 	const path = useLocation().pathname;
 	const isLibraries = path === "/libraries";
+	const isCollectionCategory = typeof categoryId === "number" && categoryId > 0;
+	const canUseBatchMode = isLibraries || isCollectionCategory;
 
 	// Store 状态
 	const {
@@ -452,13 +505,30 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		})),
 	);
 	const launchGame = useGamePlayStore((s) => s.launchGame);
+	const [batchMode, setBatchMode] = useState(false);
+	const [selectedBatchGameIds, setSelectedBatchGameIds] = useState<number[]>(
+		[],
+	);
+	const selectedBatchGameIdSet = useMemo(
+		() => new Set(selectedBatchGameIds),
+		[selectedBatchGameIds],
+	);
+	const showBatchControls = canUseBatchMode && batchMode;
+	const categoryGameIdsQuery = useCategoryGameIds(
+		isCollectionCategory ? categoryId : null,
+	);
+	const updateCategoryGamesMutation = useUpdateCategoryGames();
 
 	// 右键菜单状态
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
 	// 判断是否启用拖拽排序
 	const isSortable =
-		!!categoryId && categoryId > 0 && !longPressLaunch && !!gamesData;
+		!!categoryId &&
+		categoryId > 0 &&
+		!longPressLaunch &&
+		!showBatchControls &&
+		!!gamesData;
 
 	// 拖拽排序 Hook
 	const { games, activeGame, sensors, handleDragStart, handleDragEnd } =
@@ -470,10 +540,34 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	// 缓存 SortableContext 的 items 数组，避免每次渲染重新创建
 	const sortableIds = useMemo(() => games.map((g) => g.id as number), [games]);
+	const gameIds = useMemo(
+		() => games.map((game) => game.id).filter((id): id is number => id != null),
+		[games],
+	);
+	const selectionScope = `${path}:${categoryId ?? "all"}`;
+
+	useEffect(() => {
+		void selectionScope;
+		setBatchMode(false);
+		setSelectedBatchGameIds([]);
+	}, [selectionScope]);
+
+	const toggleBatchGame = useCallback((gameId: number) => {
+		setSelectedBatchGameIds((prev) =>
+			prev.includes(gameId)
+				? prev.filter((id) => id !== gameId)
+				: [...prev, gameId],
+		);
+	}, []);
 
 	// 卡片事件处理器
 	const handleCardClick = useCallback(
 		(cardId: number, _card: GameData) => {
+			if (showBatchControls) {
+				toggleBatchGame(cardId);
+				return;
+			}
+
 			if (cardClickMode === "navigate") {
 				setSelectedGameId(cardId);
 				saveScrollPosition(window.location.pathname);
@@ -482,11 +576,19 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				setSelectedGameId(cardId);
 			}
 		},
-		[cardClickMode, navigate, setSelectedGameId],
+		[
+			cardClickMode,
+			navigate,
+			setSelectedGameId,
+			showBatchControls,
+			toggleBatchGame,
+		],
 	);
 
 	const handleCardDoubleClick = useCallback(
 		async (cardId: number, card: GameData) => {
+			if (showBatchControls) return;
+
 			if (doubleClickLaunch && card.localpath) {
 				setSelectedGameId(cardId);
 				try {
@@ -502,11 +604,13 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				}
 			}
 		},
-		[doubleClickLaunch, launchGame, setSelectedGameId, i18n],
+		[doubleClickLaunch, launchGame, setSelectedGameId, showBatchControls, i18n],
 	);
 
 	const handleCardLongPress = useCallback(
 		async (cardId: number, card: GameData) => {
+			if (showBatchControls) return;
+
 			if (longPressLaunch && card.localpath) {
 				setSelectedGameId(cardId);
 				try {
@@ -522,11 +626,16 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				}
 			}
 		},
-		[longPressLaunch, launchGame, setSelectedGameId, i18n],
+		[longPressLaunch, launchGame, setSelectedGameId, showBatchControls, i18n],
 	);
 
 	const handleContextMenu = useCallback(
 		(event: React.MouseEvent, cardId: number) => {
+			if (showBatchControls) {
+				event.preventDefault();
+				return;
+			}
+
 			setMenuPosition({
 				mouseX: event.clientX,
 				mouseY: event.clientY,
@@ -534,18 +643,78 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			});
 			setSelectedGameId(cardId);
 		},
-		[setSelectedGameId],
+		[setSelectedGameId, showBatchControls],
 	);
 
 	const closeMenu = useCallback(() => setMenuPosition(null), []);
+
+	const handleRemoveFromCategory = useCallback(
+		async (targetGameIds: number[]) => {
+			if (!isCollectionCategory || !categoryId) return;
+
+			const targetGameIdSet = new Set(targetGameIds);
+			const categoryGameIds = categoryGameIdsQuery.data ?? gameIds;
+			const nextGameIds = categoryGameIds.filter(
+				(id) => !targetGameIdSet.has(id),
+			);
+
+			await updateCategoryGamesMutation.mutateAsync({
+				categoryId,
+				gameIds: nextGameIds,
+			});
+
+			setSelectedBatchGameIds((prev) =>
+				prev.filter((selectedId) => !targetGameIdSet.has(selectedId)),
+			);
+		},
+		[
+			categoryGameIdsQuery.data,
+			categoryId,
+			gameIds,
+			isCollectionCategory,
+			updateCategoryGamesMutation,
+		],
+	);
+
+	const handleRemoveSingleFromCategory = useCallback(
+		async (cardId: number) => {
+			try {
+				await handleRemoveFromCategory([cardId]);
+				snackbar.success(
+					t("components.Cards.removeFromCategorySuccess", {
+						defaultValue: "已从当前分类移除",
+					}),
+				);
+			} catch (error) {
+				console.error("移出分类失败:", error);
+				snackbar.error(
+					t("components.Cards.removeFromCategoryFailed", {
+						defaultValue: "移出分类失败",
+					}),
+				);
+			}
+		},
+		[handleRemoveFromCategory, t],
+	);
 
 	// 渲染单个卡片的 props 生成器
 	const getCardProps = useCallback(
 		(card: GameData): SortableCardItemProps => ({
 			card,
 			isActive: selectedGameId === card.id,
+			isBatchSelected:
+				card.id != null ? selectedBatchGameIdSet.has(card.id) : false,
+			showBatchMarker: showBatchControls,
+			showRemoveFromCategory: isCollectionCategory && !showBatchControls,
+			onRemoveFromCategory: () =>
+				card.id != null && handleRemoveSingleFromCategory(card.id),
+			removeFromCategoryTitle: t(
+				"components.Cards.removeFromCategory",
+				"移出当前分类",
+			),
 			displayName: getGameDisplayName(card),
-			useDelayedClick: cardClickMode === "navigate" && doubleClickLaunch,
+			useDelayedClick:
+				!showBatchControls && cardClickMode === "navigate" && doubleClickLaunch,
 			onContextMenu: (e: React.MouseEvent) =>
 				card.id != null && handleContextMenu(e, card.id),
 			onClick: () => card.id != null && handleCardClick(card.id, card),
@@ -561,36 +730,58 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			handleCardClick,
 			handleCardDoubleClick,
 			handleCardLongPress,
+			handleRemoveSingleFromCategory,
+			isCollectionCategory,
+			selectedBatchGameIdSet,
+			showBatchControls,
+			t,
 		],
 	);
 
 	// 卡片列表
 	const cardList = (
-		<div
-			className={`flex-1 text-center grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4 p-4 ${isLibraries ? "pt-0" : ""}`}
-		>
-			<RightMenu
-				id={menuPosition?.cardId}
-				isopen={Boolean(menuPosition)}
-				anchorPosition={
-					menuPosition
-						? { top: menuPosition.mouseY, left: menuPosition.mouseX }
-						: undefined
+		<>
+			{canUseBatchMode && (
+				<CardsBatchBar
+					batchMode={batchMode}
+					selectedBatchGameIds={selectedBatchGameIds}
+					gameIds={gameIds}
+					categoryId={categoryId}
+					onBatchModeChange={setBatchMode}
+					onSelectionChange={setSelectedBatchGameIds}
+					onSelectionClear={() => setSelectedBatchGameIds([])}
+					onDeleteSuccess={() => setSelectedGameId(null)}
+					onRemoveFromCategory={handleRemoveFromCategory}
+				/>
+			)}
+			<div
+				className={
+					"text-center grid lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4"
 				}
-				setAnchorEl={(value) => {
-					if (!value) closeMenu();
-				}}
-			/>
+			>
+				<RightMenu
+					id={menuPosition?.cardId}
+					isopen={Boolean(menuPosition)}
+					anchorPosition={
+						menuPosition
+							? { top: menuPosition.mouseY, left: menuPosition.mouseX }
+							: undefined
+					}
+					setAnchorEl={(value) => {
+						if (!value) closeMenu();
+					}}
+				/>
 
-			{games.map((card) => {
-				const props = getCardProps(card);
-				return isSortable ? (
-					<SortableCardItem key={card.id} {...props} />
-				) : (
-					<CardItem key={card.id} {...props} />
-				);
-			})}
-		</div>
+				{games.map((card) => {
+					const props = getCardProps(card);
+					return isSortable ? (
+						<SortableCardItem key={card.id} {...props} />
+					) : (
+						<CardItem key={card.id} {...props} />
+					);
+				})}
+			</div>
+		</>
 	);
 
 	// 拖拽模式渲染
@@ -611,6 +802,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 							card={activeGame}
 							isActive
 							isOverlay
+							showBatchMarker={false}
 							displayName={getGameDisplayName(activeGame)}
 							useDelayedClick={false}
 							onContextMenu={() => {}}

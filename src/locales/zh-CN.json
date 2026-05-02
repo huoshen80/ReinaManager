@@ -123,17 +123,32 @@
 				"categoryGamesUpdated": "已更新分类游戏：{{count}} 个"
 			}
 		},
-		"FilterModal": {
+		"Cards": {
+			"removeFromCategory": "移出当前分类",
+			"removeFromCategoryFailed": "移出分类失败",
+			"removeFromCategorySuccess": "已从当前分类移除"
+		},
+		"FilterSortModal": {
 			"allGames": "全部游戏",
-			"apply": "应用",
 			"cancel": "取消",
 			"clearGames": "已通关游戏",
+			"confirm": "确认",
 			"customGames": "自定义游戏",
 			"filter": "筛选",
-			"filterTitle": "筛选",
 			"localGames": "本地游戏",
 			"noclearGames": "未通关游戏",
-			"onlineGames": "网络游戏"
+			"onlineGames": "网络游戏",
+			"title": "筛选排序",
+			"addTime": "添加时间(默认)",
+			"ascending": "升序",
+			"bgmRank": "BGM 排名",
+			"descending": "降序",
+			"lastPlayed": "最近游玩",
+			"nameSort": "名称排序",
+			"releaseTime": "游戏发布时间",
+			"sortMethod": "排序方式",
+			"sortOrder": "排序方向",
+			"vndbRank": "VNDB 排名"
 		},
 		"LaunchModal": {
 			"gamePathNotFound": "游戏路径未找到",
@@ -219,25 +234,30 @@
 			"gameAddedSuccess": "游戏添加成功",
 			"viewDetails": "查看详情"
 		},
-		"SortModal": {
-			"addTime": "添加时间(默认)",
-			"ascending": "升序",
-			"bgmRank": "BGM 排名",
-			"cancel": "取消",
-			"confirm": "确认",
-			"descending": "降序",
-			"lastPlayed": "最近游玩",
-			"nameSort": "名称排序",
-			"releaseTime": "游戏发布时间",
-			"sort": "排序",
-			"sortMethod": "排序方法：",
-			"vndbRank": "VNDB 排名"
-		},
 		"AppLayout": {
 			"back": "返回"
 		},
 		"Toolbar": {
 			"bgmlink": "查看Bangumi页面",
+			"Batch": {
+				"addToCollection": "添加到收藏夹",
+				"addToCollectionFailed": "添加到收藏夹失败",
+				"addToCollectionSuccess": "已添加 {{count}} 个游戏到收藏夹",
+				"category": "分类",
+				"clearSelection": "清空选择",
+				"deleteFailed": "批量删除游戏失败",
+				"deleteMessage": "确定要删除选中的 {{count}} 个游戏吗？此操作无法撤销。",
+				"deleteSelected": "删除所选游戏",
+				"deleteSuccess": "已删除 {{count}} 个游戏",
+				"deleteTitle": "批量删除游戏",
+				"group": "分组",
+				"removeFromCategory": "移出当前分类",
+				"removeFromCategoryFailed": "移出分类失败",
+				"removeFromCategorySuccess": "已从当前分类移除 {{count}} 个游戏",
+				"selectAll": "全选",
+				"selectedCount": "已选 {{count}}",
+				"start": "批量操作"
+			},
 			"Category": {
 				"availableGames": "可用游戏",
 				"gamesInCategory": "分类中的游戏",

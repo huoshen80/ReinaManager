@@ -145,7 +145,14 @@ export const Layout: React.FC = () => {
 				defaultSidebarCollapsed={true}
 			>
 				{isLibraries ? (
-					<PageContainer className="max-w-full">
+					<PageContainer
+						className="max-w-full"
+						sx={{
+							"& > .MuiStack-root > :not(style) ~ :not(style)": {
+								mt: "0 !important",
+							},
+						}}
+					>
 						<KeepAlive
 							name="libraries"
 							cacheKey="libraries"

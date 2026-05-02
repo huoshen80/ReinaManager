@@ -163,6 +163,23 @@ function useDeleteGame() {
 	});
 }
 
+function useDeleteGames() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (gameIds: number[]) => gameService.deleteGames(gameIds),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: gameKeys.all,
+				exact: true,
+			});
+			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: ["collections"] });
+			queryClient.invalidateQueries({ queryKey: ["stats"] });
+		},
+	});
+}
+
 function useUpdateGame() {
 	const queryClient = useQueryClient();
 
@@ -215,6 +232,7 @@ export {
 	useBatchAddGames,
 	useBatchUpdateGames,
 	useDeleteGame,
+	useDeleteGames,
 	useGameDetail,
 	useGameList,
 	useUpdateGame,

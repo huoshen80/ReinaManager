@@ -125,17 +125,32 @@
 				"categoryGamesUpdated": "分類遊戲已更新"
 			}
 		},
-		"FilterModal": {
+		"Cards": {
+			"removeFromCategory": "移出目前分類",
+			"removeFromCategoryFailed": "移出分類失敗",
+			"removeFromCategorySuccess": "已從目前分類移除"
+		},
+		"FilterSortModal": {
 			"allGames": "全部遊戲",
-			"apply": "應用",
 			"cancel": "取消",
 			"clearGames": "已通關遊戲",
+			"confirm": "確認",
 			"customGames": "自訂遊戲",
 			"filter": "篩選",
-			"filterTitle": "篩選",
 			"localGames": "本地遊戲",
 			"noclearGames": "未通關遊戲",
-			"onlineGames": "網路遊戲"
+			"onlineGames": "網路遊戲",
+			"title": "篩選排序",
+			"addTime": "添加時間(默認)",
+			"ascending": "升序",
+			"bgmRank": "BGM 排名",
+			"descending": "降序",
+			"lastPlayed": "最近遊玩",
+			"nameSort": "名稱排序",
+			"releaseTime": "遊戲發布時間",
+			"sortMethod": "排序方式",
+			"sortOrder": "排序方向",
+			"vndbRank": "VNDB 排名"
 		},
 		"LaunchModal": {
 			"gamePathNotFound": "遊戲路徑未找到",
@@ -221,25 +236,30 @@
 			"gameAddedSuccess": "遊戲添加成功",
 			"viewDetails": "查看詳情"
 		},
-		"SortModal": {
-			"addTime": "添加時間(默認)",
-			"ascending": "升序",
-			"bgmRank": "BGM 排名",
-			"cancel": "取消",
-			"confirm": "確認",
-			"descending": "降序",
-			"lastPlayed": "最近遊玩",
-			"nameSort": "名稱排序",
-			"releaseTime": "遊戲發布時間",
-			"sort": "排序",
-			"sortMethod": "排序方法：",
-			"vndbRank": "VNDB 排名"
-		},
 		"AppLayout": {
 			"back": "返回"
 		},
 		"Toolbar": {
 			"bgmlink": "查看Bangumi頁面",
+			"Batch": {
+				"addToCollection": "添加到收藏夾",
+				"addToCollectionFailed": "添加到收藏夾失敗",
+				"addToCollectionSuccess": "已添加 {{count}} 個遊戲到收藏夾",
+				"category": "分類",
+				"clearSelection": "清空選擇",
+				"deleteFailed": "批量刪除遊戲失敗",
+				"deleteMessage": "確定要刪除選中的 {{count}} 個遊戲嗎？此操作無法撤銷。",
+				"deleteSelected": "刪除所選遊戲",
+				"deleteSuccess": "已刪除 {{count}} 個遊戲",
+				"deleteTitle": "批量刪除遊戲",
+				"group": "分組",
+				"removeFromCategory": "移出目前分類",
+				"removeFromCategoryFailed": "移出分類失敗",
+				"removeFromCategorySuccess": "已從目前分類移除 {{count}} 個遊戲",
+				"selectAll": "全選",
+				"selectedCount": "已選 {{count}}",
+				"start": "批量操作"
+			},
 			"Category": {
 				"availableGames": "可用遊戲",
 				"gamesInCategory": "分類中的遊戲",
