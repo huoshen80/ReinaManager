@@ -27,6 +27,7 @@ import { CSS } from "@dnd-kit/utilities";
 import CheckIcon from "@mui/icons-material/Check";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
 import CardMedia from "@mui/material/CardMedia";
@@ -241,16 +242,18 @@ function useDragSort(options: {
 	const { gamesData, categoryId, enabled } = options;
 	const updateCategoryGamesMutation = useUpdateCategoryGames();
 
-	const [games, setGames] = useState(gamesData);
+	const [sortableGames, setSortableGames] = useState(gamesData);
 	const [activeId, setActiveId] = useState<number | null>(null);
 	const isDraggingRef = useRef(false);
 
-	// 同步外部数据到本地状态（仅在非拖拽状态下）
+	const games = enabled ? sortableGames : gamesData;
+
+	// 排序模式保留本地顺序，非排序模式直接使用外部数据，避免删除后慢一帧
 	useEffect(() => {
-		if (!isDraggingRef.current) {
-			setGames(gamesData);
+		if (enabled && !isDraggingRef.current) {
+			setSortableGames(gamesData);
 		}
-	}, [gamesData]);
+	}, [enabled, gamesData]);
 
 	// 传感器配置
 	const sensors = useSensors(
@@ -271,6 +274,11 @@ function useDragSort(options: {
 		[enabled],
 	);
 
+	const handleDragCancel = useCallback(() => {
+		isDraggingRef.current = false;
+		setActiveId(null);
+	}, []);
+
 	const handleDragEnd = useCallback(
 		async (event: DragEndEvent) => {
 			const { active, over } = event;
@@ -286,7 +294,7 @@ function useDragSort(options: {
 
 			if (oldIndex !== -1 && newIndex !== -1) {
 				const newGames = arrayMove(games, oldIndex, newIndex);
-				setGames(newGames);
+				setSortableGames(newGames);
 
 				try {
 					const gameIds = newGames.map((g) => g.id as number);
@@ -296,14 +304,11 @@ function useDragSort(options: {
 					});
 				} catch (error) {
 					console.error("排序更新失败:", error);
-					setGames(games); // 回滚
+					setSortableGames(games); // 回滚
 				}
 			}
 
-			// 延迟重置拖拽状态
-			setTimeout(() => {
-				isDraggingRef.current = false;
-			}, 100);
+			isDraggingRef.current = false;
 		},
 		[games, categoryId, updateCategoryGamesMutation],
 	);
@@ -319,6 +324,7 @@ function useDragSort(options: {
 		activeGame,
 		sensors,
 		handleDragStart,
+		handleDragCancel,
 		handleDragEnd,
 	};
 }
@@ -415,7 +421,6 @@ export const CardItem = memo(
 							image={coverImage}
 							alt="Card Image"
 							draggable="false"
-							loading="lazy"
 						/>
 						<div
 							className={`flex items-center justify-center h-8 px-1 w-full ${isActive ? "!font-bold text-blue-500" : ""}`}
@@ -488,6 +493,10 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const isCollectionCategory = typeof categoryId === "number" && categoryId > 0;
 	const canUseBatchMode = isLibraries || isCollectionCategory;
 
+	// 卡片渲染限制
+	const CARD_LIMIT = 168;
+	const [showAll, setShowAll] = useState(false);
+
 	// Store 状态
 	const {
 		selectedGameId,
@@ -531,12 +540,24 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		!!gamesData;
 
 	// 拖拽排序 Hook
-	const { games, activeGame, sensors, handleDragStart, handleDragEnd } =
-		useDragSort({
-			gamesData,
-			categoryId,
-			enabled: isSortable,
-		});
+	const {
+		games,
+		activeGame,
+		sensors,
+		handleDragStart,
+		handleDragCancel,
+		handleDragEnd,
+	} = useDragSort({
+		gamesData,
+		categoryId,
+		enabled: isSortable,
+	});
+
+	// 根据 showAll 状态决定显示的卡片数量
+	const displayedGames = useMemo(
+		() => (showAll ? games : games.slice(0, CARD_LIMIT)),
+		[games, showAll],
+	);
 
 	// 缓存 SortableContext 的 items 数组，避免每次渲染重新创建
 	const sortableIds = useMemo(() => games.map((g) => g.id as number), [games]);
@@ -544,13 +565,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		() => games.map((game) => game.id).filter((id): id is number => id != null),
 		[games],
 	);
-	const selectionScope = `${path}:${categoryId ?? "all"}`;
-
-	useEffect(() => {
-		void selectionScope;
-		setBatchMode(false);
-		setSelectedBatchGameIds([]);
-	}, [selectionScope]);
 
 	const toggleBatchGame = useCallback((gameId: number) => {
 		setSelectedBatchGameIds((prev) =>
@@ -773,7 +787,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 						"text-center grid lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 3xl:grid-cols-10 4xl:grid-cols-12 gap-4"
 					}
 				>
-					{games.map((card) => {
+					{displayedGames.map((card) => {
 						const props = getCardProps(card);
 						return isSortable ? (
 							<SortableCardItem key={card.id} {...props} />
@@ -782,6 +796,16 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 						);
 					})}
 				</div>
+				{!showAll && games.length > CARD_LIMIT && (
+					<Box className="flex justify-center py-6">
+						<Button variant="outlined" onClick={() => setShowAll(true)}>
+							{t("components.Cards.loadAll", {
+								defaultValue: `加载全部（${games.length}）`,
+								count: games.length,
+							})}
+						</Button>
+					</Box>
+				)}
 			</div>
 		</>
 	);
@@ -793,6 +817,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				sensors={sensors}
 				collisionDetection={closestCenter}
 				onDragStart={handleDragStart}
+				onDragCancel={handleDragCancel}
 				onDragEnd={handleDragEnd}
 			>
 				<SortableContext items={sortableIds} strategy={rectSortingStrategy}>

@@ -14,6 +14,7 @@ import type { GameType, SortOption, SortOrder } from "@/services/invoke";
 import { gameService } from "@/services/invoke";
 import type {
 	BatchOperationResult,
+	FullGameData,
 	InsertGameParams,
 	UpdateGameParams,
 } from "@/types";
@@ -148,10 +149,12 @@ function useDeleteGame() {
 	return useMutation({
 		mutationFn: (gameId: number) => gameService.deleteGame(gameId),
 		onSuccess: (_, gameId) => {
-			queryClient.invalidateQueries({
-				queryKey: gameKeys.all,
-				exact: true,
-			});
+			// 乐观更新：立即从缓存中移除已删除的游戏，避免导航回来时闪烁
+			queryClient.setQueriesData<FullGameData[]>(
+				{ queryKey: gameKeys.lists() },
+				(old) => old?.filter((g) => g.id !== gameId),
+			);
+			queryClient.invalidateQueries({ queryKey: gameKeys.all, exact: true });
 			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
 			queryClient.invalidateQueries({
 				queryKey: gameKeys.detail(gameId),
@@ -168,11 +171,14 @@ function useDeleteGames() {
 
 	return useMutation({
 		mutationFn: (gameIds: number[]) => gameService.deleteGames(gameIds),
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: gameKeys.all,
-				exact: true,
-			});
+		onSuccess: (_, gameIds) => {
+			// 乐观更新：立即从缓存中移除已删除的游戏，避免导航回来时闪烁
+			const deleteIdSet = new Set(gameIds);
+			queryClient.setQueriesData<FullGameData[]>(
+				{ queryKey: gameKeys.lists() },
+				(old) => old?.filter((g) => g.id != null && !deleteIdSet.has(g.id)),
+			);
+			queryClient.invalidateQueries({ queryKey: gameKeys.all, exact: true });
 			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });
 			queryClient.invalidateQueries({ queryKey: ["collections"] });
 			queryClient.invalidateQueries({ queryKey: ["stats"] });
