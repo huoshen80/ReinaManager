@@ -368,7 +368,7 @@ export const CardItem = memo(
 			return (
 				<Card
 					ref={ref}
-					className={`group relative min-w-24 max-w-full transition-transform [content-visibility:auto] [contain-intrinsic-size:auto_280px] ${isActive ? "scale-y-105" : "scale-y-100"}`}
+					className={`group relative min-w-24 max-w-full transition-transform ${isActive ? "scale-y-105" : "scale-y-100"}`}
 					onContextMenu={onContextMenu}
 					{...props}
 				>
@@ -754,11 +754,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 					onRemoveFromCategory={handleRemoveFromCategory}
 				/>
 			)}
-			<div
-				className={
-					"text-center grid lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4"
-				}
-			>
+			<div className="flex-1 min-h-0">
 				<RightMenu
 					id={menuPosition?.cardId}
 					isopen={Boolean(menuPosition)}
@@ -772,14 +768,20 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 					}}
 				/>
 
-				{games.map((card) => {
-					const props = getCardProps(card);
-					return isSortable ? (
-						<SortableCardItem key={card.id} {...props} />
-					) : (
-						<CardItem key={card.id} {...props} />
-					);
-				})}
+				<div
+					className={
+						"text-center grid lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 3xl:grid-cols-10 4xl:grid-cols-12 gap-4"
+					}
+				>
+					{games.map((card) => {
+						const props = getCardProps(card);
+						return isSortable ? (
+							<SortableCardItem key={card.id} {...props} />
+						) : (
+							<CardItem key={card.id} {...props} />
+						);
+					})}
+				</div>
 			</div>
 		</>
 	);

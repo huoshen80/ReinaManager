@@ -1,7 +1,6 @@
 import "./App.css";
 import "@/utils/i18n";
 import { SnackbarProvider } from "notistack";
-import { AliveScope } from "react-activation";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 import WindowsHandler from "@/components/Windows";
@@ -31,9 +30,7 @@ const App: React.FC = () => {
 			<SnackbarUtilsConfigurator />
 			<ToolpadReactRouterAppProvider navigation={Navigation}>
 				<WindowsHandler />
-				<AliveScope>
-					<Outlet />
-				</AliveScope>
+				<Outlet />
 			</ToolpadReactRouterAppProvider>
 		</SnackbarProvider>
 	);

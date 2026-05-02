@@ -52,7 +52,6 @@
 		"pathe": "^2.0.3",
 		"pinyin-pro": "^3.28.1",
 		"react": "^18.3.1",
-		"react-activation": "^0.13.4",
 		"react-dom": "^18.3.1",
 		"react-i18next": "^17.0.4",
 		"react-router-dom": "^7.14.2",

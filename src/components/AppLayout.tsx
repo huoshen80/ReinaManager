@@ -9,7 +9,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { DashboardLayout } from "@toolpad/core/DashboardLayout";
 import { PageContainer } from "@toolpad/core/PageContainer";
-import { KeepAlive } from "react-activation";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AddModal from "@/components/AddModal";
@@ -153,13 +152,7 @@ export const Layout: React.FC = () => {
 							},
 						}}
 					>
-						<KeepAlive
-							name="libraries"
-							cacheKey="libraries"
-							saveScrollPosition={false}
-						>
-							<Outlet />
-						</KeepAlive>
+						<Outlet />
 					</PageContainer>
 				) : (
 					<Outlet />
