@@ -124,6 +124,7 @@
 			}
 		},
 		"Cards": {
+			"loadAll": "加载全部（{{count}}）",
 			"removeFromCategory": "移出当前分类",
 			"removeFromCategoryFailed": "移出分类失败",
 			"removeFromCategorySuccess": "已从当前分类移除"

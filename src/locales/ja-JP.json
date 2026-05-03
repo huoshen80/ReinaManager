@@ -126,6 +126,7 @@
 			}
 		},
 		"Cards": {
+			"loadAll": "すべて読み込む（{{count}}）",
 			"removeFromCategory": "現在のカテゴリから削除",
 			"removeFromCategoryFailed": "カテゴリからの削除に失敗しました",
 			"removeFromCategorySuccess": "現在のカテゴリから削除しました"

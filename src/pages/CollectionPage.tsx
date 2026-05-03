@@ -16,7 +16,7 @@ import Typography from "@mui/material/Typography";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import Cards from "@/components/Cards";
+import { CardsGrid, SortableCardsGrid } from "@/components/Cards";
 import { ManageGamesDialog } from "@/components/Collection";
 import { EntityCard } from "@/components/Collection/EntityCard";
 import { InputDialog } from "@/components/InputDialog";
@@ -636,16 +636,15 @@ export const Collection: React.FC = () => {
 					</Box>
 				))}
 
-			{showLevel === "games" && (
-				<Cards
-					gamesData={categoryGames}
-					categoryId={
-						selectedCategoryId !== null && selectedCategoryId > 0
-							? selectedCategoryId
-							: undefined
-					}
-				/>
-			)}
+			{showLevel === "games" &&
+				(selectedCategoryId !== null && selectedCategoryId > 0 ? (
+					<SortableCardsGrid
+						gamesData={categoryGames}
+						categoryId={selectedCategoryId}
+					/>
+				) : (
+					<CardsGrid gamesData={categoryGames} />
+				))}
 
 			{/* 统一的右键菜单 */}
 			<CollectionRightMenu

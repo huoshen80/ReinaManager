@@ -1,2 +1,2 @@
-export * from "./RightMenu";
+export { CollectionRightMenu } from "./CollectionRightMenu";
 export { default } from "./RightMenu";

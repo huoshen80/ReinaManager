@@ -235,4 +235,3 @@ const RightMenu: React.FC<RightMenuProps> = ({
 };
 
 export default RightMenu;
-export { CollectionRightMenu } from "./CollectionRightMenu";

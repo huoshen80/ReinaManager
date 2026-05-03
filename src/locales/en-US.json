@@ -128,6 +128,7 @@
 			}
 		},
 		"Cards": {
+			"loadAll": "Load All ({{count}})",
 			"removeFromCategory": "Remove from Current Category",
 			"removeFromCategoryFailed": "Failed to remove from category",
 			"removeFromCategorySuccess": "Removed from current category"
