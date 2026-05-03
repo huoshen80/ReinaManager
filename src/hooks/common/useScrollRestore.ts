@@ -27,7 +27,7 @@ const DEFAULT_OPTIONS: Required<Omit<UseScrollRestoreOptions, "isLoading">> = {
 
 /**
  * 滚动位置还原 Hook
- * 等页面数据加载完成后一帧恢复；目标超过当前高度时直接还原到当前底部。
+ * 等页面数据加载完成后一帧恢复；目标超过当前高度时回到顶部。
  */
 export function useScrollRestore(
 	scrollPath: string,
@@ -121,19 +121,19 @@ export function useScrollRestore(
 				0,
 				container.scrollHeight - container.clientHeight,
 			);
-			const clampedTarget = Math.max(0, Math.min(target, maxScroll));
+			const restoreTarget = target > maxScroll ? 0 : target;
 
 			const prevBehavior = container.style.scrollBehavior;
 			container.style.scrollBehavior = "auto";
-			container.scrollTop = clampedTarget;
+			container.scrollTop = restoreTarget;
 			container.style.scrollBehavior = prevBehavior;
 
 			settledRef.current = true;
 
-			if (clampedTarget < target) {
-				log(`⚠ Restored to bottom (${clampedTarget}/${target}) - ${reason}`);
+			if (restoreTarget < target) {
+				log(`⚠ Restored to top (${restoreTarget}/${target}) - ${reason}`);
 			} else {
-				log(`✓ Restored scroll to ${clampedTarget} - ${reason}`);
+				log(`✓ Restored scroll to ${restoreTarget} - ${reason}`);
 			}
 
 			// 清理资源

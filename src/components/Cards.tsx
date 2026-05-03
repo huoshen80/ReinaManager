@@ -38,6 +38,7 @@ import {
 	memo,
 	useCallback,
 	useEffect,
+	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
@@ -71,8 +72,6 @@ import { getUserErrorMessage } from "@/utils/errors";
 interface CardItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	/** 游戏数据 */
 	card: GameData;
-	/** 是否为当前选中的卡片 */
-	isActive: boolean;
 	/** 是否被批量选择 */
 	isBatchSelected?: boolean;
 	/** 是否显示批量选择标志 */
@@ -115,6 +114,11 @@ interface MenuPosition {
 	mouseX: number;
 	mouseY: number;
 	cardId: number | null;
+}
+
+/** 右键菜单控制器 */
+interface RightMenuHostHandle {
+	open: (cardId: number, mouseX: number, mouseY: number) => void;
 }
 
 // ============================================================================
@@ -341,7 +345,6 @@ export const CardItem = memo(
 		(
 			{
 				card,
-				isActive,
 				isBatchSelected,
 				showBatchMarker,
 				showRemoveFromCategory,
@@ -359,6 +362,7 @@ export const CardItem = memo(
 			ref,
 		) => {
 			const nsfwCoverReplace = useStore((s) => s.nsfwCoverReplace);
+			const isActive = useStore((s) => s.selectedGameId === card.id);
 			const isNsfw = getGameNsfwStatus(card);
 
 			const { isLongPressing, handlers } = useCardInteraction({
@@ -374,7 +378,7 @@ export const CardItem = memo(
 			return (
 				<Card
 					ref={ref}
-					className={`group relative min-w-24 max-w-full transition-transform ${isActive ? "scale-y-105" : "scale-y-100"}`}
+					className={`group relative min-w-24 max-w-full transition-shadow transition-colors ${isActive ? "ring-2 ring-blue-500 shadow-md" : ""}`}
 					onContextMenu={onContextMenu}
 					{...props}
 				>
@@ -417,13 +421,13 @@ export const CardItem = memo(
 					>
 						<CardMedia
 							component="img"
-							className="h-auto aspect-[3/4]"
+							className="h-auto aspect-[3/4] bg-zinc-200 object-cover"
 							image={coverImage}
 							alt="Card Image"
 							draggable="false"
 						/>
 						<div
-							className={`flex items-center justify-center h-8 px-1 w-full ${isActive ? "!font-bold text-blue-500" : ""}`}
+							className={`flex items-center justify-center h-8 px-1 w-full ${isActive ? "font-semibold text-blue-500" : ""}`}
 						>
 							<span className="text-base truncate max-w-full">
 								{displayName}
@@ -478,6 +482,44 @@ const SortableCardItem = memo((props: SortableCardItemProps) => {
 
 SortableCardItem.displayName = "SortableCardItem";
 
+/**
+ * RightMenuHost - 隔离右键菜单坐标状态，避免打开菜单时重渲染整片卡片网格
+ */
+const RightMenuHost = memo(
+	forwardRef<RightMenuHostHandle>((_, ref) => {
+		const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+
+		const closeMenu = useCallback(() => setMenuPosition(null), []);
+
+		useImperativeHandle(
+			ref,
+			() => ({
+				open: (cardId, mouseX, mouseY) => {
+					setMenuPosition({ cardId, mouseX, mouseY });
+				},
+			}),
+			[],
+		);
+
+		return (
+			<RightMenu
+				id={menuPosition?.cardId}
+				isopen={Boolean(menuPosition)}
+				anchorPosition={
+					menuPosition
+						? { top: menuPosition.mouseY, left: menuPosition.mouseX }
+						: undefined
+				}
+				setAnchorEl={(value) => {
+					if (!value) closeMenu();
+				}}
+			/>
+		);
+	}),
+);
+
+RightMenuHost.displayName = "RightMenuHost";
+
 // ============================================================================
 // 主组件
 // ============================================================================
@@ -492,6 +534,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const isLibraries = path === "/libraries";
 	const isCollectionCategory = typeof categoryId === "number" && categoryId > 0;
 	const canUseBatchMode = isLibraries || isCollectionCategory;
+	const rightMenuRef = useRef<RightMenuHostHandle>(null);
 
 	// 卡片渲染限制
 	const CARD_LIMIT = 168;
@@ -499,14 +542,12 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 
 	// Store 状态
 	const {
-		selectedGameId,
 		setSelectedGameId,
 		cardClickMode,
 		doubleClickLaunch,
 		longPressLaunch,
 	} = useStore(
 		useShallow((s) => ({
-			selectedGameId: s.selectedGameId,
 			setSelectedGameId: s.setSelectedGameId,
 			cardClickMode: s.cardClickMode,
 			doubleClickLaunch: s.doubleClickLaunch,
@@ -527,9 +568,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 		isCollectionCategory ? categoryId : null,
 	);
 	const updateCategoryGamesMutation = useUpdateCategoryGames();
-
-	// 右键菜单状态
-	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
 	// 判断是否启用拖拽排序
 	const isSortable =
@@ -650,17 +688,11 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				return;
 			}
 
-			setMenuPosition({
-				mouseX: event.clientX,
-				mouseY: event.clientY,
-				cardId,
-			});
+			rightMenuRef.current?.open(cardId, event.clientX, event.clientY);
 			setSelectedGameId(cardId);
 		},
 		[setSelectedGameId, showBatchControls],
 	);
-
-	const closeMenu = useCallback(() => setMenuPosition(null), []);
 
 	const handleRemoveFromCategory = useCallback(
 		async (targetGameIds: number[]) => {
@@ -715,7 +747,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 	const getCardProps = useCallback(
 		(card: GameData): SortableCardItemProps => ({
 			card,
-			isActive: selectedGameId === card.id,
 			isBatchSelected:
 				card.id != null ? selectedBatchGameIdSet.has(card.id) : false,
 			showBatchMarker: showBatchControls,
@@ -737,7 +768,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 			onLongPress: () => card.id != null && handleCardLongPress(card.id, card),
 		}),
 		[
-			selectedGameId,
 			cardClickMode,
 			doubleClickLaunch,
 			handleContextMenu,
@@ -769,18 +799,7 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 				/>
 			)}
 			<div className="flex-1 min-h-0">
-				<RightMenu
-					id={menuPosition?.cardId}
-					isopen={Boolean(menuPosition)}
-					anchorPosition={
-						menuPosition
-							? { top: menuPosition.mouseY, left: menuPosition.mouseX }
-							: undefined
-					}
-					setAnchorEl={(value) => {
-						if (!value) closeMenu();
-					}}
-				/>
+				<RightMenuHost ref={rightMenuRef} />
 
 				<div
 					className={
@@ -827,7 +846,6 @@ const Cards: React.FC<CardsProps> = ({ gamesData, categoryId }) => {
 					{activeGame && (
 						<CardItem
 							card={activeGame}
-							isActive
 							isOverlay
 							showBatchMarker={false}
 							displayName={getGameDisplayName(activeGame)}
