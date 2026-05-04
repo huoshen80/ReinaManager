@@ -7,16 +7,6 @@ use serde::{Deserialize, Serialize};
 /// 合集数据仓库
 pub struct CollectionsRepository;
 
-/// 分组与分类的树形结构
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GroupWithCategories {
-    pub id: i32,
-    pub name: String,
-    pub icon: Option<String>,
-    pub sort_order: i32,
-    pub categories: Vec<CategoryWithCount>,
-}
-
 /// 带游戏数量的分类
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategoryWithCount {
@@ -27,7 +17,222 @@ pub struct CategoryWithCount {
     pub game_count: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct GameCollectionPair {
+    game_id: i32,
+    collection_id: i32,
+}
+
+struct GameCollectionInsert {
+    game_id: i32,
+    collection_id: i32,
+    sort_order: i32,
+}
+
+struct GameCollectionDiff {
+    to_insert: Vec<GameCollectionPair>,
+    to_delete_link_ids: Vec<i32>,
+}
+
+struct CategoryGamesDiff {
+    to_delete_link_ids: Vec<i32>,
+    to_insert: Vec<GameCollectionInsert>,
+    to_update_sort_orders: Vec<(i32, i32)>,
+}
+
 impl CollectionsRepository {
+    fn unique_ids(ids: Vec<i32>) -> Vec<i32> {
+        let mut seen = std::collections::HashSet::new();
+        ids.into_iter().filter(|id| seen.insert(*id)).collect()
+    }
+
+    fn diff_game_collection_pairs(
+        current_links: &[game_collection_link::Model],
+        target_pairs: &[GameCollectionPair],
+    ) -> GameCollectionDiff {
+        use std::collections::{HashMap, HashSet};
+
+        let current_pair_to_link_id = current_links
+            .iter()
+            .map(|link| {
+                (
+                    GameCollectionPair {
+                        game_id: link.game_id,
+                        collection_id: link.collection_id,
+                    },
+                    link.id,
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        let target_pair_set = target_pairs.iter().copied().collect::<HashSet<_>>();
+
+        let to_insert = target_pairs
+            .iter()
+            .filter(|pair| !current_pair_to_link_id.contains_key(pair))
+            .copied()
+            .collect();
+        let to_delete_link_ids = current_pair_to_link_id
+            .iter()
+            .filter_map(|(pair, link_id)| (!target_pair_set.contains(pair)).then_some(*link_id))
+            .collect();
+
+        GameCollectionDiff {
+            to_insert,
+            to_delete_link_ids,
+        }
+    }
+
+    fn build_category_games_diff(
+        current_links: &[game_collection_link::Model],
+        new_game_ids: Vec<i32>,
+        collection_id: i32,
+    ) -> CategoryGamesDiff {
+        use std::collections::{HashMap, HashSet};
+
+        let new_game_ids = Self::unique_ids(new_game_ids);
+        let mut current_map = current_links
+            .iter()
+            .map(|link| (link.game_id, (link.id, link.sort_order)))
+            .collect::<HashMap<_, _>>();
+        let new_set = new_game_ids.iter().copied().collect::<HashSet<_>>();
+
+        let to_delete_link_ids = current_links
+            .iter()
+            .filter(|link| !new_set.contains(&link.game_id))
+            .map(|link| link.id)
+            .collect();
+        let mut to_insert = Vec::new();
+        let mut to_update_sort_orders = Vec::new();
+
+        for (new_order, game_id) in new_game_ids.into_iter().enumerate() {
+            let new_order = new_order as i32;
+            if let Some((link_id, old_order)) = current_map.remove(&game_id) {
+                if old_order != new_order {
+                    to_update_sort_orders.push((link_id, new_order));
+                }
+            } else {
+                to_insert.push(GameCollectionInsert {
+                    game_id,
+                    collection_id,
+                    sort_order: new_order,
+                });
+            }
+        }
+
+        CategoryGamesDiff {
+            to_delete_link_ids,
+            to_insert,
+            to_update_sort_orders,
+        }
+    }
+
+    async fn delete_game_collection_links(
+        txn: &DatabaseTransaction,
+        link_ids: Vec<i32>,
+    ) -> Result<(), DbErr> {
+        if link_ids.is_empty() {
+            return Ok(());
+        }
+
+        GameCollectionLink::delete_many()
+            .filter(game_collection_link::Column::Id.is_in(link_ids))
+            .exec(txn)
+            .await?;
+        Ok(())
+    }
+
+    async fn insert_game_collection_links(
+        txn: &DatabaseTransaction,
+        inserts: Vec<GameCollectionInsert>,
+    ) -> Result<(), DbErr> {
+        if inserts.is_empty() {
+            return Ok(());
+        }
+
+        let now = chrono::Utc::now().timestamp() as i32;
+        let models = inserts
+            .into_iter()
+            .map(|insert| game_collection_link::ActiveModel {
+                id: NotSet,
+                game_id: Set(insert.game_id),
+                collection_id: Set(insert.collection_id),
+                sort_order: Set(insert.sort_order),
+                created_at: Set(Some(now)),
+            })
+            .collect::<Vec<_>>();
+
+        GameCollectionLink::insert_many(models).exec(txn).await?;
+        Ok(())
+    }
+
+    async fn update_game_collection_sort_orders(
+        txn: &DatabaseTransaction,
+        updates: Vec<(i32, i32)>,
+    ) -> Result<(), DbErr> {
+        if updates.is_empty() {
+            return Ok(());
+        }
+
+        let case_clause = updates
+            .iter()
+            .map(|(id, order)| format!("WHEN id = {} THEN {}", id, order))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let ids = updates
+            .iter()
+            .map(|(id, _)| id.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "UPDATE game_collection_link SET sort_order = CASE {} END WHERE id IN ({})",
+            case_clause, ids
+        );
+
+        txn.execute(Statement::from_string(DatabaseBackend::Sqlite, sql))
+            .await?;
+        Ok(())
+    }
+
+    async fn build_append_inserts(
+        txn: &DatabaseTransaction,
+        pairs: Vec<GameCollectionPair>,
+    ) -> Result<Vec<GameCollectionInsert>, DbErr> {
+        use std::collections::{HashMap, HashSet};
+
+        let collection_ids = pairs
+            .iter()
+            .map(|pair| pair.collection_id)
+            .collect::<HashSet<_>>();
+        let mut next_orders = HashMap::new();
+
+        for collection_id in collection_ids {
+            let next_order = GameCollectionLink::find()
+                .filter(game_collection_link::Column::CollectionId.eq(collection_id))
+                .order_by_desc(game_collection_link::Column::SortOrder)
+                .one(txn)
+                .await?
+                .map(|link| link.sort_order + 1)
+                .unwrap_or(0);
+            next_orders.insert(collection_id, next_order);
+        }
+
+        let inserts = pairs
+            .into_iter()
+            .map(|pair| {
+                let sort_order = next_orders.entry(pair.collection_id).or_insert(0);
+                let insert = GameCollectionInsert {
+                    game_id: pair.game_id,
+                    collection_id: pair.collection_id,
+                    sort_order: *sort_order,
+                };
+                *sort_order += 1;
+                insert
+            })
+            .collect();
+
+        Ok(inserts)
+    }
+
     // ==================== 合集 CRUD 操作 ====================
 
     /// 创建合集
@@ -48,22 +253,6 @@ impl CollectionsRepository {
         };
 
         collection.insert(db).await
-    }
-
-    /// 根据 ID 查询合集
-    pub async fn find_by_id(
-        db: &DatabaseConnection,
-        id: i32,
-    ) -> Result<Option<collections::Model>, DbErr> {
-        Collections::find_by_id(id).one(db).await
-    }
-
-    /// 获取所有合集
-    pub async fn find_all(db: &DatabaseConnection) -> Result<Vec<collections::Model>, DbErr> {
-        Collections::find()
-            .order_by_asc(collections::Column::SortOrder)
-            .all(db)
-            .await
     }
 
     /// 获取根合集（parent_id 为 NULL）
@@ -125,45 +314,22 @@ impl CollectionsRepository {
         Collections::delete_by_id(id).exec(db).await
     }
 
-    /// 检查合集是否存在
-    pub async fn exists(db: &DatabaseConnection, id: i32) -> Result<bool, DbErr> {
-        Ok(Collections::find_by_id(id).count(db).await? > 0)
-    }
-
     // ==================== 游戏-合集关联操作 ====================
 
-    /// 将游戏添加到合集
-    pub async fn add_game_to_collection(
+    /// 从单个合集中批量移除游戏
+    pub async fn remove_games_from_collection(
         db: &DatabaseConnection,
-        game_id: i32,
-        collection_id: i32,
-        sort_order: i32,
-    ) -> Result<game_collection_link::Model, DbErr> {
-        let now = chrono::Utc::now().timestamp() as i32;
-
-        let link = game_collection_link::ActiveModel {
-            id: NotSet,
-            game_id: Set(game_id),
-            collection_id: Set(collection_id),
-            sort_order: Set(sort_order),
-            created_at: Set(Some(now)),
-        };
-
-        link.insert(db).await
-    }
-
-    /// 从合集中移除游戏
-    pub async fn remove_game_from_collection(
-        db: &DatabaseConnection,
-        game_id: i32,
+        game_ids: Vec<i32>,
         collection_id: i32,
     ) -> Result<DeleteResult, DbErr> {
+        let game_ids = Self::unique_ids(game_ids);
+        if game_ids.is_empty() {
+            return Ok(DeleteResult { rows_affected: 0 });
+        }
+
         GameCollectionLink::delete_many()
-            .filter(
-                game_collection_link::Column::GameId
-                    .eq(game_id)
-                    .and(game_collection_link::Column::CollectionId.eq(collection_id)),
-            )
+            .filter(game_collection_link::Column::CollectionId.eq(collection_id))
+            .filter(game_collection_link::Column::GameId.is_in(game_ids))
             .exec(db)
             .await
     }
@@ -180,6 +346,83 @@ impl CollectionsRepository {
             .await?;
 
         Ok(links.into_iter().map(|link| link.game_id).collect())
+    }
+
+    /// 获取游戏所在的所有合集 ID
+    pub async fn get_game_collection_ids(
+        db: &DatabaseConnection,
+        game_id: i32,
+    ) -> Result<Vec<i32>, DbErr> {
+        let links = GameCollectionLink::find()
+            .filter(game_collection_link::Column::GameId.eq(game_id))
+            .order_by_asc(game_collection_link::Column::CollectionId)
+            .all(db)
+            .await?;
+
+        Ok(links.into_iter().map(|link| link.collection_id).collect())
+    }
+
+    /// 批量将多个游戏添加到多个合集，已存在的关联会跳过
+    pub async fn add_games_to_collections(
+        db: &DatabaseConnection,
+        game_ids: Vec<i32>,
+        collection_ids: Vec<i32>,
+    ) -> Result<(), DbErr> {
+        let game_ids = Self::unique_ids(game_ids);
+        let collection_ids = Self::unique_ids(collection_ids);
+        if game_ids.is_empty() || collection_ids.is_empty() {
+            return Ok(());
+        }
+
+        let txn = db.begin().await?;
+        let current_links = GameCollectionLink::find()
+            .filter(game_collection_link::Column::GameId.is_in(game_ids.clone()))
+            .filter(game_collection_link::Column::CollectionId.is_in(collection_ids.clone()))
+            .all(&txn)
+            .await?;
+        let target_pairs = collection_ids
+            .iter()
+            .flat_map(|collection_id| {
+                game_ids.iter().map(|game_id| GameCollectionPair {
+                    game_id: *game_id,
+                    collection_id: *collection_id,
+                })
+            })
+            .collect::<Vec<_>>();
+        let diff = Self::diff_game_collection_pairs(&current_links, &target_pairs);
+        let inserts = Self::build_append_inserts(&txn, diff.to_insert).await?;
+        Self::insert_game_collection_links(&txn, inserts).await?;
+
+        txn.commit().await?;
+        Ok(())
+    }
+
+    /// 设置单个游戏所在的合集列表
+    pub async fn set_game_collections(
+        db: &DatabaseConnection,
+        game_id: i32,
+        collection_ids: Vec<i32>,
+    ) -> Result<(), DbErr> {
+        let txn = db.begin().await?;
+
+        let current_links = GameCollectionLink::find()
+            .filter(game_collection_link::Column::GameId.eq(game_id))
+            .all(&txn)
+            .await?;
+        let target_pairs = Self::unique_ids(collection_ids)
+            .into_iter()
+            .map(|collection_id| GameCollectionPair {
+                game_id,
+                collection_id,
+            })
+            .collect::<Vec<_>>();
+        let diff = Self::diff_game_collection_pairs(&current_links, &target_pairs);
+        Self::delete_game_collection_links(&txn, diff.to_delete_link_ids).await?;
+        let inserts = Self::build_append_inserts(&txn, diff.to_insert).await?;
+        Self::insert_game_collection_links(&txn, inserts).await?;
+
+        txn.commit().await?;
+        Ok(())
     }
 
     /// 获取合集中的游戏数量
@@ -210,119 +453,19 @@ impl CollectionsRepository {
         new_game_ids: Vec<i32>,
         collection_id: i32,
     ) -> Result<(), DbErr> {
-        use std::collections::{HashMap, HashSet};
-
-        // 开启事务
         let txn = db.begin().await?;
-
-        // 1. 获取当前分类中的所有游戏（包含完整信息）
         let current_links = GameCollectionLink::find()
             .filter(game_collection_link::Column::CollectionId.eq(collection_id))
             .all(&txn)
             .await?;
+        let diff = Self::build_category_games_diff(&current_links, new_game_ids, collection_id);
 
-        // 构建当前游戏的映射表：game_id -> (link_id, sort_order)
-        let mut current_map: HashMap<i32, (i32, i32)> = current_links
-            .iter()
-            .map(|link| (link.game_id, (link.id, link.sort_order)))
-            .collect();
-
-        // 构建新游戏的 HashSet 用于快速查找
-        let new_set: HashSet<i32> = new_game_ids.iter().copied().collect();
-
-        // 2. 计算需要删除的游戏 ID（在旧列表但不在新列表）
-        let to_delete: Vec<i32> = current_links
-            .iter()
-            .filter(|link| !new_set.contains(&link.game_id))
-            .map(|link| link.id)
-            .collect();
-
-        // 3. 执行删除操作
-        if !to_delete.is_empty() {
-            GameCollectionLink::delete_many()
-                .filter(game_collection_link::Column::Id.is_in(to_delete))
-                .exec(&txn)
-                .await?;
-        }
-
-        // 4. 处理新增和更新排序
-        let now = chrono::Utc::now().timestamp() as i32;
-        let mut to_insert = Vec::new();
-        let mut to_update = Vec::new();
-
-        for (new_order, &game_id) in new_game_ids.iter().enumerate() {
-            let new_order_i32 = new_order as i32;
-
-            if let Some((link_id, old_order)) = current_map.remove(&game_id) {
-                // 游戏已存在，检查排序是否需要更新
-                if old_order != new_order_i32 {
-                    to_update.push((link_id, new_order_i32));
-                }
-            } else {
-                // 游戏不存在，需要插入
-                to_insert.push(game_collection_link::ActiveModel {
-                    id: NotSet,
-                    game_id: Set(game_id),
-                    collection_id: Set(collection_id),
-                    sort_order: Set(new_order_i32),
-                    created_at: Set(Some(now)),
-                });
-            }
-        }
-
-        // 5. 批量插入新游戏
-        if !to_insert.is_empty() {
-            GameCollectionLink::insert_many(to_insert)
-                .exec(&txn)
-                .await?;
-        }
-
-        // 6. 批量更新排序（使用原生 SQL 优化性能）
-        if !to_update.is_empty() {
-            // 构建 CASE WHEN 语句批量更新
-            let case_clause = to_update
-                .iter()
-                .map(|(id, order)| format!("WHEN id = {} THEN {}", id, order))
-                .collect::<Vec<_>>()
-                .join(" ");
-
-            let ids = to_update
-                .iter()
-                .map(|(id, _)| id.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            let sql = format!(
-                "UPDATE game_collection_link SET sort_order = CASE {} END WHERE id IN ({})",
-                case_clause, ids
-            );
-
-            txn.execute(Statement::from_string(DatabaseBackend::Sqlite, sql))
-                .await?;
-        }
-
-        // 提交事务
+        Self::delete_game_collection_links(&txn, diff.to_delete_link_ids).await?;
+        Self::insert_game_collection_links(&txn, diff.to_insert).await?;
+        Self::update_game_collection_sort_orders(&txn, diff.to_update_sort_orders).await?;
         txn.commit().await?;
 
         Ok(())
-    }
-
-    /// 检查游戏是否在合集中
-    pub async fn is_game_in_collection(
-        db: &DatabaseConnection,
-        game_id: i32,
-        collection_id: i32,
-    ) -> Result<bool, DbErr> {
-        let count = GameCollectionLink::find()
-            .filter(
-                game_collection_link::Column::GameId
-                    .eq(game_id)
-                    .and(game_collection_link::Column::CollectionId.eq(collection_id)),
-            )
-            .count(db)
-            .await?;
-
-        Ok(count > 0)
     }
 
     // ==================== 前端友好的组合 API ====================
@@ -409,40 +552,6 @@ impl CollectionsRepository {
             .await?;
 
         Ok(count)
-    }
-
-    /// 获取完整的分组-分类树（一次性返回所有数据）
-    pub async fn get_collection_tree(
-        db: &DatabaseConnection,
-    ) -> Result<Vec<GroupWithCategories>, DbErr> {
-        let groups = Self::find_root_collections(db).await?;
-        let mut result = Vec::new();
-
-        for group in groups {
-            let categories = Self::find_children(db, group.id).await?;
-            let mut categories_with_count = Vec::new();
-
-            for category in categories {
-                let count = Self::count_games_in_collection(db, category.id).await?;
-                categories_with_count.push(CategoryWithCount {
-                    id: category.id,
-                    name: category.name,
-                    icon: category.icon,
-                    sort_order: category.sort_order,
-                    game_count: count,
-                });
-            }
-
-            result.push(GroupWithCategories {
-                id: group.id,
-                name: group.name,
-                icon: group.icon,
-                sort_order: group.sort_order,
-                categories: categories_with_count,
-            });
-        }
-
-        Ok(result)
     }
 
     /// 获取指定分组的分类列表（带游戏数量）

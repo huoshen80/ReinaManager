@@ -26,17 +26,6 @@ export interface Category {
 }
 
 /**
- * 分组与分类的树形结构
- */
-export interface GroupWithCategories {
-	id: number;
-	name: string;
-	icon?: string;
-	sort_order: number;
-	categories: Category[];
-}
-
-/**
  * 默认分组类型枚举
  */
 export enum DefaultGroup {

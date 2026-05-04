@@ -3,7 +3,7 @@
  * @description 提供所有 service 的统一访问入口
  */
 
-export type { Collection, GameCollectionLink } from "./collectionService";
+export type { Collection } from "./collectionService";
 export { collectionService } from "./collectionService";
 export type {
 	BackupResult,

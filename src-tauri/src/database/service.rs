@@ -6,7 +6,7 @@ use crate::database::dto::{
     UpdateGameData, UpdateSettingsData,
 };
 use crate::database::repository::{
-    collections_repository::{CategoryWithCount, CollectionsRepository, GroupWithCategories},
+    collections_repository::{CategoryWithCount, CollectionsRepository},
     game_stats_repository::{DailyStats, GameStatsRepository},
     games_repository::{GameType, GamesRepository, SortOption, SortOrder},
     settings_repository::SettingsRepository,
@@ -420,27 +420,6 @@ pub async fn create_collection(
         .map_err(|e| format!("创建合集失败: {}", e))
 }
 
-/// 根据 ID 查询合集
-#[tauri::command]
-pub async fn find_collection_by_id(
-    db: State<'_, DatabaseConnection>,
-    id: i32,
-) -> Result<Option<crate::entity::collections::Model>, String> {
-    CollectionsRepository::find_by_id(&db, id)
-        .await
-        .map_err(|e| format!("查询合集失败: {}", e))
-}
-
-/// 获取所有合集
-#[tauri::command]
-pub async fn find_all_collections(
-    db: State<'_, DatabaseConnection>,
-) -> Result<Vec<crate::entity::collections::Model>, String> {
-    CollectionsRepository::find_all(&db)
-        .await
-        .map_err(|e| format!("获取所有合集失败: {}", e))
-}
-
 /// 获取根合集
 #[tauri::command]
 pub async fn find_root_collections(
@@ -449,17 +428,6 @@ pub async fn find_root_collections(
     CollectionsRepository::find_root_collections(&db)
         .await
         .map_err(|e| format!("获取根合集失败: {}", e))
-}
-
-/// 获取子合集
-#[tauri::command]
-pub async fn find_child_collections(
-    db: State<'_, DatabaseConnection>,
-    parent_id: i32,
-) -> Result<Vec<crate::entity::collections::Model>, String> {
-    CollectionsRepository::find_children(&db, parent_id)
-        .await
-        .map_err(|e| format!("获取子合集失败: {}", e))
 }
 
 /// 更新合集
@@ -494,38 +462,17 @@ pub async fn delete_collection(db: State<'_, DatabaseConnection>, id: i32) -> Re
         .map_err(|e| format!("删除合集失败: {}", e))
 }
 
-/// 检查合集是否存在
+/// 从单个合集中批量移除游戏
 #[tauri::command]
-pub async fn collection_exists(db: State<'_, DatabaseConnection>, id: i32) -> Result<bool, String> {
-    CollectionsRepository::exists(&db, id)
-        .await
-        .map_err(|e| format!("检查合集是否存在失败: {}", e))
-}
-
-/// 将游戏添加到合集
-#[tauri::command]
-pub async fn add_game_to_collection(
+pub async fn remove_games_from_collection(
     db: State<'_, DatabaseConnection>,
-    game_id: i32,
-    collection_id: i32,
-    sort_order: i32,
-) -> Result<crate::entity::game_collection_link::Model, String> {
-    CollectionsRepository::add_game_to_collection(&db, game_id, collection_id, sort_order)
-        .await
-        .map_err(|e| format!("添加游戏到合集失败: {}", e))
-}
-
-/// 从合集中移除游戏
-#[tauri::command]
-pub async fn remove_game_from_collection(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
+    game_ids: Vec<i32>,
     collection_id: i32,
 ) -> Result<u64, String> {
-    CollectionsRepository::remove_game_from_collection(&db, game_id, collection_id)
+    CollectionsRepository::remove_games_from_collection(&db, game_ids, collection_id)
         .await
         .map(|result| result.rows_affected)
-        .map_err(|e| format!("从合集中移除游戏失败: {}", e))
+        .map_err(|e| format!("从合集中批量移除游戏失败: {}", e))
 }
 
 /// 获取合集中的所有游戏 ID
@@ -539,15 +486,39 @@ pub async fn get_games_in_collection(
         .map_err(|e| format!("获取合集中的游戏失败: {}", e))
 }
 
-/// 获取合集中的游戏数量
+/// 获取游戏所在的所有合集 ID
 #[tauri::command]
-pub async fn count_games_in_collection(
+pub async fn get_game_collection_ids(
     db: State<'_, DatabaseConnection>,
-    collection_id: i32,
-) -> Result<u64, String> {
-    CollectionsRepository::count_games_in_collection(&db, collection_id)
+    game_id: i32,
+) -> Result<Vec<i32>, String> {
+    CollectionsRepository::get_game_collection_ids(&db, game_id)
         .await
-        .map_err(|e| format!("获取合集游戏数量失败: {}", e))
+        .map_err(|e| format!("获取游戏所在合集失败: {}", e))
+}
+
+/// 批量将多个游戏添加到多个合集
+#[tauri::command]
+pub async fn add_games_to_collections(
+    db: State<'_, DatabaseConnection>,
+    game_ids: Vec<i32>,
+    collection_ids: Vec<i32>,
+) -> Result<(), String> {
+    CollectionsRepository::add_games_to_collections(&db, game_ids, collection_ids)
+        .await
+        .map_err(|e| format!("批量添加游戏到合集失败: {}", e))
+}
+
+/// 设置单个游戏所在的合集列表
+#[tauri::command]
+pub async fn set_game_collections(
+    db: State<'_, DatabaseConnection>,
+    game_id: i32,
+    collection_ids: Vec<i32>,
+) -> Result<(), String> {
+    CollectionsRepository::set_game_collections(&db, game_id, collection_ids)
+        .await
+        .map_err(|e| format!("设置游戏合集失败: {}", e))
 }
 
 /// 批量更新分类中的游戏列表
@@ -560,18 +531,6 @@ pub async fn update_category_games(
     CollectionsRepository::update_category_games(&db, game_ids, collection_id)
         .await
         .map_err(|e| format!("批量更新分类游戏失败: {}", e))
-}
-
-/// 检查游戏是否在合集中
-#[tauri::command]
-pub async fn is_game_in_collection(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-    collection_id: i32,
-) -> Result<bool, String> {
-    CollectionsRepository::is_game_in_collection(&db, game_id, collection_id)
-        .await
-        .map_err(|e| format!("检查游戏是否在合集中失败: {}", e))
 }
 
 /// 批量获取多个分组的游戏数量（优化版）
@@ -594,18 +553,6 @@ pub async fn count_games_in_group(
     CollectionsRepository::count_games_in_group(&db, group_id)
         .await
         .map_err(|e| format!("获取分组游戏数量失败: {}", e))
-}
-
-// ==================== 前端友好的组合 API ====================
-
-/// 获取完整的分组-分类树（一次性返回所有数据）
-#[tauri::command]
-pub async fn get_collection_tree(
-    db: State<'_, DatabaseConnection>,
-) -> Result<Vec<GroupWithCategories>, String> {
-    CollectionsRepository::get_collection_tree(&db)
-        .await
-        .map_err(|e| format!("获取分组树失败: {}", e))
 }
 
 /// 获取指定分组的分类列表（带游戏数量）
