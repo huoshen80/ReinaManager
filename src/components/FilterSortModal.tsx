@@ -19,14 +19,18 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
 import { useStore } from "@/store/appStore";
+import {
+	ALL_PLAY_STATUSES,
+	getPlayStatusLabel,
+	type PlayStatus,
+	type PlayStatusFilter,
+} from "@/types/collection";
 
 const filterTypeOptions: Array<{ value: GameType; labelKey: string }> = [
 	{ value: "all", labelKey: "allGames" },
 	{ value: "local", labelKey: "localGames" },
 	{ value: "online", labelKey: "onlineGames" },
 	{ value: "iscustom", labelKey: "customGames" },
-	{ value: "noclear", labelKey: "noclearGames" },
-	{ value: "clear", labelKey: "clearGames" },
 ];
 
 const sortOptions: Array<{ value: SortOption; labelKey: string }> = [
@@ -42,16 +46,20 @@ export const FilterSortModal: React.FC = () => {
 	const { t } = useTranslation();
 	const {
 		gameFilterType,
+		playStatusFilter,
 		sortOption,
 		sortOrder,
 		setGameFilterType,
+		setPlayStatusFilter,
 		updateSort,
 	} = useStore(
 		useShallow((s) => ({
 			gameFilterType: s.gameFilterType,
+			playStatusFilter: s.playStatusFilter,
 			sortOption: s.sortOption,
 			sortOrder: s.sortOrder,
 			setGameFilterType: s.setGameFilterType,
+			setPlayStatusFilter: s.setPlayStatusFilter,
 			updateSort: s.updateSort,
 		})),
 	);
@@ -59,12 +67,15 @@ export const FilterSortModal: React.FC = () => {
 	const [open, setOpen] = useState(false);
 	const [localFilterType, setLocalFilterType] =
 		useState<GameType>(gameFilterType);
+	const [localPlayStatusFilter, setLocalPlayStatusFilter] =
+		useState<PlayStatusFilter>(playStatusFilter);
 	const [localSortOption, setLocalSortOption] =
 		useState<SortOption>(sortOption);
 	const [localSortOrder, setLocalSortOrder] = useState<SortOrder>(sortOrder);
 
 	const handleOpen = () => {
 		setLocalFilterType(gameFilterType);
+		setLocalPlayStatusFilter(playStatusFilter);
 		setLocalSortOption(sortOption);
 		setLocalSortOrder(sortOrder);
 		setOpen(true);
@@ -75,6 +86,7 @@ export const FilterSortModal: React.FC = () => {
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		setGameFilterType(localFilterType);
+		setPlayStatusFilter(localPlayStatusFilter);
 		updateSort(localSortOption, localSortOrder);
 		handleClose();
 	};
@@ -89,16 +101,14 @@ export const FilterSortModal: React.FC = () => {
 				onClose={handleClose}
 				closeAfterTransition={false}
 				aria-labelledby="filter-sort-dialog-title"
-				fullWidth
-				maxWidth="xs"
+				maxWidth={false}
 				slotProps={{
 					transition: { timeout: 0 },
 					paper: {
 						component: "form",
 						onSubmit: handleSubmit,
-						sx: {
-							overflow: "hidden",
-						},
+						className:
+							"w-fit min-w-88 max-w-[calc(100vw-2rem)] overflow-hidden",
 					},
 				}}
 			>
@@ -111,8 +121,8 @@ export const FilterSortModal: React.FC = () => {
 						{t("components.FilterSortModal.title", "筛选排序")}
 					</span>
 				</DialogTitle>
-				<DialogContent className="px-5 py-4">
-					<div className="flex flex-col gap-4">
+				<DialogContent className="overflow-x-auto px-5 py-4">
+					<div className="w-max min-w-88 flex flex-col gap-4">
 						<section className="rounded-2 border border-black/8 bg-black/[0.02] p-3 dark:border-white/10 dark:bg-white/[0.04]">
 							<div className="mb-2 flex items-center gap-2">
 								<FilterListIcon fontSize="small" className="text-primary" />
@@ -120,22 +130,70 @@ export const FilterSortModal: React.FC = () => {
 									{t("components.FilterSortModal.filter", "筛选")}
 								</Typography>
 							</div>
-							<FormControl fullWidth size="small">
-								<Select
-									labelId="library-filter-label"
-									value={localFilterType}
-									displayEmpty
-									onChange={(event: SelectChangeEvent) =>
-										setLocalFilterType(event.target.value as GameType)
-									}
-								>
-									{filterTypeOptions.map((option) => (
-										<MenuItem key={option.value} value={option.value}>
-											{t(`components.FilterSortModal.${option.labelKey}`)}
-										</MenuItem>
-									))}
-								</Select>
-							</FormControl>
+							<div className="flex flex-col gap-3">
+								<div className="flex flex-col gap-2">
+									<div className="flex items-center gap-2">
+										<Typography variant="caption" color="text.secondary">
+											{t("components.FilterSortModal.sourceFilter", "游戏来源")}
+										</Typography>
+									</div>
+									<FormControl fullWidth size="small">
+										<Select
+											labelId="library-filter-label"
+											value={localFilterType}
+											displayEmpty
+											onChange={(event: SelectChangeEvent) =>
+												setLocalFilterType(event.target.value as GameType)
+											}
+										>
+											{filterTypeOptions.map((option) => (
+												<MenuItem key={option.value} value={option.value}>
+													{t(`components.FilterSortModal.${option.labelKey}`)}
+												</MenuItem>
+											))}
+										</Select>
+									</FormControl>
+								</div>
+								<div className="flex flex-col gap-2">
+									<div className="flex items-center gap-2">
+										<Typography variant="caption" color="text.secondary">
+											{t(
+												"components.FilterSortModal.playStatusFilter",
+												"游戏状态",
+											)}
+										</Typography>
+									</div>
+									<fieldset className="grid w-max grid-flow-col auto-cols-max gap-1.5 border-0 p-0 m-0">
+										<legend className="sr-only">
+											{t(
+												"components.FilterSortModal.playStatusFilter",
+												"游戏状态",
+											)}
+										</legend>
+										<ToggleButton
+											size="small"
+											value="all"
+											selected={localPlayStatusFilter === "all"}
+											onClick={() => setLocalPlayStatusFilter("all")}
+											className="min-w-0 whitespace-nowrap px-2"
+										>
+											{t("components.FilterSortModal.allStatuses", "全部状态")}
+										</ToggleButton>
+										{ALL_PLAY_STATUSES.map((status: PlayStatus) => (
+											<ToggleButton
+												key={status}
+												size="small"
+												value={status}
+												selected={localPlayStatusFilter === status}
+												onClick={() => setLocalPlayStatusFilter(status)}
+												className="min-w-0 whitespace-nowrap px-2"
+											>
+												{getPlayStatusLabel(t, status)}
+											</ToggleButton>
+										))}
+									</fieldset>
+								</div>
+							</div>
 						</section>
 
 						<section className="rounded-2 border border-black/8 bg-black/[0.02] p-3 dark:border-white/10 dark:bg-white/[0.04]">

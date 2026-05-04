@@ -1,6 +1,6 @@
 /**
  * @file useVirtualCollections Hook
- * @description 虚拟分组生成器，包含开发商分组和游戏状态分组，使用缓存优化性能
+ * @description 虚拟分组生成器，包含开发商分组，使用缓存优化性能
  * @module src/hooks/useVirtualCollections
  * @author ReinaManager
  * @copyright AGPL-3.0
@@ -10,7 +10,6 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { GameData } from "@/types";
 import type { Category } from "@/types/collection";
-import { getPlayStatusLabel, PlayStatus } from "@/types/collection";
 
 /**
  * 虚拟分类生成配置接口
@@ -24,8 +23,6 @@ interface VirtualCategoryConfig<T> {
 	generateName: (key: T) => string;
 	/** 生成排序值 */
 	generateSortOrder: (key: T, index?: number) => number;
-	/** 初始化所有可能的键（可选，用于游戏状态等固定分类） */
-	initializeKeys?: () => T[];
 	/** 对结果进行排序（可选） */
 	sortResults?: (a: [T, number], b: [T, number]) => number;
 }
@@ -56,13 +53,6 @@ function generateVirtualCategories<T>(
 	t: (key: string) => string,
 ): Category[] {
 	const categoryMap = new Map<T, number>();
-
-	// 初始化固定键（如果有）
-	if (config.initializeKeys) {
-		for (const key of config.initializeKeys()) {
-			categoryMap.set(key, 0);
-		}
-	}
 
 	// 遍历游戏并统计
 	for (const game of allGames) {
@@ -120,40 +110,6 @@ export function useDeveloperCategories(allGames: GameData[]): Category[] {
 }
 
 /**
- * 生成游戏状态分类列表
- * 基于 games.clear 字段，兼容 0/1 和未来的 1-5 枚举
- * 使用 useMemo 缓存结果
- */
-export function usePlayStatusCategories(allGames: GameData[]): Category[] {
-	const { t } = useTranslation();
-
-	return useMemo(
-		() =>
-			generateVirtualCategories<PlayStatus>(
-				allGames,
-				{
-					extractKeys: (game) => {
-						const clearValue = game.clear ?? PlayStatus.WISH;
-						return clearValue as PlayStatus;
-					},
-					generateId: (status) => -status,
-					generateName: (status) => getPlayStatusLabel(t, status),
-					generateSortOrder: (status) => status,
-					initializeKeys: () => [
-						PlayStatus.WISH,
-						PlayStatus.PLAYING,
-						PlayStatus.PLAYED,
-						PlayStatus.ON_HOLD,
-						PlayStatus.DROPPED,
-					],
-				},
-				t,
-			),
-		[allGames, t],
-	);
-}
-
-/**
  * 游戏筛选配置接口
  */
 interface GameFilterConfig {
@@ -182,21 +138,6 @@ export function getVirtualCategoryGames(
 	allGames: GameData[],
 	t: (key: string) => string,
 ): GameData[] {
-	// 游戏状态分类（-1 到 -5）
-	if (isPlayStatusGroup(categoryId)) {
-		const targetStatus = Math.abs(categoryId) as PlayStatus;
-		return filterGamesByCategory(
-			allGames,
-			{
-				matchGame: (game) => {
-					const clearValue = game.clear ?? PlayStatus.WISH;
-					return clearValue === targetStatus;
-				},
-			},
-			t,
-		);
-	}
-
 	// 开发商分类（负数ID <= -101）
 	if (isDeveloperGroup(categoryId) && categoryName) {
 		return filterGamesByCategory(
@@ -237,20 +178,11 @@ export function isDeveloperGroup(categoryId: number): boolean {
 }
 
 /**
- * 判断是否为游戏状态分组
- */
-export function isPlayStatusGroup(categoryId: number): boolean {
-	return categoryId >= -5 && categoryId < 0;
-}
-
-/**
  * 统一的虚拟分类 Hook
  * 返回所有虚拟分类相关的数据和方法
  */
 export function useVirtualCategories(allGames: GameData[]) {
-	const { t } = useTranslation();
 	const developerCategories = useDeveloperCategories(allGames);
-	const playStatusCategories = usePlayStatusCategories(allGames);
 
 	/**
 	 * 根据分组ID获取对应的分类列表
@@ -262,8 +194,6 @@ export function useVirtualCategories(allGames: GameData[]) {
 		switch (groupId) {
 			case "default_developer":
 				return developerCategories;
-			case "default_play_status":
-				return playStatusCategories;
 			default:
 				return realCategories;
 		}
@@ -273,29 +203,18 @@ export function useVirtualCategories(allGames: GameData[]) {
 	 * 获取虚拟分类的名称（用于面包屑）
 	 */
 	const getVirtualCategoryName = (
-		categoryId: number,
+		_categoryId: number,
 		storedName: string | null,
 	): string | null => {
-		// 游戏状态分类
-		if (isPlayStatusGroup(categoryId)) {
-			const playStatus = Math.abs(categoryId) as PlayStatus;
-			return getPlayStatusLabel(t, playStatus) || null;
-		}
-		// 开发商分类
-		if (isDeveloperGroup(categoryId)) {
-			return storedName;
-		}
-		return null;
+		return storedName;
 	};
 
 	return {
 		developerCategories,
-		playStatusCategories,
 		getCategoriesByGroupId,
 		getVirtualCategoryName,
 		isVirtual: isVirtualCategory,
 		isDeveloper: isDeveloperGroup,
-		isPlayStatus: isPlayStatusGroup,
 		getGames: getVirtualCategoryGames,
 	};
 }

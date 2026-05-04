@@ -144,13 +144,14 @@
 		"FilterSortModal": {
 			"allGames": "全部游戏",
 			"cancel": "取消",
-			"clearGames": "已通关游戏",
 			"confirm": "确认",
 			"customGames": "自定义游戏",
 			"filter": "筛选",
 			"localGames": "本地游戏",
-			"noclearGames": "未通关游戏",
-			"onlineGames": "网络游戏",
+			"onlineGames": "云端游戏",
+			"sourceFilter": "游戏来源",
+			"playStatusFilter": "游戏状态",
+			"allStatuses": "全部状态",
 			"title": "筛选排序",
 			"addTime": "添加时间(默认)",
 			"ascending": "升序",
@@ -368,8 +369,7 @@
 				"unknownCategory": "未知分类"
 			},
 			"defaultGroups": {
-				"developer": "开发商",
-				"playStatus": "游戏状态"
+				"developer": "开发商"
 			},
 			"deleteCategoryMessage": "确定要删除分类 \"{{name}}\" 吗？此操作将移除该分类与所有游戏的关联，但不会删除游戏本身。",
 			"deleteCategoryTitle": "删除分类",

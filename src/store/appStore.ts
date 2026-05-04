@@ -23,6 +23,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
 import type { apiSourceType, SourceType } from "@/types";
+import type { PlayStatusFilter } from "@/types/collection";
 import { initializeGamePlayTracking } from "./gamePlayStore";
 
 /**
@@ -67,6 +68,8 @@ export interface AppState {
 	// 筛选相关
 	gameFilterType: GameType;
 	setGameFilterType: (type: GameType) => void;
+	playStatusFilter: PlayStatusFilter;
+	setPlayStatusFilter: (status: PlayStatusFilter) => void;
 
 	// 数据来源选择
 	apiSource: apiSourceType;
@@ -161,6 +164,7 @@ export const useStore = create<AppState>()(
 			searchKeyword: "",
 
 			gameFilterType: "all",
+			playStatusFilter: "all",
 
 			// 排序选项默认值
 			sortOption: "addtime",
@@ -293,6 +297,13 @@ export const useStore = create<AppState>()(
 				// 设置新的筛选类型
 				set({ gameFilterType: type });
 			},
+			setPlayStatusFilter: (status: PlayStatusFilter) => {
+				const prevStatus = get().playStatusFilter;
+
+				if (prevStatus === status) return;
+
+				set({ playStatusFilter: status });
+			},
 
 			// 更新窗口状态管理
 			showUpdateModal: false,
@@ -350,6 +361,7 @@ export const useStore = create<AppState>()(
 				sortOrder: state.sortOrder,
 				// 筛选偏好
 				gameFilterType: state.gameFilterType,
+				playStatusFilter: state.playStatusFilter,
 				// 关闭应用相关
 				skipCloseRemind: state.skipCloseRemind,
 				defaultCloseAction: state.defaultCloseAction,

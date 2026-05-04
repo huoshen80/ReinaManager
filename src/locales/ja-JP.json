@@ -29,7 +29,7 @@
 			"onHold": "保留中",
 			"played": "プレイ済み",
 			"playing": "プレイ中",
-			"wish": "プレイしたい"
+			"wish": "ウィッシュ"
 		},
 		"unknownDeveloper": "不明な開発者"
 	},
@@ -146,13 +146,14 @@
 		"FilterSortModal": {
 			"allGames": "すべてのゲーム",
 			"cancel": "キャンセル",
-			"clearGames": "クリア済みゲーム",
 			"confirm": "確認",
 			"customGames": "カスタムゲーム",
 			"filter": "フィルター",
 			"localGames": "ローカルゲーム",
-			"noclearGames": "未クリアのゲーム",
-			"onlineGames": "オンラインゲーム",
+			"onlineGames": "クラウドゲーム",
+			"sourceFilter": "ゲームソース",
+			"playStatusFilter": "プレイ状態",
+			"allStatuses": "すべて",
 			"title": "フィルター・並べ替え",
 			"addTime": "追加時間(デフォルト)",
 			"ascending": "昇順",
@@ -371,8 +372,7 @@
 				"unknownCategory": "不明なカテゴリ"
 			},
 			"defaultGroups": {
-				"developer": "開発者",
-				"playStatus": "プレイ状態"
+				"developer": "開発者"
 			},
 			"deleteCategoryMessage": "カテゴリ \"{{name}}\" を削除してもよろしいですか？この操作により、このカテゴリとすべてのゲームの関連付けが削除されますが、ゲーム自体は削除されません。",
 			"deleteCategoryTitle": "カテゴリを削除",

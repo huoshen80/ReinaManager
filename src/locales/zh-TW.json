@@ -146,13 +146,14 @@
 		"FilterSortModal": {
 			"allGames": "全部遊戲",
 			"cancel": "取消",
-			"clearGames": "已通關遊戲",
 			"confirm": "確認",
 			"customGames": "自訂遊戲",
 			"filter": "篩選",
 			"localGames": "本地遊戲",
-			"noclearGames": "未通關遊戲",
-			"onlineGames": "網路遊戲",
+			"onlineGames": "雲端遊戲",
+			"sourceFilter": "遊戲來源",
+			"playStatusFilter": "遊戲狀態",
+			"allStatuses": "全部狀態",
 			"title": "篩選排序",
 			"addTime": "添加時間(默認)",
 			"ascending": "升序",
@@ -371,8 +372,7 @@
 				"unknownCategory": "未知分類"
 			},
 			"defaultGroups": {
-				"developer": "開發商",
-				"playStatus": "遊戲狀態"
+				"developer": "開發商"
 			},
 			"deleteCategoryMessage": "確定要刪除分類 \"{{name}}\" 嗎？此操作將移除該分類與所有遊戲的關聯，但不會刪除遊戲本身。",
 			"deleteCategoryTitle": "刪除分類",

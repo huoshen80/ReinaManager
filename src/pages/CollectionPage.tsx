@@ -153,7 +153,6 @@ export const Collection: React.FC = () => {
 		if (!currentGroupId && !selectedCategoryId) {
 			const counts = new Map<string, number>();
 			counts.set(DefaultGroup.DEVELOPER, displayAllGames.length);
-			counts.set(DefaultGroup.PLAY_STATUS, displayAllGames.length);
 
 			for (const [groupId, count] of Object.entries(
 				groupGameCountsQuery.data ?? {},
@@ -400,8 +399,6 @@ export const Collection: React.FC = () => {
 		switch (currentGroupId) {
 			case DefaultGroup.DEVELOPER:
 				return t("pages.Collection.defaultGroups.developer");
-			case DefaultGroup.PLAY_STATUS:
-				return t("pages.Collection.defaultGroups.playStatus");
 			default: {
 				// 自定义分组，从 groups 中查找
 				const group = groups.find((g) => g.id.toString() === currentGroupId);
@@ -458,10 +455,6 @@ export const Collection: React.FC = () => {
 		{
 			id: DefaultGroup.DEVELOPER,
 			name: t("pages.Collection.defaultGroups.developer"),
-		},
-		{
-			id: DefaultGroup.PLAY_STATUS,
-			name: t("pages.Collection.defaultGroups.playStatus"),
 		},
 	];
 

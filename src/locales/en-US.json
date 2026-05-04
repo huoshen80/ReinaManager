@@ -29,7 +29,7 @@
 			"onHold": "On Hold",
 			"played": "Played",
 			"playing": "Playing",
-			"wish": "Want to Play"
+			"wish": "Wish"
 		},
 		"unknownDeveloper": "Unknown Developer"
 	},
@@ -148,13 +148,14 @@
 		"FilterSortModal": {
 			"allGames": "All Games",
 			"cancel": "Cancel",
-			"clearGames": "Completed Games",
 			"confirm": "Confirm",
 			"customGames": "Custom Games",
 			"filter": "Filter",
 			"localGames": "Local Games",
-			"noclearGames": "Not Completed Games",
-			"onlineGames": "Online Games",
+			"onlineGames": "Cloud Games",
+			"sourceFilter": "Game Source",
+			"playStatusFilter": "Play Status",
+			"allStatuses": "All",
 			"title": "Filter & Sort",
 			"addTime": "Add Time (Default)",
 			"ascending": "Ascending",
@@ -374,8 +375,7 @@
 				"unknownCategory": "Unknown Category"
 			},
 			"defaultGroups": {
-				"developer": "Developer",
-				"playStatus": "Play Status"
+				"developer": "Developer"
 			},
 			"deleteCategoryMessage": "Are you sure you want to delete category \"{{name}}\"? This will remove the association between this category and all games, but will not delete the games themselves.",
 			"deleteCategoryTitle": "Delete Category",

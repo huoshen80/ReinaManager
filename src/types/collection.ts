@@ -30,7 +30,6 @@ export interface Category {
  */
 export enum DefaultGroup {
 	DEVELOPER = "default_developer",
-	PLAY_STATUS = "default_play_status",
 }
 
 /**
@@ -44,6 +43,8 @@ export enum PlayStatus {
 	ON_HOLD = 4, // 搁置
 	DROPPED = 5, // 弃坑
 }
+
+export type PlayStatusFilter = "all" | PlayStatus;
 
 /**
  * 所有游戏状态列表（用于菜单渲染）
