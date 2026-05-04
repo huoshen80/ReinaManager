@@ -33,10 +33,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { LinkWithScrollSave } from "@/components/LinkWithScrollSave";
-import {
-	useGetGameById,
-	useSelectedGame,
-} from "@/hooks/features/games/useGameFacade";
+import { useGameById } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
@@ -74,8 +71,7 @@ const RightMenu: React.FC<RightMenuProps> = ({
 }) => {
 	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
 	const deleteGameMutation = useDeleteGame();
-	const { selectedGame } = useSelectedGame(id ?? null);
-	const getGameById = useGetGameById();
+	const { selectedGame } = useGameById(id ?? null);
 	const launchGame = useGamePlayStore((s) => s.launchGame);
 	const isGameRunning = useGamePlayStore((s) => s.isGameRunning);
 	const [openAlert, setOpenAlert] = useState(false);
@@ -122,15 +118,11 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	const handleStartGame = async () => {
 		if (!id) return;
 		try {
-			const game = await getGameById(id);
-			if (!game?.localpath) {
+			if (!selectedGame?.localpath) {
 				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
 				return;
 			}
-			const result = await launchGame(game.localpath, id, {
-				le_launch: game.le_launch === 1,
-				magpie: game.magpie === 1,
-			});
+			const result = await launchGame(id);
 			if (!result.success) {
 				snackbar.error(result.message);
 			}

@@ -145,10 +145,7 @@ function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 				return;
 			}
 
-			const result = await launchGame(selectedGame.localpath, selectedGameId, {
-				le_launch: selectedGame.le_launch === 1,
-				magpie: selectedGame.magpie === 1,
-			});
+			const result = await launchGame(selectedGameId);
 			if (!result.success) {
 				snackbar.error(result.message);
 			}

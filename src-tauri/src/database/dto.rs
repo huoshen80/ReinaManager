@@ -235,12 +235,3 @@ pub struct UpdateGameData {
     #[serde(default, deserialize_with = "double_option")]
     pub custom_data: Option<Option<CustomData>>,
 }
-
-/// 游戏启动选项
-///
-/// 前端传递的启动参数，决定是否使用特殊启动方式
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GameLaunchOptions {
-    pub le_launch: Option<bool>,
-    pub magpie: Option<bool>,
-}

@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Typography } from "@mui/material";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useGameById } from "@/hooks/features/games/useGameFacade";
 import { useStore } from "@/store/appStore";
 import type { GameData } from "@/types";
 
@@ -37,8 +37,7 @@ export const SelectedGameGuard = ({
 }: SelectedGameGuardProps) => {
 	const { t } = useTranslation();
 	const selectedGameId = useStore((state) => state.selectedGameId);
-	const { selectedGame, isLoadingSelectedGame } =
-		useSelectedGame(selectedGameId);
+	const { selectedGame, isLoadingSelectedGame } = useGameById(selectedGameId);
 
 	if (selectedGameId === null) {
 		return (

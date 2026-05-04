@@ -1,10 +1,11 @@
-use crate::database::dto::GameLaunchOptions;
+use crate::database::repository::games_repository::GamesRepository;
 use crate::utils::game_monitor::{monitor_game, stop_game_session};
 use log::{debug, info};
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use tauri::{AppHandle, Manager, Runtime, command};
+use tauri::{AppHandle, Manager, Runtime, State, command};
 use tauri_plugin_store::StoreExt;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,11 +27,16 @@ pub struct StopResult {
 #[command]
 pub async fn launch_game<R: Runtime>(
     app_handle: AppHandle<R>,
-    game_path: String,
+    db: State<'_, DatabaseConnection>,
     game_id: u32,
     args: Option<Vec<String>>,
-    _launch_options: Option<GameLaunchOptions>,
 ) -> Result<LaunchResult, String> {
+    let game = GamesRepository::find_by_id(db.inner(), game_id as i32)
+        .await
+        .map_err(|e| format!("查询游戏失败: {}", e))?
+        .ok_or_else(|| format!("游戏不存在: {}", game_id))?;
+    let game_path = game.localpath.ok_or_else(|| "游戏路径未设置".to_string())?;
+
     if !Path::new(&game_path).exists() {
         return Err(format!("游戏可执行文件不存在: {}", game_path));
     }

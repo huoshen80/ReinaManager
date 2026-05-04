@@ -37,7 +37,7 @@ export type SortableCardItemProps = Omit<CardItemProps, "style" | "ref"> & {
 export interface MenuPosition {
 	mouseX: number;
 	mouseY: number;
-	cardId: number | null;
+	cardId: number;
 }
 
 /** 右键菜单控制器 */

@@ -197,11 +197,8 @@ function useUpdateGame() {
 			gameId: number;
 			updates: UpdateGameParams;
 		}) => gameService.updateGame(gameId, updates),
-		onSuccess: (_, { gameId, updates }) => {
-			queryClient.invalidateQueries({
-				queryKey: gameKeys.detail(gameId),
-				exact: true,
-			});
+		onSuccess: (updatedGame, { gameId, updates }) => {
+			queryClient.setQueryData(gameKeys.detail(gameId), updatedGame);
 
 			if (shouldInvalidateGameLists(updates)) {
 				queryClient.invalidateQueries({ queryKey: gameKeys.lists() });

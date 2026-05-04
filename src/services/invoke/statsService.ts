@@ -7,11 +7,6 @@ import type { GameSession, GameStatistics } from "@/types";
 import { BaseService } from "./base";
 import type { DailyStats } from "./types";
 
-export interface GameLaunchOptions {
-	le_launch?: boolean;
-	magpie?: boolean;
-}
-
 export interface LaunchGameResult {
 	success: boolean;
 	message: string;
@@ -29,16 +24,12 @@ class StatsService extends BaseService {
 	 * 启动游戏并开始监控
 	 */
 	async launchGame(
-		gamePath: string,
 		gameId: number,
 		args: string[] = [],
-		launchOptions?: GameLaunchOptions,
 	): Promise<LaunchGameResult> {
 		return this.invoke<LaunchGameResult>("launch_game", {
-			gamePath,
 			gameId,
 			args,
-			launchOptions,
 		});
 	}
 

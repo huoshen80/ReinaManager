@@ -22,7 +22,7 @@ import { create } from "zustand";
 import { gameKeys } from "@/hooks/queries/useGames";
 import { queryClient } from "@/providers/queryClient";
 import { useStore } from "@/store/appStore";
-import type { GameLaunchOptions, StopGameResult } from "@/types";
+import type { StopGameResult } from "@/types";
 import { launchGameWithTracking, stopGameWithTracking } from "@/utils/appUtils";
 import { toError } from "@/utils/errors";
 import { initGameTimeTracking } from "@/utils/gameStats";
@@ -57,12 +57,7 @@ interface GamePlayState {
 
 	// 方法
 	isGameRunning: (gameId?: number) => boolean;
-	launchGame: (
-		gamePath: string,
-		gameId: number,
-		launchOptions?: GameLaunchOptions,
-		args?: string[],
-	) => Promise<LaunchGameResult>;
+	launchGame: (gameId: number, args?: string[]) => Promise<LaunchGameResult>;
 	stopGame: (gameId: number) => Promise<StopGameResult>;
 	initTimeTracking: () => void;
 	clearActiveGame: () => void;
@@ -99,15 +94,11 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 	/**
 	 * 启动游戏并跟踪运行状态
-	 * @param gamePath 游戏路径
 	 * @param gameId 游戏ID
 	 * @param args 启动参数
-	 * @param launchOptions 启动选项
 	 */
 	launchGame: async (
-		gamePath: string,
 		gameId: number,
-		launchOptions?: GameLaunchOptions,
 		args?: string[],
 	): Promise<LaunchGameResult> => {
 		try {
@@ -142,12 +133,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				get().initTimeTracking();
 			}
 
-			const result = await launchGameWithTracking(
-				gamePath,
-				gameId,
-				args,
-				launchOptions,
-			);
+			const result = await launchGameWithTracking(gameId, args);
 
 			if (!result.success) {
 				// 启动失败，恢复状态

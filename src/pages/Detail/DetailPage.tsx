@@ -39,7 +39,7 @@ import {
 	getDeveloperNames,
 	useVirtualCategories,
 } from "@/hooks/common/useVirtualCollections";
-import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
+import { useGameById } from "@/hooks/features/games/useGameFacade";
 import { useAllGameListFacade } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
@@ -97,7 +97,7 @@ export const Detail: React.FC = () => {
 			setSelectedCategory: s.setSelectedCategory,
 		})),
 	);
-	const { selectedGame, isLoadingSelectedGame } = useSelectedGame(id);
+	const { selectedGame, isLoadingSelectedGame } = useGameById(id);
 	const displayAllGames = useAllGameListFacade();
 	const virtualCategories = useVirtualCategories(displayAllGames);
 	const [tabIndex, setTabIndex] = useState(0);

@@ -406,12 +406,6 @@ export type TimeUpdateCallback = (gameId: number, minutes: number) => void;
  */
 export type SessionEndCallback = (gameId: number, minutes: number) => void;
 
-// 游戏启动选项
-export interface GameLaunchOptions {
-	le_launch?: boolean;
-	magpie?: boolean;
-}
-
 /**
  * 停止游戏结果类型
  */

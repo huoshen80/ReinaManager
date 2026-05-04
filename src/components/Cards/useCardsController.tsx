@@ -105,10 +105,7 @@ export function useCardsController({
 			if (doubleClickLaunch && card.localpath) {
 				setSelectedGameId(cardId);
 				try {
-					const result = await launchGame(card.localpath, cardId, {
-						le_launch: card.le_launch === 1,
-						magpie: card.magpie === 1,
-					});
+					const result = await launchGame(cardId);
 					if (!result.success) {
 						snackbar.error(result.message);
 					}
@@ -127,10 +124,7 @@ export function useCardsController({
 			if (longPressLaunch && card.localpath) {
 				setSelectedGameId(cardId);
 				try {
-					const result = await launchGame(card.localpath, cardId, {
-						le_launch: card.le_launch === 1,
-						magpie: card.magpie === 1,
-					});
+					const result = await launchGame(cardId);
 					if (!result.success) {
 						snackbar.error(result.message);
 					}

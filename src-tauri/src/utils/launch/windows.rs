@@ -1,4 +1,4 @@
-use crate::database::dto::GameLaunchOptions;
+use crate::database::repository::games_repository::GamesRepository;
 use crate::database::repository::settings_repository::DbSettingsExt;
 use crate::utils::command_ext::CommandGuiExt;
 use crate::utils::game_monitor::{monitor_game, stop_game_session};
@@ -161,10 +161,8 @@ mod win_elevated_launch {
 /// # Arguments
 ///
 /// * `app_handle` - Tauri应用句柄
-/// * `game_path` - 游戏可执行文件的路径
 /// * `game_id` - 游戏ID (数据库记录ID)
 /// * `args` - 可选的游戏启动参数
-/// * `launch_options` - 启动选项（LE转区、Magpie放大等）
 ///
 /// # Returns
 ///
@@ -173,26 +171,22 @@ mod win_elevated_launch {
 pub async fn launch_game<R: Runtime>(
     app_handle: AppHandle<R>,
     db: State<'_, DatabaseConnection>,
-    game_path: String,
     game_id: u32,
     args: Option<Vec<String>>,
-    launch_options: Option<GameLaunchOptions>,
 ) -> Result<LaunchResult, String> {
+    let game = GamesRepository::find_by_id(db.inner(), game_id as i32)
+        .await
+        .map_err(|e| format!("查询游戏失败: {}", e))?
+        .ok_or_else(|| format!("游戏不存在: {}", game_id))?;
+    let game_path = game.localpath.ok_or_else(|| "游戏路径未设置".to_string())?;
+
     if !Path::new(&game_path).exists() {
         return Err(format!("游戏可执行文件不存在: {}", game_path));
     }
 
-    // ✨ 1. 先提取启动选项，写法也可以更简短
-    let use_le = launch_options
-        .as_ref()
-        .and_then(|opt| opt.le_launch)
-        .unwrap_or(false);
-    let use_magpie = launch_options
-        .as_ref()
-        .and_then(|opt| opt.magpie)
-        .unwrap_or(false);
+    let use_le = game.le_launch.unwrap_or(0) == 1;
+    let use_magpie = game.magpie.unwrap_or(0) == 1;
 
-    // ✨ 2. 直接复用上面的布尔值来判断是否需要查库
     let settings = if use_le || use_magpie {
         Some(db.inner().get_settings().await?)
     } else {

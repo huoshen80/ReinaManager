@@ -19,13 +19,7 @@ import {
 	savedataService,
 	statsService,
 } from "@/services/invoke";
-import type {
-	BgmData,
-	GameData,
-	GameLaunchOptions,
-	StopGameResult,
-	VndbData,
-} from "@/types";
+import type { BgmData, GameData, StopGameResult, VndbData } from "@/types";
 import { toError } from "./errors";
 
 // ==================== 路径管理缓存 ====================
@@ -176,18 +170,11 @@ export const handleOpenFolder = async (
 
 // 启动游戏并开始监控
 export async function launchGameWithTracking(
-	gamePath: string,
 	gameId: number,
 	args?: string[],
-	launchOptions?: GameLaunchOptions,
 ): Promise<{ success: boolean; message: string; process_id?: number }> {
 	try {
-		const result = await statsService.launchGame(
-			gamePath,
-			gameId,
-			args || [],
-			launchOptions,
-		);
+		const result = await statsService.launchGame(gameId, args || []);
 
 		return result;
 	} catch (error) {
