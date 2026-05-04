@@ -27,20 +27,13 @@ export const RightMenuHost = memo(
 			[],
 		);
 
-		return (
+		return menuPosition ? (
 			<RightMenu
-				id={menuPosition?.cardId}
-				isopen={Boolean(menuPosition)}
-				anchorPosition={
-					menuPosition
-						? { top: menuPosition.mouseY, left: menuPosition.mouseX }
-						: undefined
-				}
-				setAnchorEl={(value) => {
-					if (!value) closeMenu();
-				}}
+				id={menuPosition.cardId}
+				anchorPosition={{ top: menuPosition.mouseY, left: menuPosition.mouseX }}
+				onClose={closeMenu}
 			/>
-		);
+		) : null;
 	}),
 );
 

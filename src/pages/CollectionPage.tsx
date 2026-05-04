@@ -50,6 +50,26 @@ type CollectionScrollNavIntent =
 	| { type: "back"; targetKey: string }
 	| null;
 
+type CollectionMenuPosition =
+	| {
+			mouseX: number;
+			mouseY: number;
+			type: "group";
+			id: string;
+			name: string;
+	  }
+	| {
+			mouseX: number;
+			mouseY: number;
+			type: "category";
+			id: number;
+			name: string;
+	  };
+
+type CollectionMenuTarget =
+	| { type: "group"; id: string; name: string }
+	| { type: "category"; id: number; name: string };
+
 // 原本的 GroupCard/CategoryCard 已被通用 EntityCard 取代
 
 export const Collection: React.FC = () => {
@@ -100,22 +120,15 @@ export const Collection: React.FC = () => {
 	);
 
 	// 统一的右键菜单状态管理
-	const [menuPosition, setMenuPosition] = useState<{
-		mouseX: number;
-		mouseY: number;
-		type: "group" | "category";
-		id: string | number;
-		name: string;
-	} | null>(null);
+	const [menuPosition, setMenuPosition] =
+		useState<CollectionMenuPosition | null>(null);
 
 	// 对话框状态（提升到父组件，避免右键菜单重新渲染时丢失）
 	const [renameDialogOpen, setRenameDialogOpen] = useState(false);
 	const [manageGamesDialogOpen, setManageGamesDialogOpen] = useState(false);
-	const [selectedItem, setSelectedItem] = useState<{
-		type: "group" | "category";
-		id: string | number;
-		name: string;
-	} | null>(null);
+	const [selectedItem, setSelectedItem] = useState<CollectionMenuTarget | null>(
+		null,
+	);
 	const levelScrollMapRef = useRef<Record<string, number>>({});
 	const navIntentRef = useRef<CollectionScrollNavIntent>(null);
 
@@ -316,12 +329,14 @@ export const Collection: React.FC = () => {
 
 		try {
 			if (selectedItem.type === "group") {
-				const groupId = Number.parseInt(selectedItem.id as string, 10);
+				const groupId = Number.parseInt(selectedItem.id, 10);
 				if (Number.isNaN(groupId)) return;
 				await renameGroupMutation.mutateAsync({ groupId, newName });
 			} else {
-				const categoryId = selectedItem.id as number;
-				await renameCategoryMutation.mutateAsync({ categoryId, newName });
+				await renameCategoryMutation.mutateAsync({
+					categoryId: selectedItem.id,
+					newName,
+				});
 			}
 		} catch (error) {
 			snackbar.error(
@@ -647,19 +662,22 @@ export const Collection: React.FC = () => {
 				))}
 
 			{/* 统一的右键菜单 */}
-			<CollectionRightMenu
-				isopen={Boolean(menuPosition)}
-				anchorPosition={
-					menuPosition
-						? { top: menuPosition.mouseY, left: menuPosition.mouseX }
-						: undefined
-				}
-				setAnchorEl={() => setMenuPosition(null)}
-				type={menuPosition?.type || "group"}
-				id={menuPosition?.id || null}
-				onOpenRename={handleOpenRenameDialog}
-				onOpenManageGames={handleOpenManageGamesDialog}
-			/>
+			{menuPosition && (
+				<CollectionRightMenu
+					anchorPosition={{
+						top: menuPosition.mouseY,
+						left: menuPosition.mouseX,
+					}}
+					onClose={() => setMenuPosition(null)}
+					target={
+						menuPosition.type === "group"
+							? { type: "group", id: menuPosition.id }
+							: { type: "category", id: menuPosition.id }
+					}
+					onOpenRename={handleOpenRenameDialog}
+					onOpenManageGames={handleOpenManageGamesDialog}
+				/>
+			)}
 
 			{/* 重命名对话框 */}
 			{selectedItem && (
@@ -682,16 +700,14 @@ export const Collection: React.FC = () => {
 			)}
 
 			{/* 管理游戏对话框 */}
-			{selectedItem &&
-				selectedItem.type === "category" &&
-				typeof selectedItem.id === "number" && (
-					<ManageGamesDialog
-						open={manageGamesDialogOpen}
-						onClose={() => setManageGamesDialogOpen(false)}
-						categoryId={selectedItem.id}
-						categoryName={selectedItem.name}
-					/>
-				)}
+			{selectedItem && selectedItem.type === "category" && (
+				<ManageGamesDialog
+					open={manageGamesDialogOpen}
+					onClose={() => setManageGamesDialogOpen(false)}
+					categoryId={selectedItem.id}
+					categoryName={selectedItem.name}
+				/>
+			)}
 		</Box>
 	);
 };

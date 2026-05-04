@@ -15,12 +15,14 @@ import { BaseRightMenu } from "./BaseRightMenu";
 /**
  * CollectionRightMenu 组件属性类型
  */
+type CollectionRightMenuTarget =
+	| { type: "group"; id: string }
+	| { type: "category"; id: number };
+
 interface CollectionRightMenuProps {
-	isopen: boolean;
-	anchorPosition?: { top: number; left: number };
-	setAnchorEl: (value: null) => void;
-	type: "group" | "category"; // 分组还是分类
-	id: number | string | null; // 分组ID（string）或分类ID（number）
+	anchorPosition: { top: number; left: number };
+	onClose: () => void;
+	target: CollectionRightMenuTarget;
 	onOpenRename: () => void; // 打开重命名对话框的回调
 	onOpenManageGames?: () => void; // 打开管理游戏对话框的回调（仅分类）
 }
@@ -34,32 +36,28 @@ interface CollectionRightMenuProps {
  * @returns {JSX.Element | null} 右键菜单
  */
 export const CollectionRightMenu: React.FC<CollectionRightMenuProps> = ({
-	isopen,
 	anchorPosition,
-	setAnchorEl,
-	type,
-	id,
+	onClose,
+	target,
 	onOpenRename,
 	onOpenManageGames,
 }) => {
 	const { t } = useTranslation();
 
-	if (!id) return null;
-
 	return (
 		<BaseRightMenu
-			isopen={isopen}
+			isopen
 			anchorPosition={anchorPosition}
-			onClose={() => setAnchorEl(null)}
+			onClose={onClose}
 			ariaLabel={
-				type === "group"
+				target.type === "group"
 					? t("components.RightMenu.Collection.groupMenu")
 					: t("components.RightMenu.Collection.categoryMenu")
 			}
 		>
 			<MenuList sx={{ py: 1 }}>
 				{/* 编辑分类（管理游戏） - 仅分类显示 */}
-				{type === "category" && (
+				{target.type === "category" && (
 					<MenuItem onClick={onOpenManageGames}>
 						<ListItemIcon>
 							<EditIcon />
@@ -77,7 +75,7 @@ export const CollectionRightMenu: React.FC<CollectionRightMenuProps> = ({
 					</ListItemIcon>
 					<ListItemText
 						primary={
-							type === "group"
+							target.type === "group"
 								? t("components.RightMenu.Collection.renameGroup")
 								: t("components.RightMenu.Collection.renameCategory")
 						}

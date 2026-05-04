@@ -50,10 +50,9 @@ import { PlayStatusSubmenu } from "./PlayStatusSubmenu";
  * RightMenu 组件属性类型
  */
 interface RightMenuProps {
-	isopen: boolean;
-	anchorPosition?: { top: number; left: number };
-	setAnchorEl: (value: null) => void;
-	id: number | null | undefined;
+	id: number;
+	anchorPosition: { top: number; left: number };
+	onClose: () => void;
 }
 
 /**
@@ -64,14 +63,13 @@ interface RightMenuProps {
  * @returns {JSX.Element | null} 右键菜单
  */
 const RightMenu: React.FC<RightMenuProps> = ({
-	isopen,
 	anchorPosition,
-	setAnchorEl,
+	onClose,
 	id,
 }) => {
 	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
 	const deleteGameMutation = useDeleteGame();
-	const { selectedGame } = useGameById(id ?? null);
+	const { selectedGame } = useGameById(id);
 	const launchGame = useGamePlayStore((s) => s.launchGame);
 	const isGameRunning = useGamePlayStore((s) => s.isGameRunning);
 	const [openAlert, setOpenAlert] = useState(false);
@@ -82,31 +80,21 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	// 使用 Feature Facade 更新游戏状态
 	const { updatePlayStatus } = useGameStatusActions();
 
-	// 检查该游戏是否正在运行
-	const isThisGameRunning = isGameRunning(id === null ? undefined : id);
-
-	/**
-	 * 判断当前游戏是否可以启动
-	 * @returns {boolean}
-	 */
-	const canUse = () => {
-		if (id) return haslocalpath && !isThisGameRunning;
-	};
+	const isThisGameCanRun = haslocalpath && !isGameRunning(id);
 
 	/**
 	 * 删除游戏操作，带删除确认弹窗
 	 */
 	const handleDeleteGame = async () => {
-		if (!id) return;
 		try {
 			setIsDeleting(true);
-			setAnchorEl(null);
+			onClose();
 			await deleteGameMutation.mutateAsync(id);
 			setSelectedGameId(null);
 		} catch (error) {
 			console.error("删除游戏失败:", error);
 		} finally {
-			setAnchorEl(null);
+			onClose();
 			setIsDeleting(false);
 			setOpenAlert(false);
 		}
@@ -116,7 +104,6 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 * 启动游戏操作
 	 */
 	const handleStartGame = async () => {
-		if (!id) return;
 		try {
 			if (!selectedGame?.localpath) {
 				snackbar.error(t("components.LaunchModal.gamePathNotFound"));
@@ -137,8 +124,6 @@ const RightMenu: React.FC<RightMenuProps> = ({
 	 * 更新游戏状态
 	 */
 	const handlePlayStatusChange = (newStatus: PlayStatus) => {
-		if (id === null || id === undefined) return;
-
 		updatePlayStatus(
 			{ gameId: id, newStatus },
 			{
@@ -149,9 +134,9 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 	return (
 		<BaseRightMenu
-			isopen={isopen}
+			isopen
 			anchorPosition={anchorPosition}
-			onClose={() => setAnchorEl(null)}
+			onClose={onClose}
 			ariaLabel={t("components.RightMenu.label")}
 		>
 			{/* 删除确认弹窗 */}
@@ -165,10 +150,10 @@ const RightMenu: React.FC<RightMenuProps> = ({
 			<MenuList sx={{ py: 1 }}>
 				{/* 启动游戏 */}
 				<MenuItem
-					disabled={!canUse()}
+					disabled={!isThisGameCanRun}
 					onClick={() => {
 						handleStartGame();
-						setAnchorEl(null);
+						onClose();
 					}}
 				>
 					<ListItemIcon>
@@ -202,12 +187,12 @@ const RightMenu: React.FC<RightMenuProps> = ({
 
 				{/* 打开游戏文件夹 */}
 				<MenuItem
-					disabled={id == null || !haslocalpath}
+					disabled={!haslocalpath}
 					onClick={() => {
 						if (haslocalpath) {
 							handleOpenFolder(selectedGame);
 						}
-						setAnchorEl(null);
+						onClose();
 					}}
 				>
 					<ListItemIcon>
