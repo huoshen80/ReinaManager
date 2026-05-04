@@ -17,8 +17,10 @@
  * - react-router
  */
 
+import CollectionsBookmarkIcon from "@mui/icons-material/CollectionsBookmark";
 import {
 	Box,
+	Button,
 	Chip,
 	CircularProgress,
 	Stack,
@@ -32,6 +34,7 @@ import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
+import { CollectionPickerDialog } from "@/components/Collection";
 import {
 	getDeveloperNames,
 	useVirtualCategories,
@@ -98,6 +101,7 @@ export const Detail: React.FC = () => {
 	const displayAllGames = useAllGameListFacade();
 	const virtualCategories = useVirtualCategories(displayAllGames);
 	const [tabIndex, setTabIndex] = useState(0);
+	const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
 	const [showAllTags, setShowAllTags] = useState(false); // 控制标签折叠状态
 
 	useLayoutEffect(() => {
@@ -386,11 +390,15 @@ export const Detail: React.FC = () => {
 
 				{/* 添加Tabs组件 */}
 				<Box sx={{ width: "100%" }}>
-					<Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+					<Box
+						sx={{ borderBottom: 1, borderColor: "divider" }}
+						className="flex items-center gap-2"
+					>
 						<Tabs
 							value={tabIndex}
 							onChange={handleTabChange}
 							aria-label="game detail tabs"
+							className="flex-1 min-w-0"
 						>
 							<Tab
 								label={t("pages.Detail.gameStats")}
@@ -413,6 +421,13 @@ export const Detail: React.FC = () => {
 								aria-controls="game-tabpanel-3"
 							/>
 						</Tabs>
+						<Button
+							size="small"
+							startIcon={<CollectionsBookmarkIcon />}
+							onClick={() => setCollectionDialogOpen(true)}
+						>
+							{t("pages.Detail.manageCollections", "管理收藏夹")}
+						</Button>
 					</Box>
 
 					{/* 统计信息Tab */}
@@ -442,6 +457,12 @@ export const Detail: React.FC = () => {
 						{tabIndex === 3 && <Backup />}
 					</TabPanel>
 				</Box>
+				<CollectionPickerDialog
+					open={collectionDialogOpen}
+					mode="manage"
+					gameIds={selectedGame.id ? [selectedGame.id] : []}
+					onClose={() => setCollectionDialogOpen(false)}
+				/>
 			</Box>
 		</PageContainer>
 	);

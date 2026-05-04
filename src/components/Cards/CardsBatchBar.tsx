@@ -5,26 +5,12 @@ import LibraryAddCheckIcon from "@mui/icons-material/LibraryAddCheck";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select, { type SelectChangeEvent } from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertConfirmBox } from "@/components/AlertBox";
-import {
-	useCategories,
-	useCategoryGameIds,
-	useGroups,
-	useUpdateCategoryGames,
-} from "@/hooks/queries/useCollections";
+import { CollectionPickerDialog } from "@/components/Collection";
 import { useDeleteGames } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 
@@ -64,20 +50,11 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 }) => {
 	const { t } = useTranslation();
 	const deleteGamesMutation = useDeleteGames();
-	const updateCategoryGamesMutation = useUpdateCategoryGames();
-	const groupsQuery = useGroups();
 
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
-	const [selectedGroupId, setSelectedGroupId] = useState("");
-	const [selectedCategoryId, setSelectedCategoryId] = useState("");
 
 	const isCollectionCategory = typeof categoryId === "number" && categoryId > 0;
-	const targetCategoryId = selectedCategoryId
-		? Number.parseInt(selectedCategoryId, 10)
-		: null;
-	const targetCategoryGameIdsQuery = useCategoryGameIds(targetCategoryId);
-	const categoriesQuery = useCategories(selectedGroupId || null);
 
 	const gameIdSet = useMemo(() => new Set(gameIds), [gameIds]);
 	const selectedVisibleGameIds = useMemo(
@@ -85,8 +62,7 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 		[selectedBatchGameIds, gameIdSet],
 	);
 	const selectedCount = selectedVisibleGameIds.length;
-	const isMutating =
-		deleteGamesMutation.isPending || updateCategoryGamesMutation.isPending;
+	const isMutating = deleteGamesMutation.isPending;
 
 	const handleSelectAll = () => {
 		onSelectionChange(gameIds);
@@ -110,36 +86,6 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 			console.error("批量删除游戏失败:", error);
 			snackbar.error(
 				t("components.Toolbar.Batch.deleteFailed", "批量删除游戏失败"),
-			);
-		}
-	};
-
-	const handleAddToCollection = async () => {
-		if (!targetCategoryId || selectedCount === 0) return;
-
-		const categoryGameIds = targetCategoryGameIdsQuery.data ?? [];
-		const nextGameIds = Array.from(
-			new Set([...categoryGameIds, ...selectedVisibleGameIds]),
-		);
-		const addedCount = nextGameIds.length - categoryGameIds.length;
-
-		try {
-			await updateCategoryGamesMutation.mutateAsync({
-				categoryId: targetCategoryId,
-				gameIds: nextGameIds,
-			});
-			setCollectionDialogOpen(false);
-			onSelectionClear();
-			snackbar.success(
-				t("components.Toolbar.Batch.addToCollectionSuccess", {
-					count: addedCount,
-					defaultValue: `已添加 ${addedCount} 个游戏到收藏夹`,
-				}),
-			);
-		} catch (error) {
-			console.error("批量添加到收藏夹失败:", error);
-			snackbar.error(
-				t("components.Toolbar.Batch.addToCollectionFailed", "添加到收藏夹失败"),
 			);
 		}
 	};
@@ -247,11 +193,7 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 								</Button>
 								<Button
 									startIcon={<BookmarkAddIcon />}
-									onClick={() => {
-										setSelectedGroupId("");
-										setSelectedCategoryId("");
-										setCollectionDialogOpen(true);
-									}}
+									onClick={() => setCollectionDialogOpen(true)}
 									disabled={selectedCount === 0 || isMutating}
 								>
 									{t(
@@ -277,83 +219,13 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 				})}
 			/>
 
-			<Dialog
+			<CollectionPickerDialog
 				open={collectionDialogOpen}
+				mode="add"
+				gameIds={selectedVisibleGameIds}
 				onClose={() => setCollectionDialogOpen(false)}
-				closeAfterTransition={false}
-				aria-labelledby="batch-collection-dialog-title"
-			>
-				<DialogTitle id="batch-collection-dialog-title">
-					{t("components.Toolbar.Batch.addToCollection", "添加到收藏夹")}
-				</DialogTitle>
-				<DialogContent>
-					<Stack spacing={2} sx={{ pt: 1, minWidth: 280 }}>
-						<FormControl fullWidth>
-							<InputLabel id="batch-group-label">
-								{t("components.Toolbar.Batch.group", "分组")}
-							</InputLabel>
-							<Select
-								labelId="batch-group-label"
-								value={selectedGroupId}
-								label={t("components.Toolbar.Batch.group", "分组")}
-								disabled={groupsQuery.isLoading}
-								onChange={(event: SelectChangeEvent) => {
-									setSelectedGroupId(event.target.value);
-									setSelectedCategoryId("");
-								}}
-							>
-								{(groupsQuery.data ?? []).map((group) => (
-									<MenuItem key={group.id} value={group.id.toString()}>
-										{group.name}
-									</MenuItem>
-								))}
-							</Select>
-						</FormControl>
-
-						<FormControl fullWidth disabled={!selectedGroupId}>
-							<InputLabel id="batch-category-label">
-								{t("components.Toolbar.Batch.category", "分类")}
-							</InputLabel>
-							<Select
-								labelId="batch-category-label"
-								value={selectedCategoryId}
-								label={t("components.Toolbar.Batch.category", "分类")}
-								disabled={!selectedGroupId || categoriesQuery.isLoading}
-								onChange={(event: SelectChangeEvent) =>
-									setSelectedCategoryId(event.target.value)
-								}
-							>
-								{(categoriesQuery.data ?? []).map((category) => (
-									<MenuItem key={category.id} value={category.id.toString()}>
-										{category.name}
-									</MenuItem>
-								))}
-							</Select>
-						</FormControl>
-					</Stack>
-				</DialogContent>
-				<DialogActions>
-					<Button
-						onClick={() => setCollectionDialogOpen(false)}
-						disabled={updateCategoryGamesMutation.isPending}
-					>
-						{t("common.cancel")}
-					</Button>
-					<Button
-						onClick={handleAddToCollection}
-						disabled={
-							!targetCategoryId ||
-							selectedCount === 0 ||
-							targetCategoryGameIdsQuery.isLoading ||
-							updateCategoryGamesMutation.isPending
-						}
-					>
-						{updateCategoryGamesMutation.isPending
-							? t("common.saving")
-							: t("common.confirm")}
-					</Button>
-				</DialogActions>
-			</Dialog>
+				onSaved={onSelectionClear}
+			/>
 		</>
 	);
 };

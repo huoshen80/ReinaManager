@@ -125,6 +125,18 @@
 				"categoryGamesUpdated": "分類遊戲已更新"
 			}
 		},
+		"CollectionPicker": {
+			"add": "新增",
+			"addSuccess": "已新增 {{count}} 個遊戲到收藏夾",
+			"addTitle": "新增到收藏夾",
+			"gameCount": "{{count}} 個遊戲",
+			"group": "分組",
+			"manageSuccess": "收藏夾已更新",
+			"manageTitle": "管理收藏夾",
+			"noCategories": "暫無分類",
+			"save": "儲存",
+			"saveFailed": "更新收藏夾失敗"
+		},
 		"Cards": {
 			"loadAll": "載入全部（{{count}}）",
 			"removeFromCategory": "移出目前分類",
@@ -244,16 +256,12 @@
 			"bgmlink": "查看Bangumi頁面",
 			"Batch": {
 				"addToCollection": "添加到收藏夾",
-				"addToCollectionFailed": "添加到收藏夾失敗",
-				"addToCollectionSuccess": "已添加 {{count}} 個遊戲到收藏夾",
-				"category": "分類",
 				"clearSelection": "清空選擇",
 				"deleteFailed": "批量刪除遊戲失敗",
 				"deleteMessage": "確定要刪除選中的 {{count}} 個遊戲嗎？此操作無法撤銷。",
 				"deleteSelected": "刪除所選遊戲",
 				"deleteSuccess": "已刪除 {{count}} 個遊戲",
 				"deleteTitle": "批量刪除遊戲",
-				"group": "分組",
 				"removeFromCategory": "移出目前分類",
 				"removeFromCategoryFailed": "移出分類失敗",
 				"removeFromCategorySuccess": "已從目前分類移除 {{count}} 個遊戲",
@@ -490,7 +498,8 @@
 			"playTimeChart": "統計圖表",
 			"releaseDate": "發佈時間",
 			"todayPlayTime": "今日遊戲時長",
-			"totalPlayTime": "累計總時長"
+			"totalPlayTime": "累計總時長",
+			"manageCollections": "管理收藏夾"
 		},
 		"Settings": {
 			"about": {

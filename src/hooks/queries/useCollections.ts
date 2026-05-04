@@ -13,6 +13,8 @@ export const collectionKeys = {
 		[...collectionKeys.all, "categories", groupId] as const,
 	games: (categoryId: number) =>
 		[...collectionKeys.all, "games", categoryId] as const,
+	gameCategories: (gameId: number) =>
+		[...collectionKeys.all, "gameCategories", gameId] as const,
 	groupCounts: (groupIds: number[]) =>
 		[...collectionKeys.all, "groupCounts", groupIds] as const,
 };
@@ -64,6 +66,20 @@ function useCategoryGameIds(categoryId: number | null) {
 			return collectionService.getGamesInCollection(categoryId);
 		},
 		enabled: categoryId !== null && categoryId > 0,
+	});
+}
+
+function useGameCategoryIds(gameId: number | null) {
+	return useQuery({
+		queryKey: collectionKeys.gameCategories(gameId ?? 0),
+		queryFn: async () => {
+			if (!gameId) {
+				return [];
+			}
+
+			return collectionService.getGameCollectionIds(gameId);
+		},
+		enabled: gameId !== null && gameId > 0,
 	});
 }
 
@@ -225,6 +241,83 @@ function useRenameCategory() {
 	});
 }
 
+function useAddGamesToCategories() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			gameIds,
+			categoryIds,
+		}: {
+			gameIds: number[];
+			categoryIds: number[];
+		}) => collectionService.addGamesToCollections(gameIds, categoryIds),
+		onSuccess: (_, { gameIds, categoryIds }) => {
+			for (const categoryId of categoryIds) {
+				queryClient.invalidateQueries({
+					queryKey: collectionKeys.games(categoryId),
+					exact: true,
+				});
+			}
+			for (const gameId of gameIds) {
+				queryClient.invalidateQueries({
+					queryKey: collectionKeys.gameCategories(gameId),
+					exact: true,
+				});
+			}
+			queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+		},
+	});
+}
+
+function useSetGameCategories() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			gameId,
+			categoryIds,
+		}: {
+			gameId: number;
+			categoryIds: number[];
+		}) => collectionService.setGameCollections(gameId, categoryIds),
+		onSuccess: (_, { gameId }) => {
+			queryClient.invalidateQueries({
+				queryKey: collectionKeys.gameCategories(gameId),
+				exact: true,
+			});
+			queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+		},
+	});
+}
+
+function useRemoveGamesFromCategory() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			categoryId,
+			gameIds,
+		}: {
+			categoryId: number;
+			gameIds: number[];
+		}) => collectionService.removeGamesFromCollection(gameIds, categoryId),
+		onSuccess: (_, { categoryId, gameIds }) => {
+			queryClient.invalidateQueries({
+				queryKey: collectionKeys.games(categoryId),
+				exact: true,
+			});
+			for (const gameId of gameIds) {
+				queryClient.invalidateQueries({
+					queryKey: collectionKeys.gameCategories(gameId),
+					exact: true,
+				});
+			}
+			queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+		},
+	});
+}
+
 function useUpdateCategoryGames() {
 	const queryClient = useQueryClient();
 
@@ -265,6 +358,7 @@ function useUpdateCategoryGames() {
 }
 
 export {
+	useAddGamesToCategories,
 	useCategories,
 	useCategoryGameIds,
 	useCategoryGames,
@@ -272,9 +366,12 @@ export {
 	useCreateGroup,
 	useDeleteCategory,
 	useDeleteGroup,
+	useGameCategoryIds,
 	useGroupGameCounts,
 	useGroups,
+	useRemoveGamesFromCategory,
 	useRenameCategory,
 	useRenameGroup,
+	useSetGameCategories,
 	useUpdateCategoryGames,
 };

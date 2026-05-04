@@ -127,6 +127,18 @@
 				"categoryGamesUpdated": "Category games updated"
 			}
 		},
+		"CollectionPicker": {
+			"add": "Add",
+			"addSuccess": "Added {{count}} game(s) to collection",
+			"addTitle": "Add to Collection",
+			"gameCount": "{{count}} game(s)",
+			"group": "Group",
+			"manageSuccess": "Collection updated",
+			"manageTitle": "Manage Collection",
+			"noCategories": "No categories",
+			"save": "Save",
+			"saveFailed": "Failed to update collection"
+		},
 		"Cards": {
 			"loadAll": "Load All ({{count}})",
 			"removeFromCategory": "Remove from Current Category",
@@ -246,16 +258,12 @@
 			"bgmlink": "View Bangumi Page",
 			"Batch": {
 				"addToCollection": "Add to Collection",
-				"addToCollectionFailed": "Failed to add to collection",
-				"addToCollectionSuccess": "Added {{count}} game(s) to collection",
-				"category": "Category",
 				"clearSelection": "Clear Selection",
 				"deleteFailed": "Failed to delete selected games",
 				"deleteMessage": "Delete {{count}} selected game(s)? This cannot be undone.",
 				"deleteSelected": "Delete Selected Games",
 				"deleteSuccess": "Deleted {{count}} game(s)",
 				"deleteTitle": "Delete Games",
-				"group": "Group",
 				"removeFromCategory": "Remove from Current Category",
 				"removeFromCategoryFailed": "Failed to remove from category",
 				"removeFromCategorySuccess": "Removed {{count}} game(s) from current category",
@@ -493,7 +501,8 @@
 			"playTimeChart": "Play Time Chart",
 			"releaseDate": "Release Date",
 			"todayPlayTime": "Today's Play Time",
-			"totalPlayTime": "Total Play Time"
+			"totalPlayTime": "Total Play Time",
+			"manageCollections": "Manage Collections"
 		},
 		"Settings": {
 			"about": {

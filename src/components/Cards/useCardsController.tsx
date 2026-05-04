@@ -4,10 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import {
-	useCategoryGameIds,
-	useUpdateCategoryGames,
-} from "@/hooks/queries/useCollections";
+import { useRemoveGamesFromCategory } from "@/hooks/queries/useCollections";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
@@ -61,10 +58,7 @@ export function useCardsController({
 		[selectedBatchGameIds],
 	);
 	const showBatchControls = canUseBatchMode && batchMode;
-	const categoryGameIdsQuery = useCategoryGameIds(
-		isCollectionCategory ? categoryId : null,
-	);
-	const updateCategoryGamesMutation = useUpdateCategoryGames();
+	const removeGamesFromCategoryMutation = useRemoveGamesFromCategory();
 
 	const displayedGames = useMemo(
 		() => (showAll ? gamesData : gamesData.slice(0, CARD_LIMIT)),
@@ -170,27 +164,16 @@ export function useCardsController({
 			if (!isCollectionCategory || !categoryId) return;
 
 			const targetGameIdSet = new Set(targetGameIds);
-			const categoryGameIds = categoryGameIdsQuery.data ?? gameIds;
-			const nextGameIds = categoryGameIds.filter(
-				(id) => !targetGameIdSet.has(id),
-			);
-
-			await updateCategoryGamesMutation.mutateAsync({
+			await removeGamesFromCategoryMutation.mutateAsync({
 				categoryId,
-				gameIds: nextGameIds,
+				gameIds: targetGameIds,
 			});
 
 			setSelectedBatchGameIds((prev) =>
 				prev.filter((selectedId) => !targetGameIdSet.has(selectedId)),
 			);
 		},
-		[
-			categoryGameIdsQuery.data,
-			categoryId,
-			gameIds,
-			isCollectionCategory,
-			updateCategoryGamesMutation,
-		],
+		[categoryId, isCollectionCategory, removeGamesFromCategoryMutation],
 	);
 
 	const handleRemoveSingleFromCategory = useCallback(

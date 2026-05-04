@@ -1,5 +1,5 @@
 import CheckIcon from "@mui/icons-material/Check";
-import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
@@ -72,15 +72,21 @@ export const CardItem = memo(
 						<Tooltip title={removeFromCategoryTitle} enterDelay={1000}>
 							<IconButton
 								size="small"
-								color="error"
-								className="!absolute right-1 top-1 z-2 !p-0 opacity-0 !bg-transparent hover:!bg-transparent group-hover:opacity-100"
+								className="!absolute right-1 top-1 z-2 !p-0 opacity-0 group-hover:opacity-100"
+								sx={{
+									bgcolor: "error.main",
+									color: "primary.contrastText",
+									"&:hover": {
+										bgcolor: "error.main",
+									},
+								}}
 								onClick={(event) => {
 									event.stopPropagation();
 									onRemoveFromCategory?.();
 								}}
 								onMouseDown={(event) => event.stopPropagation()}
 							>
-								<RemoveCircleOutlineIcon className="text-28px" />
+								<RemoveCircleIcon fontSize="medium" />
 							</IconButton>
 						</Tooltip>
 					)}

@@ -125,6 +125,18 @@
 				"categoryGamesUpdated": "カテゴリのゲームを更新しました"
 			}
 		},
+		"CollectionPicker": {
+			"add": "追加",
+			"addSuccess": "{{count}} 個のゲームをコレクションに追加しました",
+			"addTitle": "コレクションに追加",
+			"gameCount": "{{count}} 個のゲーム",
+			"group": "グループ",
+			"manageSuccess": "コレクションを更新しました",
+			"manageTitle": "コレクション管理",
+			"noCategories": "カテゴリなし",
+			"save": "保存",
+			"saveFailed": "コレクションの更新に失敗しました"
+		},
 		"Cards": {
 			"loadAll": "すべて読み込む（{{count}}）",
 			"removeFromCategory": "現在のカテゴリから削除",
@@ -244,16 +256,12 @@
 			"bgmlink": "Bangumiページを見る",
 			"Batch": {
 				"addToCollection": "コレクションに追加",
-				"addToCollectionFailed": "コレクションへの追加に失敗しました",
-				"addToCollectionSuccess": "{{count}} 個のゲームをコレクションに追加しました",
-				"category": "カテゴリ",
 				"clearSelection": "選択をクリア",
 				"deleteFailed": "選択したゲームの削除に失敗しました",
 				"deleteMessage": "選択した {{count}} 個のゲームを削除しますか？この操作は元に戻せません。",
 				"deleteSelected": "選択したゲームを削除",
 				"deleteSuccess": "{{count}} 個のゲームを削除しました",
 				"deleteTitle": "ゲームを一括削除",
-				"group": "グループ",
 				"removeFromCategory": "現在のカテゴリから削除",
 				"removeFromCategoryFailed": "カテゴリからの削除に失敗しました",
 				"removeFromCategorySuccess": "{{count}} 個のゲームを現在のカテゴリから削除しました",
@@ -490,7 +498,8 @@
 			"playTimeChart": "プレイ時間チャート",
 			"releaseDate": "公開日",
 			"todayPlayTime": "本日のプレイ時間",
-			"totalPlayTime": "累計総プレイ時間"
+			"totalPlayTime": "累計総プレイ時間",
+			"manageCollections": "コレクション管理"
 		},
 		"Settings": {
 			"about": {
