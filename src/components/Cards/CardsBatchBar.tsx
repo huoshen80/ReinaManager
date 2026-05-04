@@ -74,7 +74,7 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 		try {
 			await deleteGamesMutation.mutateAsync(selectedVisibleGameIds);
 			onDeleteSuccess();
-			onSelectionClear();
+			handleBatchModeChange(false, onBatchModeChange, onSelectionClear);
 			setDeleteDialogOpen(false);
 			snackbar.success(
 				t("components.Toolbar.Batch.deleteSuccess", {
@@ -95,7 +95,7 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 
 		try {
 			await onRemoveFromCategory(selectedVisibleGameIds);
-			onSelectionClear();
+			handleBatchModeChange(false, onBatchModeChange, onSelectionClear);
 			snackbar.success(
 				t("components.Toolbar.Batch.removeFromCategorySuccess", {
 					count: selectedCount,
@@ -224,7 +224,9 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 				mode="add"
 				gameIds={selectedVisibleGameIds}
 				onClose={() => setCollectionDialogOpen(false)}
-				onSaved={onSelectionClear}
+				onSaved={() =>
+					handleBatchModeChange(false, onBatchModeChange, onSelectionClear)
+				}
 			/>
 		</>
 	);
