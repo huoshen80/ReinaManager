@@ -439,7 +439,7 @@ export const getcustomCoverFolder = (gameID: number): string => {
 
 export const getGameCover = (game: GameData): string => {
 	// 如果有自定义封面扩展名，构造自定义封面路径
-	if (game.custom_data?.image && game.id) {
+	if (game.custom_data?.image) {
 		// 获取缓存的资源目录路径
 		const customCoverFolder = getcustomCoverFolder(game.id);
 		if (customCoverFolder) {
@@ -460,15 +460,11 @@ export const getGameCover = (game: GameData): string => {
 
 	// 网络封面统一交给 Rust 自定义协议处理，以支持本地缓存
 	if (game.image) {
-		if (game.id) {
-			const base =
-				type() === "windows"
-					? "http://reina-cover.localhost"
-					: "reina-cover://localhost";
-			return `${base}/${game.id}?url=${game.image}`;
-		}
-		// 没有 ID 的临时数据（如新增前预览）保持原始 URL
-		return game.image;
+		const base =
+			type() === "windows"
+				? "http://reina-cover.localhost"
+				: "reina-cover://localhost";
+		return `${base}/${game.id}?url=${game.image}`;
 	}
 
 	return "/images/default.png";

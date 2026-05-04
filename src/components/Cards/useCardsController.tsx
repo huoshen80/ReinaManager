@@ -64,11 +64,7 @@ export function useCardsController({
 		() => (showAll ? gamesData : gamesData.slice(0, CARD_LIMIT)),
 		[gamesData, showAll],
 	);
-	const gameIds = useMemo(
-		() =>
-			gamesData.map((game) => game.id).filter((id): id is number => id != null),
-		[gamesData],
-	);
+	const gameIds = useMemo(() => gamesData.map((game) => game.id), [gamesData]);
 
 	const toggleBatchGame = useCallback((gameId: number) => {
 		setSelectedBatchGameIds((prev) =>
@@ -200,25 +196,27 @@ export function useCardsController({
 	const getCardProps = useCallback(
 		(card: GameData): SortableCardItemProps => ({
 			card,
-			isBatchSelected:
-				card.id != null ? selectedBatchGameIdSet.has(card.id) : false,
-			showBatchMarker: showBatchControls,
-			showRemoveFromCategory: isCollectionCategory && !showBatchControls,
-			onRemoveFromCategory: () =>
-				card.id != null && handleRemoveSingleFromCategory(card.id),
-			removeFromCategoryTitle: t(
-				"components.Cards.removeFromCategory",
-				"移出当前分类",
-			),
 			displayName: getGameDisplayName(card),
-			useDelayedClick:
-				!showBatchControls && cardClickMode === "navigate" && doubleClickLaunch,
-			onContextMenu: (e: React.MouseEvent) =>
-				card.id != null && handleContextMenu(e, card.id),
-			onClick: () => card.id != null && handleCardClick(card.id, card),
-			onDoubleClick: () =>
-				card.id != null && handleCardDoubleClick(card.id, card),
-			onLongPress: () => card.id != null && handleCardLongPress(card.id, card),
+			batch: showBatchControls
+				? { selected: selectedBatchGameIdSet.has(card.id) }
+				: undefined,
+			removeAction:
+				isCollectionCategory && !showBatchControls
+					? {
+							title: t("components.Cards.removeFromCategory", "移出当前分类"),
+							onRemove: () => handleRemoveSingleFromCategory(card.id),
+						}
+					: undefined,
+			interaction: {
+				useDelayedClick:
+					!showBatchControls &&
+					cardClickMode === "navigate" &&
+					doubleClickLaunch,
+				onContextMenu: (e: React.MouseEvent) => handleContextMenu(e, card.id),
+				onClick: () => handleCardClick(card.id, card),
+				onDoubleClick: () => handleCardDoubleClick(card.id, card),
+				onLongPress: () => handleCardLongPress(card.id, card),
+			},
 		}),
 		[
 			cardClickMode,

@@ -66,7 +66,7 @@ import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
-import type { SelectedGameWithId, SourceType } from "@/types";
+import type { GameData, SourceType } from "@/types";
 import type { PlayStatus } from "@/types/collection";
 import { handleOpenFolder } from "@/utils/appUtils";
 import { CollectionToolbar } from "./Collection";
@@ -254,7 +254,7 @@ export const useModal = () => {
  * 订阅 allGames 确保当游戏 localpath 更新时按钮状态同步
  * @returns {JSX.Element}
  */
-const OpenFolder = ({ selectedGame }: { selectedGame: SelectedGameWithId }) => {
+const OpenFolder = ({ selectedGame }: { selectedGame: GameData }) => {
 	const { t } = useTranslation();
 	const isDisabled = selectedGame.localpath == null;
 
@@ -329,7 +329,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
  * 详情页更多操作按钮（外链等）
  * @returns {JSX.Element}
  */
-const MoreButton = ({ selectedGame }: { selectedGame: SelectedGameWithId }) => {
+const MoreButton = ({ selectedGame }: { selectedGame: GameData }) => {
 	const updateGameMutation = useUpdateGame();
 	const { t } = useTranslation();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 import { useCallback, useMemo, useState } from "react";
 import { gameMetadataService } from "@/api";
-import type { apiSourceType, FullGameData, SourceType } from "@/types";
+import type { apiSourceType, GameCandidateData, SourceType } from "@/types";
 import { isAbortError } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
 import type {
@@ -12,7 +12,7 @@ import type {
 
 interface SearchResultState {
 	open: boolean;
-	results: FullGameData[];
+	results: GameCandidateData[];
 	apiSource: SourceType;
 }
 
@@ -24,7 +24,7 @@ interface MixedCandidateState {
 interface SearchMetadataParams {
 	query: string;
 	source: apiSourceType;
-	defaults?: Partial<FullGameData>;
+	defaults?: Partial<GameCandidateData>;
 	withAbort?: <T>(promise: Promise<T>) => Promise<T>;
 }
 
@@ -32,7 +32,7 @@ interface MetadataSearchFlowOptions {
 	bgmToken?: string;
 	mixedEnabledSources?: readonly SourceType[];
 	t: TFunction;
-	onResolved: (gameData: FullGameData) => void | Promise<void>;
+	onResolved: (gameData: GameCandidateData) => void | Promise<void>;
 	onError: (message: string) => void;
 	getNoResultsMessage?: (source: apiSourceType) => string;
 }
@@ -85,7 +85,7 @@ export function useMetadataSearchFlow({
 		});
 	const [isSearching, setIsSearching] = useState(false);
 	const [lastMixedDefaults, setLastMixedDefaults] = useState<
-		Partial<FullGameData> | undefined
+		Partial<GameCandidateData> | undefined
 	>();
 
 	const getNoResultsText = useCallback(
@@ -178,7 +178,7 @@ export function useMetadataSearchFlow({
 	);
 
 	const selectGame = useCallback(
-		async (selectedGame: FullGameData) => {
+		async (selectedGame: GameCandidateData) => {
 			if (!selectedGame) {
 				return;
 			}

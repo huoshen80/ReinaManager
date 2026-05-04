@@ -110,9 +110,7 @@ function useCategoryGames(
 		const ids = categoryGameIdsQuery.data ?? [];
 		const gameById = new Map<number, GameData>();
 		for (const game of allGames) {
-			if (typeof game.id === "number") {
-				gameById.set(game.id, game);
-			}
+			gameById.set(game.id, game);
 		}
 		const games: GameData[] = [];
 		for (const id of ids) {

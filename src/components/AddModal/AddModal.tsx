@@ -38,7 +38,11 @@ import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import { getEnabledMixedSources, useStore } from "@/store/appStore";
-import type { apiSourceType, FullGameData, InsertGameParams } from "@/types";
+import type {
+	apiSourceType,
+	GameCandidateData,
+	InsertGameParams,
+} from "@/types";
 import {
 	createAbortableRunner,
 	handleExeFile,
@@ -152,7 +156,7 @@ const AddModal: React.FC = () => {
 	}, [addModalOpen]);
 
 	const handleAddGame = useCallback(
-		async (gameData: FullGameData) => {
+		async (gameData: GameCandidateData) => {
 			const gameId = await addGameFromMetadata(gameData);
 			closeAddModal();
 			showGameAddedSuccess({ gameId, navigate, t });

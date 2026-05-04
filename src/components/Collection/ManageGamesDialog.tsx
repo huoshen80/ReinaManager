@@ -98,14 +98,12 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 
 	// 左栏：未在分类中的游戏
 	const availableGames = useMemo(() => {
-		return displayAllGames.filter(
-			(game) => !gamesInCategory.has(game.id ?? -1),
-		);
+		return displayAllGames.filter((game) => !gamesInCategory.has(game.id));
 	}, [displayAllGames, gamesInCategory]);
 
 	// 右栏：已在分类中的游戏
 	const categoryGamesList = useMemo(() => {
-		return displayAllGames.filter((game) => gamesInCategory.has(game.id ?? -1));
+		return displayAllGames.filter((game) => gamesInCategory.has(game.id));
 	}, [displayAllGames, gamesInCategory]);
 
 	// 左栏搜索过滤
@@ -165,7 +163,6 @@ export const ManageGamesDialog: React.FC<ManageGamesDialogProps> = ({
 		onClick: (gameId: number) => void;
 	}>(({ game, checked, onClick }) => {
 		const gameId = game.id;
-		if (!gameId) return null;
 
 		return (
 			<ListItem disablePadding>

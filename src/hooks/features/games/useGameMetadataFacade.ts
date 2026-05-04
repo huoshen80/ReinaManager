@@ -7,7 +7,7 @@ import {
 } from "@/hooks/queries/useGames";
 import type {
 	BatchOperationResult,
-	FullGameData,
+	GameCandidateData,
 	InsertGameParams,
 	SourceIdType,
 } from "@/types";
@@ -70,7 +70,7 @@ export function useSingleGameAddActions() {
 		mutationFn: async ({
 			gameData,
 		}: {
-			gameData: FullGameData;
+			gameData: GameCandidateData;
 			options?: {
 				localpath?: string;
 				fallbackIdType?: string;
@@ -88,7 +88,7 @@ export function useSingleGameAddActions() {
 	});
 
 	const addGameFromMetadata = useCallback(
-		async (gameData: FullGameData) => {
+		async (gameData: GameCandidateData) => {
 			return metadataAddActionMutation.mutateAsync({
 				gameData,
 			});

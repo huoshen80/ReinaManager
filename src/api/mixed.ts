@@ -19,14 +19,14 @@
  */
 
 import { AppError, toError } from "@/utils/errors";
-import type { FullGameData, SourceType } from "../types";
+import type { GameCandidateData, SourceType } from "../types";
 import { fetchBgmById, fetchBgmByName } from "./bgm";
 import { fetchGalgameById, searchGalgame } from "./kun";
 import { fetchVndbById, fetchVndbByName } from "./vndb";
 import { fetchYmById, fetchYmByName } from "./ymgal";
 
 interface SafeFetchResult {
-	data: FullGameData[];
+	data: GameCandidateData[];
 	failed: boolean;
 }
 
@@ -111,7 +111,7 @@ async function getKungalDataSafely(
 }
 
 function extractNameFromApi(
-	apiData: FullGameData | undefined,
+	apiData: GameCandidateData | undefined,
 ): string | undefined {
 	if (!apiData) return undefined;
 

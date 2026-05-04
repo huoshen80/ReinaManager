@@ -21,7 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useImagePreview } from "@/hooks/common/useImagePreview";
 import { snackbar } from "@/providers/snackBar";
-import type { GameData, SelectedGameWithId, UpdateGameParams } from "@/types";
+import type { GameData, UpdateGameParams } from "@/types";
 import {
 	getGameCover,
 	getGameDisplayName,
@@ -76,7 +76,7 @@ function stringArraysEqual(
 }
 
 interface GameInfoEditProps {
-	selectedGame: SelectedGameWithId;
+	selectedGame: GameData;
 	onSave: (data: UpdateGameParams) => Promise<void>;
 	disabled?: boolean;
 }

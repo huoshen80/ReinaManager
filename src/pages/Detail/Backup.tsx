@@ -28,7 +28,7 @@ import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { snackbar } from "@/providers/snackBar";
-import type { SavedataRecord, SelectedGameWithId } from "@/types";
+import type { GameData, SavedataRecord } from "@/types";
 import {
 	handleGetFolder,
 	openGameBackupFolder,
@@ -51,7 +51,7 @@ const formatDate = (timestamp: number): string => {
 };
 
 interface BackupContentProps {
-	selectedGame: SelectedGameWithId;
+	selectedGame: GameData;
 	gameId: number;
 }
 

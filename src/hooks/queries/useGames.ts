@@ -84,7 +84,7 @@ function useGameDetail(gameId: number | null) {
 	return useQuery({
 		queryKey: gameKeys.detail(gameId ?? 0),
 		queryFn: () => {
-			if (!gameId) return null;
+			if (gameId === null) return null;
 			return gameService.getGameById(gameId);
 		},
 		enabled: gameId !== null,
@@ -176,7 +176,7 @@ function useDeleteGames() {
 			const deleteIdSet = new Set(gameIds);
 			queryClient.setQueriesData<FullGameData[]>(
 				{ queryKey: gameKeys.lists() },
-				(old) => old?.filter((g) => g.id != null && !deleteIdSet.has(g.id)),
+				(old) => old?.filter((g) => !deleteIdSet.has(g.id)),
 			);
 			queryClient.invalidateQueries({ queryKey: gameKeys.all, exact: true });
 			queryClient.invalidateQueries({ queryKey: gameKeys.lists() });

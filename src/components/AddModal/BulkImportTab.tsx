@@ -36,7 +36,7 @@ import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
 import { getEnabledMixedSources, useStore } from "@/store/appStore";
-import type { apiSourceType, FullGameData, ScanResult } from "@/types";
+import type { apiSourceType, GameCandidateData, ScanResult } from "@/types";
 import {
 	createAbortableRunner,
 	handleGetFolder,
@@ -48,7 +48,7 @@ import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 
 interface ImportItem extends ScanResult {
 	status: "pending" | "matched" | "imported" | "error" | "not found";
-	matchedData?: FullGameData;
+	matchedData?: GameCandidateData;
 	selectedExe?: string;
 }
 
@@ -59,7 +59,7 @@ interface BulkImportTabProps {
 }
 
 function getMatchedGameName(
-	gameData: FullGameData | undefined,
+	gameData: GameCandidateData | undefined,
 	language: string,
 ): string {
 	if (!gameData) {
@@ -111,7 +111,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const loading = isMatchingMetadata || isScanningDirectories || isAddingGames;
 
 	const handleResolvedEditMetadata = useCallback(
-		async (resolvedData: FullGameData) => {
+		async (resolvedData: GameCandidateData) => {
 			if (!editItemPath) return;
 
 			setItems((prevItems) => {

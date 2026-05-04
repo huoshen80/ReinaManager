@@ -32,7 +32,7 @@ import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
-import type { SelectedGameWithId, UpdateGameParams } from "@/types";
+import type { GameData, UpdateGameParams } from "@/types";
 import { handleExeFile } from "@/utils/appUtils";
 import { getUserErrorMessage } from "@/utils/errors";
 
@@ -84,7 +84,7 @@ export const LaunchModal = () => {
 };
 
 interface LaunchModalContentProps {
-	selectedGame: SelectedGameWithId;
+	selectedGame: GameData;
 }
 
 function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {

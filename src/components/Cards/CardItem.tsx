@@ -12,6 +12,8 @@ import { getGameCover, getGameNsfwStatus } from "@/utils/appUtils";
 import type { CardItemProps } from "./types";
 import { useCardInteraction } from "./useCardInteraction";
 
+const noop = () => {};
+
 /**
  * CardItem - 游戏卡片组件
  */
@@ -20,18 +22,11 @@ export const CardItem = memo(
 		(
 			{
 				card,
-				isBatchSelected,
-				showBatchMarker,
-				showRemoveFromCategory,
-				onRemoveFromCategory,
-				removeFromCategoryTitle,
-				isOverlay,
-				onContextMenu,
-				onClick,
-				onDoubleClick,
-				onLongPress,
 				displayName,
-				useDelayedClick,
+				interaction,
+				batch,
+				removeAction,
+				isOverlay,
 				...props
 			},
 			ref,
@@ -41,10 +36,10 @@ export const CardItem = memo(
 			const isNsfw = getGameNsfwStatus(card);
 
 			const { isLongPressing, handlers } = useCardInteraction({
-				onClick,
-				onDoubleClick,
-				onLongPress,
-				useDelayedClick,
+				onClick: interaction?.onClick ?? noop,
+				onDoubleClick: interaction?.onDoubleClick ?? noop,
+				onLongPress: interaction?.onLongPress ?? noop,
+				useDelayedClick: interaction?.useDelayedClick ?? false,
 			});
 
 			const coverImage =
@@ -54,10 +49,10 @@ export const CardItem = memo(
 				<Card
 					ref={ref}
 					className={`group relative min-w-24 max-w-full transition-shadow transition-colors ${isActive ? "ring-2 ring-blue-500 shadow-md" : ""}`}
-					onContextMenu={onContextMenu}
+					onContextMenu={interaction?.onContextMenu}
 					{...props}
 				>
-					{showBatchMarker && isBatchSelected && (
+					{batch?.selected && (
 						<Box
 							className="absolute top-1.5 left-1.5 z-2 h-5 w-5 flex items-center justify-center shadow-md"
 							sx={{
@@ -68,8 +63,8 @@ export const CardItem = memo(
 							<CheckIcon className="text-18px" />
 						</Box>
 					)}
-					{showRemoveFromCategory && (
-						<Tooltip title={removeFromCategoryTitle} enterDelay={1000}>
+					{removeAction && (
+						<Tooltip title={removeAction.title} enterDelay={1000}>
 							<IconButton
 								size="small"
 								className="!absolute right-1 top-1 z-2 !p-0 opacity-0 group-hover:opacity-100"
@@ -82,7 +77,7 @@ export const CardItem = memo(
 								}}
 								onClick={(event) => {
 									event.stopPropagation();
-									onRemoveFromCategory?.();
+									removeAction.onRemove();
 								}}
 								onMouseDown={(event) => event.stopPropagation()}
 							>

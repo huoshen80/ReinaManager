@@ -19,7 +19,7 @@ import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
 import type {
 	BgmData,
-	FullGameData,
+	GameCandidateData,
 	KunData,
 	SourceType,
 	VndbData,
@@ -29,19 +29,19 @@ import type {
 interface GameSelectDialogProps {
 	open: boolean;
 	onClose: () => void;
-	results: FullGameData[];
-	onSelect: (game: FullGameData, index: number) => void | Promise<void>;
+	results: GameCandidateData[];
+	onSelect: (game: GameCandidateData, index: number) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
 	apiSource: SourceType;
 }
 
 /**
- * 从 FullGameData 中提取显示信息
+ * 从 GameCandidateData 中提取显示信息
  * 由于条件渲染，传入的 results 只包含单一数据源的数据
  */
 export function extractDisplayInfo(
-	item: FullGameData,
+	item: GameCandidateData,
 	apiSource: SourceType,
 ): {
 	id: string;

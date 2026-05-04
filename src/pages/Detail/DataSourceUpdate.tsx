@@ -13,14 +13,14 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/providers/snackBar";
-import type { FullGameData, SelectedGameWithId } from "@/types";
+import type { GameCandidateData, GameData } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { fetchMetadataForUpdate } from "@/utils/metadata";
 
 interface DataSourceUpdateProps {
 	bgmToken: string;
-	selectedGame: SelectedGameWithId;
-	onDataFetched: (data: FullGameData) => void;
+	selectedGame: GameData;
+	onDataFetched: (data: GameCandidateData) => void;
 	disabled?: boolean;
 }
 

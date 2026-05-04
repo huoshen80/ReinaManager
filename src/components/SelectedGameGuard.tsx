@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useSelectedGame } from "@/hooks/features/games/useGameFacade";
 import { useStore } from "@/store/appStore";
-import type { SelectedGameWithId } from "@/types";
+import type { GameData } from "@/types";
 
 interface SelectedGameGuardProps {
-	children: (selectedGame: SelectedGameWithId) => ReactNode;
+	children: (selectedGame: GameData) => ReactNode;
 	fallback?: ReactNode;
 	loadingFallback?: ReactNode;
 	notFoundFallback?: ReactNode;
@@ -40,7 +40,7 @@ export const SelectedGameGuard = ({
 	const { selectedGame, isLoadingSelectedGame } =
 		useSelectedGame(selectedGameId);
 
-	if (!selectedGameId) {
+	if (selectedGameId === null) {
 		return (
 			fallback ?? (
 				<DefaultFallback
@@ -54,7 +54,7 @@ export const SelectedGameGuard = ({
 		return loadingFallback ?? <DefaultLoadingFallback />;
 	}
 
-	if (!selectedGame?.id) {
+	if (!selectedGame) {
 		return (
 			notFoundFallback ?? (
 				<DefaultFallback
@@ -67,5 +67,5 @@ export const SelectedGameGuard = ({
 		);
 	}
 
-	return children(selectedGame as SelectedGameWithId);
+	return children(selectedGame);
 };

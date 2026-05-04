@@ -8,7 +8,7 @@
 
 import i18next from "i18next";
 import { useStore } from "@/store/appStore";
-import type { FullGameData, KunData } from "@/types";
+import type { GameCandidateData, KunData } from "@/types";
 import { AppError } from "@/utils/errors";
 import http, { USER_AGENT } from "./http";
 import { fetchVndbById } from "./vndb";
@@ -180,11 +180,13 @@ function buildKunAuthHeaders() {
 }
 
 /**
- * 将 Kungal API 返回的对象转换为 FullGameData 结构
+ * 将 Kungal API 返回的对象转换为 GameCandidateData 结构
  * @param kunData Kungal 原始数据
- * @returns 转换后的 FullGameData
+ * @returns 转换后的 GameCandidateData
  */
-const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
+const transformKunData = (
+	kunData: GalgameDetailResponse,
+): GameCandidateData => {
 	const summary = pickLocalizedText(kunData.markdown);
 
 	const kun_data: KunData = {
@@ -204,7 +206,7 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
 		nsfw: computeNsfw(kunData),
 	};
 
-	const result: FullGameData = {
+	const result: GameCandidateData = {
 		kun_id: String(kunData.id),
 		vndb_id: kunData.vndbId,
 		id_type: kunData.vndbId ? "mixed" : "kun",
@@ -225,7 +227,7 @@ const transformKunData = (kunData: GalgameDetailResponse): FullGameData => {
 export async function fetchGalgameById(
 	id: string,
 	options: KunFetchOptions = {},
-): Promise<FullGameData> {
+): Promise<GameCandidateData> {
 	const { enrichVndb = true } = options;
 	const url = `${KUN_API_BASE}/galgame/${id}`;
 
@@ -291,7 +293,7 @@ export async function searchGalgame(
 	limit = 12,
 	fetchDetailById = false,
 	options: KunFetchOptions = {},
-): Promise<FullGameData[]> {
+): Promise<GameCandidateData[]> {
 	const resp = await http.get<SearchResultGalgame[]>(`${KUN_API_BASE}/search`, {
 		params: {
 			keywords,

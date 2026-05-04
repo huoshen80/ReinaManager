@@ -460,7 +460,7 @@ export const Detail: React.FC = () => {
 				<CollectionPickerDialog
 					open={collectionDialogOpen}
 					mode="manage"
-					gameIds={selectedGame.id ? [selectedGame.id] : []}
+					gameIds={[selectedGame.id]}
 					onClose={() => setCollectionDialogOpen(false)}
 				/>
 			</Box>

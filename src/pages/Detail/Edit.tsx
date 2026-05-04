@@ -17,11 +17,7 @@ import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
-import type {
-	FullGameData,
-	SelectedGameWithId,
-	UpdateGameParams,
-} from "@/types";
+import type { GameCandidateData, GameData, UpdateGameParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { buildMetadataUpdatePayload } from "@/utils/metadata";
 import { DataSourceUpdate } from "./DataSourceUpdate";
@@ -42,7 +38,7 @@ export const Edit: React.FC = () => {
 	);
 };
 
-function EditContent({ selectedGame }: { selectedGame: SelectedGameWithId }) {
+function EditContent({ selectedGame }: { selectedGame: GameData }) {
 	const { data: settings } = useAllSettings();
 	const bgmToken = settings?.bgm_token ?? "";
 	const updateGameMutation = useUpdateGame();
@@ -50,7 +46,7 @@ function EditContent({ selectedGame }: { selectedGame: SelectedGameWithId }) {
 	const id = selectedGame.id;
 
 	// UI 状态
-	const [gameData, setGameData] = useState<FullGameData | null>(null);
+	const [gameData, setGameData] = useState<GameCandidateData | null>(null);
 	const [openViewBox, setOpenViewBox] = useState(false);
 
 	// 确认更新游戏数据（从数据源）
@@ -65,7 +61,7 @@ function EditContent({ selectedGame }: { selectedGame: SelectedGameWithId }) {
 	};
 
 	// 处理数据源获取的数据
-	const handleDataSourceFetched = (result: FullGameData) => {
+	const handleDataSourceFetched = (result: GameCandidateData) => {
 		setGameData(result);
 		setOpenViewBox(true);
 	};

@@ -48,7 +48,7 @@ export interface AppState {
 	setDefaultCloseAction: (action: "hide" | "close") => void;
 
 	// UI 操作方法
-	setSelectedGameId: (id: number | null | undefined) => void;
+	setSelectedGameId: (id: number | null) => void;
 	openAddModal: (path?: string) => void;
 	closeAddModal: () => void;
 	setAddModalPath: (path: string) => void;
@@ -279,7 +279,7 @@ export const useStore = create<AppState>()(
 			},
 
 			// UI 操作方法
-			setSelectedGameId: (id: number | null | undefined) => {
+			setSelectedGameId: (id: number | null) => {
 				set({ selectedGameId: id });
 			},
 

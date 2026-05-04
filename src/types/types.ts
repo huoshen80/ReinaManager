@@ -178,16 +178,7 @@ export function isSourceType(value: string): value is SourceType {
  */
 export type IdType = apiSourceType | "custom" | "Whitecloud";
 
-/**
- * 完整游戏数据 - 对应数据库 games 表结构（读取用）
- *
- * 这是后端返回的原始数据格式，用于 UI 渲染和数据展示。
- * 所有元数据以 JSON 列形式嵌入。
- */
-export interface FullGameData {
-	// --- 主键 ---
-	id?: number;
-
+interface BaseGameDataPayload {
 	// --- 外部 ID ---
 	bgm_id?: string;
 	vndb_id?: string;
@@ -215,6 +206,24 @@ export interface FullGameData {
 	date?: string;
 	created_at?: number;
 	updated_at?: number;
+}
+
+/**
+ * 完整游戏数据 - 对应数据库 games 表结构（读取用）
+ *
+ * 这是后端返回的原始数据格式，用于 UI 渲染和数据展示。
+ * 所有元数据以 JSON 列形式嵌入，数据库主键必定存在。
+ */
+export interface FullGameData extends BaseGameDataPayload {
+	// --- 主键 ---
+	id: number;
+}
+
+/**
+ * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
+ */
+export interface GameCandidateData extends BaseGameDataPayload {
+	id?: never;
 }
 
 /**
@@ -314,7 +323,7 @@ export interface UpdateSettingsParams {
  */
 export interface GameData {
 	// 基础字段
-	id?: number;
+	id: number;
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
@@ -346,8 +355,6 @@ export interface GameData {
 	average_hours?: number;
 	nsfw?: boolean;
 }
-
-export type SelectedGameWithId = GameData & { id: number };
 
 /**
  * 游戏会话记录

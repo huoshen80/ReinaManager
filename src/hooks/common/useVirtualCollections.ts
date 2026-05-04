@@ -66,8 +66,6 @@ function generateVirtualCategories<T>(
 
 	// 遍历游戏并统计
 	for (const game of allGames) {
-		if (!game.id || typeof game.id !== "number") continue;
-
 		const keys = config.extractKeys(game, t);
 		const keyArray = Array.isArray(keys) ? keys : [keys];
 

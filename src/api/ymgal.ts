@@ -14,7 +14,7 @@
  * - http: 封装的 HTTP 请求工具
  */
 // 注意认证失败重试机制未生效
-import type { FullGameData, YmgalData } from "@/types";
+import type { GameCandidateData, YmgalData } from "@/types";
 import { AppError, isHttpStatus, toError } from "@/utils/errors";
 import http from "./http";
 
@@ -242,12 +242,12 @@ interface YmGameDetail {
  * 将 YMGal 数据转换为统一格式
  * @param {YmGameDetail} ymData YMGal 游戏详细数据
  * @param {boolean} update_batch 是否批量更新模式
- * @returns {FullGameData}
+ * @returns {GameCandidateData}
  */
 function transformYmData(
 	ymData: YmGameDetail,
 	update_batch = false,
-): FullGameData {
+): GameCandidateData {
 	const aliases = ymData.extensionName?.map((ext) => ext.name).filter(Boolean);
 
 	const ymgal_data: YmgalData = {
@@ -277,14 +277,14 @@ function transformYmData(
  * @param {number} pageSize 每页数量，范围 1-20
  * @param {boolean} fetchDetailById 是否仅对第一个结果用 ID 再次请求完整详情（默认 false）
  * 说明：该参数只用于“首条补全”场景，禁止对搜索结果列表逐条补全。
- * @returns {Promise<FullGameData[]>} 游戏列表
+ * @returns {Promise<GameCandidateData[]>} 游戏列表
  */
 export async function fetchYmByName(
 	name: string,
 	pageNum = 1,
 	pageSize = 20,
 	fetchDetailById = false,
-): Promise<FullGameData[]> {
+): Promise<GameCandidateData[]> {
 	const data = await ymApiRequest<{ result?: YmGameListItem[] }>(
 		"/open/archive/search-game",
 		{
@@ -300,7 +300,7 @@ export async function fetchYmByName(
 	}
 
 	// 将列表数据转换为统一格式（不包含详细信息）
-	const results = data.result.map((item: YmGameListItem): FullGameData => {
+	const results = data.result.map((item: YmGameListItem): GameCandidateData => {
 		const ymgal_data: YmgalData = {
 			image: item.mainImg,
 			name: item.name,
@@ -335,9 +335,9 @@ export async function fetchYmByName(
  * 通过 YMGal 游戏 ID 获取游戏详细信息
  *
  * @param {number} gid YMGal 游戏 ID
- * @returns {Promise<FullGameData>} 游戏详细信息
+ * @returns {Promise<GameCandidateData>} 游戏详细信息
  */
-export async function fetchYmById(gid: string): Promise<FullGameData> {
+export async function fetchYmById(gid: string): Promise<GameCandidateData> {
 	const id = Number(gid.replace(/^ga/i, ""));
 	const data = await ymApiRequest<{
 		game?: YmGameDetail;

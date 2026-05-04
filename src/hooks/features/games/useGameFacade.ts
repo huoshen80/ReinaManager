@@ -6,14 +6,25 @@ import type { FullGameData, GameData } from "@/types";
 import { getDisplayGameData } from "@/utils/appUtils";
 import { useAllGameListFacade } from "./useGameListFacade";
 
-export function useSelectedGame(gameId: number | null | undefined) {
-	const gameDetailQuery = useGameDetail(gameId ?? null);
+export function useSelectedGame(gameId: number | null) {
+	const displayAllGames = useAllGameListFacade();
+	const cachedGame = useMemo(
+		() =>
+			typeof gameId === "number"
+				? (displayAllGames.find((game) => game.id === gameId) ?? null)
+				: null,
+		[displayAllGames, gameId],
+	);
+	const gameDetailQuery = useGameDetail(cachedGame ? null : gameId);
 
 	const selectedGame = useMemo(() => {
+		if (cachedGame) {
+			return cachedGame;
+		}
 		return gameDetailQuery.data
 			? getDisplayGameData(gameDetailQuery.data)
 			: null;
-	}, [gameDetailQuery.data]);
+	}, [cachedGame, gameDetailQuery.data]);
 
 	return {
 		selectedGame,

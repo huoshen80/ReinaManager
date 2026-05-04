@@ -13,7 +13,7 @@
  * - http: 封装的 HTTP 请求工具
  */
 
-import type { BgmData, FullGameData } from "@/types";
+import type { BgmData, GameCandidateData } from "@/types";
 import { AppError } from "@/utils/errors";
 import http, { USER_AGENT } from "./http";
 
@@ -57,7 +57,7 @@ function filterSensitiveTags(tags: string[]): string[] {
 
 // 新增：将 BGM API 返回对象转换为统一的结构
 // biome-ignore lint/suspicious/noExplicitAny: external API has dynamic shape
-const transformBgmData = (BGMdata: any): FullGameData => {
+const transformBgmData = (BGMdata: any): GameCandidateData => {
 	const baseData = {
 		bgm_id: String(BGMdata.id),
 		id_type: "bgm",
@@ -127,7 +127,7 @@ const transformBgmData = (BGMdata: any): FullGameData => {
 export async function fetchBgmById(
 	id: string,
 	BGM_TOKEN?: string,
-): Promise<FullGameData> {
+): Promise<GameCandidateData> {
 	const BGMdata = (
 		await http.get<BgmSubjectResponse>(
 			`https://api.bgm.tv/v0/subjects/${id}`,
@@ -157,7 +157,7 @@ export async function fetchBgmByName(
 	name: string,
 	BGM_TOKEN?: string,
 	limit = 25,
-): Promise<FullGameData[]> {
+): Promise<GameCandidateData[]> {
 	const keyword = name.trim();
 	const resp = (
 		await http.post<BgmSearchResponse>(
@@ -197,7 +197,7 @@ export async function fetchBgmByName(
 export async function fetchBgmByIds(
 	ids: string[],
 	BGM_TOKEN?: string,
-): Promise<FullGameData[]> {
+): Promise<GameCandidateData[]> {
 	if (ids.length === 0) {
 		return [];
 	}
@@ -208,7 +208,7 @@ export async function fetchBgmByIds(
 		});
 	}
 
-	const allResults: FullGameData[] = [];
+	const allResults: GameCandidateData[] = [];
 	let hasRequestFailure = false;
 
 	// 逐个请求，避免频繁调用 API

@@ -108,17 +108,13 @@ async function getGameActivities(games: GameData[]): Promise<{
 	const sessions: RecentSession[] = [];
 
 	// 提取所有有效的游戏ID
-	const validGameIds = games
-		.filter((game) => typeof game.id === "number")
-		.map((game) => game.id as number);
+	const validGameIds = games.map((game) => game.id);
 
 	// 一次性获取所有游戏的会话记录，避免循环中的多次数据库查询
 	const allSessionsMap = await getRecentSessionsForAllGames(validGameIds, 10);
 
 	// 处理会话数据
 	for (const game of games) {
-		if (!game.id || typeof game.id !== "number") continue;
-
 		const gameSessions = allSessionsMap.get(game.id) || [];
 		const gameTitle = getGameDisplayName(game);
 		const imageUrl = getGameCover(game);
@@ -153,9 +149,7 @@ async function getGameActivities(games: GameData[]): Promise<{
 	const added: RecentGame[] = [];
 
 	// 过滤有效的游戏数据(有 ID 和创建时间)
-	for (const game of games.filter(
-		(game) => typeof game.id === "number" && game.created_at,
-	)) {
+	for (const game of games.filter((game) => game.created_at)) {
 		// created_at 是秒级时间戳
 		const timestamp = game.created_at as number;
 		const addedDate = new Date(timestamp * 1000);
@@ -164,7 +158,7 @@ async function getGameActivities(games: GameData[]): Promise<{
 		const item: ActivityItem = {
 			id: `add-${game.id}`,
 			type: "add",
-			gameId: game.id as number,
+			gameId: game.id,
 			gameTitle,
 			imageUrl: getGameCover(game),
 			time: timestamp,
@@ -172,7 +166,7 @@ async function getGameActivities(games: GameData[]): Promise<{
 		addItems.push(item);
 
 		added.push({
-			id: game.id as number,
+			id: game.id,
 			title: gameTitle,
 			imageUrl: getGameCover(game),
 			time: addedDate,

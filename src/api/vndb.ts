@@ -15,7 +15,7 @@
  */
 
 import { useStore } from "@/store/appStore";
-import type { FullGameData, VndbData } from "@/types";
+import type { GameCandidateData, VndbData } from "@/types";
 import { AppError } from "@/utils/errors";
 import http, { USER_AGENT } from "./http";
 
@@ -130,7 +130,7 @@ async function resolveVndbUserId(token: string, userId?: string) {
 function transformVndbData(
 	VNDBdata: RawVNDBData,
 	update_batch?: boolean,
-): FullGameData {
+): GameCandidateData {
 	// 处理标题信息
 	const titles = VNDBdata.titles.map((title: VNDB_title) => ({
 		title: title.title,
@@ -194,13 +194,13 @@ function transformVndbData(
  * @param {string} name 游戏名称，用于搜索 VNDB 条目。
  * @param {string} [id] 可选，VNDB 游戏 ID，若提供则优先通过 ID 查询。
  * @param {number} [limit=25] 可选，返回的最大结果数量，默认 25。
- * @returns {Promise<FullGameData[]>} 包含游戏详细信息的数组。
+ * @returns {Promise<GameCandidateData[]>} 包含游戏详细信息的数组。
  */
 export async function fetchVndbByName(
 	name: string,
 	id?: string,
 	limit = 25,
-): Promise<FullGameData[]> {
+): Promise<GameCandidateData[]> {
 	// 构建 API 请求体
 	const requestBody = {
 		filters: id ? ["id", "=", id] : ["search", "=", name],
@@ -229,9 +229,9 @@ export async function fetchVndbByName(
  * 通过 ID 直接获取 VNDB 游戏信息。
  *
  * @param {string} id VNDB 游戏 ID（如 "v17"）。
- * @returns {Promise<FullGameData>} 包含游戏详细信息的对象。
+ * @returns {Promise<GameCandidateData>} 包含游戏详细信息的对象。
  */
-export async function fetchVndbById(id: string): Promise<FullGameData> {
+export async function fetchVndbById(id: string): Promise<GameCandidateData> {
 	const result = await fetchVndbByName("", id);
 	if (result.length === 0) {
 		throw new AppError({
@@ -249,7 +249,7 @@ export async function fetchVndbById(id: string): Promise<FullGameData> {
  * 根据 VNDB API 限制，单次请求最多包含 100 个 ID，函数会自动分批。
  *
  * @param {string[]} ids VNDB 游戏 ID 数组（如 ["v1", "v2", "v3", ...]，支持任意数量）。
- * @returns {Promise<FullGameData[]>} 包含游戏详细信息的对象数组。
+ * @returns {Promise<GameCandidateData[]>} 包含游戏详细信息的对象数组。
  *
  * @example
  * // 获取 250 个游戏（自动分 3 批：100 + 100 + 50）
@@ -269,7 +269,7 @@ export async function fetchVNDBByIds(ids: string[]) {
 		batches.push(ids.slice(i, i + batchSize));
 	}
 
-	const allResults: FullGameData[] = [];
+	const allResults: GameCandidateData[] = [];
 	let hasRequestFailure = false;
 
 	const batchPromises = batches.map(async (batch) => {

@@ -20,7 +20,7 @@ interface SortableCardsGridProps {
 
 const SortableCardItem = memo((props: SortableCardItemProps) => {
 	const { card, disabledSortable, ...restProps } = props;
-	const cardId = card.id ?? 0;
+	const cardId = card.id;
 
 	const {
 		attributes,
@@ -83,7 +83,7 @@ export const SortableCardsGrid = memo(
 			gamesData: games,
 			categoryId,
 		});
-		const sortableIds = games.map((g) => g.id as number);
+		const sortableIds = games.map((g) => g.id);
 		const isDragSortEnabled = !longPressLaunch && !showBatchControls;
 
 		return (
@@ -121,13 +121,7 @@ export const SortableCardsGrid = memo(
 						<CardItem
 							card={activeGame}
 							isOverlay
-							showBatchMarker={false}
 							displayName={getGameDisplayName(activeGame)}
-							useDelayedClick={false}
-							onContextMenu={() => {}}
-							onClick={() => {}}
-							onDoubleClick={() => {}}
-							onLongPress={() => {}}
 						/>
 					)}
 				</DragOverlay>

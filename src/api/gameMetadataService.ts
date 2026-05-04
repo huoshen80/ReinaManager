@@ -11,7 +11,7 @@ import { fetchGalgameById, searchGalgame } from "@/api/kun";
 import { fetchMixedData } from "@/api/mixed";
 import { fetchVndbById, fetchVndbByName } from "@/api/vndb";
 import { fetchYmById, fetchYmByName } from "@/api/ymgal";
-import type { apiSourceType, FullGameData, SourceType } from "@/types";
+import type { apiSourceType, GameCandidateData, SourceType } from "@/types";
 import { SOURCE_FIELD_KEYS } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 import {
@@ -30,7 +30,10 @@ const mixedIdTypePriority: readonly SourceType[] = [
 	"bgm",
 ];
 
-function hasSourceId(game: Partial<FullGameData>, source: SourceType): boolean {
+function hasSourceId(
+	game: Partial<GameCandidateData>,
+	source: SourceType,
+): boolean {
 	const { id: idKey } = SOURCE_FIELD_KEYS[source];
 	return Boolean(game[idKey]);
 }
@@ -63,7 +66,9 @@ function createStableError(
 	});
 }
 
-function ensureMixedResult(result: FullGameData | null): FullGameData {
+function ensureMixedResult(
+	result: GameCandidateData | null,
+): GameCandidateData {
 	if (!result) {
 		throw new AppError({
 			code: "metadata_not_found",
@@ -86,13 +91,13 @@ export interface GameSearchParams {
 	query: string; // 搜索关键词（可以是ID或名称）
 	source?: SourceType; // 数据源（可选，不指定则为mixed）
 	bgmToken?: string; // BGM API访问令牌
-	defaults?: Partial<FullGameData>; // UI相关默认值，会合并到返回的FullGameData中
+	defaults?: Partial<GameCandidateData>; // UI 相关默认值，会合并到返回的候选数据中
 	mixedEnabledSources?: readonly SourceType[]; // mixed 模式下允许请求的数据源
 }
 
 interface SelectionDetailEnrichRule {
 	source: SourceType;
-	getId: (game: FullGameData) => string | undefined;
+	getId: (game: GameCandidateData) => string | undefined;
 }
 
 const selectionDetailEnrichRules: Partial<
@@ -118,7 +123,7 @@ class GameMetadataService {
 	 * - source 指定：按当前数据源自动判断 ID 搜索，否则按名称返回列表
 	 * - source 未指定：mixed 名称搜索，返回各源第一个结果
 	 */
-	async searchGames(params: GameSearchParams): Promise<FullGameData[]> {
+	async searchGames(params: GameSearchParams): Promise<GameCandidateData[]> {
 		const { query, source, bgmToken, defaults, mixedEnabledSources } = params;
 
 		return source
@@ -147,9 +152,9 @@ class GameMetadataService {
 		query: string,
 		source: SourceType,
 		bgmToken: string | undefined,
-		defaults: Partial<FullGameData> | undefined,
+		defaults: Partial<GameCandidateData> | undefined,
 		isIdSearch: boolean,
-	): Promise<FullGameData[]> {
+	): Promise<GameCandidateData[]> {
 		if (isIdSearch) {
 			const game = await this.getGameById(query, source, bgmToken);
 			return [this.applyDefaults(game, defaults)];
@@ -165,9 +170,9 @@ class GameMetadataService {
 	private async searchMixed(
 		query: string,
 		bgmToken: string | undefined,
-		defaults: Partial<FullGameData> | undefined,
+		defaults: Partial<GameCandidateData> | undefined,
 		mixedEnabledSources?: readonly SourceType[],
-	): Promise<FullGameData[]> {
+	): Promise<GameCandidateData[]> {
 		const result = await this.getMixedGameByName(
 			query,
 			bgmToken,
@@ -186,7 +191,7 @@ class GameMetadataService {
 	async searchMixedSourceCandidates(params: {
 		query: string;
 		bgmToken?: string;
-		defaults?: Partial<FullGameData>;
+		defaults?: Partial<GameCandidateData>;
 		mixedEnabledSources?: readonly SourceType[];
 	}): Promise<MixedSourceCandidates> {
 		const { query, bgmToken, defaults, mixedEnabledSources } = params;
@@ -228,7 +233,7 @@ class GameMetadataService {
 		id: string,
 		source: SourceType,
 		bgmToken?: string,
-	): Promise<FullGameData> {
+	): Promise<GameCandidateData> {
 		if (import.meta.env.DEV) {
 			console.log(`[MetadataService] getGameById called:`, {
 				id,
@@ -271,9 +276,9 @@ class GameMetadataService {
 	 * - 单源名称搜索：仅 ymgal/kun 需要按 id 拉取完整详情
 	 */
 	async enrichSelectedGameDetails(params: {
-		selectedGame: FullGameData;
+		selectedGame: GameCandidateData;
 		source: apiSourceType;
-	}): Promise<FullGameData> {
+	}): Promise<GameCandidateData> {
 		const { selectedGame, source } = params;
 
 		if (source === "mixed") {
@@ -350,8 +355,8 @@ class GameMetadataService {
 	async resolveMixedSourceSelection(params: {
 		selection: MixedSourceSelection;
 		enabled: MixedSourceEnabled;
-		defaults?: Partial<FullGameData>;
-	}): Promise<FullGameData> {
+		defaults?: Partial<GameCandidateData>;
+	}): Promise<GameCandidateData> {
 		const { selection, enabled, defaults } = params;
 		const enrichedSelection = await this.enrichMixedSourceSelection(
 			selection,
@@ -371,7 +376,7 @@ class GameMetadataService {
 		name: string,
 		source: SourceType,
 		bgmToken?: string,
-	): Promise<FullGameData[]> {
+	): Promise<GameCandidateData[]> {
 		try {
 			switch (source) {
 				case "bgm":
@@ -401,7 +406,7 @@ class GameMetadataService {
 		name: string,
 		bgmToken?: string,
 		enabledSources?: readonly SourceType[],
-	): Promise<FullGameData | null> {
+	): Promise<GameCandidateData | null> {
 		try {
 			const result = await fetchMixedData({
 				name,
@@ -423,9 +428,9 @@ class GameMetadataService {
 	 * 应用默认值到游戏数据
 	 */
 	private applyDefaults(
-		game: FullGameData,
-		defaults?: Partial<FullGameData>,
-	): FullGameData {
+		game: GameCandidateData,
+		defaults?: Partial<GameCandidateData>,
+	): GameCandidateData {
 		return defaults ? { ...defaults, ...game } : game;
 	}
 
@@ -455,8 +460,8 @@ class GameMetadataService {
 		ymgalId?: string;
 		kunId?: string;
 		bgmToken?: string;
-		defaults?: Partial<FullGameData>;
-	}): Promise<FullGameData> {
+		defaults?: Partial<GameCandidateData>;
+	}): Promise<GameCandidateData> {
 		const { bgmId, vndbId, ymgalId, kunId, bgmToken, defaults } = params;
 		const providedIds = [bgmId, vndbId, ymgalId, kunId].filter(Boolean).length;
 
@@ -483,7 +488,7 @@ class GameMetadataService {
 				);
 			}
 
-			const promises: Promise<FullGameData | null>[] = [];
+			const promises: Promise<GameCandidateData | null>[] = [];
 
 			if (bgmId && bgmToken) {
 				promises.push(this.getGameById(bgmId, "bgm", bgmToken));
@@ -511,7 +516,7 @@ class GameMetadataService {
 
 			const [bgm, vndb, ymgal, kun] = await Promise.all(promises);
 
-			const mergedGame: FullGameData = {
+			const mergedGame: GameCandidateData = {
 				...defaults,
 				id_type: this.determineIdType({
 					bgm_id: bgmId,
@@ -564,7 +569,7 @@ class GameMetadataService {
 	 * 根据游戏数据确定 ID 类型
 	 * 只要有任意 2 个 id 就应归为 mixed
 	 */
-	private determineIdType(game: Partial<FullGameData>): string {
+	private determineIdType(game: Partial<GameCandidateData>): string {
 		const matchedSources = mixedIdTypePriority.filter((source) =>
 			hasSourceId(game, source),
 		);

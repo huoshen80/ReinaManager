@@ -25,7 +25,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { FullGameData } from "@/types";
+import type { GameCandidateData } from "@/types";
 
 interface ViewGameSourceItem {
 	key: "bgm_data" | "vndb_data" | "ymgal_data" | "kun_data";
@@ -75,7 +75,7 @@ interface AlertConfirmBoxProps {
 
 // 定义 ViewGameBoxProps 接口
 interface ViewGameBoxProps {
-	fullgame: FullGameData;
+	fullgame: GameCandidateData;
 	open: boolean;
 	setOpen: (value: boolean) => void;
 	onConfirm: () => void;
