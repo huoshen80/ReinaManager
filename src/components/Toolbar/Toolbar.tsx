@@ -293,7 +293,7 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 			setIsDeleting(true);
 			await deleteGameMutation.mutateAsync(id);
 			setSelectedGameId(null);
-			navigate("/libraries");
+			navigate(-1);
 		} catch (error) {
 			console.error("删除游戏失败:", error);
 		} finally {
