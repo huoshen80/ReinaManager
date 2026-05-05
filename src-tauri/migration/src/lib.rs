@@ -10,6 +10,7 @@ mod m20260131_000006_migrate_clear_to_play_status;
 mod m20260201_000007_clean_empty_strings;
 mod m20260318_000008_add_vndb_token_and_collection_sync;
 mod m20260331_000009_add_kungal_support;
+mod m20260505_000010_remove_redundant_created_at;
 
 pub struct Migrator;
 
@@ -26,6 +27,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260201_000007_clean_empty_strings::Migration),
             Box::new(m20260318_000008_add_vndb_token_and_collection_sync::Migration),
             Box::new(m20260331_000009_add_kungal_support::Migration),
+            Box::new(m20260505_000010_remove_redundant_created_at::Migration),
         ]
     }
 }

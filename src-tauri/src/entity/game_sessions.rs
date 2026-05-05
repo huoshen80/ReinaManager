@@ -14,7 +14,6 @@ pub struct Model {
     pub duration: i32,
     #[sea_orm(column_type = "Text")]
     pub date: String,
-    pub created_at: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

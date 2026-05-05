@@ -13,7 +13,6 @@ pub struct Model {
     pub file: String,
     pub backup_time: i32,
     pub file_size: i32,
-    pub created_at: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

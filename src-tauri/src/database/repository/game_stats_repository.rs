@@ -32,7 +32,6 @@ impl GameStatsRepository {
             end_time: Set(end_time),
             duration: Set(duration),
             date: Set(date),
-            created_at: NotSet,
         };
 
         let result = session.insert(db).await?;
