@@ -1,3 +1,114 @@
+## [0.20.0](https://github.com/huoshen80/ReinaManager/compare/v0.19.3...v0.20.0) (2026-05-06)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+- *(tsconfig)* 将编译目标迁移至 ESNext ([eb5f4f6](https://github.com/huoshen80/ReinaManager/commit/eb5f4f671ccf7ffda7aa5058cacc41383bf63b2e))
+- *(es2023)* 修正 lib 为 es2023 并处理低风险语法迁移 ([08875c5](https://github.com/huoshen80/ReinaManager/commit/08875c547ee818ea1a0ac192ada8e40be6b4a8eb))
+
+### ✨ 新功能
+- *(scroll)* 使用返回按钮时保存当前页面滚动位置 ([a4638da](https://github.com/huoshen80/ReinaManager/commit/a4638da2553062656c0dc371da0fd52b912f0f76))
+- *(settings)* 设置页添加锚点导航布局 ([df1735f](https://github.com/huoshen80/ReinaManager/commit/df1735f42c832f7d27275464dcd36dfbc11a9802))
+- *(GameInfoEdit)* 自定义游戏名称提供别名选项 ([97ec736](https://github.com/huoshen80/ReinaManager/commit/97ec7361ff0ada3ca59725457e4cea608afe0f62))
+- *(addmodal)* 添加混合数据源可选列表 ([f45de08](https://github.com/huoshen80/ReinaManager/commit/f45de08d5dd361d2308944dda962a75a2bc2c064))
+- *(edit)* 默认折叠数据源更新区域 ([d4c1a23](https://github.com/huoshen80/ReinaManager/commit/d4c1a2398aa11f6bbf371e246f4b125695c1fcef))
+- *(GameInfoEdit)* 自定义游戏名称选择中添加全部标题 ([f10b709](https://github.com/huoshen80/ReinaManager/commit/f10b7099287892c711a97b0c12983888f13c230d))
+- *(chart)* 优化 ALL 模式下日期轴显示策略 ([afcaafb](https://github.com/huoshen80/ReinaManager/commit/afcaafb930f1b607d172b9477c12d9a2f8adf5c2))
+- *(backup)* 添加自定义封面备份功能 ([313480e](https://github.com/huoshen80/ReinaManager/commit/313480efb2af085f89e1873df203a841e5dac1be))
+- *(Cards)* 添加批量操作功能 ([b0f315f](https://github.com/huoshen80/ReinaManager/commit/b0f315f6bc9346e3189a9e1634168e6ebb8f58ba))
+- *(cards)* 添加渲染数量限制并优化数据管理 ([5d50269](https://github.com/huoshen80/ReinaManager/commit/5d50269a3c77763087019dee530af3e134fe8676))
+- *(collection)* 添加 CollectionPickerDialog 及合集管理界面 ([6d6ae2b](https://github.com/huoshen80/ReinaManager/commit/6d6ae2bcdca6a7d4d0d8029ae502bc9d666612dd))
+- *(CardBatchBar)* 任何批量操作后自动退出批量模式 ([5c3ad7a](https://github.com/huoshen80/ReinaManager/commit/5c3ad7a3abc6b862d4780a7ef8f72f0712c1e0e4))
+- 实现游戏数据源与游玩状态的双重筛选 ([852e60f](https://github.com/huoshen80/ReinaManager/commit/852e60fbb6a327e51c07d4e8f01a07fe34850bb8))
+
+### 🐛 Bug 修复
+- *(navigation)* 修复删除游戏后的导航问题 ([64712f5](https://github.com/huoshen80/ReinaManager/commit/64712f54ea61fcc856cc51a36a9af18e8219cbe6))
+
+### 🚀 性能优化
+- *(addmodal)* 移除使用 ID 添加游戏时的确认弹窗，简化添加流程 ([5b2b8cd](https://github.com/huoshen80/ReinaManager/commit/5b2b8cd184d5cdd6d92a1cba6ed3d7100b59f248))
+- 优化搜索索引及热路径操作性能 ([cfdeb52](https://github.com/huoshen80/ReinaManager/commit/cfdeb526cb3bb7e1c412c013bc7cfc39c28263ed))
+- *(cards)* 优化游戏列表渲染与数据流 ([c768d84](https://github.com/huoshen80/ReinaManager/commit/c768d84f9a86961b6f56f501cf53d101b95fd4b2))
+
+### 🚜 重构
+- *(store)* 移除冗余的 stop 清理逻辑 ([d452109](https://github.com/huoshen80/ReinaManager/commit/d4521094636110b7c9c88bc6461489d7cd7e1bda))
+- *(utils)* 简化代码并移除无用逻辑 ([71af5fa](https://github.com/huoshen80/ReinaManager/commit/71af5fa8d8e2230f51e483f1ec4c536a1fdeaaea))
+- *(Toolbar)* 使用 store 中的 selectedGameId ([0b42b1f](https://github.com/huoshen80/ReinaManager/commit/0b42b1ffc37751e1f5bed4b540d791388d5bacdb))
+- *(i18n)* 复用重复的 i18n 键值对 ([5d69ff1](https://github.com/huoshen80/ReinaManager/commit/5d69ff1ed7a7d3a9291b3cd07185ee50b31a8af1))
+- *(selected-game)* 引入 guard 包装器 ([b4f1e7f](https://github.com/huoshen80/ReinaManager/commit/b4f1e7fe3ab27a270821e483c35db0ca75f790f6))
+- *(api)* ID 搜索模式改为自动检测并清理无用代码 ([75b5dcc](https://github.com/huoshen80/ReinaManager/commit/75b5dccc59b77ad2014497c6a5b81d877a9c8fdc))
+- *(addmodal)* 提取可复用的 addModal hooks ([9fc3621](https://github.com/huoshen80/ReinaManager/commit/9fc36215b9ca8efda6b43d99282b3a69ee5d8085))
+- *(mixed)* 整理函数归属 ([eea8527](https://github.com/huoshen80/ReinaManager/commit/eea8527c87e5dcbf24e6f9f34f1d8d5918cd954b))
+- *(addmodal)* 调整混合数据源确认弹窗样式 ([2f75f0f](https://github.com/huoshen80/ReinaManager/commit/2f75f0f13ff6b9ddb44178446bb61c3f4ba52536))
+- *(types)* 将 SelectedGameWithId 移至 types 并移除 selectedGame 的空值检查 ([8c13086](https://github.com/huoshen80/ReinaManager/commit/8c13086eab9e583f65da7e0dc5690b55e1027b2b))
+- *(core)* 优化热路径性能并移除死代码 ([7aeff77](https://github.com/huoshen80/ReinaManager/commit/7aeff773cf73b0dff42a69c412933a5f2b44c912))
+- 移除无用代码 ([2b6f60d](https://github.com/huoshen80/ReinaManager/commit/2b6f60d76840ec86fe04018fbf55bd7ebb13d5ff))
+- *(scroll)* 移除 KeepAlive 模式并简化滚动恢复逻辑 ([6957cb4](https://github.com/huoshen80/ReinaManager/commit/6957cb45c4ba49671470f16f3c04afd44aa5dd0b))
+- *(cards)* 隔离右键菜单状态并将激活检查移入 CardItem ([4f3bdd9](https://github.com/huoshen80/ReinaManager/commit/4f3bdd9623b21ced671459e22b8e7d698415b5a5))
+- *(cards)* 将 Cards 组件拆分为模块化子组件 ([75be1bf](https://github.com/huoshen80/ReinaManager/commit/75be1bfaa1f2db4c15a4b901fe977aa0740d32e1))
+- *(collection)* 简化合集 API 并添加批量操作 ([13ea69f](https://github.com/huoshen80/ReinaManager/commit/13ea69fe71440ac0da559c6b701f7ab69166c747))
+- *(types)* 拆分游戏数据生命周期类型 ([40cabf3](https://github.com/huoshen80/ReinaManager/commit/40cabf3585f353131ded0f32f6fe33a58683a59f))
+- *(launch)* 将游戏路径查找和启动选项迁移至后端 ([eabc355](https://github.com/huoshen80/ReinaManager/commit/eabc35529b0261e7f7a792bc1bd9aa9923dcdb9e))
+- *(collection)* 提取类型并简化右键菜单接口 ([a08bdbd](https://github.com/huoshen80/ReinaManager/commit/a08bdbd3098c6c24b5bdb0f1d5abda75e5d6c747))
+- *(db)* 移除 game_sessions 和 savedata 中冗余的 created_at 字段 ([b4df397](https://github.com/huoshen80/ReinaManager/commit/b4df3974e10e5e9fb8343be3815e1e586f35b676))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(tsconfig)* Move to ESNext ([eb5f4f6](https://github.com/huoshen80/ReinaManager/commit/eb5f4f671ccf7ffda7aa5058cacc41383bf63b2e))
+- *(es2023)* Fix lib to es2023 and handle low-risk syntax migration ([08875c5](https://github.com/huoshen80/ReinaManager/commit/08875c547ee818ea1a0ac192ada8e40be6b4a8eb))
+
+### ✨ Features
+
+- *(scroll)* Save the scroll of the current page when using the back button ([a4638da](https://github.com/huoshen80/ReinaManager/commit/a4638da2553062656c0dc371da0fd52b912f0f76))
+- *(settings)* Add anchor navigation layout ([df1735f](https://github.com/huoshen80/ReinaManager/commit/df1735f42c832f7d27275464dcd36dfbc11a9802))
+- *(GameInfoEdit)* Provide alias options for custom game names ([97ec736](https://github.com/huoshen80/ReinaManager/commit/97ec7361ff0ada3ca59725457e4cea608afe0f62))
+- *(addmodal)* Add mixed source optional list ([f45de08](https://github.com/huoshen80/ReinaManager/commit/f45de08d5dd361d2308944dda962a75a2bc2c064))
+- *(edit)* Default collapse the data source update section ([d4c1a23](https://github.com/huoshen80/ReinaManager/commit/d4c1a2398aa11f6bbf371e246f4b125695c1fcef))
+- *(GameInfoEdit)* Add all titles to the custom game name selection ([f10b709](https://github.com/huoshen80/ReinaManager/commit/f10b7099287892c711a97b0c12983888f13c230d))
+- *(chart)* Improve ALL mode date axis display strategy ([afcaafb](https://github.com/huoshen80/ReinaManager/commit/afcaafb930f1b607d172b9477c12d9a2f8adf5c2))
+- *(backup)* Add custom cover backup feature ([313480e](https://github.com/huoshen80/ReinaManager/commit/313480efb2af085f89e1873df203a841e5dac1be))
+- *(Cards)* Add batch actions ([b0f315f](https://github.com/huoshen80/ReinaManager/commit/b0f315f6bc9346e3189a9e1634168e6ebb8f58ba))
+- *(cards)* Add render limit and optimize data management ([5d50269](https://github.com/huoshen80/ReinaManager/commit/5d50269a3c77763087019dee530af3e134fe8676))
+- *(collection)* Add CollectionPickerDialog and manage collections UI ([6d6ae2b](https://github.com/huoshen80/ReinaManager/commit/6d6ae2bcdca6a7d4d0d8029ae502bc9d666612dd))
+- *(CardBatchBar)* Close batch mode after any operations ([5c3ad7a](https://github.com/huoshen80/ReinaManager/commit/5c3ad7a3abc6b862d4780a7ef8f72f0712c1e0e4))
+- Implement dual filtering for game source and play status ([852e60f](https://github.com/huoshen80/ReinaManager/commit/852e60fbb6a327e51c07d4e8f01a07fe34850bb8))
+
+### 🐛 Bug Fixes
+
+- *(navigation)* Fix navigation after game deletion ([64712f5](https://github.com/huoshen80/ReinaManager/commit/64712f54ea61fcc856cc51a36a9af18e8219cbe6))
+
+### 🚀 Performance
+
+- *(addmodal)* Remove the confirmation dialog for using id to add a game,simplifying the adding process ([5b2b8cd](https://github.com/huoshen80/ReinaManager/commit/5b2b8cd184d5cdd6d92a1cba6ed3d7100b59f248))
+- Optimize search indexing and hot-path operations ([cfdeb52](https://github.com/huoshen80/ReinaManager/commit/cfdeb526cb3bb7e1c412c013bc7cfc39c28263ed))
+- *(cards)* Optimize rendering and data flow for game lists ([c768d84](https://github.com/huoshen80/ReinaManager/commit/c768d84f9a86961b6f56f501cf53d101b95fd4b2))
+
+### 🚜 Refactor
+
+- *(store)* Remove redundant stop cleanup ([d452109](https://github.com/huoshen80/ReinaManager/commit/d4521094636110b7c9c88bc6461489d7cd7e1bda))
+- *(utils)* Simplify the code and remove useless logic ([71af5fa](https://github.com/huoshen80/ReinaManager/commit/71af5fa8d8e2230f51e483f1ec4c536a1fdeaaea))
+- *(Toolbar)* Use selectedGameId from store ([0b42b1f](https://github.com/huoshen80/ReinaManager/commit/0b42b1ffc37751e1f5bed4b540d791388d5bacdb))
+- *(i18n)* Reuse duplicate i18n key-value pairs ([5d69ff1](https://github.com/huoshen80/ReinaManager/commit/5d69ff1ed7a7d3a9291b3cd07185ee50b31a8af1))
+- *(selected-game)* Introduce guard wrapper ([b4f1e7f](https://github.com/huoshen80/ReinaManager/commit/b4f1e7fe3ab27a270821e483c35db0ca75f790f6))
+- *(api)* Change id search mode to automatic detection and clean some useless code ([75b5dcc](https://github.com/huoshen80/ReinaManager/commit/75b5dccc59b77ad2014497c6a5b81d877a9c8fdc))
+- *(addmodal)* Extract reusable hooks for use with addModal ([9fc3621](https://github.com/huoshen80/ReinaManager/commit/9fc36215b9ca8efda6b43d99282b3a69ee5d8085))
+- *(mixed)* Organize fn attribution ([eea8527](https://github.com/huoshen80/ReinaManager/commit/eea8527c87e5dcbf24e6f9f34f1d8d5918cd954b))
+- *(addmodal)* Adjust the style of the mixed source confirmation modal ([2f75f0f](https://github.com/huoshen80/ReinaManager/commit/2f75f0f13ff6b9ddb44178446bb61c3f4ba52536))
+- *(types)* Move SelectedGameWithId to types and remove nullable checks for selectedGame ([8c13086](https://github.com/huoshen80/ReinaManager/commit/8c13086eab9e583f65da7e0dc5690b55e1027b2b))
+- *(core)* Optimize hot-path perf and remove dead code ([7aeff77](https://github.com/huoshen80/ReinaManager/commit/7aeff773cf73b0dff42a69c412933a5f2b44c912))
+- Remove useless code ([2b6f60d](https://github.com/huoshen80/ReinaManager/commit/2b6f60d76840ec86fe04018fbf55bd7ebb13d5ff))
+- *(scroll)* Remove KeepAlive mode and simplify restore logic ([6957cb4](https://github.com/huoshen80/ReinaManager/commit/6957cb45c4ba49671470f16f3c04afd44aa5dd0b))
+- *(cards)* Isolate right menu state and move active check into CardItem ([4f3bdd9](https://github.com/huoshen80/ReinaManager/commit/4f3bdd9623b21ced671459e22b8e7d698415b5a5))
+- *(cards)* Split Cards component into modular subcomponents ([75be1bf](https://github.com/huoshen80/ReinaManager/commit/75be1bfaa1f2db4c15a4b901fe977aa0740d32e1))
+- *(collection)* Simplify collection API and add batch operations ([13ea69f](https://github.com/huoshen80/ReinaManager/commit/13ea69fe71440ac0da559c6b701f7ab69166c747))
+- *(types)* Split game data lifecycles ([40cabf3](https://github.com/huoshen80/ReinaManager/commit/40cabf3585f353131ded0f32f6fe33a58683a59f))
+- *(launch)* Move game path lookup and launch options to backend ([eabc355](https://github.com/huoshen80/ReinaManager/commit/eabc35529b0261e7f7a792bc1bd9aa9923dcdb9e))
+- *(collection)* Extract types and simplify right menu interface ([a08bdbd](https://github.com/huoshen80/ReinaManager/commit/a08bdbd3098c6c24b5bdb0f1d5abda75e5d6c747))
+- *(db)* Remove redundant created_at from game_sessions and savedata ([b4df397](https://github.com/huoshen80/ReinaManager/commit/b4df3974e10e5e9fb8343be3815e1e586f35b676))
+
+
 ## [0.19.3](https://github.com/huoshen80/ReinaManager/compare/v0.19.2...v0.19.3) (2026-04-23)
 
 !!! warning 由于 Vndb 源站服务器迁移问题，该源暂时不可用，本次更新会修复 Kun 源在 Vndb 源宕机时无法正常使用的问题，建议尽快更新。
