@@ -1,3 +1,18 @@
+## [0.20.1](https://github.com/huoshen80/ReinaManager/compare/v0.20.0...v0.20.1) (2026-05-06)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 🐛 Bug 修复
+- *(mixed-source)* 修复第二次添加游戏时显示旧封面的问题 ([bf25db0](https://github.com/huoshen80/ReinaManager/commit/bf25db09d7d2bdb1d9439af77061da750b0530a1))
+
+</details>
+
+### 🐛 Bug Fixes
+
+- *(mixed-source)* Fix stale cover image shown on second add ([bf25db0](https://github.com/huoshen80/ReinaManager/commit/bf25db09d7d2bdb1d9439af77061da750b0530a1))
+
+
 ## [0.20.0](https://github.com/huoshen80/ReinaManager/compare/v0.19.3...v0.20.0) (2026-05-06)
 
 <details>
