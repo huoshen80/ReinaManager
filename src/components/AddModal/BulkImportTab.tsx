@@ -755,14 +755,16 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 				title={t("components.AddModal.selectGame", "选择游戏")}
 				apiSource={metadataSearchFlow.searchResultState.apiSource}
 			/>
-			<MixedSourceConfirmDialog
-				open={metadataSearchFlow.mixedCandidateState.open}
-				onClose={metadataSearchFlow.closeMixedCandidates}
-				candidates={metadataSearchFlow.mixedCandidateState.candidates}
-				onConfirm={metadataSearchFlow.confirmMixedSelection}
-				loading={searchResultLoading}
-				title={t("components.BulkImportModal.editMetadata", "编辑游戏信息")}
-			/>
+			{metadataSearchFlow.mixedCandidateState.open && (
+				<MixedSourceConfirmDialog
+					open
+					onClose={metadataSearchFlow.closeMixedCandidates}
+					candidates={metadataSearchFlow.mixedCandidateState.candidates}
+					onConfirm={metadataSearchFlow.confirmMixedSelection}
+					loading={searchResultLoading}
+					title={t("components.BulkImportModal.editMetadata", "编辑游戏信息")}
+				/>
+			)}
 		</>
 	);
 };

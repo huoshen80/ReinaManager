@@ -502,14 +502,16 @@ const AddModal: React.FC = () => {
 				title={t("components.AddModal.selectGame", "选择游戏")}
 				apiSource={metadataSearchFlow.searchResultState.apiSource}
 			/>
-			<MixedSourceConfirmDialog
-				open={metadataSearchFlow.mixedCandidateState.open}
-				onClose={metadataSearchFlow.closeMixedCandidates}
-				candidates={metadataSearchFlow.mixedCandidateState.candidates}
-				onConfirm={metadataSearchFlow.confirmMixedSelection}
-				loading={isBusy}
-				title={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
-			/>
+			{metadataSearchFlow.mixedCandidateState.open && (
+				<MixedSourceConfirmDialog
+					open
+					onClose={metadataSearchFlow.closeMixedCandidates}
+					candidates={metadataSearchFlow.mixedCandidateState.candidates}
+					onConfirm={metadataSearchFlow.confirmMixedSelection}
+					loading={isBusy}
+					title={t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
+				/>
+			)}
 		</>
 	);
 };
