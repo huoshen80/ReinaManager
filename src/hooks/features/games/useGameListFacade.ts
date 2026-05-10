@@ -124,7 +124,7 @@ export function useGameListFacade() {
 	return {
 		filteredGames,
 		gameIds,
-		isLoading: gameIdListQuery.isLoading,
+		isLoading: allGamesQuery.isLoading || gameIdListQuery.isLoading,
 	};
 }
 
