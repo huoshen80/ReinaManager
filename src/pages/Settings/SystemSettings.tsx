@@ -433,3 +433,37 @@ export const LinuxLaunchCommandSettings = () => {
 		</Box>
 	);
 };
+
+export const ImmersiveTitlebarSettings = () => {
+	const { t } = useTranslation();
+	const immersiveTitlebar = useStore((state) => state.immersiveTitlebar);
+	const setImmersiveTitlebar = useStore((state) => state.setImmersiveTitlebar);
+
+	return (
+		<Box className="mb-6">
+			<Stack direction="row" alignItems="center" className="min-w-60">
+				<Box>
+					<InputLabel className="font-semibold mb-1">
+						{t("pages.Settings.immersiveTitlebar.title", "沉浸式标题栏")}
+					</InputLabel>
+					<Typography
+						variant="caption"
+						color="text.secondary"
+						className="block"
+					>
+						{t(
+							"pages.Settings.immersiveTitlebar.description",
+							"隐藏原生窗口标题栏，使用自定义的无边框样式。",
+						)}
+					</Typography>
+				</Box>
+				<Switch
+					checked={immersiveTitlebar}
+					onChange={(e) => setImmersiveTitlebar(e.target.checked)}
+					color="primary"
+					className="ml-auto"
+				/>
+			</Stack>
+		</Box>
+	);
+};

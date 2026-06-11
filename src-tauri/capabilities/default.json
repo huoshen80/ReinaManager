@@ -38,6 +38,11 @@
 		"store:allow-set",
 		"store:allow-save",
 		"store:allow-load",
+		"core:window:allow-set-shadow",
+		"core:window:allow-is-maximized",
+		"core:window:default",
+		"core:window:allow-set-decorations",
+		"core:window:allow-start-dragging",
 		{
 			"identifier": "fs:scope",
 			"allow": [

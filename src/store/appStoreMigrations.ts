@@ -17,6 +17,7 @@ type AppStorePersistedState = {
 	doubleClickLaunch?: boolean;
 	longPressLaunch?: boolean;
 	themeColor?: string;
+	immersiveTitlebar?: boolean;
 };
 
 type SelectedCategoryState =
