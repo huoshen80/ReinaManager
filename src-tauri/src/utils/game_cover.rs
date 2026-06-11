@@ -1,14 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tauri::Manager;
 use tauri::command;
 use tauri::http::{Response, StatusCode};
-use tauri_plugin_http::reqwest::Client;
 use tokio::sync::{RwLock, Semaphore, watch};
 
 use crate::entity::prelude::Games;
@@ -17,18 +16,9 @@ use reina_path::get_base_data_dir;
 const DEFAULT_COVER_EXTENSION: &str = "jpg";
 const DEFAULT_CLOUD_COVER_FILE_NAME: &str = "cloud_cover";
 const MAX_CONCURRENT_COVER_DOWNLOADS: usize = 100;
-const COVER_DOWNLOAD_CONNECT_TIMEOUT_SECS: u64 = 10;
-const COVER_DOWNLOAD_TIMEOUT_SECS: u64 = 60;
 /// 最多重试次数（不含首次），退避延迟为 500ms * 2^attempt
 const COVER_MAX_RETRIES: u32 = 2;
 const COVER_RETRY_BASE_DELAY_MS: u64 = 500;
-const COVER_USER_AGENT: &str = concat!(
-    "huoshen80/ReinaManager/",
-    env!("CARGO_PKG_VERSION"),
-    " (https://github.com/huoshen80/ReinaManager)"
-);
-
-static COVER_HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct DownloadKey {
@@ -103,17 +93,6 @@ impl Drop for DownloadCleanupGuard {
             .unwrap_or_else(|e| e.into_inner())
             .remove(&self.key);
     }
-}
-
-fn cover_http_client() -> &'static Client {
-    COVER_HTTP_CLIENT.get_or_init(|| {
-        Client::builder()
-            .connect_timeout(Duration::from_secs(COVER_DOWNLOAD_CONNECT_TIMEOUT_SECS))
-            .timeout(Duration::from_secs(COVER_DOWNLOAD_TIMEOUT_SECS))
-            .user_agent(COVER_USER_AGENT)
-            .build()
-            .expect("failed to build game cover http client")
-    })
 }
 
 fn infer_cache_extension(cloud_url: &str) -> String {
@@ -344,7 +323,7 @@ async fn try_download_once(
     let cache_path = build_cache_path(game_cover_dir, game_id, &extension);
     let temp_path = build_temp_cache_path(game_cover_dir, game_id, &extension);
 
-    let response = cover_http_client()
+    let response = crate::utils::http::get_client()
         .get(url)
         .send()
         .await
