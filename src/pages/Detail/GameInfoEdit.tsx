@@ -214,7 +214,7 @@ function SourceCoverDialog({
 									disabled={disabled}
 									className={`block w-30 flex-none overflow-hidden rounded text-left border-2 ${
 										selected
-											? "border-[#1976d2] bg-[rgba(25,118,210,0.08)]"
+											? "border-[--mui-palette-primary-main] bg-[rgba(25,118,210,0.08)]"
 											: "border-solid border-gray-200 bg-white dark:bg-transparent"
 									}`}
 								>

@@ -1,8 +1,16 @@
-import { FormControlLabel, Radio, RadioGroup, Switch } from "@mui/material";
+import {
+	FormControlLabel,
+	Radio,
+	RadioGroup,
+	Switch,
+	Tooltip,
+} from "@mui/material";
 import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import CheckIcon from "@mui/icons-material/Check";
 import Select, { type SelectChangeEvent } from "@mui/material/Select";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "@/store/appStore";
@@ -137,6 +145,119 @@ export const CardClickModeSettings = () => {
 						className="mb-1"
 					/>
 				</RadioGroup>
+			</Box>
+		</Box>
+	);
+};
+
+const PRESET_COLORS = [
+	{ label: "MUI Blue", value: "#1976d2" },
+	{ label: "Purple", value: "#9c27b0" },
+	{ label: "Green", value: "#5cd08c" },
+	{ label: "Red", value: "#d32f2f" },
+	{ label: "Orange", value: "#ed6c02" },
+	{ label: "Teal", value: "#009688" },
+];
+
+export const ThemeColorSettings = () => {
+	const { t } = useTranslation();
+	const themeColor = useStore((state) => state.themeColor);
+	const setThemeColor = useStore((state) => state.setThemeColor);
+	const [localColor, setLocalColor] = useState(themeColor);
+
+	useEffect(() => {
+		setLocalColor(themeColor);
+	}, [themeColor]);
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			if (localColor !== themeColor) {
+				setThemeColor(localColor);
+			}
+		}, 300);
+		return () => clearTimeout(timer);
+	}, [localColor, themeColor, setThemeColor]);
+
+	const handleColorClick = (color: string) => {
+		setLocalColor(color);
+		setThemeColor(color);
+	};
+
+	return (
+		<Box className="mb-6">
+			<InputLabel className="font-semibold mb-4">
+				{t("pages.Settings.themeColor.title", "主题颜色")}
+			</InputLabel>
+			<Box className="pl-2 flex flex-wrap gap-4 items-center">
+				{PRESET_COLORS.map((color) => {
+					const isSelected =
+						localColor.toLowerCase() === color.value.toLowerCase();
+					return (
+						<Tooltip
+							key={color.value}
+							title={t(
+								`pages.Settings.themeColor.${color.label.toLowerCase().replace(" ", "")}`,
+								color.label,
+							)}
+						>
+							<Box
+								onClick={() => handleColorClick(color.value)}
+								sx={{
+									width: 36,
+									height: 36,
+									borderRadius: "50%",
+									backgroundColor: color.value,
+									cursor: "pointer",
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									boxShadow: isSelected ? 3 : 1,
+									transition: "all 0.2s ease-in-out",
+									"&:hover": { transform: "scale(1.1)", boxShadow: 4 },
+								}}
+							>
+								{isSelected && (
+									<CheckIcon sx={{ color: "#fff", fontSize: 20 }} />
+								)}
+							</Box>
+						</Tooltip>
+					);
+				})}
+
+				<Box className="ml-2 flex items-center gap-3">
+					<InputLabel className="text-sm m-0">
+						{t("pages.Settings.themeColor.custom", "自定义:")}
+					</InputLabel>
+					<Box
+						sx={{
+							width: 36,
+							height: 36,
+							borderRadius: "50%",
+							overflow: "hidden",
+							cursor: "pointer",
+							boxShadow: 1,
+							transition: "all 0.2s ease-in-out",
+							"&:hover": { transform: "scale(1.1)", boxShadow: 4 },
+							position: "relative",
+						}}
+					>
+						<input
+							type="color"
+							value={localColor}
+							onChange={(e) => setLocalColor(e.target.value)}
+							style={{
+								width: "150%",
+								height: "150%",
+								position: "absolute",
+								top: "-25%",
+								left: "-25%",
+								cursor: "pointer",
+								border: "none",
+								padding: 0,
+							}}
+						/>
+					</Box>
+				</Box>
 			</Box>
 		</Box>
 	);

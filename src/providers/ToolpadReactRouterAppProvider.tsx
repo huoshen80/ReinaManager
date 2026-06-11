@@ -1,3 +1,4 @@
+import { createTheme } from "@mui/material/styles";
 import {
 	AppProvider,
 	type AppProviderProps,
@@ -16,6 +17,7 @@ import {
 	useNavigate,
 	useSearchParams,
 } from "react-router-dom";
+import { useStore } from "@/store/appStore";
 import { saveScrollPosition } from "@/utils/scroll";
 
 interface ToolpadLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
@@ -84,7 +86,29 @@ export const ToolpadReactRouterAppProvider = (props: AppProviderProps) => {
 		[pathname, searchParams, navigateImpl],
 	);
 
-	return <AppProvider router={router} {...props} />;
+	const themeColor = useStore((state) => state.themeColor);
+
+	const theme = useMemo(() => {
+		return createTheme({
+			cssVariables: {
+				colorSchemeSelector: "data-toolpad-color-scheme",
+			},
+			colorSchemes: {
+				light: {
+					palette: {
+						primary: { main: themeColor },
+					},
+				},
+				dark: {
+					palette: {
+						primary: { main: themeColor },
+					},
+				},
+			},
+		});
+	}, [themeColor]);
+
+	return <AppProvider router={router} theme={theme} {...props} />;
 };
 
 export default ToolpadReactRouterAppProvider;

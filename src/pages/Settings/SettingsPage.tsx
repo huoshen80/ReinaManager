@@ -25,6 +25,7 @@ import {
 	CardClickModeSettings,
 	LanguageSelect,
 	NsfwSettings,
+	ThemeColorSettings,
 } from "./GeneralSettings";
 import { DatabaseBackupSettings } from "./MaintenanceSettings";
 import {
@@ -135,6 +136,8 @@ export const Settings: React.FC = () => {
 				content: (
 					<>
 						<LanguageSelect />
+						<Divider className="my-6" />
+						<ThemeColorSettings />
 						<Divider className="my-6" />
 						<NsfwSettings />
 						<Divider className="my-6" />

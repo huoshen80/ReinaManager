@@ -103,7 +103,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 								}
 							}}
 							style={{
-								color: "#1976d2",
+								color: "--mui-palette-primary-main",
 								textDecoration: "underline",
 								cursor: "pointer",
 							}}
@@ -326,7 +326,7 @@ const WindowsHandler: React.FC = () => {
 
 	useEffect(() => {
 		const w = getCurrentWindow();
-		let unlisten = () => { };
+		let unlisten = () => {};
 		// 拦截关闭
 		// onCloseRequested API provides preventDefault
 		w.onCloseRequested(async (event) => {

@@ -152,6 +152,10 @@ export interface AppState {
 	selectedCategory: SelectedCategory; // 当前选中的分类
 	setCurrentGroup: (groupId: string | null) => void; // 设置当前分组
 	setSelectedCategory: (category: SelectedCategory) => void; // 设置当前选中的分类
+
+	// 主题设置
+	themeColor: string;
+	setThemeColor: (color: string) => void;
 }
 
 // 创建持久化的全局状态
@@ -399,6 +403,12 @@ export const useStore = create<AppState>()(
 				set({ selectedCategory: category });
 			},
 
+			// 主题设置默认值
+			themeColor: "#1976d2",
+			setThemeColor: (color: string) => {
+				set({ themeColor: color });
+			},
+
 			// 初始化方法
 			initialize: async () => {
 				// 初始化游戏时间跟踪（数据获取由 React Query 自动触发）
@@ -446,6 +456,8 @@ export const useStore = create<AppState>()(
 				// 分组分类选择状态
 				currentGroupId: state.currentGroupId,
 				selectedCategory: state.selectedCategory,
+				// 主题设置
+				themeColor: state.themeColor,
 			}),
 			version: APP_STORE_VERSION,
 			migrate: migrateAppStorePersistedState,
