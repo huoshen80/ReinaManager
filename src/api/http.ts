@@ -23,6 +23,7 @@ import {
 	HttpResponseError,
 	toError,
 } from "@/utils/errors";
+import { useStore } from "@/store/appStore";
 import {
 	type ApiRateLimitedRequestOptions,
 	type ApiRateLimitSource,
@@ -103,10 +104,28 @@ async function requestTauriHttp<T>(
 		options?.rateLimit?.source ?? inferRateLimitSource(url);
 
 	const fetchResponse = () => {
+		const { proxyConfig } = useStore.getState();
+		let proxyOption: undefined | { all: string } = undefined;
+		
+		if (proxyConfig?.enabled && proxyConfig.url) {
+			try {
+				const host = new URL(fullUrl).hostname;
+				const matched = proxyConfig.hosts.some(
+					(h) => host === h || host.endsWith(`.${h}`)
+				);
+				if (matched) {
+					proxyOption = { all: proxyConfig.url };
+				}
+			} catch (e) {
+				// ignore url parse error
+			}
+		}
+
 		if (import.meta.env.DEV) {
 			console.log(`[TauriHTTP] ${method} ${fullUrl}`, {
 				headers: options?.headers,
 				body: data,
+				proxy: proxyOption,
 			});
 		}
 
@@ -121,6 +140,7 @@ async function requestTauriHttp<T>(
 					? undefined
 					: JSON.stringify(data),
 			signal: options?.signal,
+			proxy: proxyOption,
 		});
 	};
 

@@ -34,6 +34,7 @@ import {
 	ImmersiveTitlebarSettings,
 	LinuxLaunchCommandSettings,
 	LogLevelSettings,
+	ProxySettings,
 	TimeTrackingModeSettings,
 } from "./SystemSettings";
 
@@ -158,6 +159,8 @@ export const Settings: React.FC = () => {
 						<AutoStartSettings />
 						<Divider className="my-6" />
 						<LogLevelSettings />
+						<Divider className="my-6" />
+						<ProxySettings />
 						<Divider className="my-6" />
 						<CloseBtnSettings />
 						<Divider className="my-6" />

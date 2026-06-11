@@ -17,7 +17,7 @@
  * - @tauri-apps/api/core
  * - @/store/gamePlayStore
  */
-
+import { invoke } from "@tauri-apps/api/core";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -37,6 +37,12 @@ export type SelectedCategory =
 	| { type: "real"; id: number }
 	| { type: "developer"; key: string }
 	| null;
+
+export interface ProxyConfig {
+	enabled: boolean;
+	url: string;
+	hosts: string[];
+}
 
 /**
  * AppState 全局状态类型定义
@@ -158,6 +164,10 @@ export interface AppState {
 	setThemeColor: (color: string) => void;
 	immersiveTitlebar: boolean;
 	setImmersiveTitlebar: (enabled: boolean) => void;
+
+	// 代理设置
+	proxyConfig: ProxyConfig;
+	setProxyConfig: (config: ProxyConfig) => void;
 }
 
 // 创建持久化的全局状态
@@ -415,10 +425,32 @@ export const useStore = create<AppState>()(
 				set({ immersiveTitlebar: enabled });
 			},
 
+			// 代理设置
+			proxyConfig: {
+				enabled: false,
+				url: "",
+				hosts: [
+					"api.bgm.tv",
+					"api.vndb.org",
+					"lain.bgm.tv",
+					"s.vndb.org",
+					"www.ymgal.games",
+					"www.kungal.com",
+				],
+			},
+			setProxyConfig: (config: ProxyConfig) => {
+				set({ proxyConfig: config });
+				invoke("update_proxy_config", { config }).catch(console.error);
+			},
+
 			// 初始化方法
 			initialize: async () => {
 				// 初始化游戏时间跟踪（数据获取由 React Query 自动触发）
 				initializeGamePlayTracking();
+				
+				// 启动时同步代理设置到后端
+				const { proxyConfig } = get();
+				invoke("update_proxy_config", { config: proxyConfig }).catch(console.error);
 			},
 		}),
 		{
@@ -465,6 +497,8 @@ export const useStore = create<AppState>()(
 				// 主题设置
 				themeColor: state.themeColor,
 				immersiveTitlebar: state.immersiveTitlebar,
+				// 代理设置
+				proxyConfig: state.proxyConfig,
 			}),
 			version: APP_STORE_VERSION,
 			migrate: migrateAppStorePersistedState,

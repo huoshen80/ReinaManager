@@ -16,6 +16,7 @@ use utils::{
         import_clipboard_image_to_temp, is_portable_mode, move_backup_folder, open_directory,
     },
     game_cover::{delete_cloud_cache, register_game_cover_protocol},
+    http::update_proxy_config,
     launch::{launch_game, stop_game},
     legacy_migration::run_startup_migrations,
     logs::{get_reina_log_level, set_reina_log_level},
@@ -101,6 +102,7 @@ pub fn run() {
             // 用户设置相关 commands
             get_all_settings,
             update_settings,
+            update_proxy_config,
             // BGM OAuth 相关 commands
             bgm_oauth_start_login,
             bgm_oauth_exchange_code,

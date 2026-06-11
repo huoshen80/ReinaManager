@@ -2,7 +2,9 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import RestorePageIcon from "@mui/icons-material/RestorePage";
 import SaveIcon from "@mui/icons-material/Save";
 import {
+	Autocomplete,
 	Checkbox,
+	Chip,
 	FormControlLabel,
 	IconButton,
 	Radio,
@@ -464,6 +466,87 @@ export const ImmersiveTitlebarSettings = () => {
 					className="ml-auto"
 				/>
 			</Stack>
+		</Box>
+	);
+};
+
+export const ProxySettings = () => {
+	const { t } = useTranslation();
+	const proxyConfig = useStore((state) => state.proxyConfig);
+	const setProxyConfig = useStore((state) => state.setProxyConfig);
+
+	const handleEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setProxyConfig({ ...proxyConfig, enabled: e.target.checked });
+	};
+
+	const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setProxyConfig({ ...proxyConfig, url: e.target.value });
+	};
+
+	const handleHostsChange = (_event: any, newValue: string[]) => {
+		setProxyConfig({ ...proxyConfig, hosts: newValue });
+	};
+
+	return (
+		<Box className="mb-6">
+			<Stack direction="row" alignItems="center" className="min-w-60 mb-2">
+				<Box>
+					<InputLabel className="font-semibold mb-1">
+						{t("pages.Settings.proxy.title", "网络代理设置")}
+					</InputLabel>
+					<Typography variant="caption" color="text.secondary" className="block">
+						{t(
+							"pages.Settings.proxy.description",
+							"全局配置指定域名的代理服务器地址，实时生效免重启。",
+						)}
+					</Typography>
+				</Box>
+				<Switch
+					checked={proxyConfig?.enabled || false}
+					onChange={handleEnabledChange}
+					color="primary"
+					className="ml-auto"
+				/>
+			</Stack>
+			
+			{proxyConfig?.enabled && (
+				<Box className="pl-2 mt-4 space-y-4">
+					<TextField
+						label={t("pages.Settings.proxy.url", "代理服务器地址")}
+						variant="outlined"
+						value={proxyConfig.url}
+						onChange={handleUrlChange}
+						className="w-full"
+						size="small"
+						placeholder="http://127.0.0.1:7890"
+					/>
+					
+					<Autocomplete
+						multiple
+						freeSolo
+						options={[]}
+						value={proxyConfig.hosts || []}
+						onChange={handleHostsChange}
+						renderTags={(value: readonly string[], getTagProps) =>
+							value.map((option: string, index: number) => {
+								const { key, ...tagProps } = getTagProps({ index });
+								return (
+									<Chip variant="outlined" label={option} key={key} {...tagProps} size="small" />
+								);
+							})
+						}
+						renderInput={(params) => (
+							<TextField
+								{...params}
+								variant="outlined"
+								label={t("pages.Settings.proxy.hosts", "代理域名白名单")}
+								placeholder={t("pages.Settings.proxy.addHost", "输入域名后按回车添加")}
+								size="small"
+							/>
+						)}
+					/>
+				</Box>
+			)}
 		</Box>
 	);
 };
