@@ -154,7 +154,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 							idType === "mixed" ? mixedEnabledSources : undefined,
 						bgmToken: shouldUseBgmToken ? (token ?? undefined) : undefined,
 					}),
-				{ required: idType === "bgm" },
+				{ required: false },
 			);
 			onDataFetched(result);
 		} catch (error) {

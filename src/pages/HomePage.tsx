@@ -516,7 +516,7 @@ export const Home: React.FC = () => {
 						<Card className="h-full shadow-md">
 							<CardContent className="h-full min-h-0 flex flex-col">
 								<Box className="flex items-center mb-3">
-									<RecentlyPlayedIcon className="mr-2 text-blue-500" />
+									<RecentlyPlayedIcon className="mr-2 text-[--mui-palette-primary-main]" />
 									<Typography variant="h6" className="font-bold">
 										{t("home.recentlyPlayed", "最近游玩")}
 									</Typography>

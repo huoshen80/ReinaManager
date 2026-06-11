@@ -160,13 +160,13 @@ export function useMetadataSearchFlow({
 									const searchPromise = gameMetadataService.searchGames({
 										query,
 										source,
-										bgmToken: token,
+										bgmToken: token ?? undefined,
 										defaults,
 										signal,
 									});
 									return withAbort ? withAbort(searchPromise) : searchPromise;
 								},
-								{ required: true },
+								{ required: false },
 							)
 						: await (withAbort
 								? withAbort(

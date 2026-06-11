@@ -99,10 +99,10 @@ export async function batchUpdateBgmData(): Promise<{
 		(token) =>
 			batchUpdateCommon(
 				"bgm",
-				(ids: string[]) => fetchBgmByIds(ids, token),
+				(ids: string[]) => fetchBgmByIds(ids, token ?? undefined),
 				() => gameService.getAllBgmIds(),
 				"bgm_data",
 			),
-		{ required: true },
+		{ required: false },
 	);
 }

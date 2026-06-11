@@ -49,7 +49,7 @@ export const CardItem = memo(
 			return (
 				<Card
 					ref={ref}
-					className={`group relative min-w-24 max-w-full transition-shadow transition-colors ${isActive ? "ring-2 ring-blue-500 shadow-md" : ""}`}
+					className={`group relative min-w-24 max-w-full transition-shadow transition-colors ${isActive ? "ring-2 ring-[--mui-palette-primary-main] shadow-md" : ""}`}
 					onContextMenu={interaction?.onContextMenu}
 					{...props}
 				>
@@ -104,7 +104,7 @@ export const CardItem = memo(
 							loading="lazy"
 						/>
 						<div
-							className={`flex items-center justify-center h-8 px-1 w-full ${isActive ? "font-semibold text-blue-500" : ""}`}
+							className={`flex items-center justify-center h-8 px-1 w-full ${isActive ? "font-semibold text-[--mui-palette-primary-main]" : ""}`}
 						>
 							<span className="text-base truncate max-w-full">
 								{displayName}

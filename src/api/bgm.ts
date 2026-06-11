@@ -68,17 +68,16 @@ export interface BgmTokenStatus {
 	scope: string | null;
 }
 
-function buildBgmAuthHeaders(token: string) {
-	return {
-		headers: {
-			...BGM_JSON_HEADERS,
-			Authorization: `Bearer ${token}`,
-		},
-	};
+function buildBgmAuthHeaders(token?: string) {
+	const headers: Record<string, string> = { ...BGM_JSON_HEADERS };
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+	return { headers };
 }
 
 function buildBgmRateLimitedOptions(
-	token: string,
+	token?: string,
 	signal?: AbortSignal,
 ): TauriHttpOptions {
 	return {
@@ -173,7 +172,7 @@ const transformBgmData = (BGMdata: any): GameCandidateData => {
  */
 export async function fetchBgmById(
 	id: string,
-	token: string,
+	token?: string,
 	signal?: AbortSignal,
 ): Promise<GameCandidateData> {
 	const BGMdata = (
@@ -203,7 +202,7 @@ export async function fetchBgmById(
  */
 export async function fetchBgmByName(
 	name: string,
-	token: string,
+	token?: string,
 	limit = 25,
 	signal?: AbortSignal,
 ): Promise<GameCandidateData[]> {
@@ -246,7 +245,7 @@ export async function fetchBgmByName(
  */
 export async function fetchBgmByIds(
 	ids: string[],
-	token: string,
+	token?: string,
 	signal?: AbortSignal,
 ): Promise<GameCandidateData[]> {
 	if (ids.length === 0) {

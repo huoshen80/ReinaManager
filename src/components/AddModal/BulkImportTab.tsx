@@ -1,6 +1,7 @@
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import SearchIcon from "@mui/icons-material/Search";
 import {
+	Alert,
 	Button,
 	CircularProgress,
 	Dialog,
@@ -234,11 +235,11 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 											gameMetadataService.searchBestMatch({
 												query: nextItems[index].name,
 												source: bulkApiSource,
-												bgmToken: token,
+												bgmToken: token ?? undefined,
 												signal: controller.signal,
 											}),
 										),
-									{ required: true },
+									{ required: false },
 								)
 							: await withAbort(
 									gameMetadataService.searchBestMatch({
@@ -662,12 +663,17 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								}
 							}}
 						/>
-						<FormControl component="fieldset">
+						<FormControl component="fieldset" className="gap-2">
 							<ApiSourceRadioGroup
 								value={editApiSource}
 								onChange={setEditApiSource}
 								disabled={searchResultLoading}
 							/>
+							{!hasBgmAuth && (editApiSource === "bgm" || (editApiSource === "mixed" && mixedEnabledSources.includes("bgm"))) && (
+								<Alert severity="info" sx={{ py: 0, px: 1.5 }}>
+									{t("components.AddModal.bgmNotLoggedInHint", "未登录 Bangumi 账号，部分隐藏条目（如 R18）可能无法被搜索到。")}
+								</Alert>
+							)}
 						</FormControl>
 					</Stack>
 				</DialogContent>
