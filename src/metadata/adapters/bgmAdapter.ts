@@ -1,10 +1,6 @@
 import { fetchBgmById, fetchBgmByName } from "@/api/bgm";
 import type { BgmData, GameCandidateData } from "@/types";
-import { AppError } from "@/utils/errors";
-import type {
-	MetadataSourceAdapter,
-	MetadataSourceContext,
-} from "../sourceAdapter";
+import type { MetadataSourceAdapter } from "../sourceAdapter";
 import {
 	getSourceCandidateFromGame,
 	type SourceCandidate,
