@@ -103,7 +103,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 								}
 							}}
 							style={{
-								color: "var(--mui-palette-primary-main)",
+								color: "--mui-palette-primary-main",
 								textDecoration: "underline",
 								cursor: "pointer",
 							}}
@@ -309,7 +309,6 @@ const WindowsHandler: React.FC = () => {
 		setSkipCloseRemind,
 		setShowUpdateModal,
 		setPendingUpdate,
-		immersiveTitlebar,
 	} = useStore(
 		useShallow((s) => ({
 			showUpdateModal: s.showUpdateModal,
@@ -319,20 +318,11 @@ const WindowsHandler: React.FC = () => {
 			setSkipCloseRemind: s.setSkipCloseRemind,
 			setShowUpdateModal: s.setShowUpdateModal,
 			setPendingUpdate: s.setPendingUpdate,
-			immersiveTitlebar: s.immersiveTitlebar,
 		})),
 	);
 	const { t } = useTranslation();
 	const [open, setOpen] = useState(false);
 	const [runningExitOpen, setRunningExitOpen] = useState(false);
-
-	useEffect(() => {
-		const w = getCurrentWindow();
-		w.setDecorations(!immersiveTitlebar).catch(console.error);
-		if (immersiveTitlebar) {
-			w.setShadow(true).catch(console.error);
-		}
-	}, [immersiveTitlebar]);
 
 	useEffect(() => {
 		const w = getCurrentWindow();

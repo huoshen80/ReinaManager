@@ -31,7 +31,6 @@ import { DatabaseBackupSettings } from "./MaintenanceSettings";
 import {
 	AutoStartSettings,
 	CloseBtnSettings,
-	ImmersiveTitlebarSettings,
 	LinuxLaunchCommandSettings,
 	LogLevelSettings,
 	ProxySettings,
@@ -163,8 +162,6 @@ export const Settings: React.FC = () => {
 						<ProxySettings />
 						<Divider className="my-6" />
 						<CloseBtnSettings />
-						<Divider className="my-6" />
-						<ImmersiveTitlebarSettings />
 						<Divider className="my-6" />
 						<TimeTrackingModeSettings />
 						{import.meta.env.TAURI_ENV_PLATFORM === "linux" && (

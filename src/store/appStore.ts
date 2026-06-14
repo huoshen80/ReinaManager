@@ -162,8 +162,6 @@ export interface AppState {
 	// 主题设置
 	themeColor: string;
 	setThemeColor: (color: string) => void;
-	immersiveTitlebar: boolean;
-	setImmersiveTitlebar: (enabled: boolean) => void;
 
 	// 代理设置
 	proxyConfig: ProxyConfig;
@@ -420,10 +418,6 @@ export const useStore = create<AppState>()(
 			setThemeColor: (color: string) => {
 				set({ themeColor: color });
 			},
-			immersiveTitlebar: false,
-			setImmersiveTitlebar: (enabled: boolean) => {
-				set({ immersiveTitlebar: enabled });
-			},
 
 			// 代理设置
 			proxyConfig: {
@@ -496,7 +490,6 @@ export const useStore = create<AppState>()(
 				selectedCategory: state.selectedCategory,
 				// 主题设置
 				themeColor: state.themeColor,
-				immersiveTitlebar: state.immersiveTitlebar,
 				// 代理设置
 				proxyConfig: state.proxyConfig,
 			}),
