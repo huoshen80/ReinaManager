@@ -17,13 +17,13 @@
 
 import { version } from "@pkg";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { useStore } from "@/store/appStore";
 import {
 	ApiRateLimitError,
 	AppError,
 	HttpResponseError,
 	toError,
 } from "@/utils/errors";
-import { useStore } from "@/store/appStore";
 import {
 	type ApiRateLimitedRequestOptions,
 	type ApiRateLimitSource,
@@ -105,18 +105,18 @@ async function requestTauriHttp<T>(
 
 	const fetchResponse = () => {
 		const { proxyConfig } = useStore.getState();
-		let proxyOption: undefined | { all: string } = undefined;
-		
+		let proxyOption: undefined | { all: string };
+
 		if (proxyConfig?.enabled && proxyConfig.url) {
 			try {
 				const host = new URL(fullUrl).hostname;
 				const matched = proxyConfig.hosts.some(
-					(h) => host === h || host.endsWith(`.${h}`)
+					(h) => host === h || host.endsWith(`.${h}`),
 				);
 				if (matched) {
 					proxyOption = { all: proxyConfig.url };
 				}
-			} catch (e) {
+			} catch (_e) {
 				// ignore url parse error
 			}
 		}

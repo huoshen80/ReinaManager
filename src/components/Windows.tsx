@@ -326,7 +326,7 @@ const WindowsHandler: React.FC = () => {
 
 	useEffect(() => {
 		const w = getCurrentWindow();
-		let unlisten = () => { };
+		let unlisten = () => {};
 		// 拦截关闭
 		// onCloseRequested API provides preventDefault
 		w.onCloseRequested(async (event) => {

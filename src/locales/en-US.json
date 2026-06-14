@@ -27,6 +27,7 @@
 	"components": {
 		"AddModal": {
 			"addGame": "Add Game",
+			"bgmNotLoggedInHint": "Not logged into Bangumi account, some hidden items (such as R18) may not be searchable.",
 			"bulkTab": "Bulk Import",
 			"cancel": "Cancel",
 			"confirm": "Confirm",
@@ -341,9 +342,9 @@
 				"newVersion": "New Version",
 				"portableWarning": "You are using the portable version, automatic updates may not work properly. It is recommended to click \"Manual Update\" to go to GitHub and download the latest zip file for replacement.",
 				"releaseDate": "Release Date",
+				"skipVersion": "Skip this version",
 				"title": "New Version Available",
-				"update": "Update Now",
-				"skipVersion": "Skip this version"
+				"update": "Update Now"
 			}
 		}
 	},
@@ -700,6 +701,13 @@
 				"note": "Configure paths for game save backups, LE region software, Magpie software, database backups, etc.",
 				"openModal": "Open Path Settings",
 				"title": "Path Settings"
+			},
+			"proxy": {
+				"addHost": "Press Enter after typing domain to add",
+				"description": "Configure proxy server address for specified domains globally, effective immediately without restart.",
+				"hosts": "Proxy Domain Whitelist",
+				"title": "Network Proxy Settings",
+				"url": "Proxy Server Address"
 			},
 			"saveBtn": "Save",
 			"sections": {

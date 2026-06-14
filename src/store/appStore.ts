@@ -409,13 +409,6 @@ export const useStore = create<AppState>()(
 				set({ selectedCategory: category });
 			},
 
-<<<<<<< HEAD
-			// 主题设置默认值
-			themeColor: "#1976d2",
-			setThemeColor: (color: string) => {
-				set({ themeColor: color });
-			},
-
 			// 代理设置
 			proxyConfig: {
 				enabled: false,
@@ -434,16 +427,16 @@ export const useStore = create<AppState>()(
 				invoke("update_proxy_config", { config }).catch(console.error);
 			},
 
-=======
->>>>>>> parent of a7a72e2 (feat: add custom theme color)
 			// 初始化方法
 			initialize: async () => {
 				// 初始化游戏时间跟踪（数据获取由 React Query 自动触发）
 				initializeGamePlayTracking();
-				
+
 				// 启动时同步代理设置到后端
 				const { proxyConfig } = get();
-				invoke("update_proxy_config", { config: proxyConfig }).catch(console.error);
+				invoke("update_proxy_config", { config: proxyConfig }).catch(
+					console.error,
+				);
 			},
 		}),
 		{

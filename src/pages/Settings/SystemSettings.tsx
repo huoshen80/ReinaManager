@@ -448,7 +448,10 @@ export const ProxySettings = () => {
 		setProxyConfig({ ...proxyConfig, url: e.target.value });
 	};
 
-	const handleHostsChange = (_event: any, newValue: string[]) => {
+	const handleHostsChange = (
+		_event: React.SyntheticEvent,
+		newValue: string[],
+	) => {
 		setProxyConfig({ ...proxyConfig, hosts: newValue });
 	};
 
@@ -459,7 +462,11 @@ export const ProxySettings = () => {
 					<InputLabel className="font-semibold mb-1">
 						{t("pages.Settings.proxy.title", "网络代理设置")}
 					</InputLabel>
-					<Typography variant="caption" color="text.secondary" className="block">
+					<Typography
+						variant="caption"
+						color="text.secondary"
+						className="block"
+					>
 						{t(
 							"pages.Settings.proxy.description",
 							"全局配置指定域名的代理服务器地址，实时生效免重启。",
@@ -473,7 +480,7 @@ export const ProxySettings = () => {
 					className="ml-auto"
 				/>
 			</Stack>
-			
+
 			{proxyConfig?.enabled && (
 				<Box className="pl-2 mt-4 space-y-4">
 					<TextField
@@ -485,7 +492,7 @@ export const ProxySettings = () => {
 						size="small"
 						placeholder="http://127.0.0.1:7890"
 					/>
-					
+
 					<Autocomplete
 						multiple
 						freeSolo
@@ -496,7 +503,13 @@ export const ProxySettings = () => {
 							value.map((option: string, index: number) => {
 								const { key, ...tagProps } = getTagProps({ index });
 								return (
-									<Chip variant="outlined" label={option} key={key} {...tagProps} size="small" />
+									<Chip
+										variant="outlined"
+										label={option}
+										key={key}
+										{...tagProps}
+										size="small"
+									/>
 								);
 							})
 						}
@@ -505,7 +518,10 @@ export const ProxySettings = () => {
 								{...params}
 								variant="outlined"
 								label={t("pages.Settings.proxy.hosts", "代理域名白名单")}
-								placeholder={t("pages.Settings.proxy.addHost", "输入域名后按回车添加")}
+								placeholder={t(
+									"pages.Settings.proxy.addHost",
+									"输入域名后按回车添加",
+								)}
 								size="small"
 							/>
 						)}

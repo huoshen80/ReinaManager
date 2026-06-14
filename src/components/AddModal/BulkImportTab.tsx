@@ -669,11 +669,17 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								onChange={setEditApiSource}
 								disabled={searchResultLoading}
 							/>
-							{!hasBgmAuth && (editApiSource === "bgm" || (editApiSource === "mixed" && mixedEnabledSources.includes("bgm"))) && (
-								<Alert severity="info" sx={{ py: 0, px: 1.5 }}>
-									{t("components.AddModal.bgmNotLoggedInHint", "未登录 Bangumi 账号，部分隐藏条目（如 R18）可能无法被搜索到。")}
-								</Alert>
-							)}
+							{!hasBgmAuth &&
+								(editApiSource === "bgm" ||
+									(editApiSource === "mixed" &&
+										mixedEnabledSources.includes("bgm"))) && (
+									<Alert severity="info" sx={{ py: 0, px: 1.5 }}>
+										{t(
+											"components.AddModal.bgmNotLoggedInHint",
+											"未登录 Bangumi 账号，部分隐藏条目（如 R18）可能无法被搜索到。",
+										)}
+									</Alert>
+								)}
 						</FormControl>
 					</Stack>
 				</DialogContent>
