@@ -159,10 +159,6 @@ export interface AppState {
 	setCurrentGroup: (groupId: string | null) => void; // 设置当前分组
 	setSelectedCategory: (category: SelectedCategory) => void; // 设置当前选中的分类
 
-	// 主题设置
-	themeColor: string;
-	setThemeColor: (color: string) => void;
-
 	// 代理设置
 	proxyConfig: ProxyConfig;
 	setProxyConfig: (config: ProxyConfig) => void;
@@ -413,6 +409,7 @@ export const useStore = create<AppState>()(
 				set({ selectedCategory: category });
 			},
 
+<<<<<<< HEAD
 			// 主题设置默认值
 			themeColor: "#1976d2",
 			setThemeColor: (color: string) => {
@@ -437,6 +434,8 @@ export const useStore = create<AppState>()(
 				invoke("update_proxy_config", { config }).catch(console.error);
 			},
 
+=======
+>>>>>>> parent of a7a72e2 (feat: add custom theme color)
 			// 初始化方法
 			initialize: async () => {
 				// 初始化游戏时间跟踪（数据获取由 React Query 自动触发）
@@ -488,8 +487,6 @@ export const useStore = create<AppState>()(
 				// 分组分类选择状态
 				currentGroupId: state.currentGroupId,
 				selectedCategory: state.selectedCategory,
-				// 主题设置
-				themeColor: state.themeColor,
 				// 代理设置
 				proxyConfig: state.proxyConfig,
 			}),

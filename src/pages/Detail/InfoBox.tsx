@@ -235,10 +235,10 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 			const spanDays =
 				allDates.length > 1
 					? Math.ceil(
-						(new Date(allDates[allDates.length - 1]).getTime() -
-							new Date(allDates[0]).getTime()) /
-						(1000 * 60 * 60 * 24),
-					)
+							(new Date(allDates[allDates.length - 1]).getTime() -
+								new Date(allDates[0]).getTime()) /
+								(1000 * 60 * 60 * 24),
+						)
 					: 0;
 
 			// 数据点较多 或 时间跨度超过180天 → 按月聚合
@@ -322,7 +322,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 							}
 						>
 							<div className="flex items-center space-x-2 mb-2">
-								<span className="text-[--mui-palette-primary-main] flex-shrink-0 flex items-center">
+								<span className="text-[#1976d2] flex-shrink-0 flex items-center">
 									{item.icon}
 								</span>
 								<Typography
@@ -429,7 +429,7 @@ export const InfoBox: React.FC<InfoBoxProps> = ({ gameID }: InfoBoxProps) => {
 						series={[
 							{
 								dataKey: "playtime",
-								color: "var(--mui-palette-primary-main)",
+								color: "#1976d2",
 								showMark: chartConfig.showMark,
 								area: chartConfig.showArea,
 							},

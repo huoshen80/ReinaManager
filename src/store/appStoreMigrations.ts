@@ -16,7 +16,6 @@ type AppStorePersistedState = {
 	selectedCategoryName?: string | null;
 	doubleClickLaunch?: boolean;
 	longPressLaunch?: boolean;
-	themeColor?: string;
 	proxyConfig?: {
 		enabled: boolean;
 		url: string;
