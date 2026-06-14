@@ -125,22 +125,21 @@ export function useMetadataSearchFlow({
 
 			try {
 				if (source === "mixed") {
-					const candidates = await withBgmAuth(
-						(token) => {
-							const candidatesPromise =
-								gameMetadataService.searchMixedSourceCandidates({
-									query,
-									bgmToken: token ?? undefined,
-									mixedEnabledSources,
-									defaults,
-									signal,
-								});
-							return withAbort
-								? withAbort(candidatesPromise)
-								: candidatesPromise;
-						},
-						{ required: false },
-					);
+					const searchMixedCandidates = (bgmToken?: string) => {
+						const candidatesPromise =
+							gameMetadataService.searchMixedSourceCandidates({
+								query,
+								bgmToken,
+								mixedEnabledSources,
+								defaults,
+								signal,
+							});
+						return withAbort ? withAbort(candidatesPromise) : candidatesPromise;
+					};
+					const candidates =
+						mixedEnabledSources?.includes("bgm") === false
+							? await searchMixedCandidates()
+							: await withBgmAuth(searchMixedCandidates);
 
 					if (!hasAnyMixedCandidate(candidates)) {
 						throw new Error(getNoResultsText(source));
@@ -155,19 +154,16 @@ export function useMetadataSearchFlow({
 
 				const results =
 					source === "bgm"
-						? await withBgmAuth(
-								(token) => {
-									const searchPromise = gameMetadataService.searchGames({
-										query,
-										source,
-										bgmToken: token ?? undefined,
-										defaults,
-										signal,
-									});
-									return withAbort ? withAbort(searchPromise) : searchPromise;
-								},
-								{ required: false },
-							)
+						? await withBgmAuth((token) => {
+								const searchPromise = gameMetadataService.searchGames({
+									query,
+									source,
+									bgmToken: token,
+									defaults,
+									signal,
+								});
+								return withAbort ? withAbort(searchPromise) : searchPromise;
+							})
 						: await (withAbort
 								? withAbort(
 										gameMetadataService.searchGames({

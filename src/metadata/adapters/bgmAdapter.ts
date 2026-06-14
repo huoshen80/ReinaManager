@@ -28,7 +28,6 @@ export const bgmAdapter: MetadataSourceAdapter<BgmData> = {
 	participatesInMixed: true,
 	defaultMixedEnabled: true,
 	mixedSearchLimit: BGM_MIXED_SEARCH_LIMIT,
-	requiresBgmToken: false,
 	validateId: (id) => /^\d+$/.test(id),
 	async fetchById(id, ctx) {
 		const game = await fetchBgmById(id, ctx.bgmToken, ctx.signal);

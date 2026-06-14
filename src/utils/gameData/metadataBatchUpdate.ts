@@ -95,14 +95,12 @@ export async function batchUpdateBgmData(): Promise<{
 	success: number;
 	failed: number;
 }> {
-	return withBgmAuth(
-		(token) =>
-			batchUpdateCommon(
-				"bgm",
-				(ids: string[]) => fetchBgmByIds(ids, token ?? undefined),
-				() => gameService.getAllBgmIds(),
-				"bgm_data",
-			),
-		{ required: false },
+	return withBgmAuth((token) =>
+		batchUpdateCommon(
+			"bgm",
+			(ids: string[]) => fetchBgmByIds(ids, token),
+			() => gameService.getAllBgmIds(),
+			"bgm_data",
+		),
 	);
 }

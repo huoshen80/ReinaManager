@@ -351,7 +351,6 @@
 		"authFailed": "Authentication failed. Please check your credentials or permissions",
 		"badRequest": "The request parameters are invalid. Please review and try again",
 		"bgmRateLimited": "Bangumi requests are rate limited. The current task has stopped. Please retry manually after 1 hour",
-		"bgmTokenRequired": "BGM Token is required. Please configure it first",
 		"invalidGameId": "The game ID format is invalid",
 		"invokeFailed": "The application command failed. Please try again later",
 		"metadataNotFound": "No matching metadata was found",

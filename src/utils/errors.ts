@@ -9,7 +9,6 @@ export type AppErrorCode =
 	| "tauri_invoke_failed"
 	| "unsupported_source"
 	| "invalid_game_id"
-	| "bgm_token_required"
 	| "metadata_not_found"
 	| "mixed_sources_failed"
 	| "http_response_error"
@@ -304,8 +303,6 @@ export function getUserErrorMessage(
 
 	if (error instanceof AppError) {
 		switch (error.code) {
-			case "bgm_token_required":
-				return t("errors.bgmTokenRequired", "缺少 BGM Token，请先配置后重试");
 			case "metadata_not_found":
 				return t("errors.metadataNotFound", "未找到对应的元数据");
 			case "invalid_game_id":

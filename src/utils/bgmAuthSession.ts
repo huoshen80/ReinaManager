@@ -101,7 +101,7 @@ async function refreshBgmAuthSingleFlight(auth: BgmAuth) {
 	return bgmRefreshPromise;
 }
 
-export async function getValidBgmAuth() {
+async function getValidBgmAuth() {
 	const settings = await fetchSettings();
 	const auth = settings.bgm_auth ?? null;
 
@@ -111,54 +111,22 @@ export async function getValidBgmAuth() {
 	return refreshBgmAuthSingleFlight(auth);
 }
 
-export function getValidBgmAccessToken(options: {
-	required: true;
-}): Promise<string>;
-export function getValidBgmAccessToken(options?: {
-	required?: false;
-}): Promise<string | null>;
-export function getValidBgmAccessToken(options?: {
-	required?: boolean;
-}): Promise<string | null>;
-export async function getValidBgmAccessToken(options?: { required?: boolean }) {
+async function getValidBgmAccessToken() {
 	const auth = await getValidBgmAuth();
-	const token = auth?.access_token ?? null;
-
-	if (options?.required && !token) {
-		throw new AppError({
-			code: "bgm_token_required",
-			message: "Bangumi token is required",
-		});
-	}
-
-	return token;
+	return auth?.access_token;
 }
 
 export function isBgmAuthExpiredError(error: unknown) {
 	return error instanceof Error && error.name === "BgmAuthExpiredError";
 }
 
-export function withBgmAuth<T>(
-	fn: (token: string) => Promise<T>,
-	options: { required: true },
-): Promise<T>;
-export function withBgmAuth<T>(
-	fn: (token: string | null) => Promise<T>,
-	options?: { required?: false },
-): Promise<T>;
-export function withBgmAuth<T>(
-	fn: (token: string | null) => Promise<T>,
-	options: { required: boolean },
-): Promise<T>;
-export async function withBgmAuth<T>(
-	fn: ((token: string) => Promise<T>) | ((token: string | null) => Promise<T>),
-	options?: { required?: boolean },
-) {
+export async function withBgmAuth<T>(fn: (token?: string) => Promise<T>) {
+	const token = await getValidBgmAccessToken();
+
 	try {
-		const token = await getValidBgmAccessToken(options);
-		return await (fn as (token: string | null) => Promise<T>)(token);
+		return await fn(token);
 	} catch (error) {
-		if (isHttpStatus(error, 401)) {
+		if (token && isHttpStatus(error, 401)) {
 			await logoutBgmAuth({ notify: true });
 			throw new AppError({
 				code: "bgm_auth_expired",

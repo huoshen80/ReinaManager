@@ -60,13 +60,6 @@ interface FetchMixedDataOptions {
 	signal?: AbortSignal;
 }
 
-function canUseAdapter(
-	adapter: RuntimeSourceAdapter,
-	options: Pick<FetchMixedDataOptions, "bgmToken">,
-): boolean {
-	return !adapter.requiresBgmToken || Boolean(options.bgmToken);
-}
-
 async function fetchAdapterSafely(
 	adapter: RuntimeSourceAdapter,
 	task: () => Promise<SourceCandidate[]>,
@@ -169,26 +162,20 @@ export async function fetchMixedData(options: FetchMixedDataOptions) {
 		const [{ adapter: sourceAdapter, id: sourceId }] = providedSourceIds;
 		let sourceResult = createEmptyResult(sourceAdapter);
 
-		if (canUseAdapter(sourceAdapter, { bgmToken })) {
-			sourceResult = await fetchAdapterSafely(sourceAdapter, async () => [
-				await sourceAdapter.fetchById(sourceId, {
-					bgmToken,
-					enrichCrossSource: false,
-					signal,
-				}),
-			]);
-			searchName = extractNameFromApi(sourceResult.data[0]);
-		}
+		sourceResult = await fetchAdapterSafely(sourceAdapter, async () => [
+			await sourceAdapter.fetchById(sourceId, {
+				bgmToken,
+				enrichCrossSource: false,
+				signal,
+			}),
+		]);
+		searchName = extractNameFromApi(sourceResult.data[0]);
 
 		const results: SafeFetchResult[] = searchName
 			? await Promise.all(
 					adapters.map((adapter) => {
 						if (adapter.key === sourceAdapter.key) {
 							return Promise.resolve(sourceResult);
-						}
-
-						if (!canUseAdapter(adapter, { bgmToken })) {
-							return Promise.resolve(createEmptyResult(adapter));
 						}
 
 						return fetchAdapterSafely(adapter, async () => {
@@ -221,10 +208,6 @@ export async function fetchMixedData(options: FetchMixedDataOptions) {
 		const searchName = name.trim();
 		const results = await Promise.all(
 			adapters.map((adapter) => {
-				if (!canUseAdapter(adapter, { bgmToken })) {
-					return Promise.resolve(createEmptyResult(adapter));
-				}
-
 				return fetchAdapterSafely(adapter, () =>
 					adapter.searchByName(searchName, {
 						bgmToken,

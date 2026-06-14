@@ -139,23 +139,22 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 
 		try {
 			setIsLoading(true);
-			const shouldUseBgmToken =
+			const fetchMetadata = (bgmToken?: string) =>
+				fetchMetadataForUpdate({
+					selectedGame,
+					idType,
+					bgm_id: bgmId,
+					vndb_id: vndbId,
+					ymgal_id: ymgalId,
+					kun_id: kunId,
+					enabledSources: idType === "mixed" ? mixedEnabledSources : undefined,
+					bgmToken,
+				});
+			const usesBgmSource =
 				idType === "bgm" || (idType === "mixed" && isMixedSourceEnabled("bgm"));
-			const result = await withBgmAuth(
-				(token) =>
-					fetchMetadataForUpdate({
-						selectedGame,
-						idType,
-						bgm_id: bgmId,
-						vndb_id: vndbId,
-						ymgal_id: ymgalId,
-						kun_id: kunId,
-						enabledSources:
-							idType === "mixed" ? mixedEnabledSources : undefined,
-						bgmToken: shouldUseBgmToken ? (token ?? undefined) : undefined,
-					}),
-				{ required: false },
-			);
+			const result = usesBgmSource
+				? await withBgmAuth(fetchMetadata)
+				: await fetchMetadata();
 			onDataFetched(result);
 		} catch (error) {
 			if (isBgmAuthExpiredError(error)) {

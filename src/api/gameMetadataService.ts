@@ -59,7 +59,7 @@ function createMetadataError(
 }
 
 function createStableError(
-	code: "bgm_token_required" | "invalid_game_id" | "unsupported_source",
+	code: "invalid_game_id" | "unsupported_source",
 	message: string,
 ): AppError {
 	return new AppError({

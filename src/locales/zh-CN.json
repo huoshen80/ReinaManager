@@ -339,7 +339,6 @@
 		"authFailed": "认证失败，请检查凭证或权限",
 		"badRequest": "请求参数有误，请检查后重试",
 		"bgmRateLimited": "Bangumi 请求被限速，当前任务已停止，请 1 小时后手动重试",
-		"bgmTokenRequired": "缺少 BGM Token，请先配置后重试",
 		"invalidGameId": "游戏 ID 格式无效",
 		"invokeFailed": "应用内部调用失败，请稍后重试",
 		"metadataNotFound": "未找到对应的元数据",

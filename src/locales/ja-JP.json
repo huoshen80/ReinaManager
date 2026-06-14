@@ -339,7 +339,6 @@
 		"authFailed": "認証に失敗しました。資格情報または権限を確認してください",
 		"badRequest": "リクエスト内容が不正です。確認して再試行してください",
 		"bgmRateLimited": "Bangumi のリクエストが制限されています。現在のタスクは停止しました。1時間後に手動で再試行してください",
-		"bgmTokenRequired": "BGM Token が必要です。先に設定してください",
 		"invalidGameId": "ゲーム ID の形式が不正です",
 		"invokeFailed": "アプリ内部コマンドの呼び出しに失敗しました。後でもう一度お試しください",
 		"metadataNotFound": "対応するメタデータが見つかりませんでした",

@@ -16,7 +16,6 @@ export interface MetadataSourceAdapter<TData = unknown> {
 	participatesInMixed: boolean;
 	defaultMixedEnabled: boolean;
 	mixedSearchLimit: number;
-	requiresBgmToken?: boolean;
 	validateId: (id: string) => boolean;
 	fetchById(
 		id: string,

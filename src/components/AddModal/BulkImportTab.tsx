@@ -236,17 +236,15 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 				try {
 					const matchedData =
 						bulkApiSource === "bgm"
-							? await withBgmAuth(
-									(token) =>
-										withAbort(
-											gameMetadataService.searchBestMatch({
-												query: nextItems[index].name,
-												source: bulkApiSource,
-												bgmToken: token ?? undefined,
-												signal: controller.signal,
-											}),
-										),
-									{ required: false },
+							? await withBgmAuth((token) =>
+									withAbort(
+										gameMetadataService.searchBestMatch({
+											query: nextItems[index].name,
+											source: bulkApiSource,
+											bgmToken: token,
+											signal: controller.signal,
+										}),
+									),
 								)
 							: await withAbort(
 									gameMetadataService.searchBestMatch({
