@@ -378,7 +378,7 @@ export const Home: React.FC = () => {
 								<Box
 									component={Link}
 									to="/libraries"
-									className="flex items-center mb-3 text-inherit decoration-none hover:scale-105 hover:shadow-lg cursor-pointer"
+									className="flex items-center mb-3 text-inherit decoration-none hover:text-[--mui-palette-primary-main] cursor-pointer"
 								>
 									<RepositoryIcon className="mr-2 text-amber-500" />
 									<Typography variant="h6" className="font-bold">
@@ -391,12 +391,12 @@ export const Home: React.FC = () => {
 									data={gamesList}
 									computeItemKey={(_, category) => category.id}
 									itemContent={(_, category) => (
-										<Box className="pb-2">
+										<Box className="pb-1 pt-1">
 											<Card
 												variant="outlined"
 												component={Link}
 												to={`/libraries/${category.id}`}
-												className="block p-2 text-center text-inherit decoration-none cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
+												className="block p-2 text-center text-inherit decoration-none translate-y-0 cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
 											>
 												<Typography variant="body2">
 													{category.title}
