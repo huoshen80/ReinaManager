@@ -1,7 +1,7 @@
+use serde::Deserialize;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
-use serde::Deserialize;
-use tauri_plugin_http::reqwest::Client;
+use tauri_plugin_http::reqwest::{Client, NoProxy, Proxy};
 
 const GLOBAL_USER_AGENT: &str = concat!(
     "huoshen80/ReinaManager/",
@@ -11,53 +11,51 @@ const GLOBAL_USER_AGENT: &str = concat!(
 
 const DEFAULT_CONNECT_TIMEOUT_SECS: u64 = 10;
 const DEFAULT_TIMEOUT_SECS: u64 = 60;
+const LOCAL_PROXY_BYPASS: &str = "localhost,127.0.0.0/8,::1,0.0.0.0,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,fc00::/7,fe80::/10,.local";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProxyConfig {
-    pub enabled: bool,
     pub url: String,
-    pub hosts: Vec<String>,
 }
 
-pub static GLOBAL_PROXY_CONFIG: RwLock<Option<ProxyConfig>> = RwLock::new(None);
+static GLOBAL_HTTP_CLIENT: OnceLock<RwLock<Client>> = OnceLock::new();
 
 #[tauri::command]
-pub fn update_proxy_config(config: ProxyConfig) {
-    if let Ok(mut guard) = GLOBAL_PROXY_CONFIG.write() {
-        *guard = Some(config);
-    }
+pub fn update_proxy_config(config: ProxyConfig) -> Result<(), String> {
+    let client = build_client(config.url.trim())?;
+    let mut guard = http_client()
+        .write()
+        .map_err(|_| "更新 HTTP 客户端失败".to_string())?;
+    *guard = client;
+    Ok(())
 }
 
-static GLOBAL_HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
+fn build_client(proxy_url: &str) -> Result<Client, String> {
+    let mut builder = Client::builder()
+        .connect_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS))
+        .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
+        .user_agent(GLOBAL_USER_AGENT);
 
-pub fn get_client() -> &'static Client {
-    GLOBAL_HTTP_CLIENT.get_or_init(|| {
-        let custom_proxy = tauri_plugin_http::reqwest::Proxy::custom(|url| {
-            if let Ok(guard) = GLOBAL_PROXY_CONFIG.read() {
-                if let Some(config) = guard.as_ref() {
-                    if config.enabled && !config.url.is_empty() {
-                        if let Some(host) = url.host_str() {
-                            let matched = config.hosts.iter().any(|h| {
-                                host == h || host.ends_with(&format!(".{}", h))
-                            });
-                            if matched {
-                                if let Ok(proxy_url) = url::Url::parse(&config.url) {
-                                    return Some(proxy_url);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            None
-        });
+    if !proxy_url.is_empty() {
+        let proxy = Proxy::all(proxy_url)
+            .map_err(|e| format!("代理地址无效: {e}"))?
+            .no_proxy(NoProxy::from_string(LOCAL_PROXY_BYPASS));
+        builder = builder.proxy(proxy);
+    }
 
-        Client::builder()
-            .connect_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS))
-            .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
-            .user_agent(GLOBAL_USER_AGENT)
-            .proxy(custom_proxy)
-            .build()
-            .expect("failed to build global http client")
-    })
+    builder
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {e}"))
+}
+
+fn http_client() -> &'static RwLock<Client> {
+    GLOBAL_HTTP_CLIENT
+        .get_or_init(|| RwLock::new(build_client("").expect("failed to build default http client")))
+}
+
+pub fn get_client() -> Client {
+    http_client()
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
 }

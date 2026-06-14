@@ -127,8 +127,15 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		t,
 		onResolved: handleResolvedEditMetadata,
 		onError: (message) => snackbar.error(message),
-		getNoResultsMessage: () =>
-			t("components.AddModal.noResults", "没有找到结果"),
+		getNoResultsMessage: (source) => {
+			if (source === "bgm") {
+				return t(
+					"components.AddModal.noResultsBgm",
+					"未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",
+				);
+			}
+			return t("components.AddModal.noResults", "没有找到结果");
+		},
 	});
 	const searchResultLoading = metadataSearchFlow.isSearching;
 

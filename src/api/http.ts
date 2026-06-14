@@ -33,6 +33,8 @@ import {
 } from "./rateLimit";
 
 export const USER_AGENT = `huoshen80/ReinaManager/${version} (https://github.com/huoshen80/ReinaManager)`;
+const LOCAL_PROXY_BYPASS =
+	"localhost,127.0.0.0/8,::1,0.0.0.0,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,fc00::/7,fe80::/10,.local";
 
 export interface TauriHttpOptions {
 	headers?: Record<string, string>;
@@ -105,21 +107,14 @@ async function requestTauriHttp<T>(
 
 	const fetchResponse = () => {
 		const { proxyConfig } = useStore.getState();
-		let proxyOption: undefined | { all: string };
-
-		if (proxyConfig?.enabled && proxyConfig.url) {
-			try {
-				const host = new URL(fullUrl).hostname;
-				const matched = proxyConfig.hosts.some(
-					(h) => host === h || host.endsWith(`.${h}`),
-				);
-				if (matched) {
-					proxyOption = { all: proxyConfig.url };
+		const proxyOption = proxyConfig.url
+			? {
+					all: {
+						url: proxyConfig.url,
+						noProxy: LOCAL_PROXY_BYPASS,
+					},
 				}
-			} catch (_e) {
-				// ignore url parse error
-			}
-		}
+			: undefined;
 
 		if (import.meta.env.DEV) {
 			console.log(`[TauriHTTP] ${method} ${fullUrl}`, {

@@ -164,12 +164,6 @@ const AddModal: React.FC = () => {
 				);
 			}
 			if (source === "bgm") {
-				if (!hasBgmAuth) {
-					return t(
-						"components.AddModal.noBgmToken",
-						"缺少 BGM Token，无法获取数据",
-					);
-				}
 				return t(
 					"components.AddModal.noResultsBgm",
 					"未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",

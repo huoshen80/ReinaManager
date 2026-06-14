@@ -40,7 +40,6 @@
 			"gameIDTips": "遊戲ID",
 			"gameName": "遊戲名稱",
 			"invalidFile": "請拖入有效的可執行文件（.exe/.bat/.cmd）或文件夾",
-			"noBgmToken": "缺少 BGM Token，無法獲取數據",
 			"noExecutableSelected": "未選擇可執行程序",
 			"noResults": "沒有找到結果",
 			"noResultsBgm": "未在 Bangumi 找到該遊戲，請嘗試其他名稱或檢查 ID",
@@ -690,9 +689,8 @@
 				"title": "路徑設置"
 			},
 			"proxy": {
-				"addHost": "輸入網域後按 Enter 新增",
-				"description": "全域配置指定網域的代理伺服器位址，即時生效免重啟。",
-				"hosts": "代理網域白名單",
+				"description": "填寫代理位址後，應用程式的網路請求將使用此代理；留空則使用系統網路設定。",
+				"invalidUrl": "請輸入以 http:// 或 https:// 開頭的有效代理位址",
 				"title": "網路代理設定",
 				"url": "代理伺服器位址"
 			},

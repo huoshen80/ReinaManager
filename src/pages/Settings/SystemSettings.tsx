@@ -2,9 +2,7 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import RestorePageIcon from "@mui/icons-material/RestorePage";
 import SaveIcon from "@mui/icons-material/Save";
 import {
-	Autocomplete,
 	Checkbox,
-	Chip,
 	FormControlLabel,
 	IconButton,
 	Radio,
@@ -435,99 +433,107 @@ export const LinuxLaunchCommandSettings = () => {
 		</Box>
 	);
 };
+
 export const ProxySettings = () => {
 	const { t } = useTranslation();
 	const proxyConfig = useStore((state) => state.proxyConfig);
 	const setProxyConfig = useStore((state) => state.setProxyConfig);
+	const [proxyUrl, setProxyUrl] = useState(proxyConfig.url);
+	const [proxyUrlError, setProxyUrlError] = useState("");
 
-	const handleEnabledChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setProxyConfig({ ...proxyConfig, enabled: e.target.checked });
+	useEffect(() => {
+		setProxyUrl(proxyConfig.url);
+	}, [proxyConfig.url]);
+
+	const validateProxyUrl = (value: string) => {
+		if (!/^https?:\/\//i.test(value)) {
+			return false;
+		}
+
+		try {
+			const parsed = new URL(value);
+			return (
+				(parsed.protocol === "http:" || parsed.protocol === "https:") &&
+				Boolean(parsed.hostname)
+			);
+		} catch {
+			return false;
+		}
+	};
+
+	const saveProxyUrl = () => {
+		const value = proxyUrl.trim();
+		const currentConfig = useStore.getState().proxyConfig;
+		if (!value) {
+			setProxyUrl("");
+			setProxyUrlError("");
+			if (currentConfig.url) {
+				setProxyConfig({ url: "" });
+			}
+			return true;
+		}
+
+		if (!validateProxyUrl(value)) {
+			setProxyUrlError(
+				t(
+					"pages.Settings.proxy.invalidUrl",
+					"请输入以 http:// 或 https:// 开头的有效代理地址",
+				),
+			);
+			return false;
+		}
+
+		setProxyUrl(value);
+		setProxyUrlError("");
+		if (value !== currentConfig.url) {
+			setProxyConfig({ url: value });
+		}
+		return true;
 	};
 
 	const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setProxyConfig({ ...proxyConfig, url: e.target.value });
-	};
-
-	const handleHostsChange = (
-		_event: React.SyntheticEvent,
-		newValue: string[],
-	) => {
-		setProxyConfig({ ...proxyConfig, hosts: newValue });
+		setProxyUrl(e.target.value);
+		if (proxyUrlError) {
+			setProxyUrlError("");
+		}
 	};
 
 	return (
 		<Box className="mb-6">
-			<Stack direction="row" alignItems="center" className="min-w-60 mb-2">
-				<Box>
-					<InputLabel className="font-semibold mb-1">
-						{t("pages.Settings.proxy.title", "网络代理设置")}
-					</InputLabel>
-					<Typography
-						variant="caption"
-						color="text.secondary"
-						className="block"
-					>
-						{t(
-							"pages.Settings.proxy.description",
-							"全局配置指定域名的代理服务器地址，实时生效免重启。",
-						)}
-					</Typography>
-				</Box>
-				<Switch
-					checked={proxyConfig?.enabled || false}
-					onChange={handleEnabledChange}
-					color="primary"
-					className="ml-auto"
-				/>
-			</Stack>
+			<InputLabel className="font-semibold mb-1">
+				{t("pages.Settings.proxy.title", "网络代理设置")}
+			</InputLabel>
+			<Typography variant="caption" color="text.secondary" className="block">
+				{t(
+					"pages.Settings.proxy.description",
+					"填写代理地址后应用网络请求将使用该代理；留空则使用系统网络设置。",
+				)}
+			</Typography>
 
-			{proxyConfig?.enabled && (
-				<Box className="pl-2 mt-4 space-y-4">
-					<TextField
-						label={t("pages.Settings.proxy.url", "代理服务器地址")}
-						variant="outlined"
-						value={proxyConfig.url}
-						onChange={handleUrlChange}
-						className="w-full"
-						size="small"
-						placeholder="http://127.0.0.1:7890"
-					/>
-
-					<Autocomplete
-						multiple
-						freeSolo
-						options={[]}
-						value={proxyConfig.hosts || []}
-						onChange={handleHostsChange}
-						renderTags={(value: readonly string[], getTagProps) =>
-							value.map((option: string, index: number) => {
-								const { key, ...tagProps } = getTagProps({ index });
-								return (
-									<Chip
-										variant="outlined"
-										label={option}
-										key={key}
-										{...tagProps}
-										size="small"
-									/>
-								);
-							})
+			<Box className="pl-2 mt-4">
+				<TextField
+					label={t("pages.Settings.proxy.url", "代理服务器地址")}
+					variant="outlined"
+					value={proxyUrl}
+					onChange={handleUrlChange}
+					onBlur={saveProxyUrl}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") {
+							event.preventDefault();
+							saveProxyUrl();
 						}
-						renderInput={(params) => (
-							<TextField
-								{...params}
-								variant="outlined"
-								label={t("pages.Settings.proxy.hosts", "代理域名白名单")}
-								placeholder={t(
-									"pages.Settings.proxy.addHost",
-									"输入域名后按回车添加",
-								)}
-								size="small"
-							/>
-						)}
-					/>
-				</Box>
-			)}
+						if (event.key === "Escape") {
+							setProxyUrl(proxyConfig.url);
+							setProxyUrlError("");
+						}
+					}}
+					error={Boolean(proxyUrlError)}
+					helperText={proxyUrlError}
+					className="w-full"
+					size="small"
+					placeholder="http://127.0.0.1:7890"
+				/>
+			</Box>
 		</Box>
 	);
 };

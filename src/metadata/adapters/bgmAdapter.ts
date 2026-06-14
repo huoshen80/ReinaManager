@@ -31,13 +31,13 @@ export const bgmAdapter: MetadataSourceAdapter<BgmData> = {
 	requiresBgmToken: false,
 	validateId: (id) => /^\d+$/.test(id),
 	async fetchById(id, ctx) {
-		const game = await fetchBgmById(id, ctx.bgmToken || "", ctx.signal);
+		const game = await fetchBgmById(id, ctx.bgmToken, ctx.signal);
 		return toBgmCandidate(game);
 	},
 	async searchByName(name, ctx) {
 		const games = await fetchBgmByName(
 			name,
-			ctx.bgmToken || "",
+			ctx.bgmToken,
 			ctx.limit ?? BGM_MIXED_SEARCH_LIMIT,
 			ctx.signal,
 		);

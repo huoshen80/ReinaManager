@@ -39,9 +39,7 @@ export type SelectedCategory =
 	| null;
 
 export interface ProxyConfig {
-	enabled: boolean;
 	url: string;
-	hosts: string[];
 }
 
 /**
@@ -411,16 +409,7 @@ export const useStore = create<AppState>()(
 
 			// 代理设置
 			proxyConfig: {
-				enabled: false,
 				url: "",
-				hosts: [
-					"api.bgm.tv",
-					"api.vndb.org",
-					"lain.bgm.tv",
-					"s.vndb.org",
-					"www.ymgal.games",
-					"www.kungal.com",
-				],
 			},
 			setProxyConfig: (config: ProxyConfig) => {
 				set({ proxyConfig: config });
@@ -481,7 +470,7 @@ export const useStore = create<AppState>()(
 				currentGroupId: state.currentGroupId,
 				selectedCategory: state.selectedCategory,
 				// 代理设置
-				proxyConfig: state.proxyConfig,
+				proxyConfig: { url: state.proxyConfig.url },
 			}),
 			version: APP_STORE_VERSION,
 			migrate: migrateAppStorePersistedState,

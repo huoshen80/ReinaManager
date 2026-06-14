@@ -2,7 +2,7 @@ import { DEFAULT_MIXED_SOURCE_KEYS, MIXED_SOURCE_KEYS } from "@/metadata";
 import type { SourceType } from "@/types";
 import { DefaultGroup } from "@/types/collection";
 
-export const APP_STORE_VERSION = 3;
+export const APP_STORE_VERSION = 2;
 export const DEFAULT_MIXED_ENABLED_SOURCES: readonly SourceType[] =
 	DEFAULT_MIXED_SOURCE_KEYS;
 
@@ -16,11 +16,6 @@ type AppStorePersistedState = {
 	selectedCategoryName?: string | null;
 	doubleClickLaunch?: boolean;
 	longPressLaunch?: boolean;
-	proxyConfig?: {
-		enabled: boolean;
-		url: string;
-		hosts: string[];
-	};
 };
 
 type SelectedCategoryState =
@@ -60,28 +55,7 @@ export function migrateAppStorePersistedState(
 		migrateCardLaunchSettings(state);
 	}
 
-	if (version < 3) {
-		migrateProxySettings(state);
-	}
-
 	return state;
-}
-
-function migrateProxySettings(state: AppStorePersistedState) {
-	if (!state.proxyConfig) {
-		state.proxyConfig = {
-			enabled: false,
-			url: "",
-			hosts: [
-				"api.bgm.tv",
-				"api.vndb.org",
-				"lain.bgm.tv",
-				"s.vndb.org",
-				"www.ymgal.games",
-				"www.kungal.com",
-			],
-		};
-	}
 }
 
 function migrateMixedSourceFlagsToEnabledSources(

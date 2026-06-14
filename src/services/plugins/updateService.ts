@@ -1,5 +1,6 @@
 import type { Update } from "@tauri-apps/plugin-updater";
 import { check } from "@tauri-apps/plugin-updater";
+import { useStore } from "@/store/appStore";
 
 export interface UpdateProgress {
 	downloaded: number;
@@ -15,10 +16,15 @@ export interface UpdateCallbacks {
 	onNoUpdate?: () => void;
 }
 
+function getUpdaterCheckOptions() {
+	const { proxyConfig } = useStore.getState();
+	return proxyConfig.url ? { proxy: proxyConfig.url } : undefined;
+}
+
 // 检查更新的主函数
 export const checkForUpdates = async (callbacks?: UpdateCallbacks) => {
 	try {
-		const update = await check();
+		const update = await check(getUpdaterCheckOptions());
 		if (update) {
 			callbacks?.onUpdateFound?.(update);
 			return update;
@@ -90,7 +96,7 @@ export const silentCheckForUpdates = async () => {
 			return { hasUpdate: false };
 		}
 
-		const update = await check();
+		const update = await check(getUpdaterCheckOptions());
 		if (update) {
 			// 可以存储到状态管理中，在适当时候提醒用户
 			return {

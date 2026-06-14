@@ -40,7 +40,6 @@
 			"gameIDTips": "游戏ID",
 			"gameName": "游戏名称",
 			"invalidFile": "请拖入有效的可执行文件（.exe/.bat/.cmd）或文件夹",
-			"noBgmToken": "缺少 BGM Token，无法获取数据",
 			"noExecutableSelected": "未选择可执行程序",
 			"noResults": "没有找到结果",
 			"noResultsBgm": "未在 Bangumi 找到该游戏，请尝试其他名称或检查 ID",
@@ -690,9 +689,8 @@
 				"title": "路径设置"
 			},
 			"proxy": {
-				"addHost": "输入域名后按回车添加",
-				"description": "全局配置指定域名的代理服务器地址，实时生效免重启。",
-				"hosts": "代理域名白名单",
+				"description": "填写代理地址后应用网络请求将使用该代理；留空则使用系统网络设置。",
+				"invalidUrl": "请输入以 http:// 或 https:// 开头的有效代理地址",
 				"title": "网络代理设置",
 				"url": "代理服务器地址"
 			},

@@ -40,7 +40,6 @@
 			"gameIDTips": "Game ID",
 			"gameName": "Game Name",
 			"invalidFile": "Please drag a valid executable file (.exe/.bat/.cmd) or folder",
-			"noBgmToken": "BGM Token is missing, unable to fetch data",
 			"noExecutableSelected": "No executable selected",
 			"noResults": "No results found",
 			"noResultsBgm": "Game not found on Bangumi, please try another name or check the ID",
@@ -703,9 +702,8 @@
 				"title": "Path Settings"
 			},
 			"proxy": {
-				"addHost": "Press Enter after typing domain to add",
-				"description": "Configure proxy server address for specified domains globally, effective immediately without restart.",
-				"hosts": "Proxy Domain Whitelist",
+				"description": "Enter a proxy address to use it for app network requests, or leave it blank to use system network settings.",
+				"invalidUrl": "Enter a valid proxy address starting with http:// or https://",
 				"title": "Network Proxy Settings",
 				"url": "Proxy Server Address"
 			},
