@@ -94,9 +94,10 @@ pub async fn stop_game_session(game_id: u32) -> Result<u32, String> {
 
 async fn stop_game_unit(game_id: u32) -> Result<(), String> {
     // 1. 连接到 Session Bus (对应 --user)
+    //    scope 停止时 systemd 会终止其 cgroup 内的全部进程
     let proxy = get_manager_proxy().await.map_err(|e| {
         format!(
-            "无法连接到 D-Bus Session Bus 以停止游戏 {} 的 systemd scope: {}",
+            "无法连接到 D-Bus Session Bus 以停止游戏 {} 的 systemd unit: {}",
             game_id, e
         )
     })?;
@@ -115,7 +116,7 @@ async fn stop_game_unit(game_id: u32) -> Result<(), String> {
         Err(e) => {
             error!("停止单元失败: {:?}", e);
             return Err(e)
-                .map_err(|e| format!("停止游戏 {} 的 systemd scope 失败: {}", game_id, e));
+                .map_err(|e| format!("停止游戏 {} 的 systemd service 失败: {}", game_id, e));
         }
     }
 
@@ -138,8 +139,8 @@ pub async fn get_manager_proxy()
         .await
 }
 
-/// 根据 systemd user scope 名称查找所有正在运行的进程 PID 列表 (仅 Linux)。
-async fn get_process_id_by_scope(systemd_scope: &str) -> Option<Vec<u32>> {
+/// 根据 systemd user unit 名称查找所有正在运行的进程 PID 列表 (仅 Linux)。
+async fn get_process_id_by_unit(unit_name: &str) -> Option<Vec<u32>> {
     let manager = match get_manager_proxy().await {
         Ok(m) => m,
         Err(e) => {
@@ -147,32 +148,29 @@ async fn get_process_id_by_scope(systemd_scope: &str) -> Option<Vec<u32>> {
             return None;
         }
     };
-    let ps = match manager.get_unit_processes(systemd_scope.to_owned()).await {
+    let ps = match manager.get_unit_processes(unit_name.to_owned()).await {
         Ok(p) => p,
         Err(e) => {
-            debug!(
-                "无法获取 systemd scope '{}' 的进程列表: {}",
-                systemd_scope, e
-            );
+            debug!("无法获取 systemd unit '{}' 的进程列表: {}", unit_name, e);
             return None;
         }
     };
     #[cfg(debug_assertions)]
     {
         debug!(
-            "找到 systemd scope '{}' 下的进程 PID 列表: {:?}",
-            systemd_scope, ps
+            "找到 systemd unit '{}' 下的进程 PID 列表: {:?}",
+            unit_name, ps
         );
     }
 
     ps.into_iter().map(|p| p.1).collect::<Vec<u32>>().into()
 }
 /// 获取游戏进程 pidss
-async fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
+async fn get_all_candidate_pids(unit_name: &str) -> Vec<u32> {
     let manager_pid = std::process::id();
 
-    // Linux 下通过 systemd scope 查找进程
-    let available_pids: Vec<u32> = get_process_id_by_scope(systemd_scope)
+    // Linux 下通过 systemd unit 查找进程
+    let available_pids: Vec<u32> = get_process_id_by_unit(unit_name)
         .await
         .unwrap_or_default()
         .into_iter()
@@ -180,7 +178,7 @@ async fn get_all_candidate_pids(systemd_scope: &str) -> Vec<u32> {
         .collect();
 
     if available_pids.is_empty() {
-        debug!("未通过 systemd scope '{}' 找到匹配的进程", systemd_scope);
+        debug!("未通过 systemd unit '{}' 找到匹配的进程", unit_name);
     } else {
         debug!(
             "找到 {} 个候选进程: {:?}",
@@ -199,29 +197,26 @@ fn is_process_running(pid: u32) -> bool {
     exists(&proc_path).unwrap_or(false)
 }
 
-/// 检查指定的 systemd user scope 是否处于活动状态（仅 Linux）。
+/// 检查指定的 systemd user unit 是否处于活动状态（仅 Linux）。
 ///# Arguments
-/// * `systemd_scope` - systemd user scope 的名称。
+/// * `unit_name` - systemd user unit 的名称。
 /// # Returns
-/// 如果 scope 处于活动状态，返回 true；否则返回 false。
-async fn is_game_running(systemd_scope: &str) -> bool {
+/// 如果 unit 处于活动状态，返回 true；否则返回 false。
+async fn is_game_running(unit_name: &str) -> bool {
     match get_manager_proxy().await {
-        Ok(manager) => match manager.get_unit(systemd_scope.to_owned()).await {
+        Ok(manager) => match manager.get_unit(unit_name.to_owned()).await {
             Ok(u) => {
                 if let Ok(connection) = get_connection().await {
                     match zbus_systemd::systemd1::UnitProxy::new(connection, u).await {
                         Ok(unit) => match unit.active_state().await {
                             Ok(state) => {
-                                debug!(
-                                    "systemd scope '{}' 的 active_state: {}",
-                                    systemd_scope, state
-                                );
+                                debug!("systemd unit '{}' 的 active_state: {}", unit_name, state);
                                 state == "active"
                             }
                             Err(e) => {
                                 debug!(
-                                    "无法获取 systemd scope '{}' 的 active_state: {}",
-                                    systemd_scope, e
+                                    "无法获取 systemd unit '{}' 的 active_state: {}",
+                                    unit_name, e
                                 );
                                 false
                             }
@@ -237,7 +232,7 @@ async fn is_game_running(systemd_scope: &str) -> bool {
                 }
             }
             Err(e) => {
-                debug!("无法获取 systemd unit '{}': {}", systemd_scope, e);
+                debug!("无法获取 systemd unit '{}': {}", unit_name, e);
                 false
             }
         },
@@ -402,32 +397,31 @@ fn check_any_has_window_x11(candidate_pids: &[u32]) -> Option<u32> {
             long_length: 1,
         });
 
-        if let Ok(pid_reply) = conn.wait_for_reply(pid_cookie) {
-            if let Some(&pid) = pid_reply.value::<u32>().first() {
-                if candidate_pids.contains(&pid) {
-                    return Some(pid);
-                }
-            }
+        if let Ok(pid_reply) = conn.wait_for_reply(pid_cookie)
+            && let Some(&pid) = pid_reply.value::<u32>().first()
+            && candidate_pids.contains(&pid)
+        {
+            return Some(pid);
         }
     }
 
     None
 }
+/// Linux 版本的监控逻辑实现
 async fn run_game_monitor(
     app_handle: &AppHandle<impl Runtime>,
     db: &DatabaseConnection,
     time_tracking_mode: TimeTrackingMode,
     game_id: u32,
-    systemd_scope: &str,
+    unit_name: &str,
 ) -> Result<(), String> {
-    // Linux 版本的监控逻辑实现
     // {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();
     tokio::time::sleep(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS * 3)).await;
 
     // 初始扫描：获取所有候选 PID
-    let candidate_pids = get_all_candidate_pids(systemd_scope).await;
+    let candidate_pids = get_all_candidate_pids(unit_name).await;
 
     // 从候选中选择最佳 PID 作为主监控对象
     let mut best_pid = match select_best_from_candidates(&candidate_pids) {
@@ -452,19 +446,22 @@ async fn run_game_monitor(
     let mut consecutive_failures = 0u32;
 
     // 等待 9 秒让游戏进程充分启动（例如 Launcher -> Game 的切换）
-    debug!("等待 9 秒以便游戏进程充分启动...");
+    debug!(
+        "等待 {} 秒以便游戏进程充分启动...",
+        MONITOR_CHECK_INTERVAL_SECS * 9
+    );
     tokio::time::sleep(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS * 9)).await;
 
     // 等待后重新扫描，获取最新的进程状态
-    let mut candidate_pids = get_all_candidate_pids(systemd_scope).await;
-    if let Some(new_best) = select_best_from_candidates(&candidate_pids) {
-        if new_best != best_pid {
-            info!(
-                "等待期间发现更优进程，切换 PID: {} -> {}",
-                best_pid, new_best
-            );
-            best_pid = new_best;
-        }
+    let mut candidate_pids = get_all_candidate_pids(unit_name).await;
+    if let Some(new_best) = select_best_from_candidates(&candidate_pids)
+        && new_best != best_pid
+    {
+        info!(
+            "等待期间发现更优进程，切换 PID: {} -> {}",
+            best_pid, new_best
+        );
+        best_pid = new_best;
     }
 
     // 创建精确的 1 秒间隔定时器
@@ -474,7 +471,7 @@ async fn run_game_monitor(
     loop {
         tick_interval.tick().await;
 
-        let game_running = is_game_running(systemd_scope).await;
+        let game_running = is_game_running(unit_name).await;
         if !game_running {
             consecutive_failures += 1;
             debug!(
@@ -484,8 +481,8 @@ async fn run_game_monitor(
 
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
                 warn!(
-                    "游戏scope {} 连续 {} 次不可访问或非 active，结束监控会话 best_pid={}",
-                    systemd_scope, consecutive_failures, best_pid
+                    "游戏unit {} 连续 {} 次不可访问或非 active，结束监控会话 best_pid={}",
+                    unit_name, consecutive_failures, best_pid
                 );
                 break;
             }
@@ -533,7 +530,7 @@ async fn run_game_monitor(
                     }
                 }
             } else {
-                candidate_pids = get_all_candidate_pids(systemd_scope).await;
+                candidate_pids = get_all_candidate_pids(unit_name).await;
             }
         }
     }

@@ -72,7 +72,7 @@ blake3 = "1.8.7"
 reina-download = { path = "reina-download" }
 
 # Async runtime / DB
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "time", "sync", "fs", "io-util", "net"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "time", "sync", "fs", "io-util", "net", "process"] }
 sea-orm = { version = "2.0.2", default-features = false, features = [
     "sqlx-sqlite",
     "runtime-tokio",
