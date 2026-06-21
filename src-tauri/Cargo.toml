@@ -37,7 +37,9 @@ log = "0.4.34"
 # Tauri core and plugins
 tauri = { version = "~2.11.5", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-autostart = "~2.5.1"
-tauri-plugin-dialog = "~2.7.3"
+tauri-plugin-dialog = { version = "~2.7.3", features = [
+    "xdg-portal",
+], default-features = false }
 tauri-plugin-deep-link = "~2.4.10"
 tauri-plugin-http = { version = "~2.6.0", default-features = false, features = [
     "rustls-tls",
@@ -109,7 +111,7 @@ zbus_systemd = { version = "0.26100.0", features = ["systemd1"] }
 
 
 [profile.dev]
-incremental = true # 以较小的步骤编译您的二进制文件。
+incremental = true           # 以较小的步骤编译您的二进制文件。
 split-debuginfo = "unpacked"
 debug = "line-tables-only"
 
@@ -117,10 +119,10 @@ debug = "line-tables-only"
 debug = false
 
 [profile.release]
-codegen-units = 1 # 允许 LLVM 执行更好的优化。
-lto = true        # 启用链接时优化。
-opt-level = "z"   # 优先考虑小的二进制文件大小。如果您更喜欢速度，请使用 `3`。
-panic = "abort"   # 通过禁用 panic 处理程序来提高性能。
+codegen-units = 1   # 允许 LLVM 执行更好的优化。
+lto = true          # 启用链接时优化。
+opt-level = "z"     # 优先考虑小的二进制文件大小。如果您更喜欢速度，请使用 `3`。
+panic = "abort"     # 通过禁用 panic 处理程序来提高性能。
 strip = "debuginfo" # 移除调试信息，但保留符号名以便排查错误。
 
 [profile.debugging]
