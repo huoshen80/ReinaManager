@@ -1,0 +1,71 @@
+# Governance policy for ReinaManager's optional governed-MCP access. kriya-mcp enforces this on
+# every tools/call from the external agent — the agent can only *propose*; this policy decides.
+#
+# Posture: reads flow freely; adding/editing games, managing collections and recording sessions is
+# allowed but recorded in the signed audit log; anything that deletes (a game, a batch of games, a
+# collection, a session, or a statistics row) pauses for on-device human approval. Everything else is
+# denied by default; a per-minute cap stops a runaway agent. First matching rule wins.
+rules:
+  # Reads — safe to run unattended.
+  - action: "count_games"
+    allow: true
+  - action: "list_games"
+    allow: true
+  - action: "get_game"
+    allow: true
+  - action: "list_collections"
+    allow: true
+  - action: "get_games_in_collection"
+    allow: true
+  - action: "get_game_collection_ids"
+    allow: true
+  - action: "get_game_statistics"
+    allow: true
+  - action: "get_all_game_statistics"
+    allow: true
+  - action: "get_game_sessions"
+    allow: true
+
+  # Add / edit / organize — allowed, recorded in the signed audit log.
+  - action: "add_game"
+    allow: true
+  - action: "update_game"
+    allow: true
+  - action: "create_collection"
+    allow: true
+  - action: "update_collection"
+    allow: true
+  - action: "add_games_to_collections"
+    allow: true
+  - action: "set_game_collections"
+    allow: true
+  - action: "remove_games_from_collection"
+    allow: true
+  - action: "record_session"
+    allow: true
+  - action: "init_game_statistics"
+    allow: true
+
+  # Destructive — pause for human approval, every time.
+  - action: "delete_game"
+    allow: true
+    require_approval: true
+  - action: "delete_games_batch"
+    allow: true
+    require_approval: true
+  - action: "delete_collection"
+    allow: true
+    require_approval: true
+  - action: "delete_game_session"
+    allow: true
+    require_approval: true
+  - action: "delete_game_statistics"
+    allow: true
+    require_approval: true
+
+  # Everything else: denied (deny-by-default).
+  - action: "*"
+    allow: false
+
+budget:
+  max_actions_per_minute: 30

@@ -1,6 +1,8 @@
 mod backup;
-mod database;
-mod entity;
+// `database` and `entity` are `pub` so the optional `kriya_exec` bin (see `kriya-mcp/`) can reuse
+// the data layer headlessly; the GUI app is unaffected.
+pub mod database;
+pub mod entity;
 mod game;
 mod utils;
 

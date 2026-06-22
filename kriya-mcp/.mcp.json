@@ -1,0 +1,18 @@
+{
+  "//": "TEMPLATE — copy the mcpServers.reina-manager block into your assistant's MCP config and replace /ABSOLUTE/PATH/TO/ReinaManager with your checkout. Claude Desktop (macOS): ~/Library/Application Support/Claude/claude_desktop_config.json. The executor opens the app's own database (reina-path::get_db_path); no path config is needed. See README.md.",
+  "mcpServers": {
+    "reina-manager": {
+      "command": "kriya-mcp",
+      "args": [
+        "--persistent",
+        "--name", "reina-manager",
+        "--exec", "/ABSOLUTE/PATH/TO/ReinaManager/src-tauri/target/release/kriya_exec",
+        "--tools", "/ABSOLUTE/PATH/TO/ReinaManager/kriya-mcp/tools.json",
+        "--policy", "/ABSOLUTE/PATH/TO/ReinaManager/kriya-mcp/agent-policy.yaml",
+        "--approval", "gui",
+        "--actor", "claude-desktop"
+      ],
+      "env": {}
+    }
+  }
+}
