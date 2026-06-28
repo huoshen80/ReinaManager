@@ -51,7 +51,7 @@ interface BulkImportTabProps {
 	onClose: () => void;
 }
 
-const DEFAULT_SCAN_DEPTH = 2;
+const DEFAULT_SCAN_DEPTH = 3;
 const SCAN_DEPTH_OPTIONS = [2, 3, 4, 5] as const;
 const BULK_API_SOURCE_OPTIONS = REGISTERED_SOURCE_KEYS.map((source) => ({
 	value: source,
@@ -177,29 +177,43 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		onClose();
 	}, [isMatchingMetadata, onClose, t]);
 
+	const scanSelectedFolder = useCallback(
+		async (selectedRootPath: string, maxDepth: number) => {
+			setIsScanningDirectories(true);
+			try {
+				const subdirs = await fileService.scanDirectoryForGames(
+					selectedRootPath,
+					maxDepth,
+				);
+				setItems(
+					subdirs.map((dir) => ({
+						...dir,
+						status: "pending",
+						selectedExe:
+							dir.executables.length > 0 ? dir.executables[0] : undefined,
+					})),
+				);
+			} catch (error) {
+				snackbar.error(getUserErrorMessage(error, t));
+			} finally {
+				setIsScanningDirectories(false);
+			}
+		},
+		[t],
+	);
+
 	const scanFolder = async () => {
 		const result = await handleFolder();
 		if (!result) return;
 
 		setRootPath(result);
-		setIsScanningDirectories(true);
-		try {
-			const subdirs = await fileService.scanDirectoryForGames(
-				result,
-				scanMaxDepth,
-			);
-			setItems(
-				subdirs.map((dir) => ({
-					...dir,
-					status: "pending",
-					selectedExe:
-						dir.executables.length > 0 ? dir.executables[0] : undefined,
-				})),
-			);
-		} catch (error) {
-			snackbar.error(getUserErrorMessage(error, t));
-		} finally {
-			setIsScanningDirectories(false);
+		await scanSelectedFolder(result, scanMaxDepth);
+	};
+
+	const handleScanDepthChange = (nextDepth: number) => {
+		setScanMaxDepth(nextDepth);
+		if (rootPath) {
+			void scanSelectedFolder(rootPath, nextDepth);
 		}
 	};
 
@@ -546,7 +560,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 									value={scanMaxDepth}
 									label={t("components.BulkImportModal.scanDepth", "扫描深度")}
 									onChange={(event) =>
-										setScanMaxDepth(Number(event.target.value))
+										handleScanDepthChange(Number(event.target.value))
 									}
 								>
 									{SCAN_DEPTH_OPTIONS.map((depth) => (
