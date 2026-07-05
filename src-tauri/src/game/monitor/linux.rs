@@ -6,7 +6,9 @@
 // ============================================================================
 // 外部依赖导入
 // ============================================================================
+use super::{MonitoredSession, TimeTrackingMode, finalize_monitored_session};
 use log::{debug, error, info, warn};
+use sea_orm::DatabaseConnection;
 use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
@@ -37,6 +39,8 @@ static MANAGER_PROXY: OnceCell<zbus_systemd::systemd1::ManagerProxy<'static>> =
 /// 启动监控任务
 pub async fn monitor_game<R: Runtime>(
     app_handle: AppHandle<R>,
+    db: DatabaseConnection,
+    time_tracking_mode: TimeTrackingMode,
     game_id: u32,
     process_id: u32,
     systemd_scope: String,
@@ -44,13 +48,30 @@ pub async fn monitor_game<R: Runtime>(
     let app_handle_clone = app_handle.clone();
     tauri::async_runtime::spawn(async move {
         use tauri::Manager;
-        if let Err(e) =
-            run_game_monitor(app_handle_clone.app_handle(), game_id, &systemd_scope).await
+        if let Err(e) = run_game_monitor(
+            app_handle_clone.app_handle(),
+            &db,
+            time_tracking_mode,
+            game_id,
+            &systemd_scope,
+        )
+        .await
         {
             error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
-            if let Err(e) = finalize_session(&app_handle, game_id, process_id, get_timestamp(), 0) {
-                error!("无法完成游戏会话结束: {}", e);
-            }
+            let timestamp = get_timestamp();
+            finalize_monitored_session(
+                &app_handle,
+                &db,
+                MonitoredSession {
+                    time_tracking_mode,
+                    game_id,
+                    process_id,
+                    start_time: timestamp,
+                    end_time: timestamp,
+                    accumulated_seconds: 0,
+                },
+            )
+            .await;
         }
     });
 }
@@ -393,6 +414,8 @@ fn check_any_has_window_x11(candidate_pids: &[u32]) -> Option<u32> {
 }
 async fn run_game_monitor(
     app_handle: &AppHandle<impl Runtime>,
+    db: &DatabaseConnection,
+    time_tracking_mode: TimeTrackingMode,
     game_id: u32,
     systemd_scope: &str,
 ) -> Result<(), String> {
@@ -419,12 +442,12 @@ async fn run_game_monitor(
     );
 
     // 通知前端会话开始
-    app_handle
-        .emit(
-            "game-session-started",
-            json!({ "gameId": game_id, "processId": best_pid, "startTime": start_time }),
-        )
-        .map_err(|e| format!("无法发送 game-session-started 事件: {}", e))?;
+    if let Err(error) = app_handle.emit(
+        "game-session-started",
+        json!({ "gameId": game_id, "processId": best_pid, "startTime": start_time }),
+    ) {
+        warn!("无法发送 game-session-started 事件: {error}");
+    }
     let mut consecutive_failures = 0u32;
 
     // 等待 9 秒让游戏进程充分启动（例如 Launcher -> Game 的切换）
@@ -494,19 +517,19 @@ async fn run_game_monitor(
                     //     "发送时间更新事件: {} 分钟 ({} 秒)",
                     //     minutes, accumulated_seconds
                     // );
-                    app_handle
-                        .emit(
-                            "game-time-update",
-                            json!({
-                                "gameId": game_id,
-                                "totalMinutes": minutes,
-                                "totalSeconds": accumulated_seconds,
-                                "startTime": start_time,
-                                "currentTime": get_timestamp(),
-                                "processId": best_pid
-                            }),
-                        )
-                        .map_err(|e| format!("无法发送 game-time-update 事件: {}", e))?;
+                    if let Err(error) = app_handle.emit(
+                        "game-time-update",
+                        json!({
+                            "gameId": game_id,
+                            "totalMinutes": minutes,
+                            "totalSeconds": accumulated_seconds,
+                            "startTime": start_time,
+                            "currentTime": get_timestamp(),
+                            "processId": best_pid
+                        }),
+                    ) {
+                        warn!("无法发送 game-time-update 事件: {error}");
+                    }
                 }
             } else {
                 candidate_pids = get_all_candidate_pids(systemd_scope).await;
@@ -514,63 +537,21 @@ async fn run_game_monitor(
         }
     }
 
-    finalize_session(
+    finalize_monitored_session(
         app_handle,
-        game_id,
-        best_pid,
-        start_time,
-        accumulated_seconds,
+        db,
+        MonitoredSession {
+            time_tracking_mode,
+            game_id,
+            process_id: best_pid,
+            start_time,
+            end_time: get_timestamp(),
+            accumulated_seconds,
+        },
     )
-}
+    .await;
 
-/// 完成游戏监控会话并发送结束事件
-///
-/// # Arguments
-/// * `app_handle` - Tauri 应用句柄
-/// * `game_id` - 游戏 ID
-/// * `process_id` - 最终的进程 PID
-/// * `start_time` - 会话开始时间戳
-/// * `accumulated_seconds` - 累计的活动时间（秒）
-///
-/// # 返回值
-/// 成功返回 `Ok(())`，失败返回包含错误信息的 `Err(String)`
-fn finalize_session<R: Runtime>(
-    app_handle: &AppHandle<R>,
-    game_id: u32,
-    process_id: u32,
-    start_time: u64,
-    accumulated_seconds: u64,
-) -> Result<(), String> {
-    let end_time = get_timestamp();
-    let total_minutes = accumulated_seconds / 60;
-    let remainder_seconds = accumulated_seconds % 60;
-
-    // 将秒数四舍五入到最接近的分钟数
-    let final_minutes = if remainder_seconds >= 30 {
-        total_minutes + 1
-    } else {
-        total_minutes
-    };
-
-    info!(
-        "游戏会话结束: ID={}, 最终 PID={}, 总活动时间={}秒 (计为 {} 分钟)",
-        game_id, process_id, accumulated_seconds, final_minutes
-    );
-
-    // 发送会话结束事件到前端
-    app_handle
-        .emit(
-            "game-session-ended",
-            json!({
-                "gameId": game_id,
-                "startTime": start_time,
-                "endTime": end_time,
-                "totalMinutes": final_minutes,
-                "totalSeconds": accumulated_seconds,
-                "processId": process_id
-            }),
-        )
-        .map_err(|e| format!("无法发送 game-session-ended 事件: {}", e))
+    Ok(())
 }
 
 // ============================================================================

@@ -33,11 +33,3 @@ export interface ServiceResponse<T> {
 	data?: T;
 	error?: string;
 }
-
-/**
- * 每日统计数据
- */
-export interface DailyStats {
-	date: string;
-	playtime: number;
-}

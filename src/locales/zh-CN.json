@@ -402,6 +402,8 @@
 			}
 		},
 		"Detail": {
+			"addGameSession": "添加记录",
+			"addGameSessionTitle": "添加游玩记录",
 			"addTime": "添加时间",
 			"backup": "存档",
 			"Backup": {
@@ -447,6 +449,8 @@
 			"chartView": "图表",
 			"clearSelectedTags": "清空",
 			"collapseTags": "折叠标签",
+			"createSessionFailed": "添加游玩记录失败",
+			"createSessionSuccess": "游玩记录已添加",
 			"DataSourceUpdate": {
 				"confirmUpdateTitle": "确认更新数据源",
 				"customModeWarning": "自定义模式无法从数据源更新。",
@@ -466,6 +470,11 @@
 				"switchingSource": "正在切换...",
 				"updateFromSource": "从数据源更新数据"
 			},
+			"deleteGameSession": "删除记录",
+			"deleteGameSessionMessage": "删除该游玩记录后，总时长、游玩次数、每日统计和最近游玩时间将同步更新。",
+			"deleteGameSessionTitle": "删除游玩记录",
+			"deleteSessionFailed": "删除游玩记录失败",
+			"deleteSessionSuccess": "游玩记录已删除",
 			"Edit": {
 				"dataSourceEditAndUpdate": "数据源编辑与更新",
 				"gameInfoEdit": "游戏资料编辑",
@@ -558,6 +567,13 @@
 			"score": "评分",
 			"searchBySelectedTags": "搜索 ({{count}})",
 			"sessionDuration": "时长",
+			"sessionDurationInvalid": "请输入大于 0 的整数分钟",
+			"sessionDurationMinutes": "游玩时长（分钟）",
+			"sessionEndTime": "结束时间",
+			"sessionRecordFailed": "游玩记录保存失败，请稍后重试",
+			"sessionStartTime": "开始时间",
+			"sessionStartTimeRequired": "请选择有效的开始时间",
+			"sessionTimeInvalid": "结束时间不能晚于当前时间",
 			"siteScore": "站点",
 			"timelineView": "列表",
 			"todayPlayTime": "今日游戏时长",

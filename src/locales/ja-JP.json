@@ -402,6 +402,8 @@
 			}
 		},
 		"Detail": {
+			"addGameSession": "記録を追加",
+			"addGameSessionTitle": "プレイ記録を追加",
 			"addTime": "追加時間",
 			"backup": "セーブデータ",
 			"Backup": {
@@ -447,6 +449,8 @@
 			"chartView": "チャート",
 			"clearSelectedTags": "クリア",
 			"collapseTags": "タグを折りたたむ",
+			"createSessionFailed": "プレイ記録の追加に失敗しました",
+			"createSessionSuccess": "プレイ記録を追加しました",
 			"DataSourceUpdate": {
 				"confirmUpdateTitle": "データソース更新を確認",
 				"customModeWarning": "カスタムモードではデータソースから更新できません。",
@@ -466,6 +470,11 @@
 				"switchingSource": "切り替え中...",
 				"updateFromSource": "データソースから更新"
 			},
+			"deleteGameSession": "記録を削除",
+			"deleteGameSessionMessage": "このプレイ記録を削除すると、合計時間、プレイ回数、日別統計、最終プレイ日時も更新されます。",
+			"deleteGameSessionTitle": "プレイ記録を削除",
+			"deleteSessionFailed": "プレイ記録の削除に失敗しました",
+			"deleteSessionSuccess": "プレイ記録を削除しました",
 			"Edit": {
 				"dataSourceEditAndUpdate": "データソース編集と更新",
 				"gameInfoEdit": "ゲーム情報編集",
@@ -558,6 +567,13 @@
 			"score": "評価",
 			"searchBySelectedTags_other": "検索 ({{count}})",
 			"sessionDuration": "プレイ時間",
+			"sessionDurationInvalid": "1 以上の整数の分数を入力してください",
+			"sessionDurationMinutes": "プレイ時間（分）",
+			"sessionEndTime": "終了時刻",
+			"sessionRecordFailed": "プレイ記録を保存できませんでした。しばらくしてから再試行してください。",
+			"sessionStartTime": "開始時刻",
+			"sessionStartTimeRequired": "有効な開始時刻を選択してください",
+			"sessionTimeInvalid": "終了時刻を現在時刻より後にはできません",
 			"siteScore": "サイト",
 			"timelineView": "リスト",
 			"todayPlayTime": "本日のプレイ時間",

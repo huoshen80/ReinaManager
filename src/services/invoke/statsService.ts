@@ -5,7 +5,6 @@
 
 import type { GameLastPlayed, GameSession, GameStatistics } from "@/types";
 import { BaseService } from "./base";
-import type { DailyStats } from "./types";
 
 export interface LaunchGameResult {
 	success: boolean;
@@ -26,10 +25,12 @@ class StatsService extends BaseService {
 	async launchGame(
 		gameId: number,
 		args: string[] = [],
+		timeTrackingMode: "playtime" | "elapsed",
 	): Promise<LaunchGameResult> {
 		return this.invoke<LaunchGameResult>("launch_game", {
 			gameId,
 			args,
+			timeTrackingMode,
 		});
 	}
 
@@ -43,21 +44,17 @@ class StatsService extends BaseService {
 	}
 
 	/**
-	 * 记录游戏会话
+	 * 手动创建游戏会话
 	 */
-	async recordGameSession(
+	async createManualGameSession(
 		gameId: number,
 		startTime: number,
-		endTime: number,
 		duration: number,
-		date: string,
 	): Promise<number> {
-		return this.invoke<number>("record_game_session", {
+		return this.invoke<number>("create_manual_game_session", {
 			gameId,
 			startTime,
-			endTime,
 			duration,
-			date,
 		});
 	}
 
@@ -95,25 +92,6 @@ class StatsService extends BaseService {
 	 */
 	async deleteGameSession(sessionId: number): Promise<number> {
 		return this.invoke<number>("delete_game_session", { sessionId });
-	}
-
-	/**
-	 * 更新游戏统计信息
-	 */
-	async updateGameStatistics(
-		gameId: number,
-		totalTime: number,
-		sessionCount: number,
-		lastPlayed: number | null,
-		dailyStats: DailyStats[],
-	): Promise<void> {
-		return this.invoke<void>("update_game_statistics", {
-			gameId,
-			totalTime,
-			sessionCount,
-			lastPlayed,
-			dailyStats,
-		});
 	}
 
 	/**
@@ -164,13 +142,6 @@ class StatsService extends BaseService {
 	 */
 	async getTodayPlaytime(gameId: number, today: string): Promise<number> {
 		return this.invoke<number>("get_today_playtime", { gameId, today });
-	}
-
-	/**
-	 * 初始化游戏统计记录
-	 */
-	async initGameStatistics(gameId: number): Promise<void> {
-		return this.invoke<void>("init_game_statistics", { gameId });
 	}
 }
 

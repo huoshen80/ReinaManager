@@ -1,8 +1,10 @@
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import AddIcon from "@mui/icons-material/Add";
 import BackupIcon from "@mui/icons-material/Backup";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import DeleteIcon from "@mui/icons-material/Delete";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import TodayIcon from "@mui/icons-material/Today";
@@ -19,11 +21,20 @@ import {
 import { LineChart } from "@mui/x-charts/LineChart";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertConfirmBox } from "@/components/AlertBox";
 import { useSaveDataBackupCount } from "@/hooks/queries/useSavedata";
-import { useGameSessions, useGameStats } from "@/hooks/queries/useStats";
+import {
+	useCreateManualGameSession,
+	useDeleteGameSession,
+	useGameSessions,
+	useGameStats,
+} from "@/hooks/queries/useStats";
+import { snackbar } from "@/providers/snackBar";
 import { useGamePlayStore } from "@/store/gamePlayStore";
-import type { GameTimeStats } from "@/types";
+import type { GameSession, GameTimeStats } from "@/types";
 import { formatPlayTime, getLocalDateString } from "@/utils/dateTime";
+import { getUserErrorMessage } from "@/utils/errors";
+import { GameSessionCreateDialog } from "./GameSessionCreateDialog";
 
 /**
  * 时间范围类型定义
@@ -85,6 +96,12 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 	const stats = gameStatsQuery.data as GameTimeStats | null;
 	const [timeRange, setTimeRange] = useState<TimeRange>("7D");
 	const [viewMode, setViewMode] = useState<StatsViewMode>("chart");
+	const [createDialogOpen, setCreateDialogOpen] = useState(false);
+	const [sessionToDelete, setSessionToDelete] = useState<GameSession | null>(
+		null,
+	);
+	const createSessionMutation = useCreateManualGameSession();
+	const deleteSessionMutation = useDeleteGameSession();
 	// 选中的月份 (YYYY-MM 格式)
 	const [selectedMonth, setSelectedMonth] = useState<string>(() => {
 		const now = new Date();
@@ -367,6 +384,54 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 		(gameSessionsQuery.isPlaceholderData || sessions.length === sessionLimit) &&
 		!gameSessionsQuery.isLoading;
 
+	const handleCreateSession = useCallback(
+		async (startTime: number, duration: number) => {
+			try {
+				await createSessionMutation.mutateAsync({
+					gameId: gameID,
+					startTime,
+					duration,
+				});
+				snackbar.success(
+					t("pages.Detail.createSessionSuccess", "游玩记录已添加"),
+				);
+				return true;
+			} catch (error) {
+				snackbar.error(
+					getUserErrorMessage(
+						error,
+						t,
+						t("pages.Detail.createSessionFailed", "添加游玩记录失败"),
+					),
+				);
+				return false;
+			}
+		},
+		[createSessionMutation, gameID, t],
+	);
+
+	const handleDeleteSession = useCallback(async () => {
+		if (!sessionToDelete) {
+			return;
+		}
+
+		try {
+			await deleteSessionMutation.mutateAsync(sessionToDelete.session_id);
+			setSessionToDelete(null);
+			snackbar.success(
+				t("pages.Detail.deleteSessionSuccess", "游玩记录已删除"),
+			);
+		} catch (error) {
+			snackbar.error(
+				getUserErrorMessage(
+					error,
+					t,
+					t("pages.Detail.deleteSessionFailed", "删除游玩记录失败"),
+				),
+			);
+		}
+	}, [deleteSessionMutation, sessionToDelete, t]);
+
 	return (
 		<>
 			{/* 统计信息卡片 */}
@@ -402,8 +467,17 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 							{t("pages.Detail.playTimeChart", "统计图表")}
 						</Typography>
 						<Box className="flex items-center gap-2">
+							{viewMode === "timeline" && (
+								<Button
+									size="small"
+									startIcon={<AddIcon />}
+									onClick={() => setCreateDialogOpen(true)}
+								>
+									{t("pages.Detail.addGameSession", "添加记录")}
+								</Button>
+							)}
 							{/* 月份选择器 - 仅在MONTH模式下显示 */}
-							{timeRange === "MONTH" && (
+							{viewMode === "chart" && timeRange === "MONTH" && (
 								<Box className="flex items-center gap-1 mr-2">
 									<IconButton
 										size="small"
@@ -431,33 +505,35 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 									</IconButton>
 								</Box>
 							)}
-							<ToggleButtonGroup
-								value={timeRange}
-								exclusive
-								onChange={(_, newValue) => {
-									if (newValue !== null) {
-										setTimeRange(newValue);
-									}
-								}}
-								size="small"
-								aria-label="time range selector"
-							>
-								<ToggleButton value="7D" aria-label="7 days">
-									7D
-								</ToggleButton>
-								<ToggleButton value="30D" aria-label="30 days">
-									30D
-								</ToggleButton>
-								<ToggleButton value="MONTH" aria-label="month view">
-									M
-								</ToggleButton>
-								<ToggleButton value="1Y" aria-label="1 year">
-									1Y
-								</ToggleButton>
-								<ToggleButton value="ALL" aria-label="all time">
-									ALL
-								</ToggleButton>
-							</ToggleButtonGroup>
+							{viewMode === "chart" && (
+								<ToggleButtonGroup
+									value={timeRange}
+									exclusive
+									onChange={(_, newValue) => {
+										if (newValue !== null) {
+											setTimeRange(newValue);
+										}
+									}}
+									size="small"
+									aria-label="time range selector"
+								>
+									<ToggleButton value="7D" aria-label="7 days">
+										7D
+									</ToggleButton>
+									<ToggleButton value="30D" aria-label="30 days">
+										30D
+									</ToggleButton>
+									<ToggleButton value="MONTH" aria-label="month view">
+										M
+									</ToggleButton>
+									<ToggleButton value="1Y" aria-label="1 year">
+										1Y
+									</ToggleButton>
+									<ToggleButton value="ALL" aria-label="all time">
+										ALL
+									</ToggleButton>
+								</ToggleButtonGroup>
+							)}
 							<ToggleButtonGroup
 								value={viewMode}
 								exclusive
@@ -581,6 +657,25 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 															{formatPlayTime(session.duration ?? 0)}
 														</Typography>
 													</Box>
+													<Tooltip
+														title={t(
+															"pages.Detail.deleteGameSession",
+															"删除记录",
+														)}
+													>
+														<IconButton
+															size="small"
+															color="error"
+															aria-label={t(
+																"pages.Detail.deleteGameSession",
+																"删除记录",
+															)}
+															onClick={() => setSessionToDelete(session)}
+															disabled={deleteSessionMutation.isPending}
+														>
+															<DeleteIcon fontSize="small" />
+														</IconButton>
+													</Tooltip>
 												</Box>
 											</Box>
 										);
@@ -606,6 +701,28 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 					)}
 				</Box>
 			)}
+			<GameSessionCreateDialog
+				open={createDialogOpen}
+				setOpen={setCreateDialogOpen}
+				isLoading={createSessionMutation.isPending}
+				onSubmit={handleCreateSession}
+			/>
+			<AlertConfirmBox
+				open={sessionToDelete !== null}
+				setOpen={(open) => {
+					if (!open && !deleteSessionMutation.isPending) {
+						setSessionToDelete(null);
+					}
+				}}
+				title={t("pages.Detail.deleteGameSessionTitle", "删除游玩记录")}
+				message={t(
+					"pages.Detail.deleteGameSessionMessage",
+					"删除该游玩记录后，总时长、游玩次数、每日统计和最近游玩时间将同步更新。",
+				)}
+				confirmText={t("pages.Detail.deleteGameSession", "删除记录")}
+				isLoading={deleteSessionMutation.isPending}
+				onConfirm={() => void handleDeleteSession()}
+			/>
 		</>
 	);
 };

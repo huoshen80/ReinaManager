@@ -46,6 +46,38 @@ fn timestamp_in_timezone<Tz: TimeZone>(
     }
 }
 
+fn local_date_from_timestamp(timestamp: i32) -> Result<String, DbErr> {
+    Ok(timestamp_in_timezone(&Local, timestamp)?
+        .format("%Y-%m-%d")
+        .to_string())
+}
+
+fn manual_session_end_time(
+    start_time: i32,
+    duration: i32,
+    current_time: i32,
+) -> Result<i32, DbErr> {
+    if start_time <= 0 {
+        return Err(custom_error("开始时间必须大于零"));
+    }
+    if duration <= 0 {
+        return Err(custom_error("游玩时长必须大于零"));
+    }
+
+    let duration_seconds = duration
+        .checked_mul(60)
+        .ok_or_else(|| custom_error("游玩时长超出支持范围"))?;
+    let end_time = start_time
+        .checked_add(duration_seconds)
+        .ok_or_else(|| custom_error("结束时间超出支持范围"))?;
+
+    if end_time > current_time {
+        return Err(custom_error("结束时间不能晚于当前时间"));
+    }
+
+    Ok(end_time)
+}
+
 fn next_midnight_timestamp<Tz: TimeZone>(
     timezone: &Tz,
     date: chrono::NaiveDate,
@@ -337,8 +369,8 @@ impl GameStatsRepository {
         start_time: i32,
         end_time: i32,
         duration: i32,
-        date: String,
     ) -> Result<game_sessions::Model, DbErr> {
+        let date = local_date_from_timestamp(end_time)?;
         let transaction = db.begin().await?;
         let session =
             Self::insert_session(&transaction, game_id, start_time, end_time, duration, date)
@@ -358,6 +390,24 @@ impl GameStatsRepository {
         Self::upsert_projection(&transaction, game_id, projection).await?;
         transaction.commit().await?;
         Ok(session)
+    }
+
+    /// 根据开始时间和分钟数创建手动会话
+    pub async fn create_manual_session(
+        db: &DatabaseConnection,
+        game_id: i32,
+        start_time: i32,
+        duration: i32,
+    ) -> Result<game_sessions::Model, DbErr> {
+        if game_id <= 0 {
+            return Err(custom_error("游戏 ID 必须大于零"));
+        }
+
+        let current_time = i32::try_from(chrono::Utc::now().timestamp())
+            .map_err(|_| custom_error("当前时间超出数据库整数范围"))?;
+        let end_time = manual_session_end_time(start_time, duration, current_time)?;
+
+        Self::record_session_with_statistics(db, game_id, start_time, end_time, duration).await
     }
 
     /// 获取游戏会话历史
@@ -503,52 +553,6 @@ impl GameStatsRepository {
         Ok(())
     }
 
-    /// 更新游戏统计信息
-    pub async fn update_statistics(
-        db: &DatabaseConnection,
-        game_id: i32,
-        total_time: i32,
-        session_count: i32,
-        last_played: Option<i32>,
-        daily_stats: Vec<DailyStats>,
-    ) -> Result<(), DbErr> {
-        // 序列化每日统计数据
-        let daily_stats_json = serde_json::to_string(&daily_stats)
-            .map_err(|e| DbErr::Custom(format!("Failed to serialize daily_stats: {}", e)))?;
-
-        // 检查是否已存在统计记录
-        let existing = GameStatistics::find_by_id(game_id).one(db).await?;
-
-        if existing.is_some() {
-            // 更新现有记录
-            let mut stats: game_statistics::ActiveModel = GameStatistics::find_by_id(game_id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::RecordNotFound("Statistics not found".to_string()))?
-                .into();
-
-            stats.total_time = Set(Some(total_time));
-            stats.session_count = Set(Some(session_count));
-            stats.last_played = Set(last_played);
-            stats.daily_stats = Set(Some(daily_stats_json));
-
-            stats.update(db).await?;
-        } else {
-            // 插入新记录
-            let stats = game_statistics::ActiveModel {
-                game_id: Set(game_id),
-                total_time: Set(Some(total_time)),
-                session_count: Set(Some(session_count)),
-                last_played: Set(last_played),
-                daily_stats: Set(Some(daily_stats_json)),
-            };
-
-            stats.insert(db).await?;
-        }
-
-        Ok(())
-    }
-
     /// 获取游戏统计信息
     pub async fn get_statistics(
         db: &DatabaseConnection,
@@ -628,34 +632,13 @@ impl GameStatsRepository {
             .all(db)
             .await
     }
-
-    /// 初始化游戏统计记录（游戏启动时调用）
-    pub async fn init_statistics_if_not_exists(
-        db: &DatabaseConnection,
-        game_id: i32,
-    ) -> Result<(), DbErr> {
-        let existing = GameStatistics::find_by_id(game_id).one(db).await?;
-
-        if existing.is_none() {
-            let stats = game_statistics::ActiveModel {
-                game_id: Set(game_id),
-                total_time: Set(Some(0)),
-                session_count: Set(Some(0)),
-                last_played: Set(None),
-                daily_stats: Set(Some("[]".to_string())),
-            };
-
-            stats.insert(db).await?;
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::{FixedOffset, TimeZone};
+    use sea_orm::{Database, Statement};
 
     fn timezone() -> FixedOffset {
         FixedOffset::east_opt(8 * 60 * 60).expect("固定时区应有效")
@@ -685,6 +668,55 @@ mod tests {
             duration,
             date: "2026-01-01".to_string(),
         }
+    }
+
+    async fn test_database() -> DatabaseConnection {
+        let db = Database::connect("sqlite::memory:")
+            .await
+            .expect("内存数据库应连接成功");
+        db.execute_unprepared("PRAGMA foreign_keys = ON")
+            .await
+            .expect("应启用外键");
+        db.execute_unprepared(
+            r#"CREATE TABLE games (
+                id INTEGER PRIMARY KEY,
+                id_type TEXT NOT NULL
+            )"#,
+        )
+        .await
+        .expect("应创建 games 表");
+        db.execute_unprepared(
+            r#"CREATE TABLE game_sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                game_id INTEGER NOT NULL,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                duration INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                FOREIGN KEY(game_id) REFERENCES games(id) ON DELETE CASCADE
+            )"#,
+        )
+        .await
+        .expect("应创建 game_sessions 表");
+        db.execute_unprepared(
+            r#"CREATE TABLE game_statistics (
+                game_id INTEGER PRIMARY KEY,
+                total_time INTEGER,
+                session_count INTEGER,
+                last_played INTEGER,
+                daily_stats TEXT,
+                FOREIGN KEY(game_id) REFERENCES games(id) ON DELETE CASCADE
+            )"#,
+        )
+        .await
+        .expect("应创建 game_statistics 表");
+        db.execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "INSERT INTO games (id, id_type) VALUES (1, 'custom')",
+        ))
+        .await
+        .expect("应插入测试游戏");
+        db
     }
 
     #[test]
@@ -836,5 +868,86 @@ mod tests {
         };
 
         assert!(apply_session_delete(&mut projection, &target, None, &timezone()).is_err());
+    }
+
+    #[test]
+    fn manual_session_calculates_end_time() {
+        assert_eq!(
+            manual_session_end_time(1_700_000_000, 90, 1_700_010_000).expect("结束时间应可计算"),
+            1_700_005_400
+        );
+    }
+
+    #[test]
+    fn manual_session_rejects_future_end_time_and_overflow() {
+        assert!(manual_session_end_time(1_700_000_000, 90, 1_700_000_100).is_err());
+        assert!(manual_session_end_time(i32::MAX - 30, 1, i32::MAX).is_err());
+    }
+
+    #[tokio::test]
+    async fn session_insert_and_delete_update_statistics_atomically() {
+        let db = test_database().await;
+        let start_time = timestamp(1, 10);
+        let end_time = timestamp(1, 12);
+
+        let inserted =
+            GameStatsRepository::record_session_with_statistics(&db, 1, start_time, end_time, 90)
+                .await
+                .expect("会话和统计应同时写入");
+        let statistics = GameStatistics::find_by_id(1)
+            .one(&db)
+            .await
+            .expect("统计查询应成功")
+            .expect("统计记录应存在");
+
+        assert_eq!(statistics.total_time, Some(90));
+        assert_eq!(statistics.session_count, Some(1));
+        assert_eq!(statistics.last_played, Some(end_time));
+
+        GameStatsRepository::delete_session_with_statistics(&db, inserted.session_id)
+            .await
+            .expect("会话和统计应同时更新");
+        let statistics = GameStatistics::find_by_id(1)
+            .one(&db)
+            .await
+            .expect("统计查询应成功")
+            .expect("统计记录应保留");
+
+        assert_eq!(statistics.total_time, Some(0));
+        assert_eq!(statistics.session_count, Some(0));
+        assert_eq!(statistics.last_played, None);
+        assert_eq!(statistics.daily_stats.as_deref(), Some("[]"));
+    }
+
+    #[tokio::test]
+    async fn statistics_failure_rolls_back_session_insert() {
+        let db = test_database().await;
+        db.execute_unprepared(
+            r#"CREATE TRIGGER reject_statistics_insert
+               BEFORE INSERT ON game_statistics
+               BEGIN
+                   SELECT RAISE(FAIL, 'forced statistics failure');
+               END"#,
+        )
+        .await
+        .expect("应创建失败触发器");
+
+        let result = GameStatsRepository::record_session_with_statistics(
+            &db,
+            1,
+            timestamp(1, 10),
+            timestamp(1, 12),
+            90,
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            GameSessions::find()
+                .count(&db)
+                .await
+                .expect("会话计数应成功"),
+            0
+        );
     }
 }

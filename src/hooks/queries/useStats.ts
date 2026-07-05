@@ -1,5 +1,11 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useMemo } from "react";
+import { gameKeys } from "@/hooks/queries/useGames";
 import {
 	getAllGameLastPlayed,
 	getAllGameStatistics,
@@ -139,6 +145,43 @@ function useRecentSessionsForGames(gameIds: number[], limit = 10) {
 	});
 }
 
+function useCreateManualGameSession() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			gameId,
+			startTime,
+			duration,
+		}: {
+			gameId: number;
+			startTime: number;
+			duration: number;
+		}) => statsService.createManualGameSession(gameId, startTime, duration),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: statsKeys.all }),
+				queryClient.invalidateQueries({ queryKey: gameKeys.idLists() }),
+			]);
+		},
+	});
+}
+
+function useDeleteGameSession() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (sessionId: number) =>
+			statsService.deleteGameSession(sessionId),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: statsKeys.all }),
+				queryClient.invalidateQueries({ queryKey: gameKeys.idLists() }),
+			]);
+		},
+	});
+}
+
 function useTotalPlayTime() {
 	const playTimeSummaryQuery = usePlayTimeSummaryQuery();
 
@@ -194,6 +237,8 @@ function usePlayTimeSummary() {
 
 export {
 	useAllGameLastPlayedMap,
+	useCreateManualGameSession,
+	useDeleteGameSession,
 	useGameSessions,
 	useGameStats,
 	usePlayTimeSummary,

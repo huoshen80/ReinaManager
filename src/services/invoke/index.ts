@@ -18,4 +18,4 @@ export type { ProxyConfig, UserSettings } from "./settingsService";
 export { settingsService } from "./settingsService";
 export { statsService } from "./statsService";
 // 导出类型
-export type { DailyStats, GameType, SortOption, SortOrder } from "./types";
+export type { GameType, SortOption, SortOrder } from "./types";

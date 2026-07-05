@@ -3,6 +3,9 @@
 //! 使用事件驱动架构监控游戏进程的运行状态，追踪游戏时间。
 //! 包含前台窗口检测、进程切换处理、逃逸进程检测等功能。
 
+use super::{MonitoredSession, TimeTrackingMode, finalize_monitored_session};
+use sea_orm::DatabaseConnection;
+
 // ============================================================================
 // 外部依赖导入
 // ============================================================================
@@ -194,6 +197,8 @@ pub async fn stop_game_session(game_id: u32) -> Result<u32, String> {
 /// 3. 监控循环会持续运行直到游戏进程结束
 pub async fn monitor_game<R: Runtime>(
     app_handle: AppHandle<R>,
+    db: DatabaseConnection,
+    time_tracking_mode: TimeTrackingMode,
     game_id: u32,
     process_id: u32,
     executable_path: String,
@@ -201,8 +206,15 @@ pub async fn monitor_game<R: Runtime>(
     let app_handle_clone = app_handle.clone();
 
     tauri::async_runtime::spawn(async move {
-        if let Err(e) =
-            run_game_monitor(app_handle_clone, game_id, process_id, executable_path).await
+        if let Err(e) = run_game_monitor(
+            app_handle_clone,
+            db,
+            time_tracking_mode,
+            game_id,
+            process_id,
+            executable_path,
+        )
+        .await
         {
             error!("游戏监控任务 (game_id: {}) 出错: {}", game_id, e);
         }
@@ -239,6 +251,8 @@ pub async fn monitor_game<R: Runtime>(
 /// 7. 会话结束时发送结束事件
 async fn run_game_monitor<R: Runtime>(
     app_handle: AppHandle<R>,
+    db: DatabaseConnection,
+    time_tracking_mode: TimeTrackingMode,
     game_id: u32,
     initial_pid: u32,
     executable_path: String,
@@ -302,12 +316,12 @@ async fn run_game_monitor<R: Runtime>(
     let best_pid = monitor_state.read().best_pid;
 
     // 通知前端会话开始
-    app_handle
-        .emit(
-            "game-session-started",
-            json!({ "gameId": game_id, "processId": best_pid, "startTime": start_time }),
-        )
-        .map_err(|e| format!("无法发送 game-session-started 事件: {}", e))?;
+    if let Err(error) = app_handle.emit(
+        "game-session-started",
+        json!({ "gameId": game_id, "processId": best_pid, "startTime": start_time }),
+    ) {
+        warn!("无法发送 game-session-started 事件: {error}");
+    }
 
     let mut consecutive_failures = 0u32;
     let mut last_best_pid = best_pid;
@@ -395,19 +409,19 @@ async fn run_game_monitor<R: Runtime>(
                     && accumulated_seconds.is_multiple_of(TIME_UPDATE_INTERVAL_SECS)
                 {
                     let minutes = accumulated_seconds / 60;
-                    app_handle
-                        .emit(
-                            "game-time-update",
-                            json!({
-                                "gameId": game_id,
-                                "totalMinutes": minutes,
-                                "totalSeconds": accumulated_seconds,
-                                "startTime": start_time,
-                                "currentTime": get_timestamp(),
-                                "processId": current_best_pid
-                            }),
-                        )
-                        .map_err(|e| format!("无法发送 game-time-update 事件: {}", e))?;
+                    if let Err(error) = app_handle.emit(
+                        "game-time-update",
+                        json!({
+                            "gameId": game_id,
+                            "totalMinutes": minutes,
+                            "totalSeconds": accumulated_seconds,
+                            "startTime": start_time,
+                            "currentTime": get_timestamp(),
+                            "processId": current_best_pid
+                        }),
+                    ) {
+                        warn!("无法发送 game-time-update 事件: {error}");
+                    }
                 }
             }
         }
@@ -416,63 +430,21 @@ async fn run_game_monitor<R: Runtime>(
     // 清理会话注册
     unregister_session(game_id);
 
-    finalize_session(
+    finalize_monitored_session(
         &app_handle,
-        game_id,
-        last_best_pid,
-        start_time,
-        accumulated_seconds,
+        &db,
+        MonitoredSession {
+            time_tracking_mode,
+            game_id,
+            process_id: last_best_pid,
+            start_time,
+            end_time: get_timestamp(),
+            accumulated_seconds,
+        },
     )
-}
+    .await;
 
-/// 完成游戏监控会话并发送结束事件
-///
-/// # Arguments
-/// * `app_handle` - Tauri 应用句柄
-/// * `game_id` - 游戏 ID
-/// * `process_id` - 最终的进程 PID
-/// * `start_time` - 会话开始时间戳
-/// * `accumulated_seconds` - 累计的活动时间（秒）
-///
-/// # 返回值
-/// 成功返回 `Ok(())`，失败返回包含错误信息的 `Err(String)`
-fn finalize_session<R: Runtime>(
-    app_handle: &AppHandle<R>,
-    game_id: u32,
-    process_id: u32,
-    start_time: u64,
-    accumulated_seconds: u64,
-) -> Result<(), String> {
-    let end_time = get_timestamp();
-    let total_minutes = accumulated_seconds / 60;
-    let remainder_seconds = accumulated_seconds % 60;
-
-    // 将秒数四舍五入到最接近的分钟数
-    let final_minutes = if remainder_seconds >= 30 {
-        total_minutes + 1
-    } else {
-        total_minutes
-    };
-
-    info!(
-        "游戏会话结束: ID={}, 最终 PID={}, 总活动时间={}秒 (计为 {} 分钟)",
-        game_id, process_id, accumulated_seconds, final_minutes
-    );
-
-    // 发送会话结束事件到前端
-    app_handle
-        .emit(
-            "game-session-ended",
-            json!({
-                "gameId": game_id,
-                "startTime": start_time,
-                "endTime": end_time,
-                "totalMinutes": final_minutes,
-                "totalSeconds": accumulated_seconds,
-                "processId": process_id
-            }),
-        )
-        .map_err(|e| format!("无法发送 game-session-ended 事件: {}", e))
+    Ok(())
 }
 
 // ============================================================================

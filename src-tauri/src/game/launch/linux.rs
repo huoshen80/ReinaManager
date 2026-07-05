@@ -1,5 +1,5 @@
 use crate::database::repository::games_repository::GamesRepository;
-use crate::game::monitor::{monitor_game, stop_game_session};
+use crate::game::monitor::{TimeTrackingMode, monitor_game, stop_game_session};
 use log::{debug, info};
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,7 @@ pub async fn launch_game<R: Runtime>(
     db: State<'_, DatabaseConnection>,
     game_id: u32,
     args: Option<Vec<String>>,
+    time_tracking_mode: TimeTrackingMode,
 ) -> Result<LaunchResult, String> {
     let game = GamesRepository::find_by_id(db.inner(), game_id as i32)
         .await
@@ -108,6 +109,8 @@ pub async fn launch_game<R: Runtime>(
 
             monitor_game(
                 app_handle.clone(),
+                db.inner().clone(),
+                time_tracking_mode,
                 game_id,
                 process_id,
                 systemd_unit_name.clone(),

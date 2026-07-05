@@ -7,7 +7,7 @@ use crate::database::dto::{
 };
 use crate::database::repository::{
     collections_repository::{CategoryWithCount, CollectionsRepository},
-    game_stats_repository::{DailyStats, GameLastPlayed, GameStatsRepository},
+    game_stats_repository::{GameLastPlayed, GameStatsRepository},
     games_repository::{GameType, GamesRepository, SortOption, SortOrder},
     settings_repository::SettingsRepository,
 };
@@ -260,22 +260,18 @@ pub async fn get_savedata_records(
 
 // ==================== 游戏统计相关 ====================
 
-/// 记录游戏会话
+/// 手动创建游戏会话
 #[tauri::command]
-pub async fn record_game_session(
+pub async fn create_manual_game_session(
     db: State<'_, DatabaseConnection>,
     game_id: i32,
     start_time: i32,
-    end_time: i32,
     duration: i32,
-    date: String,
 ) -> Result<i32, String> {
-    GameStatsRepository::record_session_with_statistics(
-        &db, game_id, start_time, end_time, duration, date,
-    )
-    .await
-    .map(|session| session.session_id)
-    .map_err(|e| format!("记录游戏会话失败: {}", e))
+    GameStatsRepository::create_manual_session(&db, game_id, start_time, duration)
+        .await
+        .map(|session| session.session_id)
+        .map_err(|e| format!("创建游戏会话失败: {}", e))
 }
 
 /// 获取游戏会话历史
@@ -312,28 +308,6 @@ pub async fn delete_game_session(
     GameStatsRepository::delete_session_with_statistics(&db, session_id)
         .await
         .map_err(|e| format!("删除游戏会话失败: {}", e))
-}
-
-/// 更新游戏统计信息
-#[tauri::command]
-pub async fn update_game_statistics(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-    total_time: i32,
-    session_count: i32,
-    last_played: Option<i32>,
-    daily_stats: Vec<DailyStats>,
-) -> Result<(), String> {
-    GameStatsRepository::update_statistics(
-        &db,
-        game_id,
-        total_time,
-        session_count,
-        last_played,
-        daily_stats,
-    )
-    .await
-    .map_err(|e| format!("更新游戏统计失败: {}", e))
 }
 
 /// 获取游戏统计信息
@@ -400,17 +374,6 @@ pub async fn get_today_playtime(
     GameStatsRepository::get_today_playtime(&db, game_id, &today)
         .await
         .map_err(|e| format!("获取今天游戏时间失败: {}", e))
-}
-
-/// 初始化游戏统计记录
-#[tauri::command]
-pub async fn init_game_statistics(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-) -> Result<(), String> {
-    GameStatsRepository::init_statistics_if_not_exists(&db, game_id)
-        .await
-        .map_err(|e| format!("初始化游戏统计失败: {}", e))
 }
 
 // ==================== 用户设置相关 ====================
