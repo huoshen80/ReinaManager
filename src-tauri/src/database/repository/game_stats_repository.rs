@@ -410,6 +410,18 @@ impl GameStatsRepository {
         Self::record_session_with_statistics(db, game_id, start_time, end_time, duration).await
     }
 
+    /// 从事实会话重建指定游戏的统计投影
+    pub async fn rebuild_statistics(db: &DatabaseConnection, game_id: i32) -> Result<(), DbErr> {
+        if game_id <= 0 {
+            return Err(custom_error("游戏 ID 必须大于零"));
+        }
+
+        let transaction = db.begin().await?;
+        let projection = Self::calculate_projection(&transaction, game_id).await?;
+        Self::upsert_projection(&transaction, game_id, projection).await?;
+        transaction.commit().await
+    }
+
     /// 获取游戏会话历史
     pub async fn get_sessions(
         db: &DatabaseConnection,
@@ -949,5 +961,33 @@ mod tests {
                 .expect("会话计数应成功"),
             0
         );
+    }
+
+    #[tokio::test]
+    async fn rebuild_statistics_repairs_existing_projection() {
+        let db = test_database().await;
+        let end_time = timestamp(1, 12);
+        GameStatsRepository::record_session_with_statistics(&db, 1, timestamp(1, 10), end_time, 90)
+            .await
+            .expect("会话写入应成功");
+        db.execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "UPDATE game_statistics SET total_time = 1, session_count = 99",
+        ))
+        .await
+        .expect("应写入错误投影");
+
+        GameStatsRepository::rebuild_statistics(&db, 1)
+            .await
+            .expect("单游戏统计应重建成功");
+        let statistics = GameStatistics::find_by_id(1)
+            .one(&db)
+            .await
+            .expect("统计查询应成功")
+            .expect("统计记录应存在");
+
+        assert_eq!(statistics.total_time, Some(90));
+        assert_eq!(statistics.session_count, Some(1));
+        assert_eq!(statistics.last_played, Some(end_time));
     }
 }

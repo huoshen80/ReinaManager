@@ -274,6 +274,17 @@ pub async fn create_manual_game_session(
         .map_err(|e| format!("创建游戏会话失败: {}", e))
 }
 
+/// 重建指定游戏的统计投影
+#[tauri::command]
+pub async fn rebuild_game_statistics(
+    db: State<'_, DatabaseConnection>,
+    game_id: i32,
+) -> Result<(), String> {
+    GameStatsRepository::rebuild_statistics(&db, game_id)
+        .await
+        .map_err(|e| format!("重建游戏统计失败: {}", e))
+}
+
 /// 获取游戏会话历史
 #[tauri::command]
 pub async fn get_game_sessions(

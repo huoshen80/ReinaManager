@@ -94,6 +94,7 @@ pub fn run() {
             get_savedata_records,
             // 游戏统计相关 commands
             create_manual_game_session,
+            rebuild_game_statistics,
             get_game_sessions,
             get_recent_sessions_for_all,
             delete_game_session,
