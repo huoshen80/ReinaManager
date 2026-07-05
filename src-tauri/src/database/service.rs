@@ -270,9 +270,12 @@ pub async fn record_game_session(
     duration: i32,
     date: String,
 ) -> Result<i32, String> {
-    GameStatsRepository::record_session(&db, game_id, start_time, end_time, duration, date)
-        .await
-        .map_err(|e| format!("记录游戏会话失败: {}", e))
+    GameStatsRepository::record_session_with_statistics(
+        &db, game_id, start_time, end_time, duration, date,
+    )
+    .await
+    .map(|session| session.session_id)
+    .map_err(|e| format!("记录游戏会话失败: {}", e))
 }
 
 /// 获取游戏会话历史
@@ -305,10 +308,9 @@ pub async fn get_recent_sessions_for_all(
 pub async fn delete_game_session(
     db: State<'_, DatabaseConnection>,
     session_id: i32,
-) -> Result<u64, String> {
-    GameStatsRepository::delete_session(&db, session_id)
+) -> Result<i32, String> {
+    GameStatsRepository::delete_session_with_statistics(&db, session_id)
         .await
-        .map(|result| result.rows_affected)
         .map_err(|e| format!("删除游戏会话失败: {}", e))
 }
 
