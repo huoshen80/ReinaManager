@@ -237,6 +237,21 @@ export interface FullGameData extends GamePayload {
 }
 
 /**
+ * 后端 V2 source 记录。首版由 IPC 层转换为现有宽字段。
+ */
+export interface GameSourceRecord {
+	source: string;
+	external_id: Nullable<string>;
+	data: unknown | null;
+}
+
+type LegacySourceField = SourceIdType | SourceDataKey;
+
+export type FullGameDataV2 = Omit<FullGameData, LegacySourceField> & {
+	sources: GameSourceRecord[];
+};
+
+/**
  * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
  */
 export interface GameCandidateData extends GamePayload {
@@ -256,9 +271,14 @@ export interface InsertGameParams
 		Omit<GameRuntimePayload, "localpath" | "savepath">,
 		GameMetadataPayload {
 	id_type: IdType | string; // 必需字段
+	date?: string;
 	localpath?: string;
 	savepath?: string;
 }
+
+export type InsertGameParamsV2 = Omit<InsertGameParams, LegacySourceField> & {
+	sources: GameSourceRecord[];
+};
 
 /**
  * 更新游戏参数 - 用于更新游戏（部分更新用）
@@ -295,6 +315,11 @@ export interface UpdateGameParams {
 	kun_data?: Nullable<KunData>;
 	custom_data?: Nullable<CustomData>;
 }
+
+export type UpdateGameParamsV2 = Omit<UpdateGameParams, LegacySourceField> & {
+	upsert_sources?: GameSourceRecord[];
+	remove_sources?: string[];
+};
 
 /**
  * 更新设置参数 - 用于批量更新用户设置（部分更新用）

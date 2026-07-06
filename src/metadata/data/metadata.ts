@@ -258,6 +258,20 @@ export async function fetchMetadataForUpdate({
 	return apiData;
 }
 
+function getGameCandidateDate(gameData: GameCandidateData): string | undefined {
+	const dateSources =
+		gameData.id_type && isSourceType(gameData.id_type)
+			? [gameData.id_type]
+			: REGISTERED_SOURCE_KEYS;
+	return dateSources
+		.map((source) => {
+			const adapter = getRuntimeSourceAdapter(source);
+			const data = gameData[adapter.dataKey];
+			return data ? adapter.toDisplayFields(data).date?.trim() : undefined;
+		})
+		.find(Boolean);
+}
+
 export async function buildInsertGameData(
 	gameData: GameCandidateData,
 	cloudStatusContext?: CloudPlayStatusContext,
@@ -268,6 +282,7 @@ export async function buildInsertGameData(
 		ymgal_id: gameData.ymgal_id,
 		kun_id: gameData.kun_id,
 		id_type: gameData.id_type || "mixed",
+		date: getGameCandidateDate(gameData),
 		localpath: gameData.localpath ?? undefined,
 		bgm_data: gameData.bgm_data ?? undefined,
 		vndb_data: gameData.vndb_data ?? undefined,
@@ -297,7 +312,10 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 export function buildMetadataUpdatePayload(
 	gameData: GameCandidateData,
 ): UpdateGameParams {
-	const updateData: UpdateGameParams = { ...gameData };
+	const updateData: UpdateGameParams = {
+		...gameData,
+		date: getGameCandidateDate(gameData) ?? null,
+	};
 
 	if (gameData.id_type !== "mixed") {
 		for (const source of REGISTERED_SOURCE_KEYS) {

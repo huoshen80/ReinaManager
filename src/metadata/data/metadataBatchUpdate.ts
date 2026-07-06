@@ -4,7 +4,7 @@ import { gameKeys } from "@/hooks/queries/useGames";
 import { queryClient } from "@/providers/queryClient";
 import { withBgmAuth } from "@/services/bgmAuthSession";
 import { gameService } from "@/services/invoke";
-import type { BgmData, VndbData } from "@/types";
+import type { BgmData, UpdateGameParams, VndbData } from "@/types";
 import { toError } from "@/utils/errors";
 import { fetchBgmByIds } from "../api/bgm";
 import { fetchVNDBByIds } from "../api/vndb";
@@ -48,15 +48,20 @@ async function batchUpdateCommon(
 			}
 		}
 
-		const updates: Array<
-			[number, Partial<{ bgm_data: BgmData; vndb_data: VndbData }>]
-		> = [];
+		const updates: Array<[number, UpdateGameParams]> = [];
+		const idKeyName = type === "bgm" ? "bgm_id" : "vndb_id";
 
 		for (const [gameId, apiId] of idPairs) {
 			const data = resultByApiId.get(apiId);
 
 			if (data?.[updateKeyName]) {
-				updates.push([gameId, { [updateKeyName]: data[updateKeyName] }]);
+				updates.push([
+					gameId,
+					{
+						[idKeyName]: apiId,
+						[updateKeyName]: data[updateKeyName],
+					},
+				]);
 			}
 		}
 

@@ -2,22 +2,107 @@
  * @file 游戏数据服务
  * @description 封装所有游戏相关的后端调用
  *
- * 重构说明:
- * - 采用单表架构，元数据以 JSON 列形式嵌入 games 表
- * - 使用 DTO 模式区分读取、插入、更新操作
- * - InsertGameParams: 新增游戏
- * - UpdateGameParams: 更新游戏（支持三态逻辑）
- * - FullGameData: 读取游戏数据
+ * 后端使用 sources 数组；本层临时转换为现有前端宽模型，
+ * 兼容逻辑移除前不向组件和缓存扩散 V2 wire shape。
  */
 
 import type {
 	BatchOperationResult,
 	FullGameData,
+	FullGameDataV2,
+	GameSourceRecord,
 	InsertGameParams,
+	InsertGameParamsV2,
 	UpdateGameParams,
+	UpdateGameParamsV2,
 } from "@/types";
+import { isSourceType, SOURCE_FIELD_KEYS } from "@/types";
 import { BaseService } from "./base";
 import type { GameType, SortOption, SortOrder } from "./types";
+
+type WireBatchOperationResult = Omit<BatchOperationResult, "games"> & {
+	games: FullGameDataV2[];
+};
+
+function withoutLegacySourceFields<T extends object>(value: T): T {
+	const result = { ...value } as Record<string, unknown>;
+	for (const fields of Object.values(SOURCE_FIELD_KEYS)) {
+		delete result[fields.id];
+		delete result[fields.data];
+	}
+	return result as T;
+}
+
+function collectSourceRecords(
+	value: Record<string, unknown>,
+): GameSourceRecord[] {
+	const sources: GameSourceRecord[] = [];
+	for (const [source, fields] of Object.entries(SOURCE_FIELD_KEYS)) {
+		const externalId = value[fields.id];
+		const data = value[fields.data];
+		if (externalId == null && data == null) continue;
+
+		sources.push({
+			source,
+			external_id: typeof externalId === "string" ? externalId : null,
+			data: data ?? null,
+		});
+	}
+	return sources;
+}
+
+function toLegacyGame(game: FullGameDataV2): FullGameData {
+	const { sources, ...base } = game;
+	const result = { ...base } as Record<string, unknown>;
+
+	for (const source of sources) {
+		if (!isSourceType(source.source)) continue;
+		const fields = SOURCE_FIELD_KEYS[source.source];
+		result[fields.id] = source.external_id ?? undefined;
+		result[fields.data] = source.data;
+	}
+
+	return result as unknown as FullGameData;
+}
+
+function toInsertWire(game: InsertGameParams): InsertGameParamsV2 {
+	return {
+		...withoutLegacySourceFields(game),
+		sources: collectSourceRecords(game as unknown as Record<string, unknown>),
+	};
+}
+
+function toUpdateWire(updates: UpdateGameParams): UpdateGameParamsV2 {
+	const raw = updates as Record<string, unknown>;
+	const upsertSources: GameSourceRecord[] = [];
+	const removeSources: string[] = [];
+
+	for (const [source, fields] of Object.entries(SOURCE_FIELD_KEYS)) {
+		const hasId = Object.hasOwn(raw, fields.id);
+		const hasData = Object.hasOwn(raw, fields.data);
+		if (!hasId && !hasData) continue;
+		if (hasId !== hasData) {
+			throw new Error(`${source} source 更新必须同时包含 ID 和 data`);
+		}
+
+		const externalId = raw[fields.id];
+		const data = raw[fields.data];
+		if (externalId == null && data == null) {
+			removeSources.push(source);
+		} else {
+			upsertSources.push({
+				source,
+				external_id: typeof externalId === "string" ? externalId : null,
+				data: data ?? null,
+			});
+		}
+	}
+
+	const wire: UpdateGameParamsV2 = withoutLegacySourceFields(updates);
+	if (upsertSources.length > 0) wire.upsert_sources = upsertSources;
+	if (removeSources.length > 0) wire.remove_sources = removeSources;
+	return wire;
+}
 
 class GameService extends BaseService {
 	/**
@@ -25,7 +110,10 @@ class GameService extends BaseService {
 	 * @param game 插入参数（不含 id 和时间戳）
 	 */
 	async insertGame(game: InsertGameParams): Promise<FullGameData> {
-		return this.invoke<FullGameData>("insert_game", { game });
+		const result = await this.invoke<FullGameDataV2>("insert_game", {
+			game: toInsertWire(game),
+		});
+		return toLegacyGame(result);
 	}
 
 	/**
@@ -34,14 +122,24 @@ class GameService extends BaseService {
 	async insertGamesBatch(
 		games: InsertGameParams[],
 	): Promise<BatchOperationResult> {
-		return this.invoke<BatchOperationResult>("insert_games_batch", { games });
+		const result = await this.invoke<WireBatchOperationResult>(
+			"insert_games_batch",
+			{ games: games.map(toInsertWire) },
+		);
+		return {
+			...result,
+			games: result.games.map(toLegacyGame),
+		};
 	}
 
 	/**
 	 * 根据 ID 查询游戏数据
 	 */
 	async getGameById(id: number): Promise<FullGameData | null> {
-		return this.invoke<FullGameData | null>("find_game_by_id", { id });
+		const result = await this.invoke<FullGameDataV2 | null>("find_game_by_id", {
+			id,
+		});
+		return result ? toLegacyGame(result) : null;
 	}
 
 	/**
@@ -54,12 +152,13 @@ class GameService extends BaseService {
 		sortOrder: SortOrder = "asc",
 		language?: string,
 	): Promise<FullGameData[]> {
-		return this.invoke<FullGameData[]>("find_all_games", {
+		const result = await this.invoke<FullGameDataV2[]>("find_all_games", {
 			gameType,
 			sortOption,
 			sortOrder,
 			language: language ?? null,
 		});
+		return result.map(toLegacyGame);
 	}
 
 	/**
@@ -97,10 +196,11 @@ class GameService extends BaseService {
 		gameId: number,
 		updates: UpdateGameParams,
 	): Promise<FullGameData> {
-		return this.invoke<FullGameData>("update_game", {
+		const result = await this.invoke<FullGameDataV2>("update_game", {
 			gameId,
-			updates,
+			updates: toUpdateWire(updates),
 		});
+		return toLegacyGame(result);
 	}
 
 	/**
@@ -125,33 +225,41 @@ class GameService extends BaseService {
 	}
 
 	/**
-	 * 检查 BGM ID 是否已存在
+	 * 检查指定 source ID 是否已存在
 	 */
+	async sourceBindingExists(
+		source: string,
+		externalId: string,
+	): Promise<boolean> {
+		return this.invoke<boolean>("source_binding_exists", {
+			source,
+			externalId,
+		});
+	}
+
 	async gameExistsByBgmId(bgmId: string): Promise<boolean> {
-		return this.invoke<boolean>("game_exists_by_bgm_id", { bgmId });
+		return this.sourceBindingExists("bgm", bgmId);
 	}
 
-	/**
-	 * 检查 VNDB ID 是否已存在
-	 */
 	async gameExistsByVndbId(vndbId: string): Promise<boolean> {
-		return this.invoke<boolean>("game_exists_by_vndb_id", { vndbId });
+		return this.sourceBindingExists("vndb", vndbId);
 	}
 
 	/**
-	 * 获取所有游戏的 BGM ID 列表
-	 * @returns 返回 [id, bgm_id] 的数组，只包含有 BGM ID 的游戏
+	 * 获取指定 source 的游戏绑定
 	 */
+	async getSourceBindings(source: string): Promise<Array<[number, string]>> {
+		return this.invoke<Array<[number, string]>>("get_source_bindings", {
+			source,
+		});
+	}
+
 	async getAllBgmIds(): Promise<Array<[number, string]>> {
-		return this.invoke<Array<[number, string]>>("get_all_bgm_ids", {});
+		return this.getSourceBindings("bgm");
 	}
 
-	/**
-	 * 获取所有游戏的 VNDB ID 列表
-	 * @returns 返回 [id, vndb_id] 的数组，只包含有 VNDB ID 的游戏
-	 */
 	async getAllVndbIds(): Promise<Array<[number, string]>> {
-		return this.invoke<Array<[number, string]>>("get_all_vndb_ids", {});
+		return this.getSourceBindings("vndb");
 	}
 
 	/**
@@ -165,7 +273,13 @@ class GameService extends BaseService {
 	async updateBatch(
 		updates: Array<[number, UpdateGameParams]>,
 	): Promise<FullGameData[]> {
-		return this.invoke<FullGameData[]>("update_games_batch", { updates });
+		const result = await this.invoke<FullGameDataV2[]>("update_games_batch", {
+			updates: updates.map(([gameId, update]) => [
+				gameId,
+				toUpdateWire(update),
+			]),
+		});
+		return result.map(toLegacyGame);
 	}
 }
 
