@@ -352,6 +352,8 @@ export interface GameData
 /**
  * 游戏会话记录
  */
+export type TimeTrackingMode = "playtime" | "elapsed";
+
 export interface GameSession {
 	session_id: number; // 会话的唯一标识符
 	game_id: number; // 游戏的唯一标识符

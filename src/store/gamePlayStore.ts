@@ -28,7 +28,7 @@ import {
 } from "@/services/game/gameRuntime";
 import { initGameTimeTracking } from "@/services/game/gameStats";
 import { useStore } from "@/store/appStore";
-import type { StopGameResult } from "@/types";
+import type { StopGameResult, TimeTrackingMode } from "@/types";
 import { toError } from "@/utils/errors";
 
 /**
@@ -48,6 +48,7 @@ interface GameRealTimeState {
 	currentSessionMinutes: number;
 	currentSessionSeconds: number;
 	startTime: number;
+	timeTrackingMode: TimeTrackingMode;
 	processId?: number;
 }
 
@@ -110,6 +111,8 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				return { success: false, message: "该游戏已在运行中" };
 			}
 
+			const timeTrackingMode = useStore.getState().timeTrackingMode;
+
 			// 添加到运行中游戏列表
 			set((state) => {
 				const newRunningGames = new Set(state.runningGameIds);
@@ -123,6 +126,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 						currentSessionMinutes: 0,
 						currentSessionSeconds: 0,
 						startTime: Math.floor(Date.now() / 1000),
+						timeTrackingMode,
 					},
 				};
 
@@ -137,7 +141,11 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				get().initTimeTracking();
 			}
 
-			const result = await launchGameWithTracking(gameId, args);
+			const result = await launchGameWithTracking(
+				gameId,
+				timeTrackingMode,
+				args,
+			);
 
 			if (!result.success) {
 				// 启动失败，恢复状态

@@ -32,7 +32,6 @@ import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { handleExeFile } from "@/services/fs/fileDialog";
-import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData, UpdateGameParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
@@ -90,7 +89,6 @@ interface LaunchModalContentProps {
 
 function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 	const { t } = useTranslation();
-	const timeTrackingMode = useStore((s) => s.timeTrackingMode);
 	const updateGameMutation = useUpdateGame();
 	const selectedGameId = selectedGame.id;
 	const { launchGame, stopGame, isThisGameRunning, realTimeState } =
@@ -103,6 +101,7 @@ function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 			})),
 		);
 	const hasLocalPath = Boolean(selectedGame.localpath);
+	const sessionTimeTrackingMode = realTimeState?.timeTrackingMode;
 
 	// 用于 elapsed 模式下的前端计时器显示
 	const timerRef = useRef<HTMLSpanElement>(null);
@@ -115,7 +114,7 @@ function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 
 	useEffect(() => {
 		if (
-			timeTrackingMode !== "elapsed" ||
+			sessionTimeTrackingMode !== "elapsed" ||
 			!isThisGameRunning ||
 			!realTimeState?.startTime
 		) {
@@ -141,7 +140,7 @@ function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 		return () => {
 			clearInterval(intervalId);
 		};
-	}, [timeTrackingMode, isThisGameRunning, realTimeState?.startTime]);
+	}, [sessionTimeTrackingMode, isThisGameRunning, realTimeState?.startTime]);
 
 	const handleStartGame = async () => {
 		try {
@@ -280,7 +279,7 @@ function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 					color="textDisabled"
 					sx={{ fontVariantNumeric: "tabular-nums" }}
 				>
-					{timeTrackingMode === "elapsed"
+					{sessionTimeTrackingMode === "elapsed"
 						? elapsedInitialDisplay
 						: initialTimeDisplay}
 				</Typography>

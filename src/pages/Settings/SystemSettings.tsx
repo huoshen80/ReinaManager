@@ -243,7 +243,7 @@ export const TimeTrackingModeSettings = () => {
 			title={t("pages.Settings.timeTrackingMode.title", "游戏计时模式")}
 			description={t(
 				"pages.Settings.timeTrackingMode.description",
-				"选择游戏时间的计算方式，影响游戏运行时的时间显示和统计记录。",
+				"选择游戏时间的计算方式，更改仅对之后启动的游戏生效。",
 			)}
 		>
 			<Box>

@@ -780,7 +780,7 @@
 				"title": "TAG Translation"
 			},
 			"timeTrackingMode": {
-				"description": "Select how game time is calculated, affecting time display and statistics recording.",
+				"description": "Select how game time is calculated. Changes apply only to games launched afterward.",
 				"elapsed": "Total Elapsed Time",
 				"elapsedDesc": "Counts total time from game launch to exit, regardless of focus",
 				"playtime": "Real Game Time (Default)",

@@ -767,7 +767,7 @@
 				"title": "TAG翻譯"
 			},
 			"timeTrackingMode": {
-				"description": "選擇遊戲時間的計算方式，影響遊戲運行時的時間顯示和統計記錄。",
+				"description": "選擇遊戲時間的計算方式，變更僅對之後啟動的遊戲生效。",
 				"elapsed": "遊戲啟動時間",
 				"elapsedDesc": "計算從遊戲啟動到結束的總時間，不區分前台後台",
 				"playtime": "真實遊戲時間（預設）",
