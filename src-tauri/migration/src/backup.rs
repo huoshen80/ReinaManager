@@ -38,11 +38,7 @@ pub async fn backup_sqlite(version: &str) -> Result<PathBuf, DbErr> {
     let timestamp = Local::now().format("%Y%m%d_%H%M%S_%3f");
     let backup_path = target_dir.join(format!("reina_manager_{}_{}.db", version, timestamp));
 
-    sqlx::query("VACUUM INTO ?")
-        .bind(backup_path.to_string_lossy().as_ref())
-        .execute(&pool)
-        .await
-        .map_err(|e| DbErr::Custom(format!("Failed to create SQLite snapshot: {}", e)))?;
+    create_snapshot(&pool, &backup_path).await?;
 
     pool.close().await;
 
@@ -80,5 +76,62 @@ async fn verify_integrity(pool: &sqlx::SqlitePool, label: &str) -> Result<(), Db
             "{}完整性检查失败: {}",
             label, result
         )))
+    }
+}
+
+async fn create_snapshot(pool: &sqlx::SqlitePool, path: &Path) -> Result<(), DbErr> {
+    sqlx::query("VACUUM INTO ?")
+        .bind(path.to_string_lossy().as_ref())
+        .execute(pool)
+        .await
+        .map_err(|e| DbErr::Custom(format!("Failed to create SQLite snapshot: {}", e)))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[async_std::test]
+    async fn vacuum_into_creates_readable_snapshot() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory =
+            std::env::temp_dir().join(format!("reina_backup_test_{}_{}", std::process::id(), unique));
+        fs::create_dir_all(&directory).unwrap();
+        let source_path = directory.join("source.db");
+        let backup_path = directory.join("backup.db");
+
+        let source_pool = sqlx::SqlitePool::connect(&path_to_sqlite_url(&source_path).unwrap())
+            .await
+            .unwrap();
+        sqlx::query("CREATE TABLE values_table(value TEXT NOT NULL)")
+            .execute(&source_pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO values_table(value) VALUES ('kept')")
+            .execute(&source_pool)
+            .await
+            .unwrap();
+
+        create_snapshot(&source_pool, &backup_path).await.unwrap();
+        source_pool.close().await;
+
+        let backup_pool =
+            sqlx::SqlitePool::connect(&path_to_sqlite_url_with_mode(&backup_path, "ro").unwrap())
+                .await
+                .unwrap();
+        verify_integrity(&backup_pool, "测试备份").await.unwrap();
+        let value: String = sqlx::query_scalar("SELECT value FROM values_table")
+            .fetch_one(&backup_pool)
+            .await
+            .unwrap();
+        assert_eq!(value, "kept");
+        backup_pool.close().await;
+
+        fs::remove_dir_all(directory).unwrap();
     }
 }

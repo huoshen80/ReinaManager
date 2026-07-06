@@ -83,10 +83,8 @@ pub fn run() {
             delete_game,
             delete_games_batch,
             count_games,
-            game_exists_by_bgm_id,
-            game_exists_by_vndb_id,
-            get_all_bgm_ids,
-            get_all_vndb_ids,
+            source_binding_exists,
+            get_source_bindings,
             update_games_batch,
             // 存档备份相关 commands
             save_savedata_record,

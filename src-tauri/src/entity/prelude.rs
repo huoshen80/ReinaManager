@@ -6,6 +6,7 @@
 pub use super::collections::Entity as Collections;
 pub use super::game_collection_link::Entity as GameCollectionLink;
 pub use super::game_sessions::Entity as GameSessions;
+pub use super::game_sources::Entity as GameSources;
 pub use super::game_statistics::Entity as GameStatistics;
 pub use super::games::Entity as Games;
 pub use super::savedata::Entity as Savedata;

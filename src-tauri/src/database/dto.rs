@@ -3,14 +3,10 @@
 //! 用于前后端数据交互的结构定义。
 //! 重构后采用单表架构，元数据以 JSON 列形式嵌入 games 表。
 
-use crate::entity::bgm_data::BgmData;
 use crate::entity::custom_data::CustomData;
-use crate::entity::games;
-use crate::entity::kun_data::KunData;
 use crate::entity::user::BgmAuth;
-use crate::entity::vndb_data::VndbData;
-use crate::entity::ymgal_data::YmgalData;
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 /// 辅助函数：支持 Option<Option<T>> 的反序列化
 /// 用于区分"未提供字段"和"显式设为 null"
@@ -51,13 +47,14 @@ fn clean_bgm_auth(mut auth: BgmAuth) -> Option<BgmAuth> {
 impl InsertGameData {
     /// 返回清洗后的数据，将空字符串转换为 None
     pub fn cleaned(mut self) -> Self {
-        self.bgm_id = clean_option_string(self.bgm_id);
-        self.vndb_id = clean_option_string(self.vndb_id);
-        self.ymgal_id = clean_option_string(self.ymgal_id);
-        self.kun_id = clean_option_string(self.kun_id);
         self.date = clean_option_string(self.date);
         self.localpath = clean_option_string(self.localpath);
         self.savepath = clean_option_string(self.savepath);
+        self.sources = self
+            .sources
+            .into_iter()
+            .map(UpsertGameSourceData::cleaned)
+            .collect();
         self
     }
 }
@@ -66,13 +63,30 @@ impl InsertGameData {
 impl UpdateGameData {
     /// 返回清洗后的数据，将空字符串转换为 None
     pub fn cleaned(mut self) -> Self {
-        self.bgm_id = clean_double_option_string(self.bgm_id);
-        self.vndb_id = clean_double_option_string(self.vndb_id);
-        self.ymgal_id = clean_double_option_string(self.ymgal_id);
-        self.kun_id = clean_double_option_string(self.kun_id);
         self.date = clean_double_option_string(self.date);
         self.localpath = clean_double_option_string(self.localpath);
         self.savepath = clean_double_option_string(self.savepath);
+        self.upsert_sources = self.upsert_sources.map(|sources| {
+            sources
+                .into_iter()
+                .map(UpsertGameSourceData::cleaned)
+                .collect()
+        });
+        self.remove_sources = self.remove_sources.map(|sources| {
+            sources
+                .into_iter()
+                .map(|source| source.trim().to_string())
+                .filter(|source| !source.is_empty())
+                .collect()
+        });
+        self
+    }
+}
+
+impl UpsertGameSourceData {
+    fn cleaned(mut self) -> Self {
+        self.source = self.source.trim().to_string();
+        self.external_id = clean_option_string(self.external_id);
         self
     }
 }
@@ -155,16 +169,44 @@ impl UpdateSettingsData {
     }
 }
 
-/// 用于插入游戏的数据结构（单表架构）
-///
-/// 包含所有需要插入的字段，元数据通过 JSON 结构体传入
+/// 单个外部元数据源。
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GameSourceData {
+    pub source: String,
+    pub external_id: Option<String>,
+    pub data: Option<Value>,
+}
+
+/// 外部元数据源写入参数。
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UpsertGameSourceData {
+    pub source: String,
+    pub external_id: Option<String>,
+    pub data: Option<Value>,
+}
+
+/// 完整游戏聚合读取 DTO。
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FullGameData {
+    pub id: i32,
+    pub id_type: String,
+    pub date: Option<String>,
+    pub localpath: Option<String>,
+    pub savepath: Option<String>,
+    pub autosave: Option<i32>,
+    pub maxbackups: Option<i32>,
+    pub clear: Option<i32>,
+    pub le_launch: Option<i32>,
+    pub magpie: Option<i32>,
+    pub custom_data: Option<CustomData>,
+    pub sources: Vec<GameSourceData>,
+    pub created_at: Option<i32>,
+    pub updated_at: Option<i32>,
+}
+
+/// 用于插入游戏聚合的数据结构。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InsertGameData {
-    // === 外部 ID ===
-    pub bgm_id: Option<String>,
-    pub vndb_id: Option<String>,
-    pub ymgal_id: Option<String>,
-    pub kun_id: Option<String>,
     pub id_type: String,
 
     // === 核心状态 ===
@@ -177,12 +219,9 @@ pub struct InsertGameData {
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
 
-    // === JSON 元数据 ===
-    pub vndb_data: Option<VndbData>,
-    pub bgm_data: Option<BgmData>,
-    pub ymgal_data: Option<YmgalData>,
-    pub kun_data: Option<KunData>,
     pub custom_data: Option<CustomData>,
+    #[serde(default)]
+    pub sources: Vec<UpsertGameSourceData>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -197,25 +236,16 @@ pub struct BatchOperationResult {
     pub success: usize,
     pub failed: usize,
     pub ids: Vec<i32>,
-    pub games: Vec<games::Model>,
+    pub games: Vec<FullGameData>,
     pub errors: Vec<BatchOperationError>,
 }
 
-/// 用于更新游戏的数据结构（单表架构）
+/// 用于更新游戏聚合的数据结构。
 ///
 /// 所有字段均为 Option，允许部分更新。
 /// 使用 Option<Option<T>> 来区分"未提供"和"设为 null"。
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UpdateGameData {
-    // === 外部 ID ===
-    #[serde(default, deserialize_with = "double_option")]
-    pub bgm_id: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub vndb_id: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub ymgal_id: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub kun_id: Option<Option<String>>,
     pub id_type: Option<String>,
 
     // === 核心状态 ===
@@ -235,15 +265,8 @@ pub struct UpdateGameData {
     pub le_launch: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie: Option<Option<i32>>,
-    // === JSON 元数据 ===
-    #[serde(default, deserialize_with = "double_option")]
-    pub vndb_data: Option<Option<VndbData>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub bgm_data: Option<Option<BgmData>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub ymgal_data: Option<Option<YmgalData>>,
-    #[serde(default, deserialize_with = "double_option")]
-    pub kun_data: Option<Option<KunData>>,
     #[serde(default, deserialize_with = "double_option")]
     pub custom_data: Option<Option<CustomData>>,
+    pub upsert_sources: Option<Vec<UpsertGameSourceData>>,
+    pub remove_sources: Option<Vec<String>>,
 }

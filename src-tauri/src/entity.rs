@@ -15,6 +15,7 @@ pub mod ymgal_data;
 pub mod collections;
 pub mod game_collection_link;
 pub mod game_sessions;
+pub mod game_sources;
 pub mod game_statistics;
 pub mod games;
 pub mod savedata;

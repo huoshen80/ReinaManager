@@ -2,7 +2,7 @@ use sea_orm::DatabaseConnection;
 use tauri::State;
 
 use crate::database::dto::{
-    BatchOperationResult, InsertCollectionData, InsertGameData, UpdateCollectionData,
+    BatchOperationResult, FullGameData, InsertCollectionData, InsertGameData, UpdateCollectionData,
     UpdateGameData, UpdateSettingsData,
 };
 use crate::database::repository::{
@@ -11,7 +11,7 @@ use crate::database::repository::{
     games_repository::{GameType, GamesRepository, SortOption, SortOrder},
     settings_repository::SettingsRepository,
 };
-use crate::entity::{games, savedata, user};
+use crate::entity::{savedata, user};
 use crate::game::cover::{DownloadState, delete_game_cover_dir};
 
 // ==================== 游戏数据相关 ====================
@@ -21,7 +21,7 @@ use crate::game::cover::{DownloadState, delete_game_cover_dir};
 pub async fn insert_game(
     db: State<'_, DatabaseConnection>,
     game: InsertGameData,
-) -> Result<games::Model, String> {
+) -> Result<FullGameData, String> {
     GamesRepository::insert(&db, game)
         .await
         .map_err(|e| format!("插入游戏数据失败: {}", e))
@@ -40,7 +40,7 @@ pub async fn insert_games_batch(
 pub async fn find_game_by_id(
     db: State<'_, DatabaseConnection>,
     id: i32,
-) -> Result<Option<games::Model>, String> {
+) -> Result<Option<FullGameData>, String> {
     GamesRepository::find_by_id(&db, id)
         .await
         .map_err(|e| format!("查询游戏数据失败: {}", e))
@@ -54,7 +54,7 @@ pub async fn find_all_games(
     sort_option: SortOption,
     sort_order: SortOrder,
     language: Option<String>,
-) -> Result<Vec<games::Model>, String> {
+) -> Result<Vec<FullGameData>, String> {
     GamesRepository::find_all(&db, game_type, sort_option, sort_order, language)
         .await
         .map_err(|e| format!("获取游戏数据失败: {}", e))
@@ -83,7 +83,7 @@ pub async fn update_game(
     db: State<'_, DatabaseConnection>,
     game_id: i32,
     updates: UpdateGameData,
-) -> Result<games::Model, String> {
+) -> Result<FullGameData, String> {
     GamesRepository::update(&db, game_id, updates)
         .await
         .map_err(|e| format!("更新游戏数据失败: {}", e))
@@ -165,46 +165,27 @@ pub async fn count_games(db: State<'_, DatabaseConnection>) -> Result<u64, Strin
         .map_err(|e| format!("获取游戏总数失败: {}", e))
 }
 
-/// 检查 BGM ID 是否已存在
+/// 检查 source external ID 是否已存在
 #[tauri::command]
-pub async fn game_exists_by_bgm_id(
+pub async fn source_binding_exists(
     db: State<'_, DatabaseConnection>,
-    bgm_id: String,
+    source: String,
+    external_id: String,
 ) -> Result<bool, String> {
-    GamesRepository::exists_bgm_id(&db, &bgm_id)
+    GamesRepository::source_binding_exists(&db, &source, &external_id)
         .await
-        .map_err(|e| format!("检查 BGM ID 是否存在失败: {}", e))
+        .map_err(|e| format!("检查 source ID 是否存在失败: {}", e))
 }
 
-/// 检查 VNDB ID 是否已存在
+/// 获取指定 source 的全部游戏绑定
 #[tauri::command]
-pub async fn game_exists_by_vndb_id(
+pub async fn get_source_bindings(
     db: State<'_, DatabaseConnection>,
-    vndb_id: String,
-) -> Result<bool, String> {
-    GamesRepository::exists_vndb_id(&db, &vndb_id)
-        .await
-        .map_err(|e| format!("检查 VNDB ID 是否存在失败: {}", e))
-}
-
-/// 获取所有游戏的 BGM ID（返回 {id, bgm_id} 对象数组）
-#[tauri::command]
-pub async fn get_all_bgm_ids(
-    db: State<'_, DatabaseConnection>,
+    source: String,
 ) -> Result<Vec<(i32, String)>, String> {
-    GamesRepository::get_all_bgm_ids(&db)
+    GamesRepository::get_source_bindings(&db, &source)
         .await
-        .map_err(|e| format!("获取 BGM ID 列表失败: {}", e))
-}
-
-/// 获取所有游戏的 VNDB ID（返回 {id, vndb_id} 对象数组）
-#[tauri::command]
-pub async fn get_all_vndb_ids(
-    db: State<'_, DatabaseConnection>,
-) -> Result<Vec<(i32, String)>, String> {
-    GamesRepository::get_all_vndb_ids(&db)
-        .await
-        .map_err(|e| format!("获取 VNDB ID 列表失败: {}", e))
+        .map_err(|e| format!("获取 source ID 列表失败: {}", e))
 }
 
 /// 批量更新游戏数据
@@ -214,7 +195,7 @@ pub async fn get_all_vndb_ids(
 pub async fn update_games_batch(
     db: State<'_, DatabaseConnection>,
     updates: Vec<(i32, UpdateGameData)>,
-) -> Result<Vec<games::Model>, String> {
+) -> Result<Vec<FullGameData>, String> {
     GamesRepository::update_batch(&db, updates)
         .await
         .map_err(|e| format!("批量更新数据失败: {}", e))

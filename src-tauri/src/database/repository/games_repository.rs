@@ -1,17 +1,16 @@
-//! 游戏数据仓库（单表架构）
-//!
-//! 重构后的 Repository，games 表包含所有元数据（以 JSON 列存储）。
-//! 移除了多表事务代码，简化为单表 CRUD 操作。
+//! 游戏聚合仓库。
 
 use crate::database::dto::{
-    BatchOperationError, BatchOperationResult, InsertGameData, UpdateGameData,
+    BatchOperationError, BatchOperationResult, FullGameData, GameSourceData, InsertGameData,
+    UpdateGameData, UpsertGameSourceData,
 };
 use crate::entity::prelude::*;
-use crate::entity::{game_statistics, games, savedata};
-use sea_orm::sea_query::Expr;
+use crate::entity::{game_sources, game_statistics, games, savedata};
+use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 
 /// 游戏数据排序选项
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -44,14 +43,11 @@ pub enum GameType {
     IsCustom,
 }
 
-/// 游戏数据仓库（单表架构）
 pub struct GamesRepository;
 
 impl GamesRepository {
-    // ==================== 游戏 CRUD 操作 ====================
-
-    /// 缺省游戏状态：想玩 / WISH
     const DEFAULT_PLAY_STATUS: i32 = 1;
+    const MIXED_NAME_PRIORITY: [&str; 4] = ["bgm", "vndb", "ymgal", "kun"];
 
     fn build_batch_failure_result(total: usize, message: String) -> BatchOperationResult {
         BatchOperationResult {
@@ -69,108 +65,81 @@ impl GamesRepository {
         }
     }
 
-    fn clean_source_date(date: Option<&str>) -> Option<String> {
-        date.map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToOwned::to_owned)
+    fn validate_source(source: &UpsertGameSourceData) -> Result<(), DbErr> {
+        if source.source.is_empty() {
+            return Err(DbErr::Custom("source 不能为空".to_string()));
+        }
+        if source.external_id.is_none() && source.data.is_none() {
+            return Err(DbErr::Custom(format!(
+                "{} source 的 external_id 和 data 不能同时为空",
+                source.source
+            )));
+        }
+        Ok(())
     }
 
-    fn resolve_source_date<'a>(dates: impl IntoIterator<Item = Option<&'a str>>) -> Option<String> {
-        dates.into_iter().find_map(Self::clean_source_date)
-    }
-
-    fn pick_next_data<'a, T>(
-        update: &'a Option<Option<T>>,
-        current: &'a Option<T>,
-    ) -> Option<&'a T> {
-        update.as_ref().map_or(current.as_ref(), Option::as_ref)
-    }
-
-    fn has_source_data_update(updates: &UpdateGameData) -> bool {
-        [
-            updates.bgm_data.is_some(),
-            updates.vndb_data.is_some(),
-            updates.ymgal_data.is_some(),
-            updates.kun_data.is_some(),
-        ]
-        .into_iter()
-        .any(|updated| updated)
-    }
-
-    fn normalize_insert_date(mut game: InsertGameData) -> InsertGameData {
-        if game.date.is_none() {
-            game.date = Self::resolve_source_date([
-                game.bgm_data.as_ref().and_then(|data| data.date.as_deref()),
-                game.vndb_data
-                    .as_ref()
-                    .and_then(|data| data.date.as_deref()),
-                game.ymgal_data
-                    .as_ref()
-                    .and_then(|data| data.date.as_deref()),
-                game.kun_data.as_ref().and_then(|data| data.date.as_deref()),
-            ]);
+    fn validate_source_changes(
+        upserts: &[UpsertGameSourceData],
+        removes: &[String],
+    ) -> Result<(), DbErr> {
+        let mut seen = HashSet::new();
+        for source in upserts {
+            Self::validate_source(source)?;
+            if !seen.insert(source.source.as_str()) {
+                return Err(DbErr::Custom(format!(
+                    "{} source 被重复提交",
+                    source.source
+                )));
+            }
         }
 
-        game
-    }
-
-    fn should_normalize_update_date(updates: &UpdateGameData) -> bool {
-        matches!(updates.date, Some(None))
-            || (updates.date.is_none() && Self::has_source_data_update(updates))
-    }
-
-    async fn normalize_update_date<C>(
-        db: &C,
-        game_id: i32,
-        mut updates: UpdateGameData,
-    ) -> Result<UpdateGameData, DbErr>
-    where
-        C: ConnectionTrait,
-    {
-        if !Self::should_normalize_update_date(&updates) {
-            return Ok(updates);
+        let mut removed = HashSet::new();
+        for source in removes {
+            if !removed.insert(source.as_str()) {
+                return Err(DbErr::Custom(format!("{} source 被重复删除", source)));
+            }
+            if seen.contains(source.as_str()) {
+                return Err(DbErr::Custom(format!(
+                    "{} source 不能同时更新和删除",
+                    source
+                )));
+            }
         }
 
-        let current = Games::find_by_id(game_id)
-            .one(db)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound(format!("game {} not found", game_id)))?;
-
-        updates.date = Some(Self::resolve_source_date([
-            Self::pick_next_data(&updates.bgm_data, &current.bgm_data)
-                .and_then(|data| data.date.as_deref()),
-            Self::pick_next_data(&updates.vndb_data, &current.vndb_data)
-                .and_then(|data| data.date.as_deref()),
-            Self::pick_next_data(&updates.ymgal_data, &current.ymgal_data)
-                .and_then(|data| data.date.as_deref()),
-            Self::pick_next_data(&updates.kun_data, &current.kun_data)
-                .and_then(|data| data.date.as_deref()),
-        ]));
-
-        Ok(updates)
+        Ok(())
     }
 
-    fn build_insert_active_model(game: InsertGameData, now: i32) -> games::ActiveModel {
+    fn normalize_insert_date(game: &mut InsertGameData) {
+        if game.date.is_some() {
+            return;
+        }
+
+        game.date = game.sources.iter().find_map(|source| {
+            source
+                .data
+                .as_ref()
+                .and_then(|data| data.get("date"))
+                .and_then(|date| date.as_str())
+                .map(str::trim)
+                .filter(|date| !date.is_empty())
+                .map(ToOwned::to_owned)
+        });
+    }
+
+    fn build_insert_active_model(game: &InsertGameData, now: i32) -> games::ActiveModel {
         games::ActiveModel {
             id: NotSet,
-            bgm_id: Set(game.bgm_id),
-            vndb_id: Set(game.vndb_id),
-            ymgal_id: Set(game.ymgal_id),
-            kun_id: Set(game.kun_id),
-            id_type: Set(game.id_type),
-            date: Set(game.date),
-            localpath: Set(game.localpath),
-            savepath: NotSet,
-            autosave: NotSet,
-            maxbackups: NotSet,
+            id_type: Set(game.id_type.clone()),
+            date: Set(game.date.clone()),
+            localpath: Set(game.localpath.clone()),
+            savepath: Set(game.savepath.clone()),
+            autosave: Set(game.autosave),
+            maxbackups: Set(game.maxbackups),
             clear: Set(Some(game.clear.unwrap_or(Self::DEFAULT_PLAY_STATUS))),
-            le_launch: NotSet,
-            magpie: NotSet,
-            vndb_data: Set(game.vndb_data),
-            bgm_data: Set(game.bgm_data),
-            ymgal_data: Set(game.ymgal_data),
-            kun_data: Set(game.kun_data),
-            custom_data: Set(game.custom_data),
+            le_launch: Set(game.le_launch),
+            magpie: Set(game.magpie),
+            custom_data: Set(game.custom_data.clone()),
+            user_rating: NotSet,
             created_at: Set(Some(now)),
             updated_at: Set(Some(now)),
         }
@@ -178,48 +147,115 @@ impl GamesRepository {
 
     fn build_update_active_model(
         game_id: i32,
-        updates: UpdateGameData,
+        updates: &UpdateGameData,
         now: i32,
     ) -> games::ActiveModel {
         games::ActiveModel {
             id: Set(game_id),
-            bgm_id: updates.bgm_id.map_or(NotSet, Set),
-            vndb_id: updates.vndb_id.map_or(NotSet, Set),
-            ymgal_id: updates.ymgal_id.map_or(NotSet, Set),
-            kun_id: updates.kun_id.map_or(NotSet, Set),
-            id_type: updates.id_type.map_or(NotSet, Set),
-            date: updates.date.map_or(NotSet, Set),
-            localpath: updates.localpath.map_or(NotSet, Set),
-            savepath: updates.savepath.map_or(NotSet, Set),
+            id_type: updates.id_type.clone().map_or(NotSet, Set),
+            date: updates.date.clone().map_or(NotSet, Set),
+            localpath: updates.localpath.clone().map_or(NotSet, Set),
+            savepath: updates.savepath.clone().map_or(NotSet, Set),
             autosave: updates.autosave.map_or(NotSet, Set),
             maxbackups: updates.maxbackups.map_or(NotSet, Set),
             clear: updates.clear.map_or(NotSet, Set),
             le_launch: updates.le_launch.map_or(NotSet, Set),
             magpie: updates.magpie.map_or(NotSet, Set),
-            vndb_data: updates.vndb_data.map_or(NotSet, Set),
-            bgm_data: updates.bgm_data.map_or(NotSet, Set),
-            ymgal_data: updates.ymgal_data.map_or(NotSet, Set),
-            kun_data: updates.kun_data.map_or(NotSet, Set),
-            custom_data: updates.custom_data.map_or(NotSet, Set),
+            custom_data: updates.custom_data.clone().map_or(NotSet, Set),
+            user_rating: NotSet,
             updated_at: Set(Some(now)),
             ..Default::default()
         }
     }
 
-    /// 插入游戏数据（单表操作）
-    ///
-    /// 所有元数据通过 JSON 列直接存储，无需多表事务
+    fn build_source_active_model(
+        game_id: i32,
+        source: &UpsertGameSourceData,
+    ) -> game_sources::ActiveModel {
+        game_sources::ActiveModel {
+            game_id: Set(game_id),
+            source: Set(source.source.clone()),
+            external_id: Set(source.external_id.clone()),
+            data: Set(source.data.clone()),
+            score: NotSet,
+            rank: NotSet,
+        }
+    }
+
+    async fn upsert_sources<C>(
+        db: &C,
+        game_id: i32,
+        sources: &[UpsertGameSourceData],
+    ) -> Result<(), DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        for source in sources {
+            GameSources::insert(Self::build_source_active_model(game_id, source))
+                .on_conflict(
+                    OnConflict::columns([
+                        game_sources::Column::GameId,
+                        game_sources::Column::Source,
+                    ])
+                    .update_columns([game_sources::Column::ExternalId, game_sources::Column::Data])
+                    .to_owned(),
+                )
+                .exec(db)
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn remove_sources<C>(db: &C, game_id: i32, sources: &[String]) -> Result<(), DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if sources.is_empty() {
+            return Ok(());
+        }
+
+        GameSources::delete_many()
+            .filter(game_sources::Column::GameId.eq(game_id))
+            .filter(game_sources::Column::Source.is_in(sources.iter().cloned()))
+            .exec(db)
+            .await?;
+        Ok(())
+    }
+
+    async fn insert_aggregate<C>(
+        db: &C,
+        mut game: InsertGameData,
+        now: i32,
+    ) -> Result<FullGameData, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        Self::validate_source_changes(&game.sources, &[])?;
+        Self::normalize_insert_date(&mut game);
+
+        let model = Self::build_insert_active_model(&game, now)
+            .insert(db)
+            .await?;
+        Self::upsert_sources(db, model.id, &game.sources).await?;
+
+        Self::find_full_by_id(db, model.id)
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound(format!("game {} not found", model.id)))
+    }
+
     pub async fn insert(
         db: &DatabaseConnection,
         game: InsertGameData,
-    ) -> Result<games::Model, DbErr> {
-        let game = Self::normalize_insert_date(game.cleaned()); // 清洗空字符串为 NULL
-
-        let now = chrono::Utc::now().timestamp() as i32;
-
-        let game_active = Self::build_insert_active_model(game, now);
-
-        game_active.insert(db).await
+    ) -> Result<FullGameData, DbErr> {
+        let transaction = db.begin().await?;
+        let result = Self::insert_aggregate(
+            &transaction,
+            game.cleaned(),
+            chrono::Utc::now().timestamp() as i32,
+        )
+        .await?;
+        transaction.commit().await?;
+        Ok(result)
     }
 
     pub async fn insert_batch(
@@ -227,32 +263,50 @@ impl GamesRepository {
         games: Vec<InsertGameData>,
     ) -> BatchOperationResult {
         let total = games.len();
+        let transaction = match db.begin().await {
+            Ok(transaction) => transaction,
+            Err(error) => return Self::build_batch_failure_result(total, error.to_string()),
+        };
         let now = chrono::Utc::now().timestamp() as i32;
         let mut ids = Vec::with_capacity(total);
         let mut inserted_games = Vec::with_capacity(total);
         let mut errors = Vec::new();
-        let txn = match db.begin().await {
-            Ok(txn) => txn,
-            Err(error) => return Self::build_batch_failure_result(total, error.to_string()),
-        };
 
         for (index, game) in games.into_iter().enumerate() {
-            let game_active =
-                Self::build_insert_active_model(Self::normalize_insert_date(game.cleaned()), now);
-
-            match game_active.insert(&txn).await {
-                Ok(result) => {
-                    ids.push(result.id);
-                    inserted_games.push(result);
+            let nested = match transaction.begin().await {
+                Ok(nested) => nested,
+                Err(error) => {
+                    errors.push(BatchOperationError {
+                        index,
+                        message: error.to_string(),
+                    });
+                    continue;
                 }
-                Err(error) => errors.push(BatchOperationError {
-                    index,
-                    message: error.to_string(),
-                }),
+            };
+
+            match Self::insert_aggregate(&nested, game.cleaned(), now).await {
+                Ok(result) => {
+                    if let Err(error) = nested.commit().await {
+                        errors.push(BatchOperationError {
+                            index,
+                            message: error.to_string(),
+                        });
+                    } else {
+                        ids.push(result.id);
+                        inserted_games.push(result);
+                    }
+                }
+                Err(error) => {
+                    let _ = nested.rollback().await;
+                    errors.push(BatchOperationError {
+                        index,
+                        message: error.to_string(),
+                    });
+                }
             }
         }
 
-        if let Err(error) = txn.commit().await {
+        if let Err(error) = transaction.commit().await {
             return Self::build_batch_failure_result(total, error.to_string());
         }
 
@@ -266,77 +320,137 @@ impl GamesRepository {
         }
     }
 
-    /// 更新游戏数据（单表操作）
-    ///
-    /// 支持部分更新，未提供的字段保持不变
+    async fn update_aggregate<C>(
+        db: &C,
+        game_id: i32,
+        updates: UpdateGameData,
+        now: i32,
+    ) -> Result<FullGameData, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let upserts = updates.upsert_sources.as_deref().unwrap_or_default();
+        let removes = updates.remove_sources.as_deref().unwrap_or_default();
+        Self::validate_source_changes(upserts, removes)?;
+
+        Self::build_update_active_model(game_id, &updates, now)
+            .update(db)
+            .await?;
+        Self::remove_sources(db, game_id, removes).await?;
+        Self::upsert_sources(db, game_id, upserts).await?;
+
+        Self::find_full_by_id(db, game_id)
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound(format!("game {} not found", game_id)))
+    }
+
     pub async fn update(
         db: &DatabaseConnection,
         game_id: i32,
         updates: UpdateGameData,
-    ) -> Result<games::Model, DbErr> {
-        let updates = Self::normalize_update_date(db, game_id, updates.cleaned()).await?; // 清洗空字符串为 NULL
-        let now = chrono::Utc::now().timestamp() as i32;
-
-        let game_active = Self::build_update_active_model(game_id, updates, now);
-
-        game_active.update(db).await
+    ) -> Result<FullGameData, DbErr> {
+        let transaction = db.begin().await?;
+        let result = Self::update_aggregate(
+            &transaction,
+            game_id,
+            updates.cleaned(),
+            chrono::Utc::now().timestamp() as i32,
+        )
+        .await?;
+        transaction.commit().await?;
+        Ok(result)
     }
 
-    /// 批量更新游戏数据
-    ///
-    /// 在事务中批量更新，保证原子性
     pub async fn update_batch(
         db: &DatabaseConnection,
         updates: Vec<(i32, UpdateGameData)>,
-    ) -> Result<Vec<games::Model>, DbErr> {
+    ) -> Result<Vec<FullGameData>, DbErr> {
         if updates.is_empty() {
             return Ok(Vec::new());
         }
 
-        let txn = db.begin().await?;
+        let transaction = db.begin().await?;
         let now = chrono::Utc::now().timestamp() as i32;
         let mut updated_games = Vec::with_capacity(updates.len());
 
         for (game_id, update) in updates {
-            let update = Self::normalize_update_date(&txn, game_id, update.cleaned()).await?; // 清洗空字符串为 NULL
-
-            let game_active = Self::build_update_active_model(game_id, update, now);
-
-            let result = game_active.update(&txn).await?;
-            updated_games.push(result);
+            updated_games
+                .push(Self::update_aggregate(&transaction, game_id, update.cleaned(), now).await?);
         }
 
-        txn.commit().await?;
+        transaction.commit().await?;
         Ok(updated_games)
     }
 
-    // ==================== 查询操作 ====================
+    async fn find_full_by_id<C>(db: &C, id: i32) -> Result<Option<FullGameData>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let Some(game) = Games::find_by_id(id).one(db).await? else {
+            return Ok(None);
+        };
+        let sources = GameSources::find()
+            .filter(game_sources::Column::GameId.eq(id))
+            .order_by_asc(game_sources::Column::Source)
+            .all(db)
+            .await?;
 
-    /// 根据 ID 查询游戏
+        Ok(Some(Self::build_full_game(game, sources)))
+    }
+
+    fn build_full_game(game: games::Model, sources: Vec<game_sources::Model>) -> FullGameData {
+        FullGameData {
+            id: game.id,
+            id_type: game.id_type,
+            date: game.date,
+            localpath: game.localpath,
+            savepath: game.savepath,
+            autosave: game.autosave,
+            maxbackups: game.maxbackups,
+            clear: game.clear,
+            le_launch: game.le_launch,
+            magpie: game.magpie,
+            custom_data: game.custom_data,
+            sources: sources
+                .into_iter()
+                .map(|source| GameSourceData {
+                    source: source.source,
+                    external_id: source.external_id,
+                    data: source.data,
+                })
+                .collect(),
+            created_at: game.created_at,
+            updated_at: game.updated_at,
+        }
+    }
+
     pub async fn find_by_id(
         db: &DatabaseConnection,
         id: i32,
-    ) -> Result<Option<games::Model>, DbErr> {
-        Games::find_by_id(id).one(db).await
+    ) -> Result<Option<FullGameData>, DbErr> {
+        Self::find_full_by_id(db, id).await
     }
 
-    /// 获取所有游戏，支持按类型筛选和排序
     pub async fn find_all(
         db: &DatabaseConnection,
         game_type: GameType,
         sort_option: SortOption,
         sort_order: SortOrder,
         language: Option<String>,
-    ) -> Result<Vec<games::Model>, DbErr> {
-        Self::find_with_sort(db, game_type, sort_option, sort_order, language).await
+    ) -> Result<Vec<FullGameData>, DbErr> {
+        let ids = Self::find_ids(db, game_type, sort_option, sort_order, language.clone()).await?;
+        let games = Self::find_models_in_order(db, &ids).await?;
+        let mut sources_by_game = Self::find_sources_by_game(db, &ids).await?;
+
+        Ok(games
+            .into_iter()
+            .map(|game| {
+                let sources = sources_by_game.remove(&game.id).unwrap_or_default();
+                Self::build_full_game(game, sources)
+            })
+            .collect())
     }
 
-    /// 只返回排序后的 ID 列表，不返回完整游戏数据
-    ///
-    /// 对 SQL 层可直接排序的选项（Addtime/Datetime/LastPlayed）
-    /// 走 `SELECT id` 优化路径，避免加载 JSON 元数据列。
-    /// 其余选项（BGMRank/VNDBRank/UserRatingRank/Namesort）复用 find_with_sort 再提取 id。
-    /// 前端已缓存完整数据，切换排序/筛选时只需传输 ID 数组。
     pub async fn find_ids(
         db: &DatabaseConnection,
         game_type: GameType,
@@ -344,24 +458,60 @@ impl GamesRepository {
         sort_order: SortOrder,
         language: Option<String>,
     ) -> Result<Vec<i32>, DbErr> {
-        match sort_option {
-            SortOption::Addtime | SortOption::Datetime | SortOption::LastPlayed => {
-                Self::find_ids_sql(db, game_type, sort_option, sort_order).await
-            }
-            _ => {
-                let games =
-                    Self::find_with_sort(db, game_type, sort_option, sort_order, language).await?;
-                Ok(games.into_iter().map(|g| g.id).collect())
-            }
+        if matches!(sort_option, SortOption::Namesort) {
+            return Self::find_name_sorted_ids(db, game_type, sort_order, language).await;
         }
+
+        Self::find_ids_sql(db, game_type, sort_option, sort_order).await
     }
 
-    /// 删除游戏
+    async fn find_models_in_order<C>(db: &C, ids: &[i32]) -> Result<Vec<games::Model>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut by_id: HashMap<i32, games::Model> = Games::find()
+            .filter(games::Column::Id.is_in(ids.iter().copied()))
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|game| (game.id, game))
+            .collect();
+
+        Ok(ids.iter().filter_map(|id| by_id.remove(id)).collect())
+    }
+
+    async fn find_sources_by_game<C>(
+        db: &C,
+        ids: &[i32],
+    ) -> Result<HashMap<i32, Vec<game_sources::Model>>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut result: HashMap<i32, Vec<game_sources::Model>> = HashMap::new();
+        for source in GameSources::find()
+            .filter(game_sources::Column::GameId.is_in(ids.iter().copied()))
+            .order_by_asc(game_sources::Column::GameId)
+            .order_by_asc(game_sources::Column::Source)
+            .all(db)
+            .await?
+        {
+            result.entry(source.game_id).or_default().push(source);
+        }
+        Ok(result)
+    }
+
     pub async fn delete(db: &DatabaseConnection, id: i32) -> Result<DeleteResult, DbErr> {
         Games::delete_by_id(id).exec(db).await
     }
 
-    /// 批量删除游戏
     pub async fn delete_many(
         db: &DatabaseConnection,
         ids: Vec<i32>,
@@ -372,57 +522,38 @@ impl GamesRepository {
             .await
     }
 
-    /// 获取游戏总数
     pub async fn count(db: &DatabaseConnection) -> Result<u64, DbErr> {
         Games::find().count(db).await
     }
 
-    /// 获取所有游戏的 BGM ID
-    pub async fn get_all_bgm_ids(db: &DatabaseConnection) -> Result<Vec<(i32, String)>, DbErr> {
-        Games::find()
+    pub async fn get_source_bindings(
+        db: &DatabaseConnection,
+        source: &str,
+    ) -> Result<Vec<(i32, String)>, DbErr> {
+        GameSources::find()
             .select_only()
-            .column(games::Column::Id)
-            .column(games::Column::BgmId)
-            .filter(games::Column::BgmId.is_not_null())
+            .column(game_sources::Column::GameId)
+            .column(game_sources::Column::ExternalId)
+            .filter(game_sources::Column::Source.eq(source))
+            .filter(game_sources::Column::ExternalId.is_not_null())
             .into_tuple::<(i32, String)>()
             .all(db)
             .await
     }
 
-    /// 获取所有游戏的 VNDB ID
-    pub async fn get_all_vndb_ids(db: &DatabaseConnection) -> Result<Vec<(i32, String)>, DbErr> {
-        Games::find()
-            .select_only()
-            .column(games::Column::Id)
-            .column(games::Column::VndbId)
-            .filter(games::Column::VndbId.is_not_null())
-            .into_tuple::<(i32, String)>()
-            .all(db)
-            .await
-    }
-
-    /// 检查 BGM ID 是否已存在
-    pub async fn exists_bgm_id(db: &DatabaseConnection, bgm_id: &str) -> Result<bool, DbErr> {
-        Ok(Games::find()
-            .filter(games::Column::BgmId.eq(bgm_id))
+    pub async fn source_binding_exists(
+        db: &DatabaseConnection,
+        source: &str,
+        external_id: &str,
+    ) -> Result<bool, DbErr> {
+        Ok(GameSources::find()
+            .filter(game_sources::Column::Source.eq(source))
+            .filter(game_sources::Column::ExternalId.eq(external_id))
             .count(db)
             .await?
             > 0)
     }
 
-    /// 检查 VNDB ID 是否已存在
-    pub async fn exists_vndb_id(db: &DatabaseConnection, vndb_id: &str) -> Result<bool, DbErr> {
-        Ok(Games::find()
-            .filter(games::Column::VndbId.eq(vndb_id))
-            .count(db)
-            .await?
-            > 0)
-    }
-
-    /// 获取所有非空本地路径，用于扫描去重
-    ///
-    /// 返回数据库中所有 `localpath` 字段的集合（仅非 NULL 值），
-    /// 使用 `HashSet` 以便调用方做 O(1) 精确匹配；前缀检查由调用方负责。
     pub async fn get_all_localpaths(db: &DatabaseConnection) -> Result<HashSet<String>, DbErr> {
         Games::find()
             .select_only()
@@ -434,13 +565,9 @@ impl GamesRepository {
             .map(|paths| paths.into_iter().collect())
     }
 
-    // ==================== 私有方法 ====================
-
-    /// 通用的查询构建器：应用类型筛选
     fn build_base_query(game_type: GameType) -> Select<Games> {
-        let mut query = Games::find();
-
-        query = match game_type {
+        let query = Games::find();
+        match game_type {
             GameType::All => query,
             GameType::Local => query.filter(games::Column::Localpath.is_not_null()),
             GameType::Online => query.filter(games::Column::Localpath.is_null()),
@@ -449,11 +576,9 @@ impl GamesRepository {
                     .add(games::Column::IdType.eq("custom"))
                     .add(games::Column::IdType.eq("Whitecloud")),
             ),
-        };
-        query
+        }
     }
 
-    /// 发行日期排序：无日期的游戏始终置末尾，升序/降序只影响非空日期。
     fn apply_date_order(query: Select<Games>, sort_order: SortOrder) -> Select<Games> {
         let query = query.order_by(Expr::col(games::Column::Date).is_null(), Order::Asc);
         match sort_order {
@@ -463,7 +588,6 @@ impl GamesRepository {
         .order_by_asc(games::Column::Id)
     }
 
-    /// 最近游玩排序：无游玩记录始终置末尾，升序按最近优先，降序按最久优先。
     fn apply_last_played_order(query: Select<Games>, sort_order: SortOrder) -> Select<Games> {
         let query = query.left_join(game_statistics::Entity).order_by(
             Expr::col(game_statistics::Column::LastPlayed).is_null(),
@@ -476,266 +600,200 @@ impl GamesRepository {
         .order_by_asc(games::Column::Id)
     }
 
-    /// 应用层排序：按可选数值键排序，None 值统一置末尾
-    ///
-    /// - `key_fn`：从游戏记录提取排序键，返回 `Option<K>`
-    /// - `desc`：true 时降序（大值靠前），false 时升序（小值靠前）
-    fn sort_by_optional_key<K, F>(games: &mut [games::Model], desc: bool, key_fn: F)
-    where
-        K: PartialOrd,
-        F: Fn(&games::Model) -> Option<K>,
-    {
-        games.sort_by(|a, b| match (key_fn(a), key_fn(b)) {
-            (None, None) => std::cmp::Ordering::Equal,
-            (None, _) => std::cmp::Ordering::Greater,
-            (_, None) => std::cmp::Ordering::Less,
-            (Some(ka), Some(kb)) => {
-                let ord = ka.partial_cmp(&kb).unwrap_or(std::cmp::Ordering::Equal);
-                if desc { ord.reverse() } else { ord }
-            }
-        });
+    fn apply_optional_expression_order(
+        query: Select<Games>,
+        expression: &str,
+        direction: Order,
+    ) -> Select<Games> {
+        query
+            .order_by(Expr::cust(format!("({expression}) IS NULL")), Order::Asc)
+            .order_by(Expr::cust(expression), direction)
     }
 
-    /// BGM 排名排序：优先按评分排序，同分时用官方排名补充排序。
-    fn sort_by_bgm_rank(games: &mut [games::Model], sort_order: SortOrder) {
-        let rank_desc = matches!(sort_order, SortOrder::Desc);
-        games.sort_unstable_by(|a, b| {
-            let score_a = a
-                .bgm_data
-                .as_ref()
-                .and_then(|d| d.score)
-                .filter(|&s| s > 0.0);
-            let score_b = b
-                .bgm_data
-                .as_ref()
-                .and_then(|d| d.score)
-                .filter(|&s| s > 0.0);
-            let rank_a = a.bgm_data.as_ref().and_then(|d| d.rank).filter(|&r| r != 0);
-            let rank_b = b.bgm_data.as_ref().and_then(|d| d.rank).filter(|&r| r != 0);
-
-            let rank_order = || match (rank_a, rank_b) {
-                (Some(ra), Some(rb)) => {
-                    let ord = ra.cmp(&rb);
-                    if rank_desc { ord.reverse() } else { ord }
-                }
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => std::cmp::Ordering::Equal,
-            };
-
-            match (score_a, score_b) {
-                (Some(sa), Some(sb)) => {
-                    let ord = match sort_order {
-                        SortOrder::Asc => sb.partial_cmp(&sa),
-                        SortOrder::Desc => sa.partial_cmp(&sb),
-                    }
-                    .unwrap_or(std::cmp::Ordering::Equal);
-                    ord.then_with(rank_order).then_with(|| a.id.cmp(&b.id))
-                }
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => rank_order().then_with(|| a.id.cmp(&b.id)),
-            }
-        });
-    }
-
-    /// 从游戏记录中提取用于排序的显示名称
-    ///
-    /// 优先级与前端 `getGameDisplayName` 保持一致：
-    /// `custom_data.name` > `name_cn`（仅 zh-CN）> 按 `id_type` 取 `name`
-    ///
-    /// 返回值为排序键字符串：zh-CN 时汉字转拼音，其他情况转小写
-    fn get_sort_name(game: &games::Model, use_cn: bool) -> Option<String> {
-        // 1. 自定义名称最高优先 (使用 as_deref 转为 &str)
-        if let Some(name) = game
-            .custom_data
-            .as_ref()
-            .and_then(|d| d.name.as_deref())
-            .filter(|n| !n.is_empty())
-        {
-            return Some(Self::to_sort_key(name, use_cn));
-        }
-
-        // 定义局部宏：处理不同数据源的提取与 fallback 逻辑。
-        // 全程使用 &str 操作，做到 Zero-cost (零成本抽象)
-        macro_rules! extract_name {
-            ($source:expr) => {
-                $source.as_ref().and_then(|d| {
-                    let cn = d.name_cn.as_deref().filter(|n| !n.is_empty());
-                    let en = d.name.as_deref().filter(|n| !n.is_empty());
-
-                    // 根据 use_cn 决定优先级链
-                    if use_cn { cn.or(en) } else { en }
-                })
-            };
-        }
-
-        macro_rules! kun_extract_name {
-            ($source:expr) => {
-                $source.as_ref().and_then(|d| {
-                    let cn = d.name_cn.as_deref().filter(|n| !n.is_empty());
-                    let en = d.name.as_deref().filter(|n| !n.is_empty());
-                    if use_cn { cn.or(en) } else { en }
-                })
-            };
-        }
-
-        // 2. 根据 id_type 获取最终名称的引用 (&str)
-        let name_ref = match game.id_type.as_str() {
-            "bgm" => extract_name!(game.bgm_data),
-            "vndb" => extract_name!(game.vndb_data),
-            "ymgal" => extract_name!(game.ymgal_data),
-            "kun" => kun_extract_name!(game.kun_data),
-            // mixed 和其他类型：依次降级尝试
-            _ => extract_name!(game.bgm_data)
-                .or_else(|| extract_name!(game.vndb_data))
-                .or_else(|| extract_name!(game.ymgal_data))
-                .or_else(|| kun_extract_name!(game.kun_data)),
-        };
-
-        // 3. 统一在这里进行内存分配，根据语言转换为合适的排序键
-        name_ref.map(|n| Self::to_sort_key(n, use_cn))
-    }
-
-    /// 将名称转换为排序键
-    ///
-    /// - zh-CN：汉字转拼音（无声调），非汉字字符保留并转小写，实现按拼音字母序排列
-    /// - 其他语言：直接转小写
-    fn to_sort_key(s: &str, use_cn: bool) -> String {
-        if !use_cn {
-            return s.to_lowercase();
-        }
-
-        use pinyin::ToPinyin;
-        let mut result = String::with_capacity(s.len() * 2);
-        for (c, py) in s.chars().zip(s.to_pinyin()) {
-            match py {
-                Some(p) => result.push_str(p.plain()),
-                None => {
-                    for lc in c.to_lowercase() {
-                        result.push(lc);
-                    }
-                }
-            }
-        }
-        result
-    }
-
-    /// 使用 SeaORM 的 `SELECT id` 优化路径，仅查询游戏 ID 列
-    ///
-    /// 仅适用于 SQL 层可直接排序的选项（Addtime/Datetime/LastPlayed），
-    /// 避免加载 5 个 JSON 元数据列（bgm_data/vndb_data/ymgal_data/kun_data/custom_data）。
     async fn find_ids_sql(
         db: &DatabaseConnection,
         game_type: GameType,
         sort_option: SortOption,
         sort_order: SortOrder,
     ) -> Result<Vec<i32>, DbErr> {
-        match sort_option {
-            SortOption::Addtime => {
-                let mut query = Self::build_base_query(game_type)
-                    .select_only()
-                    .column(games::Column::Id);
-                query = match sort_order {
-                    SortOrder::Asc => query.order_by_asc(games::Column::Id),
-                    SortOrder::Desc => query.order_by_desc(games::Column::Id),
-                };
-                query.into_tuple::<i32>().all(db).await
-            }
-            SortOption::Datetime => {
-                let query = Self::build_base_query(game_type)
-                    .select_only()
-                    .column(games::Column::Id);
-                Self::apply_date_order(query, sort_order)
-                    .into_tuple::<i32>()
-                    .all(db)
-                    .await
-            }
-            SortOption::LastPlayed => {
-                let query = Self::build_base_query(game_type)
-                    .select_only()
-                    .column(games::Column::Id);
-                Self::apply_last_played_order(query, sort_order)
-                    .into_tuple::<i32>()
-                    .all(db)
-                    .await
-            }
-            _ => unreachable!(),
-        }
-    }
+        let query = Self::build_base_query(game_type)
+            .select_only()
+            .column(games::Column::Id);
 
-    /// 通用的排序和查询方法
-    async fn find_with_sort(
-        db: &DatabaseConnection,
-        game_type: GameType,
-        sort_option: SortOption,
-        sort_order: SortOrder,
-        language: Option<String>,
-    ) -> Result<Vec<games::Model>, DbErr> {
-        match sort_option {
-            SortOption::Addtime => {
-                let mut query = Self::build_base_query(game_type);
-                query = match sort_order {
-                    SortOrder::Asc => query.order_by_asc(games::Column::Id),
-                    SortOrder::Desc => query.order_by_desc(games::Column::Id),
-                };
-                query.all(db).await
-            }
-            SortOption::Datetime => {
-                Self::apply_date_order(Self::build_base_query(game_type), sort_order)
-                    .all(db)
-                    .await
-            }
-            SortOption::LastPlayed => {
-                Self::apply_last_played_order(Self::build_base_query(game_type), sort_order)
-                    .all(db)
-                    .await
-            }
+        let query = match sort_option {
+            SortOption::Addtime => match sort_order {
+                SortOrder::Asc => query.order_by_asc(games::Column::Id),
+                SortOrder::Desc => query.order_by_desc(games::Column::Id),
+            },
+            SortOption::Datetime => Self::apply_date_order(query, sort_order),
+            SortOption::LastPlayed => Self::apply_last_played_order(query, sort_order),
             SortOption::BGMRank => {
-                // bgm_data.score：按“排名”语义排序，升序时高分靠前，rank 作为同分补充依据
-                let mut games = Self::build_base_query(game_type).all(db).await?;
-                Self::sort_by_bgm_rank(&mut games, sort_order);
-                Ok(games)
+                let score = "SELECT NULLIF(score, 0) FROM game_sources \
+                             WHERE game_id = games.id AND source = 'bgm'";
+                let rank = "SELECT NULLIF(rank, 0) FROM game_sources \
+                            WHERE game_id = games.id AND source = 'bgm'";
+                let (score_order, rank_order) = match sort_order {
+                    SortOrder::Asc => (Order::Desc, Order::Asc),
+                    SortOrder::Desc => (Order::Asc, Order::Desc),
+                };
+                let query = Self::apply_optional_expression_order(query, score, score_order);
+                Self::apply_optional_expression_order(query, rank, rank_order)
+                    .order_by_asc(games::Column::Id)
             }
             SortOption::VNDBRank => {
-                // vndb_data.score：数值越大越靠前，无 score 或 score=0 置末尾
-                let mut games = Self::build_base_query(game_type).all(db).await?;
-                let desc = matches!(sort_order, SortOrder::Asc);
-                Self::sort_by_optional_key(&mut games, desc, |g| {
-                    g.vndb_data
-                        .as_ref()
-                        .and_then(|d| d.score)
-                        .filter(|&s| s != 0.0)
-                });
-                Ok(games)
+                let score = "SELECT NULLIF(score, 0) FROM game_sources \
+                             WHERE game_id = games.id AND source = 'vndb'";
+                let direction = match sort_order {
+                    SortOrder::Asc => Order::Desc,
+                    SortOrder::Desc => Order::Asc,
+                };
+                Self::apply_optional_expression_order(query, score, direction)
+                    .order_by_asc(games::Column::Id)
             }
             SortOption::UserRatingRank => {
-                // custom_data.user_rating：按“排名”语义排序，升序时高分靠前，无评分或 0 置末尾
-                let mut games = Self::build_base_query(game_type).all(db).await?;
-                let desc = matches!(sort_order, SortOrder::Asc);
-                Self::sort_by_optional_key(&mut games, desc, |g| {
-                    g.custom_data
-                        .as_ref()
-                        .and_then(|d| d.user_rating)
-                        .filter(|&rating| rating > 0.0)
-                });
-                Ok(games)
+                let direction = match sort_order {
+                    SortOrder::Asc => Order::Desc,
+                    SortOrder::Desc => Order::Asc,
+                };
+                query
+                    .order_by(
+                        Expr::cust("(games.user_rating IS NULL OR games.user_rating <= 0)"),
+                        Order::Asc,
+                    )
+                    .order_by(games::Column::UserRating, direction)
+                    .order_by_asc(games::Column::Id)
             }
-            SortOption::Namesort => {
-                // 名称排序：应用层排序，名称来自 JSON 列
-                // 名称选择优先级与前端 getGameDisplayName 一致
-                let mut games = Self::build_base_query(game_type).all(db).await?;
-                let desc = matches!(sort_order, SortOrder::Desc);
-                let use_cn = language.as_deref().map(|l| l == "zh-CN").unwrap_or(false);
-                Self::sort_by_optional_key(&mut games, desc, |g| Self::get_sort_name(g, use_cn));
-                Ok(games)
+            SortOption::Namesort => unreachable!(),
+        };
+
+        query.into_tuple::<i32>().all(db).await
+    }
+
+    async fn find_name_sorted_ids(
+        db: &DatabaseConnection,
+        game_type: GameType,
+        sort_order: SortOrder,
+        language: Option<String>,
+    ) -> Result<Vec<i32>, DbErr> {
+        let where_clause = match game_type {
+            GameType::All => "",
+            GameType::Local => "WHERE g.localpath IS NOT NULL",
+            GameType::Online => "WHERE g.localpath IS NULL",
+            GameType::IsCustom => "WHERE g.id_type IN ('custom', 'Whitecloud')",
+        };
+        let sql = format!(
+            r#"
+            SELECT
+                g.id,
+                g.id_type,
+                json_extract(g.custom_data, '$.name') AS custom_name,
+                s.source,
+                json_extract(s.data, '$.name') AS source_name,
+                json_extract(s.data, '$.name_cn') AS source_name_cn
+            FROM games AS g
+            LEFT JOIN game_sources AS s ON s.game_id = g.id
+            {where_clause}
+            ORDER BY g.id, s.source
+            "#
+        );
+
+        let rows = db
+            .query_all(Statement::from_string(DatabaseBackend::Sqlite, sql))
+            .await?;
+        let mut entries: Vec<NameSortEntry> = Vec::new();
+
+        for row in rows {
+            let game_id = row.try_get::<i32>("", "id")?;
+            let entry = match entries.last_mut() {
+                Some(entry) if entry.id == game_id => entry,
+                _ => {
+                    entries.push(NameSortEntry {
+                        id: game_id,
+                        id_type: row.try_get("", "id_type")?,
+                        custom_name: row.try_get("", "custom_name")?,
+                        sources: HashMap::new(),
+                    });
+                    entries.last_mut().expect("刚插入的名称排序项应存在")
+                }
+            };
+
+            if let Some(source) = row.try_get::<Option<String>>("", "source")? {
+                entry.sources.insert(
+                    source,
+                    (
+                        row.try_get("", "source_name")?,
+                        row.try_get("", "source_name_cn")?,
+                    ),
+                );
             }
         }
+
+        let use_cn = language.as_deref() == Some("zh-CN");
+        let descending = matches!(sort_order, SortOrder::Desc);
+        entries.sort_by(|left, right| {
+            let left_key = Self::name_sort_key(left, use_cn);
+            let right_key = Self::name_sort_key(right, use_cn);
+            match (left_key, right_key) {
+                (None, None) => left.id.cmp(&right.id),
+                (None, Some(_)) => Ordering::Greater,
+                (Some(_), None) => Ordering::Less,
+                (Some(left_key), Some(right_key)) => {
+                    let order = left_key.cmp(&right_key);
+                    let order = if descending { order.reverse() } else { order };
+                    order.then_with(|| left.id.cmp(&right.id))
+                }
+            }
+        });
+
+        Ok(entries.into_iter().map(|entry| entry.id).collect())
+    }
+
+    fn name_sort_key(entry: &NameSortEntry, use_cn: bool) -> Option<String> {
+        if let Some(custom_name) = non_empty(entry.custom_name.as_deref()) {
+            return Some(Self::to_sort_key(custom_name, use_cn));
+        }
+
+        let source_name = |source: &str| {
+            entry.sources.get(source).and_then(|(name, name_cn)| {
+                if use_cn {
+                    non_empty(name_cn.as_deref()).or_else(|| non_empty(name.as_deref()))
+                } else {
+                    non_empty(name.as_deref())
+                }
+            })
+        };
+
+        let name = if entry.sources.contains_key(entry.id_type.as_str())
+            && !matches!(entry.id_type.as_str(), "mixed" | "custom" | "Whitecloud")
+        {
+            source_name(&entry.id_type)
+        } else {
+            Self::MIXED_NAME_PRIORITY
+                .iter()
+                .find_map(|source| source_name(source))
+        };
+
+        name.map(|name| Self::to_sort_key(name, use_cn))
+    }
+
+    fn to_sort_key(value: &str, use_cn: bool) -> String {
+        if !use_cn {
+            return value.to_lowercase();
+        }
+
+        use pinyin::ToPinyin;
+        let mut result = String::with_capacity(value.len() * 2);
+        for (character, pinyin) in value.chars().zip(value.to_pinyin()) {
+            match pinyin {
+                Some(pinyin) => result.push_str(pinyin.plain()),
+                None => result.extend(character.to_lowercase()),
+            }
+        }
+        result
     }
 
     // ==================== 存档备份相关操作 ====================
 
-    /// 保存存档备份记录
     pub async fn save_savedata_record(
         db: &DatabaseConnection,
         game_id: i32,
@@ -754,7 +812,6 @@ impl GamesRepository {
         Ok(result.id)
     }
 
-    /// 获取指定游戏的备份数量
     pub async fn get_savedata_count(db: &DatabaseConnection, game_id: i32) -> Result<u64, DbErr> {
         Savedata::find()
             .filter(savedata::Column::GameId.eq(game_id))
@@ -762,7 +819,6 @@ impl GamesRepository {
             .await
     }
 
-    /// 获取指定游戏的所有备份记录（按时间倒序）
     pub async fn get_savedata_records(
         db: &DatabaseConnection,
         game_id: i32,
@@ -774,7 +830,6 @@ impl GamesRepository {
             .await
     }
 
-    /// 根据 ID 获取备份记录
     pub async fn get_savedata_record_by_id(
         db: &DatabaseConnection,
         backup_id: i32,
@@ -782,11 +837,252 @@ impl GamesRepository {
         Savedata::find_by_id(backup_id).one(db).await
     }
 
-    /// 删除备份记录
     pub async fn delete_savedata_record(
         db: &DatabaseConnection,
         backup_id: i32,
     ) -> Result<DeleteResult, DbErr> {
         Savedata::delete_by_id(backup_id).exec(db).await
+    }
+}
+
+fn non_empty(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
+struct NameSortEntry {
+    id: i32,
+    id_type: String,
+    custom_name: Option<String>,
+    sources: HashMap<String, (Option<String>, Option<String>)>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::entity::custom_data::CustomData;
+    use sea_orm::Database;
+    use serde_json::json;
+
+    async fn setup_database() -> DatabaseConnection {
+        let database = Database::connect("sqlite::memory:").await.unwrap();
+        database
+            .execute_unprepared(
+                r#"
+                PRAGMA foreign_keys = ON;
+                CREATE TABLE games (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_type TEXT NOT NULL,
+                    date TEXT,
+                    localpath TEXT,
+                    savepath TEXT,
+                    autosave INTEGER,
+                    maxbackups INTEGER,
+                    clear INTEGER,
+                    le_launch INTEGER,
+                    magpie INTEGER,
+                    custom_data TEXT,
+                    user_rating REAL GENERATED ALWAYS AS (
+                        CAST(json_extract(custom_data, '$.user_rating') AS REAL)
+                    ) VIRTUAL,
+                    created_at INTEGER,
+                    updated_at INTEGER
+                );
+                CREATE TABLE game_sources (
+                    game_id INTEGER NOT NULL,
+                    source TEXT NOT NULL,
+                    external_id TEXT,
+                    data TEXT,
+                    score REAL GENERATED ALWAYS AS (
+                        CAST(json_extract(data, '$.score') AS REAL)
+                    ) VIRTUAL,
+                    rank INTEGER GENERATED ALWAYS AS (
+                        CAST(json_extract(data, '$.rank') AS INTEGER)
+                    ) VIRTUAL,
+                    PRIMARY KEY (game_id, source),
+                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
+                    CHECK (external_id IS NOT NULL OR data IS NOT NULL),
+                    CHECK (data IS NULL OR json_valid(data))
+                );
+                CREATE TABLE game_statistics (
+                    game_id INTEGER PRIMARY KEY,
+                    total_time INTEGER NOT NULL DEFAULT 0,
+                    session_count INTEGER NOT NULL DEFAULT 0,
+                    last_played INTEGER,
+                    daily_stats TEXT,
+                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+                );
+                CREATE TABLE savedata (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    game_id INTEGER NOT NULL,
+                    file TEXT NOT NULL,
+                    backup_time INTEGER NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+                );
+                "#,
+            )
+            .await
+            .unwrap();
+        database
+    }
+
+    fn insert_data(
+        id_type: &str,
+        custom_data: Option<CustomData>,
+        sources: Vec<UpsertGameSourceData>,
+    ) -> InsertGameData {
+        InsertGameData {
+            id_type: id_type.to_string(),
+            date: None,
+            localpath: None,
+            savepath: None,
+            autosave: None,
+            maxbackups: None,
+            clear: None,
+            le_launch: None,
+            magpie: None,
+            custom_data,
+            sources,
+        }
+    }
+
+    fn source(source: &str, id: &str, data: serde_json::Value) -> UpsertGameSourceData {
+        UpsertGameSourceData {
+            source: source.to_string(),
+            external_id: Some(id.to_string()),
+            data: Some(data),
+        }
+    }
+
+    #[tokio::test]
+    async fn writes_and_updates_game_aggregate_transactionally() {
+        let database = setup_database().await;
+        let inserted = GamesRepository::insert(
+            &database,
+            insert_data(
+                "mixed",
+                None,
+                vec![
+                    source("bgm", "1", json!({"name": "标题", "date": "2024-01-02"})),
+                    source("vndb", "v1", json!({"name": "Title"})),
+                ],
+            ),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(inserted.date.as_deref(), Some("2024-01-02"));
+        assert_eq!(inserted.sources.len(), 2);
+
+        let updated = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                upsert_sources: Some(vec![source(
+                    "bgm",
+                    "1",
+                    json!({"name": "新标题", "date": "2025-01-01"}),
+                )]),
+                remove_sources: Some(vec!["vndb".to_string()]),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(updated.date.as_deref(), Some("2024-01-02"));
+        assert_eq!(updated.sources.len(), 1);
+        assert_eq!(updated.sources[0].source, "bgm");
+        assert_eq!(
+            updated.sources[0]
+                .data
+                .as_ref()
+                .and_then(|data| data.get("name"))
+                .and_then(|name| name.as_str()),
+            Some("新标题")
+        );
+    }
+
+    #[tokio::test]
+    async fn sorts_names_with_custom_override_and_stable_id_tie_breaker() {
+        let database = setup_database().await;
+        let first = GamesRepository::insert(
+            &database,
+            insert_data(
+                "bgm",
+                None,
+                vec![source("bgm", "1", json!({"name": "Beta", "name_cn": "乙"}))],
+            ),
+        )
+        .await
+        .unwrap();
+        let second = GamesRepository::insert(
+            &database,
+            insert_data(
+                "bgm",
+                Some(CustomData {
+                    name: Some("Alpha".to_string()),
+                    ..Default::default()
+                }),
+                vec![source("bgm", "2", json!({"name": "Zulu", "name_cn": "甲"}))],
+            ),
+        )
+        .await
+        .unwrap();
+
+        let ids = GamesRepository::find_ids(
+            &database,
+            GameType::All,
+            SortOption::Namesort,
+            SortOrder::Asc,
+            Some("en-US".to_string()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(ids, vec![second.id, first.id]);
+    }
+
+    #[tokio::test]
+    async fn sorts_user_rating_from_generated_column() {
+        let database = setup_database().await;
+        let low = GamesRepository::insert(
+            &database,
+            insert_data(
+                "custom",
+                Some(CustomData {
+                    name: Some("Low".to_string()),
+                    user_rating: Some(4.0),
+                    ..Default::default()
+                }),
+                Vec::new(),
+            ),
+        )
+        .await
+        .unwrap();
+        let high = GamesRepository::insert(
+            &database,
+            insert_data(
+                "custom",
+                Some(CustomData {
+                    name: Some("High".to_string()),
+                    user_rating: Some(9.0),
+                    ..Default::default()
+                }),
+                Vec::new(),
+            ),
+        )
+        .await
+        .unwrap();
+
+        let ids = GamesRepository::find_ids(
+            &database,
+            GameType::All,
+            SortOption::UserRatingRank,
+            SortOrder::Asc,
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(ids, vec![high.id, low.id]);
     }
 }

@@ -5,11 +5,7 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::bgm_data::BgmData;
 use super::custom_data::CustomData;
-use super::kun_data::KunData;
-use super::vndb_data::VndbData;
-use super::ymgal_data::YmgalData;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "games")]
@@ -17,15 +13,6 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
 
-    // === 外部 ID ===
-    #[sea_orm(column_type = "Text", nullable)]
-    pub bgm_id: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub vndb_id: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub ymgal_id: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub kun_id: Option<String>,
     #[sea_orm(column_type = "Text")]
     pub id_type: String,
 
@@ -42,17 +29,10 @@ pub struct Model {
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
 
-    // === JSON 元数据列 ===
-    #[sea_orm(column_type = "Text", nullable)]
-    pub vndb_data: Option<VndbData>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub bgm_data: Option<BgmData>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub ymgal_data: Option<YmgalData>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub kun_data: Option<KunData>,
+    // === 用户覆盖元数据 ===
     #[sea_orm(column_type = "Text", nullable)]
     pub custom_data: Option<CustomData>,
+    pub user_rating: Option<f64>,
 
     // === 时间戳 ===
     pub created_at: Option<i32>,
@@ -63,6 +43,8 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(has_many = "super::game_collection_link::Entity")]
     GameCollectionLink,
+    #[sea_orm(has_many = "super::game_sources::Entity")]
+    GameSources,
     #[sea_orm(has_many = "super::game_sessions::Entity")]
     GameSessions,
     #[sea_orm(has_one = "super::game_statistics::Entity")]
@@ -74,6 +56,12 @@ pub enum Relation {
 impl Related<super::game_collection_link::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::GameCollectionLink.def()
+    }
+}
+
+impl Related<super::game_sources::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::GameSources.def()
     }
 }
 
