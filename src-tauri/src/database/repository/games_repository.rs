@@ -983,7 +983,6 @@ mod tests {
                     "1",
                     json!({"name": "新标题", "date": "2025-01-01"}),
                 )]),
-                remove_sources: Some(vec!["vndb".to_string()]),
                 ..Default::default()
             },
         )
@@ -991,16 +990,32 @@ mod tests {
         .unwrap();
 
         assert_eq!(updated.date.as_deref(), Some("2024-01-02"));
-        assert_eq!(updated.sources.len(), 1);
-        assert_eq!(updated.sources[0].source, "bgm");
+        assert_eq!(updated.sources.len(), 2);
         assert_eq!(
-            updated.sources[0]
+            updated
+                .sources
+                .iter()
+                .find(|source| source.source == "bgm")
+                .unwrap()
                 .data
                 .as_ref()
                 .and_then(|data| data.get("name"))
                 .and_then(|name| name.as_str()),
             Some("新标题")
         );
+
+        let switched = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                id_type: Some("vndb".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(switched.id_type, "vndb");
+        assert_eq!(switched.sources.len(), 2);
     }
 
     #[tokio::test]

@@ -99,8 +99,11 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let directory =
-            std::env::temp_dir().join(format!("reina_backup_test_{}_{}", std::process::id(), unique));
+        let directory = std::env::temp_dir().join(format!(
+            "reina_backup_test_{}_{}",
+            std::process::id(),
+            unique
+        ));
         fs::create_dir_all(&directory).unwrap();
         let source_path = directory.join("source.db");
         let backup_path = directory.join("backup.db");

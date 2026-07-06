@@ -85,6 +85,7 @@ where
         verify_source_rows(connection, source, expected).await?;
     }
 
+    log_source_statistics(connection).await?;
     ensure_no_foreign_key_violations(connection).await?;
 
     connection
@@ -122,6 +123,20 @@ async fn validate_source_json<C>(connection: &C) -> Result<(), DbErr>
 where
     C: ConnectionTrait,
 {
+    let invalid_custom_data = query_count(
+        connection,
+        "SELECT COUNT(*) AS count FROM games \
+         WHERE custom_data IS NOT NULL AND NOT json_valid(custom_data)",
+    )
+    .await?;
+    if invalid_custom_data > 0 {
+        let game_ids = invalid_json_game_ids(connection, "custom_data").await?;
+        return Err(DbErr::Custom(format!(
+            "custom_data 存在 {} 条无效 JSON，game_id={:?}，迁移已停止",
+            invalid_custom_data, game_ids
+        )));
+    }
+
     for source in SOURCES {
         let invalid_count = query_count(
             connection,
@@ -134,11 +149,87 @@ where
         .await?;
 
         if invalid_count > 0 {
+            let game_ids = invalid_json_game_ids(connection, source.data_column).await?;
             return Err(DbErr::Custom(format!(
-                "{} source 存在 {} 条无效 JSON，迁移已停止",
-                source.key, invalid_count
+                "{} source 存在 {} 条无效 JSON，game_id={:?}，迁移已停止",
+                source.key, invalid_count, game_ids
             )));
         }
+    }
+
+    Ok(())
+}
+
+async fn invalid_json_game_ids<C>(connection: &C, column: &str) -> Result<Vec<i32>, DbErr>
+where
+    C: ConnectionTrait,
+{
+    connection
+        .query_all(Statement::from_string(
+            connection.get_database_backend(),
+            format!(
+                "SELECT id FROM games \
+                 WHERE {column} IS NOT NULL AND NOT json_valid({column}) \
+                 ORDER BY id LIMIT 10"
+            ),
+        ))
+        .await?
+        .into_iter()
+        .map(|row| row.try_get_by_index(0))
+        .collect()
+}
+
+async fn log_source_statistics<C>(connection: &C) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    let game_count = query_count(connection, "SELECT COUNT(*) AS count FROM games").await?;
+    let source_count =
+        query_count(connection, "SELECT COUNT(*) AS count FROM game_sources").await?;
+    log::info!(
+        "[MIGRATION] Source table counts: games={}, game_sources={}",
+        game_count,
+        source_count
+    );
+
+    for source in SOURCES {
+        let id_only = query_count(
+            connection,
+            &format!(
+                "SELECT COUNT(*) AS count FROM game_sources \
+                 WHERE source = '{}' AND external_id IS NOT NULL AND data IS NULL",
+                source.key
+            ),
+        )
+        .await?;
+        let data_only = query_count(
+            connection,
+            &format!(
+                "SELECT COUNT(*) AS count FROM game_sources \
+                 WHERE source = '{}' AND external_id IS NULL AND data IS NOT NULL",
+                source.key
+            ),
+        )
+        .await?;
+        let duplicates = query_count(
+            connection,
+            &format!(
+                "SELECT COUNT(*) AS count FROM (\
+                    SELECT external_id FROM game_sources \
+                    WHERE source = '{}' AND external_id IS NOT NULL \
+                    GROUP BY external_id HAVING COUNT(*) > 1\
+                 )",
+                source.key
+            ),
+        )
+        .await?;
+        log::info!(
+            "[MIGRATION] source={} id_only={} data_only={} duplicate_external_ids={}",
+            source.key,
+            id_only,
+            data_only,
+            duplicates
+        );
     }
 
     Ok(())
@@ -513,5 +604,20 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(table_count, 0);
+    }
+
+    #[async_std::test]
+    async fn rejects_invalid_custom_data_before_adding_user_rating() {
+        let database = setup_legacy_database().await;
+        database
+            .execute_unprepared(
+                "INSERT INTO games(id, id_type, custom_data) \
+                 VALUES (1, 'custom', '{invalid')",
+            )
+            .await
+            .unwrap();
+
+        let error = migrate_schema(&database).await.unwrap_err();
+        assert!(error.to_string().contains("custom_data"));
     }
 }
