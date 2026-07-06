@@ -48,6 +48,38 @@ pub struct GamesRepository;
 impl GamesRepository {
     const DEFAULT_PLAY_STATUS: i32 = 1;
     const MIXED_NAME_PRIORITY: [&str; 4] = ["bgm", "vndb", "ymgal", "kun"];
+    const FULL_GAME_SELECT: &str = r#"
+        SELECT
+            g.id,
+            g.id_type,
+            g.date,
+            g.localpath,
+            g.savepath,
+            g.autosave,
+            g.maxbackups,
+            g.clear,
+            g.le_launch,
+            g.magpie,
+            g.custom_data,
+            g.created_at,
+            g.updated_at,
+            (
+                SELECT json_group_array(
+                    json_object(
+                        'source', source_rows.source,
+                        'external_id', source_rows.external_id,
+                        'data', json(source_rows.data)
+                    )
+                )
+                FROM (
+                    SELECT source, external_id, data
+                    FROM game_sources
+                    WHERE game_id = g.id
+                    ORDER BY source
+                ) AS source_rows
+            ) AS sources_json
+        FROM games AS g
+    "#;
 
     fn build_batch_failure_result(total: usize, message: String) -> BatchOperationResult {
         BatchOperationResult {
@@ -386,42 +418,11 @@ impl GamesRepository {
     where
         C: ConnectionTrait,
     {
-        let Some(game) = Games::find_by_id(id).one(db).await? else {
-            return Ok(None);
-        };
-        let sources = GameSources::find()
-            .filter(game_sources::Column::GameId.eq(id))
-            .order_by_asc(game_sources::Column::Source)
-            .all(db)
-            .await?;
-
-        Ok(Some(Self::build_full_game(game, sources)))
-    }
-
-    fn build_full_game(game: games::Model, sources: Vec<game_sources::Model>) -> FullGameData {
-        FullGameData {
-            id: game.id,
-            id_type: game.id_type,
-            date: game.date,
-            localpath: game.localpath,
-            savepath: game.savepath,
-            autosave: game.autosave,
-            maxbackups: game.maxbackups,
-            clear: game.clear,
-            le_launch: game.le_launch,
-            magpie: game.magpie,
-            custom_data: game.custom_data,
-            sources: sources
-                .into_iter()
-                .map(|source| GameSourceData {
-                    source: source.source,
-                    external_id: source.external_id,
-                    data: source.data,
-                })
-                .collect(),
-            created_at: game.created_at,
-            updated_at: game.updated_at,
-        }
+        let sql = format!("{} WHERE g.id = {}", Self::FULL_GAME_SELECT, id);
+        db.query_one(Statement::from_string(db.get_database_backend(), sql))
+            .await?
+            .map(Self::full_game_from_row)
+            .transpose()
     }
 
     pub async fn find_by_id(
@@ -439,16 +440,7 @@ impl GamesRepository {
         language: Option<String>,
     ) -> Result<Vec<FullGameData>, DbErr> {
         let ids = Self::find_ids(db, game_type, sort_option, sort_order, language.clone()).await?;
-        let games = Self::find_models_in_order(db, &ids).await?;
-        let mut sources_by_game = Self::find_sources_by_game(db, &ids).await?;
-
-        Ok(games
-            .into_iter()
-            .map(|game| {
-                let sources = sources_by_game.remove(&game.id).unwrap_or_default();
-                Self::build_full_game(game, sources)
-            })
-            .collect())
+        Self::find_full_games_in_order(db, &ids).await
     }
 
     pub async fn find_ids(
@@ -465,7 +457,7 @@ impl GamesRepository {
         Self::find_ids_sql(db, game_type, sort_option, sort_order).await
     }
 
-    async fn find_models_in_order<C>(db: &C, ids: &[i32]) -> Result<Vec<games::Model>, DbErr>
+    async fn find_full_games_in_order<C>(db: &C, ids: &[i32]) -> Result<Vec<FullGameData>, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -473,39 +465,52 @@ impl GamesRepository {
             return Ok(Vec::new());
         }
 
-        let mut by_id: HashMap<i32, games::Model> = Games::find()
-            .filter(games::Column::Id.is_in(ids.iter().copied()))
-            .all(db)
+        let id_list = ids
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!("{} WHERE g.id IN ({})", Self::FULL_GAME_SELECT, id_list);
+        let mut by_id = HashMap::new();
+        for row in db
+            .query_all(Statement::from_string(db.get_database_backend(), sql))
             .await?
-            .into_iter()
-            .map(|game| (game.id, game))
-            .collect();
+        {
+            let game = Self::full_game_from_row(row)?;
+            by_id.insert(game.id, game);
+        }
 
         Ok(ids.iter().filter_map(|id| by_id.remove(id)).collect())
     }
 
-    async fn find_sources_by_game<C>(
-        db: &C,
-        ids: &[i32],
-    ) -> Result<HashMap<i32, Vec<game_sources::Model>>, DbErr>
-    where
-        C: ConnectionTrait,
-    {
-        if ids.is_empty() {
-            return Ok(HashMap::new());
-        }
+    fn full_game_from_row(row: QueryResult) -> Result<FullGameData, DbErr> {
+        let custom_data = row
+            .try_get::<Option<String>>("", "custom_data")?
+            .map(|data| {
+                serde_json::from_str(&data)
+                    .map_err(|error| DbErr::Custom(format!("custom_data 解析失败: {}", error)))
+            })
+            .transpose()?;
+        let sources_json: String = row.try_get("", "sources_json")?;
+        let sources = serde_json::from_str::<Vec<GameSourceData>>(&sources_json)
+            .map_err(|error| DbErr::Custom(format!("sources 聚合结果解析失败: {}", error)))?;
 
-        let mut result: HashMap<i32, Vec<game_sources::Model>> = HashMap::new();
-        for source in GameSources::find()
-            .filter(game_sources::Column::GameId.is_in(ids.iter().copied()))
-            .order_by_asc(game_sources::Column::GameId)
-            .order_by_asc(game_sources::Column::Source)
-            .all(db)
-            .await?
-        {
-            result.entry(source.game_id).or_default().push(source);
-        }
-        Ok(result)
+        Ok(FullGameData {
+            id: row.try_get("", "id")?,
+            id_type: row.try_get("", "id_type")?,
+            date: row.try_get("", "date")?,
+            localpath: row.try_get("", "localpath")?,
+            savepath: row.try_get("", "savepath")?,
+            autosave: row.try_get("", "autosave")?,
+            maxbackups: row.try_get("", "maxbackups")?,
+            clear: row.try_get("", "clear")?,
+            le_launch: row.try_get("", "le_launch")?,
+            magpie: row.try_get("", "magpie")?,
+            custom_data,
+            sources,
+            created_at: row.try_get("", "created_at")?,
+            updated_at: row.try_get("", "updated_at")?,
+        })
     }
 
     pub async fn delete(db: &DatabaseConnection, id: i32) -> Result<DeleteResult, DbErr> {
