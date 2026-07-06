@@ -274,7 +274,9 @@ pub async fn create_manual_game_session(
         .map_err(|e| format!("创建游戏会话失败: {}", e))
 }
 
-/// 重建指定游戏的统计投影
+/// 修复/调试命令：从全部事实会话重建指定游戏的统计投影
+///
+/// 常规会话增删已在事务内同步维护统计，不应调用此命令。
 #[tauri::command]
 pub async fn rebuild_game_statistics(
     db: State<'_, DatabaseConnection>,

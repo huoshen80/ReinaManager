@@ -537,14 +537,11 @@ impl GameStatsRepository {
             .map(|session| session.end_time))
     }
 
-    async fn upsert_projection<C>(
-        db: &C,
+    async fn upsert_projection(
+        db: &DatabaseTransaction,
         game_id: i32,
         projection: StatisticsProjection,
-    ) -> Result<(), DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ) -> Result<(), DbErr> {
         let daily_stats = serde_json::to_string(&projection.daily_stats)
             .map_err(|error| custom_error(format!("序列化每日统计失败: {error}")))?;
 
