@@ -7,9 +7,9 @@ use std::collections::BTreeMap;
 
 /// 每日统计数据结构
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DailyStats {
-    pub date: String,
-    pub playtime: i32,
+struct DailyStats {
+    date: String,
+    playtime: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -571,55 +571,9 @@ impl GameStatsRepository {
     }
 
     /// 解析每日统计数据
-    pub fn parse_daily_stats(daily_stats_json: &str) -> Result<Vec<DailyStats>, String> {
+    fn parse_daily_stats(daily_stats_json: &str) -> Result<Vec<DailyStats>, String> {
         serde_json::from_str(daily_stats_json)
             .map_err(|e| format!("Failed to parse daily_stats: {}", e))
-    }
-
-    /// 获取今天的游戏时间
-    pub async fn get_today_playtime(
-        db: &DatabaseConnection,
-        game_id: i32,
-        today: &str,
-    ) -> Result<i32, DbErr> {
-        let stats = Self::get_statistics(db, game_id).await?;
-
-        if let Some(stats) = stats
-            && let Some(daily_stats_json) = stats.daily_stats
-        {
-            let daily_stats = Self::parse_daily_stats(&daily_stats_json).map_err(DbErr::Custom)?;
-
-            for stat in daily_stats {
-                if stat.date == today {
-                    return Ok(stat.playtime);
-                }
-            }
-        }
-
-        Ok(0)
-    }
-
-    /// 批量获取游戏统计信息
-    pub async fn get_statistics_batch(
-        db: &DatabaseConnection,
-        game_ids: Vec<i32>,
-    ) -> Result<Vec<game_statistics::Model>, DbErr> {
-        if game_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        GameStatistics::find()
-            .filter(game_statistics::Column::GameId.is_in(game_ids))
-            .all(db)
-            .await
-    }
-
-    /// 删除游戏统计
-    pub async fn delete_statistics(
-        db: &DatabaseConnection,
-        game_id: i32,
-    ) -> Result<DeleteResult, DbErr> {
-        GameStatistics::delete_by_id(game_id).exec(db).await
     }
 
     /// 获取所有游戏统计数据

@@ -116,33 +116,6 @@ class StatsService extends BaseService {
 	async getAllGameLastPlayed(): Promise<GameLastPlayed[]> {
 		return this.invoke<GameLastPlayed[]>("get_all_game_last_played");
 	}
-
-	// 暂时无用开始
-	/**
-	 * 批量获取游戏统计信息
-	 */
-	async getMultipleGameStatistics(
-		gameIds: number[],
-	): Promise<GameStatistics[]> {
-		return this.invoke<GameStatistics[]>("get_multiple_game_statistics", {
-			gameIds,
-		});
-	}
-
-	/**
-	 * 删除游戏统计信息
-	 */
-	async deleteGameStatistics(gameId: number): Promise<number> {
-		return this.invoke<number>("delete_game_statistics", { gameId });
-	}
-	// 暂时无用结束
-
-	/**
-	 * 获取今天的游戏时间
-	 */
-	async getTodayPlaytime(gameId: number, today: string): Promise<number> {
-		return this.invoke<number>("get_today_playtime", { gameId, today });
-	}
 }
 
 // 导出单例

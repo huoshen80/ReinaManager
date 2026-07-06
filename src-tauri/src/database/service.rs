@@ -334,17 +334,6 @@ pub async fn get_game_statistics(
         .map_err(|e| format!("获取游戏统计失败: {}", e))
 }
 
-/// 批量获取游戏统计信息
-#[tauri::command]
-pub async fn get_multiple_game_statistics(
-    db: State<'_, DatabaseConnection>,
-    game_ids: Vec<i32>,
-) -> Result<Vec<crate::entity::game_statistics::Model>, String> {
-    GameStatsRepository::get_statistics_batch(&db, game_ids)
-        .await
-        .map_err(|e| format!("批量获取游戏统计失败: {}", e))
-}
-
 /// 获取所有游戏统计信息
 #[tauri::command]
 pub async fn get_all_game_statistics(
@@ -363,30 +352,6 @@ pub async fn get_all_game_last_played(
     GameStatsRepository::get_all_last_played(&db)
         .await
         .map_err(|e| format!("获取所有游戏最近游玩时间失败: {}", e))
-}
-
-/// 删除游戏统计信息
-#[tauri::command]
-pub async fn delete_game_statistics(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-) -> Result<u64, String> {
-    GameStatsRepository::delete_statistics(&db, game_id)
-        .await
-        .map(|result| result.rows_affected)
-        .map_err(|e| format!("删除游戏统计失败: {}", e))
-}
-
-/// 获取今天的游戏时间
-#[tauri::command]
-pub async fn get_today_playtime(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-    today: String,
-) -> Result<i32, String> {
-    GameStatsRepository::get_today_playtime(&db, game_id, &today)
-        .await
-        .map_err(|e| format!("获取今天游戏时间失败: {}", e))
 }
 
 // ==================== 用户设置相关 ====================
