@@ -1,4 +1,7 @@
-use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr, RuntimeErr};
+use sea_orm::{
+    ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbErr,
+    RuntimeErr, Statement,
+};
 use std::fs;
 use std::time::Duration;
 use url::Url;
@@ -60,8 +63,26 @@ pub async fn establish_connection() -> Result<DatabaseConnection, DbErr> {
         options.sqlx_logging(false);
     }
 
-    // 6. 连接数据库
-    Database::connect(options).await
+    // 6. 连接数据库，并为当前唯一连接启用外键约束
+    let connection = Database::connect(options).await?;
+    connection
+        .execute_unprepared("PRAGMA foreign_keys = ON")
+        .await?;
+
+    let foreign_keys = connection
+        .query_one(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "PRAGMA foreign_keys".to_string(),
+        ))
+        .await?
+        .ok_or_else(|| DbErr::Custom("无法读取 SQLite 外键状态".to_string()))?
+        .try_get::<i32>("", "foreign_keys")?;
+
+    if foreign_keys != 1 {
+        return Err(DbErr::Custom("SQLite 外键约束未启用".to_string()));
+    }
+
+    Ok(connection)
 }
 
 /// 关闭数据库连接
