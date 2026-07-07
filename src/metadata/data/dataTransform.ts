@@ -10,11 +10,7 @@
 
 import type { FullGameData, GameData } from "@/types";
 import { isSourceType } from "@/types";
-import {
-	getSourceRecordMap,
-	type SourceDataMap,
-	type SourceIdMap,
-} from "../sourceRecord";
+import { getSourceRecordMap, type SourceDataMap } from "../sourceRecord";
 import {
 	applyCustomDataOverride,
 	applyCustomSourceDisplay,
@@ -39,21 +35,16 @@ const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
 export function getDisplayGameData(fullData: FullGameData): GameData {
 	const { custom_data } = fullData;
 	const sourceDataMap: SourceDataMap = {};
-	const sourceIds: SourceIdMap = {};
 	for (const [source, record] of getSourceRecordMap(fullData)) {
 		if (record.data != null) sourceDataMap[source] = record.data;
-		if (record.external_id) sourceIds[source] = record.external_id;
 	}
 
 	// 基础数据 - 直接从 fullData 中获取根节点字段
 	const baseData: GameData = {
 		id: fullData.id,
 		id_type: fullData.id_type,
+		sources: fullData.sources,
 		date: fullData.date,
-		bgm_id: sourceIds.bgm,
-		vndb_id: sourceIds.vndb,
-		ymgal_id: sourceIds.ymgal,
-		kun_id: sourceIds.kun,
 		localpath: nullToUndefined(fullData.localpath),
 		savepath: nullToUndefined(fullData.savepath),
 		autosave: nullToUndefined(fullData.autosave),

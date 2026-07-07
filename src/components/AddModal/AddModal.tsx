@@ -227,6 +227,7 @@ const AddModal: React.FC = () => {
 				const customGameData: InsertGameParams = {
 					...defaultdata,
 					id_type: "custom", // 标记为自定义
+					sources: [],
 					custom_data: {
 						name: formText,
 					},

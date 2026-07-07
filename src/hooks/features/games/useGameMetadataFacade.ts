@@ -11,13 +11,13 @@ import {
 	buildInsertGameData,
 	getGameIdentityKeys,
 } from "@/metadata/data/metadata";
+import { getSourceId, type SourceRecordPayload } from "@/metadata/sourceRecord";
 import i18n from "@/providers/i18n";
 import { createCloudPlayStatusContext } from "@/services/cloudPlayStatus";
 import type {
 	BatchOperationResult,
 	GameCandidateData,
 	InsertGameParams,
-	SourceIdType,
 } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 
@@ -56,7 +56,7 @@ export function useGameDuplicateChecker() {
 	}, [allGames]);
 
 	const checkGameExists = useCallback(
-		(gameData: Pick<InsertGameParams, SourceIdType>) => {
+		(gameData: SourceRecordPayload) => {
 			return getGameIdentityKeys(gameData).some((key) =>
 				existingGameKeys.has(key),
 			);
@@ -128,11 +128,17 @@ export function useBulkGameAddActions() {
 					if (item.status === "imported") {
 						continue;
 					}
-					if (item.matchedData?.bgm_id) {
-						bgmIds.add(item.matchedData.bgm_id);
+					const bgmId = item.matchedData
+						? getSourceId(item.matchedData, "bgm")
+						: undefined;
+					const vndbId = item.matchedData
+						? getSourceId(item.matchedData, "vndb")
+						: undefined;
+					if (bgmId) {
+						bgmIds.add(bgmId);
 					}
-					if (item.matchedData?.vndb_id) {
-						vndbIds.add(item.matchedData.vndb_id);
+					if (vndbId) {
+						vndbIds.add(vndbId);
 					}
 				}
 				const cloudStatusContext = await createCloudPlayStatusContext({

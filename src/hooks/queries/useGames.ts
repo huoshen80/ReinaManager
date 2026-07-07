@@ -26,19 +26,13 @@ import type {
 } from "@/types";
 
 const listRelevantUpdateFields = new Set<keyof UpdateGameParams>([
-	"bgm_id",
-	"vndb_id",
-	"ymgal_id",
-	"kun_id",
 	"id_type",
 	"date",
 	"localpath",
 	"clear",
-	"bgm_data",
-	"vndb_data",
-	"ymgal_data",
-	"kun_data",
 	"custom_data",
+	"upsert_sources",
+	"remove_sources",
 ]);
 
 function shouldInvalidateGameLists(updates: UpdateGameParams): boolean {
@@ -48,7 +42,14 @@ function shouldInvalidateGameLists(updates: UpdateGameParams): boolean {
 }
 
 function shouldInvalidateSourceIdCaches(updates: UpdateGameParams): boolean {
-	return "bgm_id" in updates || "vndb_id" in updates;
+	return Boolean(
+		updates.remove_sources?.some(
+			(source) => source === "bgm" || source === "vndb",
+		) ||
+			updates.upsert_sources?.some(
+				(record) => record.source === "bgm" || record.source === "vndb",
+			),
+	);
 }
 
 function invalidateSourceIdCaches(queryClient: QueryClient) {

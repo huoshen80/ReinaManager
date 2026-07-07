@@ -3,72 +3,18 @@
  * @description 封装所有游戏相关的后端调用
  */
 
-import { getSourceRecordsFromLegacyPayload } from "@/metadata/sourceRecord";
 import type {
 	BatchOperationResult,
 	FullGameData,
-	GameSourceRecord,
 	InsertGameParams,
-	InsertGameParamsV2,
-	JsonValue,
 	UpdateGameParams,
-	UpdateGameParamsV2,
 } from "@/types";
-import { SOURCE_FIELD_KEYS } from "@/types";
 import { BaseService } from "./base";
 import type { GameType, SortOption, SortOrder } from "./types";
 
 type WireBatchOperationResult = Omit<BatchOperationResult, "games"> & {
 	games: FullGameData[];
 };
-
-function withoutLegacySourceFields<T extends object>(value: T): T {
-	const result = { ...value } as Record<string, unknown>;
-	for (const fields of Object.values(SOURCE_FIELD_KEYS)) {
-		delete result[fields.id];
-		delete result[fields.data];
-	}
-	return result as T;
-}
-
-function toInsertWire(game: InsertGameParams): InsertGameParamsV2 {
-	return {
-		...withoutLegacySourceFields(game),
-		sources: getSourceRecordsFromLegacyPayload(game),
-	};
-}
-
-function toUpdateWire(updates: UpdateGameParams): UpdateGameParamsV2 {
-	const raw = updates as Record<string, unknown>;
-	const upsertSources: GameSourceRecord[] = [];
-	const removeSources: string[] = [];
-
-	for (const [source, fields] of Object.entries(SOURCE_FIELD_KEYS)) {
-		const hasId = Object.hasOwn(raw, fields.id);
-		const hasData = Object.hasOwn(raw, fields.data);
-		if (!hasId && !hasData) continue;
-		if (hasId !== hasData) {
-			throw new Error(`${source} source 更新必须同时包含 ID 和 data`);
-		}
-
-		const externalId = raw[fields.id];
-		const data = raw[fields.data];
-		if (externalId == null && data == null) {
-			removeSources.push(source);
-		} else {
-			upsertSources.push({
-				source,
-				external_id: typeof externalId === "string" ? externalId : null,
-				data: (data ?? null) as JsonValue | null,
-			});
-		}
-	}
-
-	const wire: UpdateGameParamsV2 = withoutLegacySourceFields(updates);
-	if (upsertSources.length > 0) wire.upsert_sources = upsertSources;
-	if (removeSources.length > 0) wire.remove_sources = removeSources;
-	return wire;
-}
 
 class GameService extends BaseService {
 	/**
@@ -77,7 +23,7 @@ class GameService extends BaseService {
 	 */
 	async insertGame(game: InsertGameParams): Promise<FullGameData> {
 		return this.invoke<FullGameData>("insert_game", {
-			game: toInsertWire(game),
+			game,
 		});
 	}
 
@@ -89,7 +35,7 @@ class GameService extends BaseService {
 	): Promise<BatchOperationResult> {
 		const result = await this.invoke<WireBatchOperationResult>(
 			"insert_games_batch",
-			{ games: games.map(toInsertWire) },
+			{ games },
 		);
 		return result;
 	}
@@ -158,7 +104,7 @@ class GameService extends BaseService {
 	): Promise<FullGameData> {
 		return this.invoke<FullGameData>("update_game", {
 			gameId,
-			updates: toUpdateWire(updates),
+			updates,
 		});
 	}
 
@@ -233,10 +179,7 @@ class GameService extends BaseService {
 		updates: Array<[number, UpdateGameParams]>,
 	): Promise<FullGameData[]> {
 		return this.invoke<FullGameData[]>("update_games_batch", {
-			updates: updates.map(([gameId, update]) => [
-				gameId,
-				toUpdateWire(update),
-			]),
+			updates,
 		});
 	}
 }

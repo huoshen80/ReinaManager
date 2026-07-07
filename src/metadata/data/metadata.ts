@@ -8,7 +8,6 @@ import type {
 	GameCandidateData,
 	GameData,
 	InsertGameParams,
-	SourceIdType,
 	SourceType,
 	UpdateGameParams,
 } from "@/types";
@@ -21,6 +20,11 @@ import {
 } from "@/utils/diff";
 import { getGameDisplayName, getGameNsfwStatus } from "@/utils/game";
 import type { SourceIdMap } from "../sourceAdapter";
+import {
+	getSourceRecordMap,
+	getSourceRecordsFromLegacyPayload,
+	type SourceRecordPayload,
+} from "../sourceRecord";
 import {
 	getRuntimeSourceAdapter,
 	MIXED_SOURCE_KEYS,
@@ -189,15 +193,6 @@ export function buildGameFromMixedSelection(params: {
 	return defaults ? { ...defaults, ...mixedResult } : mixedResult;
 }
 
-function clearMetadataSource(
-	updateData: UpdateGameParams,
-	source: SourceType,
-): void {
-	const { idKey, dataKey } = getRuntimeSourceAdapter(source);
-	updateData[idKey] = null;
-	updateData[dataKey] = null;
-}
-
 // ---------------------- 核心业务逻辑区 ----------------------
 
 export async function fetchMetadataForUpdate({
@@ -277,17 +272,10 @@ export async function buildInsertGameData(
 	cloudStatusContext?: CloudPlayStatusContext,
 ): Promise<InsertGameParams> {
 	const insertData: InsertGameParams = {
-		bgm_id: gameData.bgm_id,
-		vndb_id: gameData.vndb_id,
-		ymgal_id: gameData.ymgal_id,
-		kun_id: gameData.kun_id,
 		id_type: gameData.id_type || "mixed",
+		sources: getSourceRecordsFromLegacyPayload(gameData),
 		date: getGameCandidateDate(gameData),
 		localpath: gameData.localpath ?? undefined,
-		bgm_data: gameData.bgm_data ?? undefined,
-		vndb_data: gameData.vndb_data ?? undefined,
-		ymgal_data: gameData.ymgal_data ?? undefined,
-		kun_data: gameData.kun_data ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
 	};
 	const cloudStatus = await resolveCloudPlayStatus(
@@ -312,24 +300,25 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 export function buildMetadataUpdatePayload(
 	gameData: GameCandidateData,
 ): UpdateGameParams {
+	const records = getSourceRecordsFromLegacyPayload(gameData);
+	const presentSources = new Set(records.map((record) => record.source));
 	const updateData: UpdateGameParams = {
-		...gameData,
+		id_type: gameData.id_type,
 		date: getGameCandidateDate(gameData) ?? null,
 	};
 
-	if (gameData.id_type !== "mixed") {
-		for (const source of REGISTERED_SOURCE_KEYS) {
-			if (source !== gameData.id_type) {
-				clearMetadataSource(updateData, source);
-			}
-		}
+	if (gameData.id_type && isSourceType(gameData.id_type)) {
+		updateData.upsert_sources = records.filter(
+			(record) => record.source === gameData.id_type,
+		);
+		updateData.remove_sources = REGISTERED_SOURCE_KEYS.filter(
+			(source) => source !== gameData.id_type,
+		);
 	} else {
-		for (const source of REGISTERED_SOURCE_KEYS) {
-			const { idKey } = getRuntimeSourceAdapter(source);
-			if (!gameData[idKey]) {
-				clearMetadataSource(updateData, source);
-			}
-		}
+		updateData.upsert_sources = records;
+		updateData.remove_sources = REGISTERED_SOURCE_KEYS.filter(
+			(source) => !presentSources.has(source),
+		);
 	}
 
 	return updateData;
@@ -460,6 +449,7 @@ export async function buildBulkImportGameData(
 
 	return {
 		id_type: "custom",
+		sources: [],
 		custom_data: {
 			name: item.name,
 		},
@@ -467,12 +457,11 @@ export async function buildBulkImportGameData(
 	};
 }
 
-export function getGameIdentityKeys(
-	payload: Pick<InsertGameParams, SourceIdType>,
-): string[] {
+export function getGameIdentityKeys(payload: SourceRecordPayload): string[] {
+	const sourceMap = getSourceRecordMap(payload);
+
 	return REGISTERED_SOURCE_KEYS.map((source) => {
-		const { idKey } = getRuntimeSourceAdapter(source);
-		const sourceId = payload[idKey];
+		const sourceId = sourceMap.get(source)?.external_id;
 		return sourceId ? `${source}:${sourceId}` : null;
 	}).filter((value): value is string => Boolean(value));
 }

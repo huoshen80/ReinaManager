@@ -200,7 +200,7 @@ export function isSourceType(value: string): value is SourceType {
  */
 export type IdType = apiSourceType | "custom" | "Whitecloud";
 
-interface GameIdentityPayload {
+export interface GameSourceIdPayload {
 	bgm_id?: string;
 	vndb_id?: string;
 	ymgal_id?: string;
@@ -226,7 +226,7 @@ interface GameMetadataPayload {
 	custom_data?: Nullable<CustomData>;
 }
 
-type GamePayload = GameIdentityPayload &
+type GamePayload = GameSourceIdPayload &
 	GameRuntimePayload &
 	GameMetadataPayload;
 
@@ -239,21 +239,18 @@ export interface GameSourceRecord {
 /**
  * 完整游戏数据 - 对应后端 V2 读取结构。
  *
- * `sources` 是真实元数据来源；旧宽字段暂时保留在类型层，
- * 仅服务候选数据、写入兼容和未改造完的调用点。
+ * `sources` 是真实元数据来源；候选数据仍暂时保留旧宽字段。
  */
-export interface FullGameData extends GamePayload {
+export interface FullGameData extends GameRuntimePayload {
 	// --- 主键 ---
 	id: number;
+	id_type?: IdType | string;
 	sources: GameSourceRecord[];
+	custom_data?: Nullable<CustomData>;
 	date?: string;
 	created_at?: number;
 	updated_at?: number;
 }
-
-type LegacySourceField = SourceIdType | SourceDataKey;
-
-export type FullGameDataV2 = FullGameData;
 
 /**
  * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
@@ -271,18 +268,14 @@ export interface GameCandidateData extends GamePayload {
  * - id_type 是必需的
  */
 export interface InsertGameParams
-	extends Omit<GameIdentityPayload, "id_type">,
-		Omit<GameRuntimePayload, "localpath" | "savepath">,
-		GameMetadataPayload {
+	extends Omit<GameRuntimePayload, "localpath" | "savepath"> {
 	id_type: IdType | string; // 必需字段
+	sources: GameSourceRecord[];
 	date?: string;
 	localpath?: string;
 	savepath?: string;
+	custom_data?: Nullable<CustomData>;
 }
-
-export type InsertGameParamsV2 = Omit<InsertGameParams, LegacySourceField> & {
-	sources: GameSourceRecord[];
-};
 
 /**
  * 更新游戏参数 - 用于更新游戏（部分更新用）
@@ -295,11 +288,6 @@ export type InsertGameParamsV2 = Omit<InsertGameParams, LegacySourceField> & {
  * 对应 Rust 后端的 Option<Option<T>> 反序列化
  */
 export interface UpdateGameParams {
-	// --- 外部 ID（支持三态） ---
-	bgm_id?: Nullable<string>;
-	vndb_id?: Nullable<string>;
-	ymgal_id?: Nullable<string>;
-	kun_id?: Nullable<string>;
 	id_type?: IdType | string;
 
 	// --- 核心状态（支持三态） ---
@@ -312,18 +300,11 @@ export interface UpdateGameParams {
 	le_launch?: Nullable<number>;
 	magpie?: Nullable<number>;
 
-	// --- JSON Payload（支持三态） ---
-	bgm_data?: Nullable<BgmData>;
-	vndb_data?: Nullable<VndbData>;
-	ymgal_data?: Nullable<YmgalData>;
-	kun_data?: Nullable<KunData>;
+	// --- 元数据 Payload（支持三态） ---
 	custom_data?: Nullable<CustomData>;
-}
-
-export type UpdateGameParamsV2 = Omit<UpdateGameParams, LegacySourceField> & {
 	upsert_sources?: GameSourceRecord[];
 	remove_sources?: string[];
-};
+}
 
 /**
  * 更新设置参数 - 用于批量更新用户设置（部分更新用）
@@ -351,10 +332,11 @@ export interface UpdateSettingsParams {
  * 注意：所有可选字段使用 undefined（与 Rust 后端保持一致）
  */
 export interface GameData
-	extends GameIdentityPayload,
-		Omit<GameRuntimePayload, "localpath" | "savepath"> {
+	extends Omit<GameRuntimePayload, "localpath" | "savepath"> {
 	// 基础字段
 	id: number;
+	id_type?: IdType | string;
+	sources: GameSourceRecord[];
 	date?: string;
 	localpath?: string;
 	savepath?: string;

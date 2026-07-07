@@ -22,6 +22,7 @@ import MixedSourceConfirmDialog from "@/components/AddModal/MixedSourceConfirmDi
 import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
 import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { fetchMetadataForUpdate } from "@/metadata/data/metadata";
+import { getSourceId } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import { isBgmAuthExpiredError, withBgmAuth } from "@/services/bgmAuthSession";
 import { useStore } from "@/store/appStore";
@@ -49,8 +50,7 @@ type SourceIdState = Record<SourceType, string>;
 function getSourceIdState(game: GameData): SourceIdState {
 	return Object.fromEntries(
 		REGISTERED_SOURCE_KEYS.map((source) => {
-			const { idKey } = getRuntimeSourceAdapter(source);
-			return [source, game[idKey] || ""];
+			return [source, getSourceId(game, source) || ""];
 		}),
 	) as SourceIdState;
 }
@@ -121,8 +121,9 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			: isSourceType(idType) && Boolean(sourceIds[idType]);
 
 	const hasSelectedSourceData = (source: SourceType) => {
-		const { idKey } = getRuntimeSourceAdapter(source);
-		return Boolean(selectedGame[idKey] && sourceAvailability[source]);
+		return Boolean(
+			getSourceId(selectedGame, source) && sourceAvailability[source],
+		);
 	};
 
 	const canSwitchSource = () => {

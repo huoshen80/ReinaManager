@@ -3,9 +3,9 @@ import {
 	fetchVndbCurrentUserProfile,
 	updateVndbUserCollection,
 } from "@/metadata/api/vndb";
+import { getSourceId, type SourceRecordPayload } from "@/metadata/sourceRecord";
 import { withBgmAuth } from "@/services/bgmAuthSession";
 import { getVndbToken } from "@/services/cloudPlayStatus/shared";
-import type { GameData } from "@/types";
 import { AppError } from "@/utils/errors";
 
 export type UserReviewPushSource = "bgm" | "vndb";
@@ -49,10 +49,11 @@ function getReviewText(review: string) {
 }
 
 export async function pushGameUserReviewToBgm(
-	game: Pick<GameData, "bgm_id">,
+	game: SourceRecordPayload,
 	payload: UserReviewPushPayload,
 ) {
-	if (!game.bgm_id) {
+	const bgmId = getSourceId(game, "bgm");
+	if (!bgmId) {
 		throw new AppError({
 			code: "bgm_id_missing",
 			message: "当前游戏没有 Bangumi ID",
@@ -68,7 +69,7 @@ export async function pushGameUserReviewToBgm(
 		}
 
 		return updateUserCollection(
-			game.bgm_id as string,
+			bgmId,
 			{
 				rate: mapRatingToBgmRate(normalizeUserRating(payload.rating)),
 				comment: getReviewText(payload.review),
@@ -80,10 +81,11 @@ export async function pushGameUserReviewToBgm(
 }
 
 export async function pushGameUserReviewToVndb(
-	game: Pick<GameData, "vndb_id">,
+	game: SourceRecordPayload,
 	payload: UserReviewPushPayload,
 ) {
-	if (!game.vndb_id) {
+	const vndbId = getSourceId(game, "vndb");
+	if (!vndbId) {
 		throw new AppError({
 			code: "vndb_id_missing",
 			message: "当前游戏没有 VNDB ID",
@@ -108,7 +110,7 @@ export async function pushGameUserReviewToVndb(
 
 	const review = getReviewText(payload.review);
 	return updateVndbUserCollection(
-		game.vndb_id,
+		vndbId,
 		{
 			vote: mapRatingToVndbVote(normalizeUserRating(payload.rating)),
 			notes: review ? review : null,
@@ -130,7 +132,7 @@ async function runPushTarget(
 }
 
 export async function pushGameUserReviewToCloud(
-	game: Pick<GameData, "bgm_id" | "vndb_id">,
+	game: SourceRecordPayload,
 	payload: UserReviewPushPayload,
 ): Promise<UserReviewPushResult[]> {
 	const tasks: Array<Promise<UserReviewPushResult>> = [];

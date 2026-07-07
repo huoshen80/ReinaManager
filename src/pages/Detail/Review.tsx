@@ -22,6 +22,7 @@ import {
 	useVndbCurrentUserProfile,
 } from "@/hooks/queries/useSettings";
 import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
+import { getSourceId } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import {
 	hasUserRating,
@@ -82,7 +83,9 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 	const { t } = useTranslation();
 	const updateGameMutation = useUpdateGame();
 	const { data: settings, isLoading: isSettingsLoading } = useAllSettings();
-	const hasVndbId = Boolean(selectedGame.vndb_id);
+	const bgmId = getSourceId(selectedGame, "bgm");
+	const vndbId = getSourceId(selectedGame, "vndb");
+	const hasVndbId = Boolean(vndbId);
 	const { data: vndbProfile, isLoading: isVndbProfileLoading } =
 		useVndbCurrentUserProfile({ enabled: hasVndbId });
 	const [ratingInput, setRatingInput] = useState(() =>
@@ -91,8 +94,8 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 	const [reviewInput, setReviewInput] = useState(
 		() => selectedGame.custom_data?.user_review ?? "",
 	);
-	const [pushBgm, setPushBgm] = useState(Boolean(selectedGame.bgm_id));
-	const [pushVndb, setPushVndb] = useState(Boolean(selectedGame.vndb_id));
+	const [pushBgm, setPushBgm] = useState(Boolean(bgmId));
+	const [pushVndb, setPushVndb] = useState(Boolean(vndbId));
 	const [bgmPrivate, setBgmPrivate] = useState(false);
 	const [pushResults, setPushResults] = useState<UserReviewPushResult[]>([]);
 	const [isPushing, setIsPushing] = useState(false);
@@ -100,11 +103,9 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 
 	const hasBgmToken = Boolean(settings?.bgm_auth?.access_token);
 	const hasVndbToken = Boolean(settings?.vndb_token);
-	const canPushBgm = Boolean(selectedGame.bgm_id && hasBgmToken);
+	const canPushBgm = Boolean(bgmId && hasBgmToken);
 	const canPushVndb = Boolean(
-		selectedGame.vndb_id &&
-			hasVndbToken &&
-			vndbProfile?.permissions.includes("listwrite"),
+		vndbId && hasVndbToken && vndbProfile?.permissions.includes("listwrite"),
 	);
 	const isPushCapabilityLoading =
 		isSettingsLoading ||
