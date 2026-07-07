@@ -1,5 +1,9 @@
 import type { SourceType } from "@/types";
-import type { SourceCandidate } from "./sourceCandidate";
+import {
+	getCandidateSourceData,
+	getSourceCandidateFromGame,
+	type SourceCandidate,
+} from "./sourceCandidate";
 import { getRuntimeSourceAdapter } from "./sourceRegistry";
 
 export interface AutoResolveSourceCandidateParams {
@@ -32,9 +36,16 @@ export async function resolveAutoSelectedSourceCandidate({
 		return candidate;
 	}
 
-	return adapter.enrichOnSelect(candidate, {
+	const draft = await adapter.enrichOnSelect(candidate, {
 		bgmToken,
 		enrichCrossSource,
 		signal,
 	});
+	const data = getCandidateSourceData(draft, source) ?? candidate.data;
+
+	return getSourceCandidateFromGame(
+		draft,
+		adapter,
+		adapter.toDisplayFields(data),
+	);
 }

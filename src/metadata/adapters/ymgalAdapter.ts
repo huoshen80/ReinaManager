@@ -8,10 +8,11 @@ import {
 	createSourceCandidate,
 	getCandidateSourceData,
 	getCandidateSourceId,
-	mergeCandidateWithDetails,
+	mergeCandidateDetailData,
 	normalizeGameCandidateSources,
 	type SourceCandidate,
 	type SourceDisplayFields,
+	sourceCandidateToDraft,
 } from "../sourceCandidate";
 
 function toYmgalCandidate(game: GameCandidateData): SourceCandidate<YmgalData> {
@@ -25,7 +26,6 @@ function toYmgalCandidate(game: GameCandidateData): SourceCandidate<YmgalData> {
 		externalId: getCandidateSourceId(game, "ymgal"),
 		data,
 		display: ymgalAdapter.toDisplayFields(data),
-		raw: normalizeGameCandidateSources(game, "ymgal"),
 	});
 }
 
@@ -39,7 +39,7 @@ export const ymgalAdapter: MetadataSourceAdapter<YmgalData> = {
 	getExternalUrl: (id) => `https://www.ymgal.games/ga${id}`,
 	async fetchById(id, ctx) {
 		const game = await fetchYmById(id, ctx.signal);
-		return toYmgalCandidate(game);
+		return normalizeGameCandidateSources(game, "ymgal");
 	},
 	async searchByName(name, ctx) {
 		const games = await fetchYmByName(
@@ -53,11 +53,11 @@ export const ymgalAdapter: MetadataSourceAdapter<YmgalData> = {
 	},
 	async enrichOnSelect(candidate, ctx) {
 		if (!candidate.externalId) {
-			return candidate;
+			return sourceCandidateToDraft(candidate);
 		}
 
 		const game = await fetchYmById(candidate.externalId, ctx.signal);
-		return toYmgalCandidate(mergeCandidateWithDetails(candidate, game));
+		return mergeCandidateDetailData(candidate, game);
 	},
 	toDisplayFields: (data): SourceDisplayFields => ({
 		image: data.image,

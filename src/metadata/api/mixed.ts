@@ -18,7 +18,7 @@
  * - fetchMultiSourceData：多数据源搜索和获取的统一接口
  */
 
-import type { SourceType } from "@/types";
+import type { GameCandidateData, SourceType } from "@/types";
 import {
 	AppError,
 	isApiRateLimitError,
@@ -26,7 +26,11 @@ import {
 	toError,
 } from "@/utils/errors";
 import { resolveAutoSelectedSourceCandidate } from "../sourceAutoResolve";
-import type { SourceCandidate } from "../sourceCandidate";
+import {
+	getCandidateSourceData,
+	getSourceCandidateFromGame,
+	type SourceCandidate,
+} from "../sourceCandidate";
 import {
 	getEnabledMixedAdapters,
 	type RuntimeSourceAdapter,
@@ -111,6 +115,22 @@ function extractNameFromApi(
 	return candidate.display.name || candidate.display.name_cn;
 }
 
+function getSourceCandidateFromDraft(
+	adapter: RuntimeSourceAdapter,
+	draft: GameCandidateData,
+): SourceCandidate {
+	const data = getCandidateSourceData(draft, adapter.key);
+	if (!data) {
+		throw new Error(`Missing ${adapter.key} data in ${adapter.key} candidate`);
+	}
+
+	return getSourceCandidateFromGame(
+		draft,
+		adapter,
+		adapter.toDisplayFields(data),
+	);
+}
+
 function getProvidedSourceIds(
 	options: FetchMixedDataOptions,
 	adapters: RuntimeSourceAdapter[],
@@ -150,11 +170,14 @@ export async function fetchMixedData(options: FetchMixedDataOptions) {
 		let sourceResult = createEmptyResult(sourceAdapter);
 
 		sourceResult = await fetchAdapterSafely(sourceAdapter, async () => [
-			await sourceAdapter.fetchById(sourceId, {
-				bgmToken,
-				enrichCrossSource: false,
-				signal,
-			}),
+			getSourceCandidateFromDraft(
+				sourceAdapter,
+				await sourceAdapter.fetchById(sourceId, {
+					bgmToken,
+					enrichCrossSource: false,
+					signal,
+				}),
+			),
 		]);
 		searchName = extractNameFromApi(sourceResult.data[0]);
 

@@ -24,7 +24,6 @@ function toVndbCandidate(game: GameCandidateData): SourceCandidate<VndbData> {
 		externalId: getCandidateSourceId(game, "vndb"),
 		data,
 		display: vndbAdapter.toDisplayFields(data),
-		raw: normalizeGameCandidateSources(game, "vndb"),
 	});
 }
 
@@ -38,7 +37,7 @@ export const vndbAdapter: MetadataSourceAdapter<VndbData> = {
 	getExternalUrl: (id) => `https://vndb.org/${id}`,
 	async fetchById(id, ctx) {
 		const game = await fetchVndbById(id, ctx.signal);
-		return toVndbCandidate(game);
+		return normalizeGameCandidateSources(game, "vndb");
 	},
 	async searchByName(name, ctx) {
 		const games = await fetchVndbByName(

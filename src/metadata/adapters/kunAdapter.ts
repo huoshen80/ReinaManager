@@ -8,10 +8,11 @@ import {
 	createSourceCandidate,
 	getCandidateSourceData,
 	getCandidateSourceId,
-	mergeCandidateWithDetails,
+	mergeCandidateDetailData,
 	normalizeGameCandidateSources,
 	type SourceCandidate,
 	type SourceDisplayFields,
+	sourceCandidateToDraft,
 } from "../sourceCandidate";
 
 function toKunCandidate(game: GameCandidateData): SourceCandidate<KunData> {
@@ -25,7 +26,6 @@ function toKunCandidate(game: GameCandidateData): SourceCandidate<KunData> {
 		externalId: getCandidateSourceId(game, "kun"),
 		data,
 		display: kunAdapter.toDisplayFields(data),
-		raw: normalizeGameCandidateSources(game, "kun"),
 	});
 }
 
@@ -42,7 +42,7 @@ export const kunAdapter: MetadataSourceAdapter<KunData> = {
 			enrichVndb: ctx.enrichCrossSource ?? true,
 			signal: ctx.signal,
 		});
-		return toKunCandidate(game);
+		return normalizeGameCandidateSources(game, "kun");
 	},
 	async searchByName(name, ctx) {
 		const games = await searchGalgame(
@@ -56,14 +56,14 @@ export const kunAdapter: MetadataSourceAdapter<KunData> = {
 	},
 	async enrichOnSelect(candidate, ctx) {
 		if (!candidate.externalId) {
-			return candidate;
+			return sourceCandidateToDraft(candidate);
 		}
 
 		const game = await fetchGalgameById(candidate.externalId, {
 			enrichVndb: ctx.enrichCrossSource ?? true,
 			signal: ctx.signal,
 		});
-		return toKunCandidate(mergeCandidateWithDetails(candidate, game));
+		return mergeCandidateDetailData(candidate, game);
 	},
 	toDisplayFields: (data): SourceDisplayFields => ({
 		image: data.image,

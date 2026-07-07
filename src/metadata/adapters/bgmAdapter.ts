@@ -27,7 +27,6 @@ function toBgmCandidate(game: GameCandidateData): SourceCandidate<BgmData> {
 		externalId: getCandidateSourceId(game, "bgm"),
 		data,
 		display: bgmAdapter.toDisplayFields(data),
-		raw: normalizeGameCandidateSources(game, "bgm"),
 	});
 }
 
@@ -41,7 +40,7 @@ export const bgmAdapter: MetadataSourceAdapter<BgmData> = {
 	getExternalUrl: (id) => `https://bgm.tv/subject/${id}`,
 	async fetchById(id, ctx) {
 		const game = await fetchBgmById(id, ctx.bgmToken, ctx.signal);
-		return toBgmCandidate(game);
+		return normalizeGameCandidateSources(game, "bgm");
 	},
 	async searchByName(name, ctx) {
 		const games = await fetchBgmByName(

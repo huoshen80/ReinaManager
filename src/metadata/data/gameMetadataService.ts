@@ -18,6 +18,7 @@ import {
 	getSourceCandidateFromGame,
 	mergeCandidateSources,
 	type SourceCandidate,
+	sourceCandidateToDraft,
 } from "../sourceCandidate";
 import {
 	getRuntimeSourceAdapter,
@@ -212,7 +213,7 @@ class GameMetadataService {
 			signal,
 		);
 		return candidates.map((candidate) =>
-			this.applyDefaults(candidate.raw, defaults),
+			this.applyDefaults(sourceCandidateToDraft(candidate), defaults),
 		);
 	}
 
@@ -242,7 +243,9 @@ class GameMetadataService {
 			signal,
 		});
 
-		return candidate ? this.applyDefaults(candidate.raw, defaults) : null;
+		return candidate
+			? this.resolveSourceCandidateSelection({ candidate, defaults })
+			: null;
 	}
 
 	/**
@@ -324,7 +327,7 @@ class GameMetadataService {
 				bgmToken,
 				signal,
 			});
-			return candidate.raw;
+			return candidate;
 		} catch (error) {
 			throw createMetadataError(
 				`Failed to fetch ${source} metadata by id`,
@@ -358,9 +361,8 @@ class GameMetadataService {
 		defaults?: Partial<GameCandidateData>;
 	}): Promise<GameCandidateData> {
 		const { candidate, defaults } = params;
-		const enrichedCandidate =
-			await this.enrichSourceCandidateDetails(candidate);
-		return this.applyDefaults(enrichedCandidate.raw, defaults);
+		const draft = await this.resolveSourceCandidateDraft(candidate);
+		return this.applyDefaults(draft, defaults);
 	}
 
 	private async enrichSourceSelectionDetails(
@@ -383,23 +385,38 @@ class GameMetadataService {
 			adapter,
 			adapter.toDisplayFields(sourceData),
 		);
-		const candidate = await this.enrichSourceCandidateDetails(
+		const candidate = await this.resolveSourceCandidateDraft(
 			sourceCandidate,
 			ctx,
 		);
-		return candidate.raw;
+		return candidate;
+	}
+
+	private async resolveSourceCandidateDraft(
+		candidate: SourceCandidate,
+		ctx: MetadataSourceContext = {},
+	): Promise<GameCandidateData> {
+		const adapter = getRuntimeSourceAdapter(candidate.source);
+		if (!adapter.enrichOnSelect || !candidate.externalId) {
+			return sourceCandidateToDraft(candidate);
+		}
+
+		return adapter.enrichOnSelect(candidate, ctx);
 	}
 
 	private async enrichSourceCandidateDetails(
 		candidate: SourceCandidate,
 		ctx: MetadataSourceContext = {},
 	): Promise<SourceCandidate> {
+		const draft = await this.resolveSourceCandidateDraft(candidate, ctx);
 		const adapter = getRuntimeSourceAdapter(candidate.source);
-		if (!adapter.enrichOnSelect || !candidate.externalId) {
-			return candidate;
-		}
-
-		return adapter.enrichOnSelect(candidate, ctx);
+		return getSourceCandidateFromGame(
+			draft,
+			adapter,
+			adapter.toDisplayFields(
+				getCandidateSourceData(draft, candidate.source) ?? candidate.data,
+			),
+		);
 	}
 
 	/**

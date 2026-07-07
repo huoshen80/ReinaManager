@@ -21,9 +21,10 @@ export {
 	getCandidateSourceId,
 	getCandidateSourceRecord,
 	getSourceCandidateFromGame,
+	mergeCandidateDetailData,
 	mergeCandidateSources,
 	normalizeGameCandidateSources,
-	sourceCandidateToGameCandidate,
+	sourceCandidateToDraft,
 } from "./sourceCandidate";
 export type { RuntimeSourceAdapter } from "./sourceRegistry";
 export {
