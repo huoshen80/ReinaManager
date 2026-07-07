@@ -12,7 +12,7 @@ import type {
 	MixedSourceSelection,
 } from "@/metadata/data/metadata";
 import { isBgmAuthExpiredError, withBgmAuth } from "@/services/bgmAuthSession";
-import type { apiSourceType, GameCandidateData, SourceType } from "@/types";
+import type { apiSourceType, GameMetadataDraft, SourceType } from "@/types";
 import { isAbortError } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
 
@@ -30,7 +30,7 @@ interface MixedCandidateState {
 interface SearchMetadataParams {
 	query: string;
 	source: apiSourceType;
-	defaults?: Partial<GameCandidateData>;
+	defaults?: Partial<GameMetadataDraft>;
 	withAbort?: <T>(promise: Promise<T>) => Promise<T>;
 	signal?: AbortSignal;
 }
@@ -38,7 +38,7 @@ interface SearchMetadataParams {
 interface MetadataSearchFlowOptions {
 	mixedEnabledSources?: readonly SourceType[];
 	t: TFunction;
-	onResolved: (gameData: GameCandidateData) => void | Promise<void>;
+	onResolved: (gameData: GameMetadataDraft) => void | Promise<void>;
 	onError: (message: string) => void;
 }
 
@@ -93,10 +93,10 @@ export function useMetadataSearchFlow({
 		});
 	const [isSearching, setIsSearching] = useState(false);
 	const [lastMixedDefaults, setLastMixedDefaults] = useState<
-		Partial<GameCandidateData> | undefined
+		Partial<GameMetadataDraft> | undefined
 	>();
 	const [lastSearchDefaults, setLastSearchDefaults] = useState<
-		Partial<GameCandidateData> | undefined
+		Partial<GameMetadataDraft> | undefined
 	>();
 
 	const getNoResultsText = useCallback(

@@ -19,7 +19,7 @@ import i18n from "@/providers/i18n";
 import { createCloudPlayStatusContext } from "@/services/cloudPlayStatus";
 import type {
 	BatchOperationResult,
-	GameCandidateData,
+	GameMetadataDraft,
 	InsertGameParams,
 } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
@@ -79,7 +79,7 @@ export function useSingleGameAddActions() {
 		mutationFn: async ({
 			gameData,
 		}: {
-			gameData: GameCandidateData;
+			gameData: GameMetadataDraft;
 			options?: {
 				localpath?: string;
 				fallbackIdType?: string;
@@ -97,7 +97,7 @@ export function useSingleGameAddActions() {
 	});
 
 	const addGameFromMetadata = useCallback(
-		async (gameData: GameCandidateData) => {
+		async (gameData: GameMetadataDraft) => {
 			return metadataAddActionMutation.mutateAsync({
 				gameData,
 			});

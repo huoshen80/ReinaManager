@@ -225,9 +225,9 @@ export interface FullGameData extends GameRuntimePayload {
 }
 
 /**
- * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
+ * 游戏元数据草稿 - 来自外部 API 或添加链路，尚未写入数据库
  */
-export interface GameCandidateData
+export interface GameMetadataDraft
 	extends GameRuntimePayload,
 		GameCustomPayload {
 	id_type?: IdType | string;

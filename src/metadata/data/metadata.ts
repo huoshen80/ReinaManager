@@ -5,8 +5,8 @@ import {
 } from "@/services/cloudPlayStatus";
 import type {
 	CustomData,
-	GameCandidateData,
 	GameData,
+	GameMetadataDraft,
 	InsertGameParams,
 	SourceType,
 	UpdateGameParams,
@@ -56,7 +56,7 @@ export interface BatchImportGameCandidate {
 	name: string;
 	path: string;
 	selectedExe?: string;
-	matchedData?: GameCandidateData;
+	matchedData?: GameMetadataDraft;
 }
 
 interface SourceUpdateParams {
@@ -81,7 +81,7 @@ export type MixedSourceEnabled = Partial<Record<SourceType, boolean>>;
 
 export function mergeMixedResult(
 	result: MixedSourceResult,
-): GameCandidateData | null {
+): GameMetadataDraft | null {
 	const selection = Object.fromEntries(
 		MIXED_SOURCE_KEYS.map((source) => [source, result[source] ?? null]),
 	) as MixedSourceSelection;
@@ -103,8 +103,8 @@ export function pickFirstMixedResult(
 export function buildGameFromMixedSelection(params: {
 	selection: MixedSourceSelection;
 	enabled: MixedSourceEnabled;
-	defaults?: Partial<GameCandidateData>;
-}): GameCandidateData {
+	defaults?: Partial<GameMetadataDraft>;
+}): GameMetadataDraft {
 	const { selection, enabled, defaults } = params;
 	const selectedEntries = MIXED_SOURCE_KEYS.map((source) => ({
 		source,
@@ -137,7 +137,7 @@ export async function fetchMetadataForUpdate({
 	sourceIds,
 	enabledSources,
 	bgmToken,
-}: SourceUpdateParams): Promise<GameCandidateData> {
+}: SourceUpdateParams): Promise<GameMetadataDraft> {
 	if (!selectedGame) {
 		throw new Error(
 			i18n.t("pages.Detail.DataSourceUpdate.noGameSelected", "未选择游戏"),
@@ -153,7 +153,7 @@ export async function fetchMetadataForUpdate({
 		);
 	}
 
-	let apiData: GameCandidateData;
+	let apiData: GameMetadataDraft;
 
 	if (idType === "mixed") {
 		const enabled = new Set(enabledSources ?? MIXED_SOURCE_KEYS);
@@ -189,7 +189,7 @@ export async function fetchMetadataForUpdate({
 	return apiData;
 }
 
-function getGameCandidateDate(gameData: GameCandidateData): string | undefined {
+function getGameCandidateDate(gameData: GameMetadataDraft): string | undefined {
 	const dateSources =
 		gameData.id_type && isSourceType(gameData.id_type)
 			? [gameData.id_type]
@@ -204,7 +204,7 @@ function getGameCandidateDate(gameData: GameCandidateData): string | undefined {
 }
 
 export async function buildInsertGameData(
-	gameData: GameCandidateData,
+	gameData: GameMetadataDraft,
 	cloudStatusContext?: CloudPlayStatusContext,
 ): Promise<InsertGameParams> {
 	const insertData: InsertGameParams = {
@@ -234,7 +234,7 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 }
 
 export function buildMetadataUpdatePayload(
-	gameData: GameCandidateData,
+	gameData: GameMetadataDraft,
 ): UpdateGameParams {
 	const records = candidateSourcesToGameSources(gameData.sources);
 	const presentSources = new Set(records.map((record) => record.source));

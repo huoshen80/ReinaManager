@@ -15,7 +15,7 @@
  */
 // 注意认证失败重试机制未生效
 
-import type { GameCandidateData, YmgalData } from "@/types";
+import type { GameMetadataDraft, YmgalData } from "@/types";
 import { AppError, isHttpStatus, toError } from "@/utils/errors";
 import {
 	createGameCandidate,
@@ -269,12 +269,12 @@ interface YmGameDetail {
  * 将 YMGal 数据转换为统一格式
  * @param {YmGameDetail} ymData YMGal 游戏详细数据
  * @param {boolean} update_batch 是否批量更新模式
- * @returns {GameCandidateData}
+ * @returns {GameMetadataDraft}
  */
 function transformYmData(
 	ymData: YmGameDetail,
 	update_batch = false,
-): GameCandidateData {
+): GameMetadataDraft {
 	const aliases = ymData.extensionName?.map((ext) => ext.name).filter(Boolean);
 
 	const ymgalData: YmgalData = {
@@ -308,7 +308,7 @@ function transformYmData(
  * @param {number} pageSize 每页数量，范围 1-20
  * @param {boolean} fetchDetailById 是否仅对第一个结果用 ID 再次请求完整详情（默认 false）
  * 说明：该参数只用于“首条补全”场景，禁止对搜索结果列表逐条补全。
- * @returns {Promise<GameCandidateData[]>} 游戏列表
+ * @returns {Promise<GameMetadataDraft[]>} 游戏列表
  */
 export async function fetchYmByName(
 	name: string,
@@ -316,7 +316,7 @@ export async function fetchYmByName(
 	pageSize = 20,
 	fetchDetailById = false,
 	signal?: AbortSignal,
-): Promise<GameCandidateData[]> {
+): Promise<GameMetadataDraft[]> {
 	const data = await ymApiRequest<{ result?: YmGameListItem[] }>(
 		"/open/archive/search-game",
 		{
@@ -334,7 +334,7 @@ export async function fetchYmByName(
 	}
 
 	// 将列表数据转换为统一格式（不包含详细信息）
-	const results = data.result.map((item: YmGameListItem): GameCandidateData => {
+	const results = data.result.map((item: YmGameListItem): GameMetadataDraft => {
 		const ymgalData: YmgalData = {
 			date: item.releaseDate,
 			image: item.mainImg,
@@ -377,12 +377,12 @@ export async function fetchYmByName(
  * 通过 YMGal 游戏 ID 获取游戏详细信息
  *
  * @param {number} gid YMGal 游戏 ID
- * @returns {Promise<GameCandidateData>} 游戏详细信息
+ * @returns {Promise<GameMetadataDraft>} 游戏详细信息
  */
 export async function fetchYmById(
 	gid: string,
 	signal?: AbortSignal,
-): Promise<GameCandidateData> {
+): Promise<GameMetadataDraft> {
 	const id = Number(gid.replace(/^ga/i, ""));
 	const data = await ymApiRequest<{
 		game?: YmGameDetail;

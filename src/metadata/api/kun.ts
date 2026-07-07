@@ -8,7 +8,7 @@
 
 import i18next from "i18next";
 import { useStore } from "@/store/appStore";
-import type { GameCandidateData, KunData } from "@/types";
+import type { GameMetadataDraft, KunData } from "@/types";
 import { AppError } from "@/utils/errors";
 import {
 	createGameCandidate,
@@ -205,13 +205,13 @@ function buildKunRateLimitedOptions(
 }
 
 /**
- * 将 Kungal API 返回的对象转换为 GameCandidateData 结构
+ * 将 Kungal API 返回的对象转换为 GameMetadataDraft 结构
  * @param kunData Kungal 原始数据
- * @returns 转换后的 GameCandidateData
+ * @returns 转换后的 GameMetadataDraft
  */
 const transformKunData = (
 	kunData: GalgameDetailResponse,
-): GameCandidateData => {
+): GameMetadataDraft => {
 	const summary = pickLocalizedText(kunData.markdown);
 
 	const sourceData: KunData = {
@@ -232,7 +232,7 @@ const transformKunData = (
 		date: kunData.releaseDate ?? undefined,
 	};
 
-	const result: GameCandidateData = {
+	const result: GameMetadataDraft = {
 		...createGameCandidate({
 			idType: "kun",
 			source: createSourceCandidateRecord(
@@ -257,7 +257,7 @@ const transformKunData = (
 export async function fetchGalgameById(
 	id: string,
 	options: KunFetchOptions = {},
-): Promise<GameCandidateData> {
+): Promise<GameMetadataDraft> {
 	const { enrichVndb = true, signal } = options;
 	const url = `${KUN_API_BASE}/galgame/${id}`;
 
@@ -338,7 +338,7 @@ export async function searchGalgame(
 	limit = 12,
 	fetchDetailById = false,
 	options: KunFetchOptions = {},
-): Promise<GameCandidateData[]> {
+): Promise<GameMetadataDraft[]> {
 	const resp = await http.get<
 		KunApiResponse<KunPaginatedData<SearchResultGalgame>>
 	>(

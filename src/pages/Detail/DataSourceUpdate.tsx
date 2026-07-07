@@ -28,8 +28,8 @@ import { isBgmAuthExpiredError, withBgmAuth } from "@/services/bgmAuthSession";
 import { useStore } from "@/store/appStore";
 import type {
 	apiSourceType,
-	GameCandidateData,
 	GameData,
+	GameMetadataDraft,
 	SourceType,
 } from "@/types";
 import { isSourceType } from "@/types";
@@ -39,8 +39,8 @@ import { getGameDisplayName } from "@/utils/game";
 interface DataSourceUpdateProps {
 	selectedGame: GameData;
 	sourceAvailability: Record<SourceType, boolean>;
-	onDataFetched: (data: GameCandidateData) => void;
-	onDirectDataUpdate: (data: GameCandidateData) => Promise<void>;
+	onDataFetched: (data: GameMetadataDraft) => void;
+	onDirectDataUpdate: (data: GameMetadataDraft) => Promise<void>;
 	onSourceSwitch: (idType: string) => Promise<void>;
 	disabled?: boolean;
 }

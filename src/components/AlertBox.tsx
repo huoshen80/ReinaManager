@@ -31,7 +31,7 @@ import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
 } from "@/metadata";
-import type { GameCandidateData, SourceType } from "@/types";
+import type { GameMetadataDraft, SourceType } from "@/types";
 
 interface ViewGameSourceItem {
 	key: SourceType;
@@ -81,7 +81,7 @@ interface AlertConfirmBoxProps {
 
 // 定义 ViewGameBoxProps 接口
 interface ViewGameBoxProps {
-	gameDraft: GameCandidateData;
+	gameDraft: GameMetadataDraft;
 	open: boolean;
 	setOpen: (value: boolean) => void;
 	onConfirm: () => void;

@@ -17,11 +17,11 @@ import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
 } from "@/metadata";
-import type { GameCandidateData, ScanResult } from "@/types";
+import type { GameMetadataDraft, ScanResult } from "@/types";
 
 export interface BulkImportItem extends ScanResult {
 	status: "pending" | "matched" | "imported" | "error" | "not found";
-	matchedData?: GameCandidateData;
+	matchedData?: GameMetadataDraft;
 	selectedExe?: string;
 }
 
@@ -57,7 +57,7 @@ const cellSx = {
 } as const;
 
 function getMatchedGameName(
-	gameData: GameCandidateData | undefined,
+	gameData: GameMetadataDraft | undefined,
 	language: string,
 ): string {
 	if (!gameData) {

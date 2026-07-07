@@ -4,7 +4,7 @@ import { gameKeys } from "@/hooks/queries/useGames";
 import { queryClient } from "@/providers/queryClient";
 import { withBgmAuth } from "@/services/bgmAuthSession";
 import { gameService } from "@/services/invoke";
-import type { GameCandidateData, UpdateGameParams } from "@/types";
+import type { GameMetadataDraft, UpdateGameParams } from "@/types";
 import { toError } from "@/utils/errors";
 import { fetchBgmByIds } from "../api/bgm";
 import { fetchVNDBByIds } from "../api/vndb";
@@ -15,7 +15,7 @@ import {
 
 async function batchUpdateCommon(
 	type: "vndb" | "bgm",
-	fetchFunction: (ids: string[]) => Promise<GameCandidateData[]>,
+	fetchFunction: (ids: string[]) => Promise<GameMetadataDraft[]>,
 	getAllIdsFunction: () => Promise<Array<[number, string]>>,
 	source: "vndb" | "bgm",
 ): Promise<{

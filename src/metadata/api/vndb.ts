@@ -15,7 +15,7 @@
  */
 
 import { useStore } from "@/store/appStore";
-import type { GameCandidateData, VndbData } from "@/types";
+import type { GameMetadataDraft, VndbData } from "@/types";
 import { AppError, isApiRateLimitError } from "@/utils/errors";
 import {
 	createGameCandidate,
@@ -161,7 +161,7 @@ async function resolveVndbUserId(
 function transformVndbData(
 	VNDBdata: RawVNDBData,
 	update_batch?: boolean,
-): GameCandidateData {
+): GameMetadataDraft {
 	// 处理标题信息
 	const titles = VNDBdata.titles.map((title: VNDB_title) => ({
 		title: title.title,
@@ -230,14 +230,14 @@ function transformVndbData(
  * @param {string} name 游戏名称，用于搜索 VNDB 条目。
  * @param {string} [id] 可选，VNDB 游戏 ID，若提供则优先通过 ID 查询。
  * @param {number} [limit=25] 可选，返回的最大结果数量，默认 25。
- * @returns {Promise<GameCandidateData[]>} 包含游戏详细信息的数组。
+ * @returns {Promise<GameMetadataDraft[]>} 包含游戏详细信息的数组。
  */
 export async function fetchVndbByName(
 	name: string,
 	id?: string,
 	limit = 25,
 	signal?: AbortSignal,
-): Promise<GameCandidateData[]> {
+): Promise<GameMetadataDraft[]> {
 	// 构建 API 请求体
 	const requestBody = {
 		filters: id ? ["id", "=", id] : ["search", "=", name],
@@ -267,12 +267,12 @@ export async function fetchVndbByName(
  * 通过 ID 直接获取 VNDB 游戏信息。
  *
  * @param {string} id VNDB 游戏 ID（如 "v17"）。
- * @returns {Promise<GameCandidateData>} 包含游戏详细信息的对象。
+ * @returns {Promise<GameMetadataDraft>} 包含游戏详细信息的对象。
  */
 export async function fetchVndbById(
 	id: string,
 	signal?: AbortSignal,
-): Promise<GameCandidateData> {
+): Promise<GameMetadataDraft> {
 	const result = await fetchVndbByName("", id, 25, signal);
 	if (result.length === 0) {
 		throw new AppError({
@@ -290,7 +290,7 @@ export async function fetchVndbById(
  * 根据 VNDB API 限制，单次请求最多包含 100 个 ID，函数会自动分批。
  *
  * @param {string[]} ids VNDB 游戏 ID 数组（如 ["v1", "v2", "v3", ...]，支持任意数量）。
- * @returns {Promise<GameCandidateData[]>} 包含游戏详细信息的对象数组。
+ * @returns {Promise<GameMetadataDraft[]>} 包含游戏详细信息的对象数组。
  *
  * @example
  * // 获取 250 个游戏（自动分 3 批：100 + 100 + 50）
@@ -300,7 +300,7 @@ export async function fetchVndbById(
 export async function fetchVNDBByIds(
 	ids: string[],
 	signal?: AbortSignal,
-): Promise<GameCandidateData[]> {
+): Promise<GameMetadataDraft[]> {
 	if (ids.length === 0) {
 		return [];
 	}
@@ -313,7 +313,7 @@ export async function fetchVNDBByIds(
 		batches.push(ids.slice(i, i + batchSize));
 	}
 
-	const fetchBatch = async (batch: string[]): Promise<GameCandidateData[]> => {
+	const fetchBatch = async (batch: string[]): Promise<GameMetadataDraft[]> => {
 		// 构建 OR 过滤器：["or", ["id", "=", "v1"], ["id", "=", "v2"], ...]
 		const filters: (string | string[])[] = ["or"];
 		for (const id of batch) {
@@ -343,7 +343,7 @@ export async function fetchVNDBByIds(
 		);
 	};
 
-	const allResults: GameCandidateData[] = [];
+	const allResults: GameMetadataDraft[] = [];
 
 	for (let i = 0; i < batches.length; i++) {
 		try {

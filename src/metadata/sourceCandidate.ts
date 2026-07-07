@@ -1,5 +1,5 @@
 import type {
-	GameCandidateData,
+	GameMetadataDraft,
 	GameSourceRecord,
 	JsonValue,
 	SourceCandidateRecord,
@@ -72,7 +72,7 @@ export function candidateSourcesToGameSources(
 }
 
 export function mergeCandidateSources(
-	candidates: readonly GameCandidateData[],
+	candidates: readonly GameMetadataDraft[],
 ): SourceCandidateRecord[] {
 	const sourceMap = new Map<SourceType, SourceCandidateRecord>();
 
@@ -95,8 +95,8 @@ export function createGameCandidate(params: {
 	source?: SourceCandidateRecord;
 	sources?: readonly SourceCandidateRecord[];
 	localpath?: string;
-	customData?: GameCandidateData["custom_data"];
-}): GameCandidateData {
+	customData?: GameMetadataDraft["custom_data"];
+}): GameMetadataDraft {
 	const sources = params.sources ?? (params.source ? [params.source] : []);
 	return {
 		id_type: params.idType,
@@ -107,9 +107,9 @@ export function createGameCandidate(params: {
 }
 
 export function normalizeGameCandidateSources(
-	candidate: GameCandidateData,
+	candidate: GameMetadataDraft,
 	fallbackIdType?: string,
-): GameCandidateData {
+): GameMetadataDraft {
 	return createGameCandidate({
 		idType: candidate.id_type ?? fallbackIdType,
 		sources: mergeCandidateSources([candidate]),
@@ -119,7 +119,7 @@ export function normalizeGameCandidateSources(
 }
 
 export function getCandidateSourceRecord(
-	candidate: GameCandidateData,
+	candidate: GameMetadataDraft,
 	source: SourceType,
 ): SourceCandidateRecord | undefined {
 	const nativeRecord = candidate.sources?.find(
@@ -131,14 +131,14 @@ export function getCandidateSourceRecord(
 }
 
 export function getCandidateSourceId(
-	candidate: GameCandidateData,
+	candidate: GameMetadataDraft,
 	source: SourceType,
 ): string | undefined {
 	return getCandidateSourceRecord(candidate, source)?.external_id;
 }
 
 export function getCandidateSourceData<TData = unknown>(
-	candidate: GameCandidateData,
+	candidate: GameMetadataDraft,
 	source: SourceType,
 ): TData | undefined {
 	return getCandidateSourceRecord(candidate, source)?.data as TData | undefined;
@@ -160,7 +160,7 @@ export function createSourceCandidate<TData>(params: {
 
 export function sourceCandidateToDraft(
 	candidate: SourceCandidate,
-): GameCandidateData {
+): GameMetadataDraft {
 	if (!candidate.externalId) {
 		throw new Error(`Missing ${candidate.source} external id in candidate`);
 	}
@@ -177,8 +177,8 @@ export function sourceCandidateToDraft(
 
 export function mergeCandidateDetailData(
 	candidate: SourceCandidate,
-	details: GameCandidateData,
-): GameCandidateData {
+	details: GameMetadataDraft,
+): GameMetadataDraft {
 	const merged = normalizeGameCandidateSources(details, candidate.source);
 	const source = candidate.source;
 	const detailRecord = getCandidateSourceRecord(details, source);
@@ -216,7 +216,7 @@ export function mergeCandidateDetailData(
 }
 
 export function getSourceCandidateFromGame<TData>(
-	game: GameCandidateData,
+	game: GameMetadataDraft,
 	source: {
 		key: SourceType;
 	},
@@ -238,8 +238,8 @@ export function getSourceCandidateFromGame<TData>(
 
 export function buildGameCandidateFromSourceSelection(params: {
 	selection: Partial<Record<SourceType, SourceCandidate | null>>;
-	defaults?: Partial<GameCandidateData>;
-}): GameCandidateData {
+	defaults?: Partial<GameMetadataDraft>;
+}): GameMetadataDraft {
 	const selected = SOURCE_ORDER.map(
 		(source) => params.selection[source],
 	).filter((candidate): candidate is SourceCandidate => Boolean(candidate));

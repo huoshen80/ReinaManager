@@ -18,7 +18,7 @@ import { useUpdateGame } from "@/hooks/queries/useGames";
 import { buildMetadataUpdatePayload } from "@/metadata/data/metadata";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
-import type { GameCandidateData, GameData, UpdateGameParams } from "@/types";
+import type { GameData, GameMetadataDraft, UpdateGameParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { EMPTY_SOURCE_AVAILABILITY } from "@/utils/game/gameIndex";
 import { DataSourceUpdate } from "./DataSourceUpdate";
@@ -46,13 +46,13 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 	const { index: gameIndex, isLoading: isGameIndexLoading } = useGameIndex();
 
 	// UI 状态
-	const [gameData, setGameData] = useState<GameCandidateData | null>(null);
+	const [gameData, setGameData] = useState<GameMetadataDraft | null>(null);
 	const [openViewBox, setOpenViewBox] = useState(false);
 	const sourceAvailability =
 		gameIndex.sourceAvailabilityById.get(id) ?? EMPTY_SOURCE_AVAILABILITY;
 	const rawGame = gameIndex.rawById.get(id);
 
-	const updateGameFromMetadata = async (data: GameCandidateData) => {
+	const updateGameFromMetadata = async (data: GameMetadataDraft) => {
 		await fileService.deleteCloudCoverCache(id);
 		const updateData: UpdateGameParams = buildMetadataUpdatePayload(data);
 		await updateGameMutation.mutateAsync({ gameId: id, updates: updateData });
@@ -68,7 +68,7 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 	};
 
 	// 处理数据源获取的数据
-	const handleDataSourceFetched = (result: GameCandidateData) => {
+	const handleDataSourceFetched = (result: GameMetadataDraft) => {
 		setGameData(result);
 		setOpenViewBox(true);
 	};

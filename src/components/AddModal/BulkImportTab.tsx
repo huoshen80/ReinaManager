@@ -34,7 +34,7 @@ import { isBgmAuthExpiredError, withBgmAuth } from "@/services/bgmAuthSession";
 import { handleFolder } from "@/services/fs/fileDialog";
 import { fileService } from "@/services/invoke";
 import { useStore } from "@/store/appStore";
-import type { apiSourceType, GameCandidateData, SourceType } from "@/types";
+import type { apiSourceType, GameMetadataDraft, SourceType } from "@/types";
 import { createAbortableRunner, isAbortError } from "@/utils/async";
 import { getUserErrorMessage, isApiRateLimitError } from "@/utils/errors";
 import { ApiSourceRadioGroup } from "./ApiSourceRadioGroup";
@@ -106,7 +106,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	}, []);
 
 	const handleResolvedEditMetadata = useCallback(
-		async (resolvedData: GameCandidateData) => {
+		async (resolvedData: GameMetadataDraft) => {
 			if (!editItemPath) return;
 
 			setItems((prevItems) => {

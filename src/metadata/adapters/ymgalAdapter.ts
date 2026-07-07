@@ -1,4 +1,4 @@
-import type { GameCandidateData, YmgalData } from "@/types";
+import type { GameMetadataDraft, YmgalData } from "@/types";
 import { fetchYmById, fetchYmByName } from "../api/ymgal";
 import {
 	DEFAULT_METADATA_SEARCH_LIMIT,
@@ -15,7 +15,7 @@ import {
 	sourceCandidateToDraft,
 } from "../sourceCandidate";
 
-function toYmgalCandidate(game: GameCandidateData): SourceCandidate<YmgalData> {
+function toYmgalCandidate(game: GameMetadataDraft): SourceCandidate<YmgalData> {
 	const data = getCandidateSourceData<YmgalData>(game, "ymgal");
 	if (!data) {
 		throw new Error("Missing ymgal data in ymgal candidate");

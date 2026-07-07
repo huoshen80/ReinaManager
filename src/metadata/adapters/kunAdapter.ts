@@ -1,4 +1,4 @@
-import type { GameCandidateData, KunData } from "@/types";
+import type { GameMetadataDraft, KunData } from "@/types";
 import { fetchGalgameById, searchGalgame } from "../api/kun";
 import {
 	DEFAULT_METADATA_SEARCH_LIMIT,
@@ -15,7 +15,7 @@ import {
 	sourceCandidateToDraft,
 } from "../sourceCandidate";
 
-function toKunCandidate(game: GameCandidateData): SourceCandidate<KunData> {
+function toKunCandidate(game: GameMetadataDraft): SourceCandidate<KunData> {
 	const data = getCandidateSourceData<KunData>(game, "kun");
 	if (!data) {
 		throw new Error("Missing kun data in kun candidate");

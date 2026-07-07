@@ -1,4 +1,4 @@
-import type { GameCandidateData, VndbData } from "@/types";
+import type { GameMetadataDraft, VndbData } from "@/types";
 import { fetchVndbById, fetchVndbByName } from "../api/vndb";
 import {
 	DEFAULT_METADATA_SEARCH_LIMIT,
@@ -13,7 +13,7 @@ import {
 	type SourceDisplayFields,
 } from "../sourceCandidate";
 
-function toVndbCandidate(game: GameCandidateData): SourceCandidate<VndbData> {
+function toVndbCandidate(game: GameMetadataDraft): SourceCandidate<VndbData> {
 	const data = getCandidateSourceData<VndbData>(game, "vndb");
 	if (!data) {
 		throw new Error("Missing vndb data in vndb candidate");

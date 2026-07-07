@@ -42,7 +42,7 @@ import {
 	trimDirnameToSearchName,
 } from "@/services/fs/fileDialog";
 import { useStore } from "@/store/appStore";
-import type { GameCandidateData, InsertGameParams } from "@/types";
+import type { GameMetadataDraft, InsertGameParams } from "@/types";
 import { createAbortableRunner } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
 import { ApiSourceRadioGroup } from "./ApiSourceRadioGroup";
@@ -146,7 +146,7 @@ const AddModal: React.FC = () => {
 	}, [addModalOpen]);
 
 	const handleAddGame = useCallback(
-		async (gameData: GameCandidateData) => {
+		async (gameData: GameMetadataDraft) => {
 			const game = await addGameFromMetadata(gameData);
 			closeAddModal();
 			showGameAddedSuccess({ gameId: game.id, navigate, t });

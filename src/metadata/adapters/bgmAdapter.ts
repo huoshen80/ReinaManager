@@ -1,4 +1,4 @@
-import type { BgmData, GameCandidateData } from "@/types";
+import type { BgmData, GameMetadataDraft } from "@/types";
 import { fetchBgmById, fetchBgmByName } from "../api/bgm";
 import {
 	DEFAULT_METADATA_SEARCH_LIMIT,
@@ -16,7 +16,7 @@ import {
 // BGM token 不應為必須
 // 但是需要R18等信息時還是需要登錄
 
-function toBgmCandidate(game: GameCandidateData): SourceCandidate<BgmData> {
+function toBgmCandidate(game: GameMetadataDraft): SourceCandidate<BgmData> {
 	const data = getCandidateSourceData<BgmData>(game, "bgm");
 	if (!data) {
 		throw new Error("Missing bgm data in bgm candidate");

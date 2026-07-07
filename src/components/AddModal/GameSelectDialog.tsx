@@ -19,20 +19,14 @@ import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
 import type { SourceCandidate, SourceDisplayFields } from "@/metadata";
-import {
-	getCandidateSourceData,
-	getCandidateSourceId,
-	getRuntimeSourceAdapter,
-} from "@/metadata";
-import type { GameCandidateData, SourceType } from "@/types";
+import { getRuntimeSourceAdapter } from "@/metadata";
+import type { SourceType } from "@/types";
 
 interface GameSelectDialogProps {
 	open: boolean;
 	onClose: () => void;
-	results?: GameCandidateData[];
-	sourceCandidates?: SourceCandidate[];
-	onSelect?: (game: GameCandidateData, index: number) => void | Promise<void>;
-	onSelectCandidate?: (
+	sourceCandidates: SourceCandidate[];
+	onSelectCandidate: (
 		candidate: SourceCandidate,
 		index: number,
 	) => void | Promise<void>;
@@ -69,22 +63,6 @@ function buildCandidateDisplayInfo(
 	};
 }
 
-/**
- * 从 GameCandidateData 中提取显示信息
- * 由于条件渲染，传入的 results 只包含单一数据源的数据
- */
-export function extractDisplayInfo(
-	item: GameCandidateData,
-	apiSource: SourceType,
-): CandidateDisplayInfo {
-	const adapter = getRuntimeSourceAdapter(apiSource);
-	const data = getCandidateSourceData(item, apiSource);
-	const id = getCandidateSourceId(item, apiSource) || "";
-	const display = data ? adapter.toDisplayFields(data) : {};
-
-	return buildCandidateDisplayInfo(apiSource, id, display);
-}
-
 export function extractSourceCandidateDisplayInfo(
 	candidate: SourceCandidate,
 	apiSource: SourceType,
@@ -102,9 +80,7 @@ export function extractSourceCandidateDisplayInfo(
 const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 	open,
 	onClose,
-	results = [],
 	sourceCandidates,
-	onSelect,
 	onSelectCandidate,
 	loading = false,
 	title,
@@ -112,20 +88,11 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 }) => {
 	const { t } = useTranslation();
 	const resolveImageUrl = useProxyImageUrlResolver();
-	const listItems = sourceCandidates
-		? sourceCandidates.map((candidate, index) => ({
-				key: `${candidate.source}:${candidate.externalId || index}`,
-				displayInfo: extractSourceCandidateDisplayInfo(candidate, apiSource),
-				handleSelect: () => onSelectCandidate?.(candidate, index),
-			}))
-		: results.map((item, index) => {
-				const displayInfo = extractDisplayInfo(item, apiSource);
-				return {
-					key: displayInfo.id || String(index),
-					displayInfo,
-					handleSelect: () => onSelect?.(item, index),
-				};
-			});
+	const listItems = sourceCandidates.map((candidate, index) => ({
+		key: `${candidate.source}:${candidate.externalId || index}`,
+		displayInfo: extractSourceCandidateDisplayInfo(candidate, apiSource),
+		handleSelect: () => onSelectCandidate(candidate, index),
+	}));
 
 	return (
 		<Dialog

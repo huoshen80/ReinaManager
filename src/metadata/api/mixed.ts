@@ -18,7 +18,7 @@
  * - fetchMultiSourceData：多数据源搜索和获取的统一接口
  */
 
-import type { GameCandidateData, SourceType } from "@/types";
+import type { GameMetadataDraft, SourceType } from "@/types";
 import {
 	AppError,
 	isApiRateLimitError,
@@ -117,7 +117,7 @@ function extractNameFromApi(
 
 function getSourceCandidateFromDraft(
 	adapter: RuntimeSourceAdapter,
-	draft: GameCandidateData,
+	draft: GameMetadataDraft,
 ): SourceCandidate {
 	const data = getCandidateSourceData(draft, adapter.key);
 	if (!data) {
