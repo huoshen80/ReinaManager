@@ -1,4 +1,5 @@
-import type { FullGameData, SourceDataKey, SourceType } from "@/types";
+import type { FullGameData, SourceType } from "@/types";
+import { getSourceRecordMap, type SourceRecordPayload } from "../sourceRecord";
 import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
@@ -14,14 +15,17 @@ export interface SourceImageOption {
 	image: string;
 }
 
-type SourceImagePayload = Pick<FullGameData, SourceDataKey>;
+export function getSourceImageMap(game: SourceRecordPayload): SourceImageData {
+	const sourceMap = getSourceRecordMap(game);
 
-export function getSourceImageMap(game: SourceImagePayload): SourceImageData {
 	return Object.fromEntries(
-		REGISTERED_SOURCE_KEYS.map((source) => [
-			source,
-			game[getRuntimeSourceAdapter(source).dataKey],
-		]),
+		REGISTERED_SOURCE_KEYS.map((source) => {
+			const data = sourceMap.get(source)?.data;
+			return [
+				source,
+				data ? getRuntimeSourceAdapter(source).toDisplayFields(data) : null,
+			];
+		}),
 	) as SourceImageData;
 }
 

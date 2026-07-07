@@ -1,15 +1,13 @@
-import type {
-	CustomData,
-	FullGameData,
-	GameData,
-	SourceDataKey,
-	SourceType,
-} from "@/types";
+import type { CustomData, GameData, SourceType } from "@/types";
 import type { SourceDisplayFields } from "../sourceCandidate";
+import {
+	getSourceDataMap as getSourceRecordDataMap,
+	type SourceDataMap,
+	type SourceRecordPayload,
+} from "../sourceRecord";
 import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
-	type RuntimeSourceAdapter,
 } from "../sourceRegistry";
 
 export const SOURCE_COVER_PRIORITY: readonly SourceType[] = [
@@ -41,7 +39,6 @@ const MIXED_ALIAS_SOURCES: readonly SourceType[] = [
 ];
 const MIXED_TITLE_SOURCES: readonly SourceType[] = ["vndb", "kun"];
 
-type SourceDataMap = Partial<Record<SourceType, unknown>>;
 type SourceDisplayMap = Partial<Record<SourceType, SourceDisplayFields>>;
 
 const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
@@ -58,22 +55,8 @@ function assignBasicFields(
 	if (fields.nsfw != null) target.nsfw = fields.nsfw;
 }
 
-function getSourceDataKey(adapter: RuntimeSourceAdapter): SourceDataKey {
-	return adapter.dataKey;
-}
-
-export function getSourceDataMap(
-	game: Pick<FullGameData, SourceDataKey>,
-): SourceDataMap {
-	const sources: SourceDataMap = {};
-	for (const source of REGISTERED_SOURCE_KEYS) {
-		const adapter = getRuntimeSourceAdapter(source);
-		const data = game[getSourceDataKey(adapter)];
-		if (data) {
-			sources[source] = data;
-		}
-	}
-	return sources;
+export function getSourceDataMap(game: SourceRecordPayload): SourceDataMap {
+	return getSourceRecordDataMap(game);
 }
 
 export function getSourceDisplayFields(

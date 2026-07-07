@@ -1,15 +1,12 @@
 /**
  * @file 游戏数据服务
  * @description 封装所有游戏相关的后端调用
- *
- * 后端使用 sources 数组；本层临时转换为现有前端宽模型，
- * 兼容逻辑移除前不向组件和缓存扩散 V2 wire shape。
  */
 
+import { getSourceRecordsFromLegacyPayload } from "@/metadata/sourceRecord";
 import type {
 	BatchOperationResult,
 	FullGameData,
-	FullGameDataV2,
 	GameSourceRecord,
 	InsertGameParams,
 	InsertGameParamsV2,
@@ -17,12 +14,12 @@ import type {
 	UpdateGameParams,
 	UpdateGameParamsV2,
 } from "@/types";
-import { isSourceType, SOURCE_FIELD_KEYS } from "@/types";
+import { SOURCE_FIELD_KEYS } from "@/types";
 import { BaseService } from "./base";
 import type { GameType, SortOption, SortOrder } from "./types";
 
 type WireBatchOperationResult = Omit<BatchOperationResult, "games"> & {
-	games: FullGameDataV2[];
+	games: FullGameData[];
 };
 
 function withoutLegacySourceFields<T extends object>(value: T): T {
@@ -34,42 +31,10 @@ function withoutLegacySourceFields<T extends object>(value: T): T {
 	return result as T;
 }
 
-function collectSourceRecords(
-	value: Record<string, unknown>,
-): GameSourceRecord[] {
-	const sources: GameSourceRecord[] = [];
-	for (const [source, fields] of Object.entries(SOURCE_FIELD_KEYS)) {
-		const externalId = value[fields.id];
-		const data = value[fields.data];
-		if (externalId == null && data == null) continue;
-
-		sources.push({
-			source,
-			external_id: typeof externalId === "string" ? externalId : null,
-			data: (data ?? null) as JsonValue | null,
-		});
-	}
-	return sources;
-}
-
-function toLegacyGame(game: FullGameDataV2): FullGameData {
-	const { sources, ...base } = game;
-	const result = { ...base } as Record<string, unknown>;
-
-	for (const source of sources) {
-		if (!isSourceType(source.source)) continue;
-		const fields = SOURCE_FIELD_KEYS[source.source];
-		result[fields.id] = source.external_id ?? undefined;
-		result[fields.data] = source.data;
-	}
-
-	return result as unknown as FullGameData;
-}
-
 function toInsertWire(game: InsertGameParams): InsertGameParamsV2 {
 	return {
 		...withoutLegacySourceFields(game),
-		sources: collectSourceRecords(game as unknown as Record<string, unknown>),
+		sources: getSourceRecordsFromLegacyPayload(game),
 	};
 }
 
@@ -111,10 +76,9 @@ class GameService extends BaseService {
 	 * @param game 插入参数（不含 id 和时间戳）
 	 */
 	async insertGame(game: InsertGameParams): Promise<FullGameData> {
-		const result = await this.invoke<FullGameDataV2>("insert_game", {
+		return this.invoke<FullGameData>("insert_game", {
 			game: toInsertWire(game),
 		});
-		return toLegacyGame(result);
 	}
 
 	/**
@@ -127,20 +91,16 @@ class GameService extends BaseService {
 			"insert_games_batch",
 			{ games: games.map(toInsertWire) },
 		);
-		return {
-			...result,
-			games: result.games.map(toLegacyGame),
-		};
+		return result;
 	}
 
 	/**
 	 * 根据 ID 查询游戏数据
 	 */
 	async getGameById(id: number): Promise<FullGameData | null> {
-		const result = await this.invoke<FullGameDataV2 | null>("find_game_by_id", {
+		return this.invoke<FullGameData | null>("find_game_by_id", {
 			id,
 		});
-		return result ? toLegacyGame(result) : null;
 	}
 
 	/**
@@ -153,13 +113,12 @@ class GameService extends BaseService {
 		sortOrder: SortOrder = "asc",
 		language?: string,
 	): Promise<FullGameData[]> {
-		const result = await this.invoke<FullGameDataV2[]>("find_all_games", {
+		return this.invoke<FullGameData[]>("find_all_games", {
 			gameType,
 			sortOption,
 			sortOrder,
 			language: language ?? null,
 		});
-		return result.map(toLegacyGame);
 	}
 
 	/**
@@ -197,11 +156,10 @@ class GameService extends BaseService {
 		gameId: number,
 		updates: UpdateGameParams,
 	): Promise<FullGameData> {
-		const result = await this.invoke<FullGameDataV2>("update_game", {
+		return this.invoke<FullGameData>("update_game", {
 			gameId,
 			updates: toUpdateWire(updates),
 		});
-		return toLegacyGame(result);
 	}
 
 	/**
@@ -274,13 +232,12 @@ class GameService extends BaseService {
 	async updateBatch(
 		updates: Array<[number, UpdateGameParams]>,
 	): Promise<FullGameData[]> {
-		const result = await this.invoke<FullGameDataV2[]>("update_games_batch", {
+		return this.invoke<FullGameData[]>("update_games_batch", {
 			updates: updates.map(([gameId, update]) => [
 				gameId,
 				toUpdateWire(update),
 			]),
 		});
-		return result.map(toLegacyGame);
 	}
 }
 

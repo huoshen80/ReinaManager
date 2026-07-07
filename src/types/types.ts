@@ -230,34 +230,30 @@ type GamePayload = GameIdentityPayload &
 	GameRuntimePayload &
 	GameMetadataPayload;
 
-/**
- * 完整游戏数据 - 对应数据库 games 表结构（读取用）
- *
- * 这是后端返回的原始数据格式，用于 UI 渲染和数据展示。
- * 所有元数据以 JSON 列形式嵌入，数据库主键必定存在。
- */
-export interface FullGameData extends GamePayload {
-	// --- 主键 ---
-	id: number;
-	date?: string;
-	created_at?: number;
-	updated_at?: number;
-}
-
-/**
- * 后端 V2 source 记录。首版由 IPC 层转换为现有宽字段。
- */
 export interface GameSourceRecord {
 	source: string;
 	external_id: Nullable<string>;
 	data: JsonValue | null;
 }
 
+/**
+ * 完整游戏数据 - 对应后端 V2 读取结构。
+ *
+ * `sources` 是真实元数据来源；旧宽字段暂时保留在类型层，
+ * 仅服务候选数据、写入兼容和未改造完的调用点。
+ */
+export interface FullGameData extends GamePayload {
+	// --- 主键 ---
+	id: number;
+	sources: GameSourceRecord[];
+	date?: string;
+	created_at?: number;
+	updated_at?: number;
+}
+
 type LegacySourceField = SourceIdType | SourceDataKey;
 
-export type FullGameDataV2 = Omit<FullGameData, LegacySourceField> & {
-	sources: GameSourceRecord[];
-};
+export type FullGameDataV2 = FullGameData;
 
 /**
  * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
