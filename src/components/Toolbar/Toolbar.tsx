@@ -67,7 +67,7 @@ import { useGameStatusActions } from "@/hooks/features/games/useGameStatusAction
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
-import { getSourceId } from "@/metadata/sourceRecord";
+import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import { handleOpenFolder } from "@/services/fs/fileDialog";
 import { useStore } from "@/store/appStore";
@@ -353,7 +353,7 @@ const MoreButton = ({ selectedGame }: { selectedGame: GameData }) => {
 	};
 	const sourceLinks = REGISTERED_SOURCE_KEYS.flatMap((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
-		const sourceId = getSourceId(selectedGame, source);
+		const sourceId = getSourceIdFromDisplay(selectedGame, source);
 		return sourceId
 			? [
 					{

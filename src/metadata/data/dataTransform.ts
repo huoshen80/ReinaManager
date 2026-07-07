@@ -38,6 +38,7 @@ const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
  */
 export function getDisplayGameData(fullData: FullGameData): GameData {
 	const { custom_data } = fullData;
+	const displayCustomData = nullToUndefined(custom_data);
 	const sourceDataMap: SourceDataMap = {};
 	for (const [source, record] of getSourceRecordMap(fullData)) {
 		if (record.data != null) sourceDataMap[source] = record.data;
@@ -56,7 +57,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 		clear: nullToUndefined(fullData.clear),
 		le_launch: nullToUndefined(fullData.le_launch),
 		magpie: nullToUndefined(fullData.magpie),
-		custom_data: nullToUndefined(custom_data),
+		custom_data: displayCustomData,
 		created_at: fullData.created_at,
 		updated_at: fullData.updated_at,
 		// 初始化展平字段

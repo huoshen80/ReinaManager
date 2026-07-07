@@ -9,9 +9,14 @@ type SourceRecordLike = {
 };
 
 export type SourceRecordPayload = {
-	sources?: readonly SourceRecordLike[] | null;
-	sourceIds?: Partial<Record<SourceType, string>> | null;
+	sources: readonly SourceRecordLike[] | null;
 };
+
+export type SourceIdPayload = {
+	sourceIds: Partial<Record<SourceType, string>> | null;
+};
+
+export type SourceIdentityPayload = SourceRecordPayload | SourceIdPayload;
 
 export type SourceRecordMap = Map<SourceType, GameSourceRecord>;
 export type SourceDataMap = Partial<Record<SourceType, unknown>>;
@@ -32,17 +37,6 @@ export function getSourceRecordMap(
 		});
 	}
 
-	for (const source of REGISTERED_SOURCE_KEYS) {
-		if (map.has(source)) continue;
-		const externalId = payload.sourceIds?.[source];
-		if (!externalId) continue;
-		map.set(source, {
-			source,
-			external_id: externalId,
-			data: null,
-		});
-	}
-
 	return map;
 }
 
@@ -53,11 +47,34 @@ export function getSourceRecord(
 	return getSourceRecordMap(payload).get(source);
 }
 
-export function getSourceId(
+export function getSourceIdFromRecords(
 	payload: SourceRecordPayload,
 	source: SourceType,
 ): string | undefined {
 	return getSourceRecord(payload, source)?.external_id ?? undefined;
+}
+
+export function getSourceIdFromDisplay(
+	payload: SourceIdPayload,
+	source: SourceType,
+): string | undefined {
+	return payload.sourceIds?.[source] || undefined;
+}
+
+export function getAnySourceId(
+	payload: SourceIdentityPayload,
+	source: SourceType,
+): string | undefined {
+	if ("sources" in payload) {
+		const sourceId = getSourceIdFromRecords(payload, source);
+		if (sourceId) return sourceId;
+	}
+
+	if ("sourceIds" in payload) {
+		return getSourceIdFromDisplay(payload, source);
+	}
+
+	return undefined;
 }
 
 export function getSourceData<TData = unknown>(
@@ -94,11 +111,13 @@ export function getSourceIdMap(payload: SourceRecordPayload): SourceIdMap {
 	return ids;
 }
 
-export function getSourceRecordsFromPayload(
-	payload: SourceRecordPayload,
-): GameSourceRecord[] {
-	const sourceMap = getSourceRecordMap(payload);
-	return REGISTERED_SOURCE_KEYS.map((source) => sourceMap.get(source)).filter(
-		(record): record is GameSourceRecord => Boolean(record),
-	);
+export function getAnySourceIdMap(payload: SourceIdentityPayload): SourceIdMap {
+	const ids: SourceIdMap = {};
+	for (const source of REGISTERED_SOURCE_KEYS) {
+		const sourceId = getAnySourceId(payload, source);
+		if (sourceId) {
+			ids[source] = sourceId;
+		}
+	}
+	return ids;
 }

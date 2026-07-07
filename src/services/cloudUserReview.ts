@@ -3,7 +3,10 @@ import {
 	fetchVndbCurrentUserProfile,
 	updateVndbUserCollection,
 } from "@/metadata/api/vndb";
-import { getSourceId, type SourceRecordPayload } from "@/metadata/sourceRecord";
+import {
+	getAnySourceId,
+	type SourceIdentityPayload,
+} from "@/metadata/sourceRecord";
 import { withBgmAuth } from "@/services/bgmAuthSession";
 import { getVndbToken } from "@/services/cloudPlayStatus/shared";
 import { AppError } from "@/utils/errors";
@@ -49,10 +52,10 @@ function getReviewText(review: string) {
 }
 
 export async function pushGameUserReviewToBgm(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	payload: UserReviewPushPayload,
 ) {
-	const bgmId = getSourceId(game, "bgm");
+	const bgmId = getAnySourceId(game, "bgm");
 	if (!bgmId) {
 		throw new AppError({
 			code: "bgm_id_missing",
@@ -81,10 +84,10 @@ export async function pushGameUserReviewToBgm(
 }
 
 export async function pushGameUserReviewToVndb(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	payload: UserReviewPushPayload,
 ) {
-	const vndbId = getSourceId(game, "vndb");
+	const vndbId = getAnySourceId(game, "vndb");
 	if (!vndbId) {
 		throw new AppError({
 			code: "vndb_id_missing",
@@ -132,7 +135,7 @@ async function runPushTarget(
 }
 
 export async function pushGameUserReviewToCloud(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	payload: UserReviewPushPayload,
 ): Promise<UserReviewPushResult[]> {
 	const tasks: Array<Promise<UserReviewPushResult>> = [];

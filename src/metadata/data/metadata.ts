@@ -22,13 +22,13 @@ import { getGameDisplayName, getGameNsfwStatus } from "@/utils/game";
 import type { SourceIdMap } from "../sourceAdapter";
 import {
 	buildGameCandidateFromSourceSelection,
+	candidateSourcesToGameSources,
 	type SourceCandidate,
 } from "../sourceCandidate";
 import {
+	getAnySourceId,
 	getSourceData,
-	getSourceRecordMap,
-	getSourceRecordsFromPayload,
-	type SourceRecordPayload,
+	type SourceIdentityPayload,
 } from "../sourceRecord";
 import {
 	getSourceAdapter,
@@ -217,7 +217,7 @@ export async function buildInsertGameData(
 ): Promise<InsertGameParams> {
 	const insertData: InsertGameParams = {
 		id_type: gameData.id_type || "mixed",
-		sources: getSourceRecordsFromPayload(gameData),
+		sources: candidateSourcesToGameSources(gameData.sources),
 		date: getGameCandidateDate(gameData),
 		localpath: gameData.localpath ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
@@ -244,7 +244,7 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 export function buildMetadataUpdatePayload(
 	gameData: GameCandidateData,
 ): UpdateGameParams {
-	const records = getSourceRecordsFromPayload(gameData);
+	const records = candidateSourcesToGameSources(gameData.sources);
 	const presentSources = new Set(records.map((record) => record.source));
 	const updateData: UpdateGameParams = {
 		id_type: gameData.id_type,
@@ -401,11 +401,9 @@ export async function buildBulkImportGameData(
 	};
 }
 
-export function getGameIdentityKeys(payload: SourceRecordPayload): string[] {
-	const sourceMap = getSourceRecordMap(payload);
-
+export function getGameIdentityKeys(payload: SourceIdentityPayload): string[] {
 	return REGISTERED_SOURCE_KEYS.map((source) => {
-		const sourceId = sourceMap.get(source)?.external_id;
+		const sourceId = getAnySourceId(payload, source);
 		return sourceId ? `${source}:${sourceId}` : null;
 	}).filter((value): value is string => Boolean(value));
 }

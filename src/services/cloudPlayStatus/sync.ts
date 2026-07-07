@@ -3,7 +3,10 @@ import {
 	fetchVndbUserCollection,
 	updateVndbUserCollection,
 } from "@/metadata/api/vndb";
-import { getSourceId, type SourceRecordPayload } from "@/metadata/sourceRecord";
+import {
+	getAnySourceId,
+	type SourceIdentityPayload,
+} from "@/metadata/sourceRecord";
 import { withBgmAuth } from "@/services/bgmAuthSession";
 import { useStore } from "@/store/appStore";
 import type { PlayStatus } from "@/types/collection";
@@ -20,8 +23,8 @@ import {
 
 type CollectionSyncSource = "bgm" | "vndb";
 
-async function resolveBgmPlayStatus(game: SourceRecordPayload) {
-	const bgmId = getSourceId(game, "bgm");
+async function resolveBgmPlayStatus(game: SourceIdentityPayload) {
+	const bgmId = getAnySourceId(game, "bgm");
 	if (!bgmId) return undefined;
 
 	try {
@@ -38,8 +41,8 @@ async function resolveBgmPlayStatus(game: SourceRecordPayload) {
 	}
 }
 
-async function resolveVndbPlayStatus(game: SourceRecordPayload) {
-	const vndbId = getSourceId(game, "vndb");
+async function resolveVndbPlayStatus(game: SourceIdentityPayload) {
+	const vndbId = getAnySourceId(game, "vndb");
 	if (!vndbId) return undefined;
 
 	try {
@@ -55,7 +58,7 @@ async function resolveVndbPlayStatus(game: SourceRecordPayload) {
 }
 
 export async function resolveCloudPlayStatus(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	context?: CloudPlayStatusContext,
 ) {
 	const { syncBgmCollection, syncVndbCollection } = useStore.getState();
@@ -80,10 +83,10 @@ export async function resolveCloudPlayStatus(
 }
 
 async function syncPlayStatusToBgm(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	newStatus: PlayStatus,
 ) {
-	const bgmId = getSourceId(game, "bgm");
+	const bgmId = getAnySourceId(game, "bgm");
 	if (!bgmId) return true;
 
 	try {
@@ -99,10 +102,10 @@ async function syncPlayStatusToBgm(
 }
 
 async function syncPlayStatusToVndb(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	newStatus: PlayStatus,
 ) {
-	const vndbId = getSourceId(game, "vndb");
+	const vndbId = getAnySourceId(game, "vndb");
 	if (!vndbId) return true;
 
 	try {
@@ -129,7 +132,7 @@ async function syncPlayStatusToVndb(
 }
 
 export async function syncPlayStatusToCloud(
-	game: SourceRecordPayload,
+	game: SourceIdentityPayload,
 	newStatus: PlayStatus,
 ): Promise<CollectionSyncSource[]> {
 	const { syncBgmCollection, syncVndbCollection } = useStore.getState();

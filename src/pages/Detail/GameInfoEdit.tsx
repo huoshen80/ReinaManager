@@ -43,7 +43,7 @@ import {
 	resolveSourceImage,
 	type SourceImageOption,
 } from "@/metadata/data/sourceImage";
-import { getSourceRecordMap } from "@/metadata/sourceRecord";
+import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import { handleExeFile } from "@/services/fs/fileDialog";
 import {
@@ -309,9 +309,8 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		[rawGame],
 	);
 	const selectedGameSourceIdSignature = (() => {
-		const sourceMap = getSourceRecordMap(selectedGame);
 		return REGISTERED_SOURCE_KEYS.map(
-			(source) => sourceMap.get(source)?.external_id ?? "",
+			(source) => getSourceIdFromDisplay(selectedGame, source) ?? "",
 		).join("\0");
 	})();
 

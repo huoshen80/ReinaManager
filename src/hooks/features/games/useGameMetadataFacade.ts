@@ -11,7 +11,10 @@ import {
 	buildInsertGameData,
 	getGameIdentityKeys,
 } from "@/metadata/data/metadata";
-import { getSourceId, type SourceRecordPayload } from "@/metadata/sourceRecord";
+import {
+	getSourceIdFromRecords,
+	type SourceIdentityPayload,
+} from "@/metadata/sourceRecord";
 import i18n from "@/providers/i18n";
 import { createCloudPlayStatusContext } from "@/services/cloudPlayStatus";
 import type {
@@ -56,7 +59,7 @@ export function useGameDuplicateChecker() {
 	}, [allGames]);
 
 	const checkGameExists = useCallback(
-		(gameData: SourceRecordPayload) => {
+		(gameData: SourceIdentityPayload) => {
 			return getGameIdentityKeys(gameData).some((key) =>
 				existingGameKeys.has(key),
 			);
@@ -130,10 +133,10 @@ export function useBulkGameAddActions() {
 						continue;
 					}
 					const bgmId = item.matchedData
-						? getSourceId(item.matchedData, "bgm")
+						? getSourceIdFromRecords(item.matchedData, "bgm")
 						: undefined;
 					const vndbId = item.matchedData
-						? getSourceId(item.matchedData, "vndb")
+						? getSourceIdFromRecords(item.matchedData, "vndb")
 						: undefined;
 					if (bgmId) {
 						cloudBgmIds.add(bgmId);

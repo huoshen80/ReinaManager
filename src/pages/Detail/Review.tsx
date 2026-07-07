@@ -22,7 +22,7 @@ import {
 	useVndbCurrentUserProfile,
 } from "@/hooks/queries/useSettings";
 import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
-import { getSourceId } from "@/metadata/sourceRecord";
+import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import {
 	hasUserRating,
@@ -83,8 +83,8 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 	const { t } = useTranslation();
 	const updateGameMutation = useUpdateGame();
 	const { data: settings, isLoading: isSettingsLoading } = useAllSettings();
-	const bgmId = getSourceId(selectedGame, "bgm");
-	const vndbId = getSourceId(selectedGame, "vndb");
+	const bgmId = getSourceIdFromDisplay(selectedGame, "bgm");
+	const vndbId = getSourceIdFromDisplay(selectedGame, "vndb");
 	const hasVndbId = Boolean(vndbId);
 	const { data: vndbProfile, isLoading: isVndbProfileLoading } =
 		useVndbCurrentUserProfile({ enabled: hasVndbId });
