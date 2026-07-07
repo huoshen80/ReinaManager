@@ -14,7 +14,9 @@ pub struct Model {
     pub external_id: Option<String>,
     #[sea_orm(column_type = "Json", nullable)]
     pub data: Option<Json>,
+    /// SQLite 生成列，只读；写入 ActiveModel 时必须保持 NotSet。
     pub score: Option<f64>,
+    /// SQLite 生成列，只读；写入 ActiveModel 时必须保持 NotSet。
     pub rank: Option<i32>,
 }
 

@@ -63,6 +63,7 @@ where
 
     for source in SOURCES {
         let expected = source_row_count(connection, source).await?;
+        // SOURCES 是编译期常量，不接收外部输入；这里拼接 SQL 是为了迁移旧宽列。
         connection
             .execute_unprepared(&format!(
                 r#"
@@ -283,7 +284,7 @@ where
                   )
               AND (
                     s.game_id IS NULL
-                    OR s.external_id IS NOT NULLIF(trim(g.{id_column}), '')
+                    OR s.external_id IS NOT (NULLIF(trim(g.{id_column}), ''))
                     OR s.data IS NOT g.{data_column}
                   )
             "#,
@@ -341,9 +342,9 @@ where
         parts.next().unwrap_or(0),
     );
 
-    if parsed < (3, 31, 0) {
+    if parsed < (3, 35, 0) {
         return Err(DbErr::Custom(format!(
-            "SQLite {} 不支持生成列，至少需要 3.31.0",
+            "SQLite {} 不支持本次迁移需要的生成列和 DROP COLUMN，至少需要 3.35.0",
             version
         )));
     }

@@ -20,6 +20,14 @@
  */
 export type Nullable<T> = T | null;
 
+export type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue };
+
 /**
  * 深度可空类型 - 将对象的所有属性转换为可空
  */
@@ -242,7 +250,7 @@ export interface FullGameData extends GamePayload {
 export interface GameSourceRecord {
 	source: string;
 	external_id: Nullable<string>;
-	data: unknown | null;
+	data: JsonValue | null;
 }
 
 type LegacySourceField = SourceIdType | SourceDataKey;

@@ -13,6 +13,7 @@ import type {
 	GameSourceRecord,
 	InsertGameParams,
 	InsertGameParamsV2,
+	JsonValue,
 	UpdateGameParams,
 	UpdateGameParamsV2,
 } from "@/types";
@@ -45,7 +46,7 @@ function collectSourceRecords(
 		sources.push({
 			source,
 			external_id: typeof externalId === "string" ? externalId : null,
-			data: data ?? null,
+			data: (data ?? null) as JsonValue | null,
 		});
 	}
 	return sources;
@@ -93,7 +94,7 @@ function toUpdateWire(updates: UpdateGameParams): UpdateGameParamsV2 {
 			upsertSources.push({
 				source,
 				external_id: typeof externalId === "string" ? externalId : null,
-				data: data ?? null,
+				data: (data ?? null) as JsonValue | null,
 			});
 		}
 	}
