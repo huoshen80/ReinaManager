@@ -204,14 +204,27 @@ class GameMetadataService {
 			return [this.applyDefaults(game, defaults)];
 		}
 
-		const results = await this.searchByName(
+		const candidates = await this.searchByName(
 			query,
 			source,
 			bgmToken,
 			limit,
 			signal,
 		);
-		return results.map((game) => this.applyDefaults(game, defaults));
+		return candidates.map((candidate) =>
+			this.applyDefaults(candidate.raw, defaults),
+		);
+	}
+
+	async searchSourceCandidatesByName(params: {
+		query: string;
+		source: SourceType;
+		bgmToken?: string;
+		limit?: number;
+		signal?: AbortSignal;
+	}): Promise<SourceCandidate[]> {
+		const { query, source, bgmToken, limit, signal } = params;
+		return this.searchByName(query, source, bgmToken, limit, signal);
 	}
 
 	async searchBestMatch(params: {
@@ -340,6 +353,16 @@ class GameMetadataService {
 		return this.enrichSourceSelectionDetails(selectedGame, source);
 	}
 
+	async resolveSourceCandidateSelection(params: {
+		candidate: SourceCandidate;
+		defaults?: Partial<GameCandidateData>;
+	}): Promise<GameCandidateData> {
+		const { candidate, defaults } = params;
+		const enrichedCandidate =
+			await this.enrichSourceCandidateDetails(candidate);
+		return this.applyDefaults(enrichedCandidate.raw, defaults);
+	}
+
 	private async enrichSourceSelectionDetails(
 		selectedGame: GameCandidateData,
 		source: SourceType,
@@ -442,14 +465,13 @@ class GameMetadataService {
 		bgmToken?: string,
 		limit?: number,
 		signal?: AbortSignal,
-	): Promise<GameCandidateData[]> {
+	): Promise<SourceCandidate[]> {
 		try {
-			const candidates = await getSourceAdapter(source).searchByName(name, {
+			return await getSourceAdapter(source).searchByName(name, {
 				bgmToken,
 				limit,
 				signal,
 			});
-			return candidates.map((candidate) => candidate.raw);
 		} catch (error) {
 			throw createMetadataError(
 				`Failed to search ${source} metadata by name`,

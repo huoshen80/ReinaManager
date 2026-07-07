@@ -394,8 +394,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			<GameSelectDialog
 				open={metadataSearchFlow.searchResultState.open}
 				onClose={metadataSearchFlow.closeSearchResult}
-				results={metadataSearchFlow.searchResultState.results}
-				onSelect={metadataSearchFlow.selectGame}
+				sourceCandidates={metadataSearchFlow.searchResultState.results}
+				onSelectCandidate={metadataSearchFlow.selectGame}
 				loading={metadataSearchFlow.isSearching}
 				title={t(
 					"pages.Detail.DataSourceUpdate.selectAndUpdateGame",

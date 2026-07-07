@@ -4,6 +4,7 @@ import {
 	gameMetadataService,
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
+	type SourceCandidate,
 } from "@/metadata";
 import type {
 	MixedSourceCandidates,
@@ -17,7 +18,7 @@ import { getUserErrorMessage } from "@/utils/errors";
 
 interface SearchResultState {
 	open: boolean;
-	results: GameCandidateData[];
+	results: SourceCandidate[];
 	apiSource: SourceType;
 }
 
@@ -94,6 +95,9 @@ export function useMetadataSearchFlow({
 	const [lastMixedDefaults, setLastMixedDefaults] = useState<
 		Partial<GameCandidateData> | undefined
 	>();
+	const [lastSearchDefaults, setLastSearchDefaults] = useState<
+		Partial<GameCandidateData> | undefined
+	>();
 
 	const getNoResultsText = useCallback(
 		(source: apiSourceType) => getDefaultNoResultsMessage(t, source),
@@ -116,6 +120,7 @@ export function useMetadataSearchFlow({
 		closeMixedCandidates();
 		setIsSearching(false);
 		setLastMixedDefaults(undefined);
+		setLastSearchDefaults(undefined);
 	}, [closeMixedCandidates, closeSearchResult]);
 
 	const searchMetadata = useCallback(
@@ -128,6 +133,7 @@ export function useMetadataSearchFlow({
 		}: SearchMetadataParams) => {
 			setIsSearching(true);
 			setLastMixedDefaults(defaults);
+			setLastSearchDefaults(source === "mixed" ? undefined : defaults);
 
 			try {
 				if (source === "mixed") {
@@ -158,41 +164,47 @@ export function useMetadataSearchFlow({
 					return;
 				}
 
+				if (gameMetadataService.shouldUseIdSearch(query, source)) {
+					const searchById = (bgmToken?: string) => {
+						const searchPromise = gameMetadataService.searchGames({
+							query,
+							source,
+							bgmToken,
+							defaults,
+							signal,
+						});
+						return withAbort ? withAbort(searchPromise) : searchPromise;
+					};
+					const results =
+						source === "bgm"
+							? await withBgmAuth(searchById)
+							: await searchById();
+
+					if (results.length === 0) {
+						throw new Error(getNoResultsText(source));
+					}
+
+					await onResolved(results[0]);
+					return;
+				}
+
+				const searchCandidates = (bgmToken?: string) => {
+					const searchPromise =
+						gameMetadataService.searchSourceCandidatesByName({
+							query,
+							source,
+							bgmToken,
+							signal,
+						});
+					return withAbort ? withAbort(searchPromise) : searchPromise;
+				};
 				const results =
 					source === "bgm"
-						? await withBgmAuth((token) => {
-								const searchPromise = gameMetadataService.searchGames({
-									query,
-									source,
-									bgmToken: token,
-									defaults,
-									signal,
-								});
-								return withAbort ? withAbort(searchPromise) : searchPromise;
-							})
-						: await (withAbort
-								? withAbort(
-										gameMetadataService.searchGames({
-											query,
-											source,
-											defaults,
-											signal,
-										}),
-									)
-								: gameMetadataService.searchGames({
-										query,
-										source,
-										defaults,
-										signal,
-									}));
+						? await withBgmAuth(searchCandidates)
+						: await searchCandidates();
 
 				if (results.length === 0) {
 					throw new Error(getNoResultsText(source));
-				}
-
-				if (gameMetadataService.shouldUseIdSearch(query, source)) {
-					await onResolved(results[0]);
-					return;
 				}
 
 				setSearchResultState({
@@ -216,17 +228,17 @@ export function useMetadataSearchFlow({
 	);
 
 	const selectGame = useCallback(
-		async (selectedGame: GameCandidateData) => {
-			if (!selectedGame) {
+		async (selectedCandidate: SourceCandidate) => {
+			if (!selectedCandidate) {
 				return;
 			}
 
 			setIsSearching(true);
 			try {
 				const resolvedGame =
-					await gameMetadataService.enrichSelectedGameDetails({
-						selectedGame,
-						source: searchResultState.apiSource,
+					await gameMetadataService.resolveSourceCandidateSelection({
+						candidate: selectedCandidate,
+						defaults: lastSearchDefaults,
 					});
 				await onResolved(resolvedGame);
 				closeSearchResult();
@@ -236,7 +248,7 @@ export function useMetadataSearchFlow({
 				setIsSearching(false);
 			}
 		},
-		[closeSearchResult, onError, onResolved, searchResultState.apiSource, t],
+		[closeSearchResult, lastSearchDefaults, onError, onResolved, t],
 	);
 
 	const confirmMixedSelection = useCallback(

@@ -747,8 +747,8 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 			<GameSelectDialog
 				open={metadataSearchFlow.searchResultState.open}
 				onClose={metadataSearchFlow.closeSearchResult}
-				results={metadataSearchFlow.searchResultState.results}
-				onSelect={metadataSearchFlow.selectGame}
+				sourceCandidates={metadataSearchFlow.searchResultState.results}
+				onSelectCandidate={metadataSearchFlow.selectGame}
 				loading={searchResultLoading}
 				title={t("components.AddModal.selectGame", "选择游戏")}
 				apiSource={metadataSearchFlow.searchResultState.apiSource}
