@@ -11,7 +11,6 @@ import Typography from "@mui/material/Typography";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
-import type { SourceCandidate } from "@/metadata";
 import { getRuntimeSourceAdapter, MIXED_SOURCE_KEYS } from "@/metadata";
 import type {
 	MixedSourceCandidates,
@@ -19,7 +18,9 @@ import type {
 	MixedSourceSelection,
 } from "@/metadata/data/metadata";
 import type { SourceType } from "@/types";
-import GameSelectDialog from "./GameSelectDialog";
+import GameSelectDialog, {
+	extractSourceCandidateDisplayInfo,
+} from "./GameSelectDialog";
 
 interface MixedSourceConfirmDialogProps {
 	open: boolean;
@@ -31,16 +32,6 @@ interface MixedSourceConfirmDialogProps {
 	) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
-}
-
-interface CandidateDisplayInfo {
-	id: string;
-	name: string;
-	name_cn: string | null;
-	image: string | null;
-	developer: string | null;
-	date: string | null;
-	sourceLabel: string;
 }
 
 function getDialogMaxWidth(sourceCount: number): "xs" | "sm" | "md" | "lg" {
@@ -71,25 +62,6 @@ function getSourceGridClassName(sourceCount: number): string {
 
 function getCoverClassName(): string {
 	return "h-32 w-24";
-}
-
-function extractCandidateDisplayInfo(
-	candidate: SourceCandidate,
-	source: SourceType,
-): CandidateDisplayInfo {
-	const adapter = getRuntimeSourceAdapter(source);
-	const id = candidate.externalId || "";
-	const display = candidate.display;
-
-	return {
-		id,
-		name: display.name || "",
-		name_cn: display.name_cn || null,
-		image: display.image || null,
-		developer: display.developer || null,
-		date: display.date || null,
-		sourceLabel: `${adapter.label}: ${id}`,
-	};
 }
 
 function buildInitialState(candidates: MixedSourceCandidates): {
@@ -168,7 +140,7 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 						{availableSources.map((source) => {
 							const selectedGame = selection[source] ?? null;
 							const displayInfo = selectedGame
-								? extractCandidateDisplayInfo(selectedGame, source)
+								? extractSourceCandidateDisplayInfo(selectedGame, source)
 								: null;
 
 							return (
@@ -290,13 +262,8 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 				<GameSelectDialog
 					open={Boolean(activeSource)}
 					onClose={() => setActiveSource(null)}
-					results={activeSourceResults.map((candidate) => candidate.raw)}
-					onSelect={(_, index) => {
-						const candidate = activeSourceResults[index];
-						if (!candidate) {
-							return;
-						}
-
+					sourceCandidates={activeSourceResults}
+					onSelectCandidate={(candidate) => {
 						setSelection((prev) => ({
 							...prev,
 							[activeSource]: candidate,

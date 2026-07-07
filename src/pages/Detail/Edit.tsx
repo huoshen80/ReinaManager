@@ -102,7 +102,7 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 					open={openViewBox}
 					setOpen={setOpenViewBox}
 					onConfirm={handleConfirmGameUpdate}
-					fullgame={gameData}
+					gameDraft={gameData}
 					title={t(
 						"components.AlertBox.confirmUpdateTitle",
 						"确认更新游戏信息",

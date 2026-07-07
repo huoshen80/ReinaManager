@@ -18,6 +18,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import type { SourceCandidate, SourceDisplayFields } from "@/metadata";
 import {
 	getCandidateSourceData,
 	getCandidateSourceId,
@@ -28,21 +29,19 @@ import type { GameCandidateData, SourceType } from "@/types";
 interface GameSelectDialogProps {
 	open: boolean;
 	onClose: () => void;
-	results: GameCandidateData[];
-	onSelect: (game: GameCandidateData, index: number) => void | Promise<void>;
+	results?: GameCandidateData[];
+	sourceCandidates?: SourceCandidate[];
+	onSelect?: (game: GameCandidateData, index: number) => void | Promise<void>;
+	onSelectCandidate?: (
+		candidate: SourceCandidate,
+		index: number,
+	) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
 	apiSource: SourceType;
 }
 
-/**
- * 从 GameCandidateData 中提取显示信息
- * 由于条件渲染，传入的 results 只包含单一数据源的数据
- */
-export function extractDisplayInfo(
-	item: GameCandidateData,
-	apiSource: SourceType,
-): {
+export interface CandidateDisplayInfo {
 	id: string;
 	name: string;
 	name_cn: string | null;
@@ -50,11 +49,14 @@ export function extractDisplayInfo(
 	developer: string | null;
 	date: string | null;
 	sourceLabel: string;
-} {
-	const adapter = getRuntimeSourceAdapter(apiSource);
-	const data = getCandidateSourceData(item, apiSource);
-	const id = getCandidateSourceId(item, apiSource) || "";
-	const display = data ? adapter.toDisplayFields(data) : {};
+}
+
+function buildCandidateDisplayInfo(
+	source: SourceType,
+	id: string,
+	display: SourceDisplayFields,
+): CandidateDisplayInfo {
+	const adapter = getRuntimeSourceAdapter(source);
 
 	return {
 		id,
@@ -68,19 +70,62 @@ export function extractDisplayInfo(
 }
 
 /**
+ * 从 GameCandidateData 中提取显示信息
+ * 由于条件渲染，传入的 results 只包含单一数据源的数据
+ */
+export function extractDisplayInfo(
+	item: GameCandidateData,
+	apiSource: SourceType,
+): CandidateDisplayInfo {
+	const adapter = getRuntimeSourceAdapter(apiSource);
+	const data = getCandidateSourceData(item, apiSource);
+	const id = getCandidateSourceId(item, apiSource) || "";
+	const display = data ? adapter.toDisplayFields(data) : {};
+
+	return buildCandidateDisplayInfo(apiSource, id, display);
+}
+
+export function extractSourceCandidateDisplayInfo(
+	candidate: SourceCandidate,
+	apiSource: SourceType,
+): CandidateDisplayInfo {
+	return buildCandidateDisplayInfo(
+		apiSource,
+		candidate.externalId || "",
+		candidate.display,
+	);
+}
+
+/**
  * 游戏选择列表弹窗组件
  */
 const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 	open,
 	onClose,
-	results,
+	results = [],
+	sourceCandidates,
 	onSelect,
+	onSelectCandidate,
 	loading = false,
 	title,
 	apiSource,
 }) => {
 	const { t } = useTranslation();
 	const resolveImageUrl = useProxyImageUrlResolver();
+	const listItems = sourceCandidates
+		? sourceCandidates.map((candidate, index) => ({
+				key: `${candidate.source}:${candidate.externalId || index}`,
+				displayInfo: extractSourceCandidateDisplayInfo(candidate, apiSource),
+				handleSelect: () => onSelectCandidate?.(candidate, index),
+			}))
+		: results.map((item, index) => {
+				const displayInfo = extractDisplayInfo(item, apiSource);
+				return {
+					key: displayInfo.id || String(index),
+					displayInfo,
+					handleSelect: () => onSelect?.(item, index),
+				};
+			});
 
 	return (
 		<Dialog
@@ -98,19 +143,18 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 					<Box className="flex justify-center items-center py-8">
 						<CircularProgress />
 					</Box>
-				) : results.length === 0 ? (
+				) : listItems.length === 0 ? (
 					<Typography className="text-center py-4" color="text.secondary">
 						{t("components.AddModal.noResults", "没有找到结果")}
 					</Typography>
 				) : (
 					<List className="max-h-[400px] overflow-auto">
-						{results.map((item, index) => {
-							const displayInfo = extractDisplayInfo(item, apiSource);
+						{listItems.map(({ key, displayInfo, handleSelect }) => {
 							return (
 								<ListItemButton
-									key={displayInfo.id}
+									key={key}
 									onClick={() => {
-										onSelect(item, index);
+										handleSelect();
 										onClose();
 									}}
 									className="rounded mb-1"

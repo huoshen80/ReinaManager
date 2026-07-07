@@ -81,7 +81,7 @@ interface AlertConfirmBoxProps {
 
 // 定义 ViewGameBoxProps 接口
 interface ViewGameBoxProps {
-	fullgame: GameCandidateData;
+	gameDraft: GameCandidateData;
 	open: boolean;
 	setOpen: (value: boolean) => void;
 	onConfirm: () => void;
@@ -236,7 +236,7 @@ export const AlertConfirmBox: React.FC<AlertConfirmBoxProps> = ({
  * @returns {JSX.Element} 更新游戏信息弹窗
  */
 export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
-	fullgame,
+	gameDraft,
 	open,
 	setOpen,
 	onConfirm,
@@ -249,7 +249,7 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 
 	REGISTERED_SOURCE_KEYS.forEach((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
-		const data = getCandidateSourceData(fullgame, source);
+		const data = getCandidateSourceData(gameDraft, source);
 		if (data) {
 			const display = adapter.toDisplayFields(data);
 			viewGameSources.push({
