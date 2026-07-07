@@ -8,8 +8,14 @@ import type {
 import { isSourceType, SOURCE_FIELD_KEYS } from "@/types";
 import { REGISTERED_SOURCE_KEYS } from "./sourceRegistry";
 
+type SourceRecordLike = {
+	source: string;
+	external_id?: string | null;
+	data?: unknown;
+};
+
 export type SourceRecordPayload = {
-	sources?: readonly GameSourceRecord[] | null;
+	sources?: readonly SourceRecordLike[] | null;
 } & Partial<Record<SourceIdType, string | null | undefined>> &
 	Partial<Record<SourceDataKey, unknown>>;
 
@@ -53,7 +59,11 @@ export function getSourceRecordMap(
 	for (const record of payload.sources ?? []) {
 		if (!isSourceType(record.source)) continue;
 		if (record.external_id == null && record.data == null) continue;
-		map.set(record.source, record);
+		map.set(record.source, {
+			source: record.source,
+			external_id: record.external_id ?? null,
+			data: (record.data ?? null) as JsonValue | null,
+		});
 	}
 
 	// 迁移期间仍允许候选数据和写入链路携带旧宽字段。
@@ -120,4 +130,13 @@ export function getSourceRecordsFromLegacyPayload(
 	return REGISTERED_SOURCE_KEYS.map((source) =>
 		getLegacySourceRecord(payload, source),
 	).filter((record): record is GameSourceRecord => Boolean(record));
+}
+
+export function getSourceRecordsFromPayload(
+	payload: SourceRecordPayload,
+): GameSourceRecord[] {
+	const sourceMap = getSourceRecordMap(payload);
+	return REGISTERED_SOURCE_KEYS.map((source) => sourceMap.get(source)).filter(
+		(record): record is GameSourceRecord => Boolean(record),
+	);
 }

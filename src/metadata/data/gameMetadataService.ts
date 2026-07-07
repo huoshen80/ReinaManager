@@ -9,7 +9,6 @@
 import type {
 	apiSourceType,
 	GameCandidateData,
-	SourceDataKey,
 	SourceIdType,
 	SourceType,
 } from "@/types";
@@ -17,7 +16,14 @@ import { AppError, toError } from "@/utils/errors";
 import { fetchMixedData } from "../api/mixed";
 import type { MetadataSourceContext, SourceIdMap } from "../sourceAdapter";
 import { resolveAutoSelectedSourceCandidate } from "../sourceAutoResolve";
-import { getSourceCandidateFromGame } from "../sourceCandidate";
+import {
+	getCandidateSourceData,
+	getCandidateSourceId,
+	getCandidateSourceRecord,
+	getSourceCandidateFromGame,
+	mergeCandidateSources,
+	type SourceCandidate,
+} from "../sourceCandidate";
 import {
 	getRuntimeSourceAdapter,
 	getSourceAdapter,
@@ -45,8 +51,7 @@ function hasSourceId(
 	game: Partial<GameCandidateData>,
 	source: SourceType,
 ): boolean {
-	const { idKey } = getSourceAdapter(source);
-	return Boolean(game[idKey]);
+	return Boolean(getCandidateSourceId(game as GameCandidateData, source));
 }
 
 function getSourceId(sourceIds: SourceIdMap | undefined, source: SourceType) {
@@ -82,13 +87,17 @@ function mergeSourceFields(
 	sourceGame: GameCandidateData,
 	source: SourceType,
 ) {
-	const adapter = getRuntimeSourceAdapter(source);
-	const writableTarget = target as Record<
-		SourceIdType | SourceDataKey,
-		unknown
-	>;
-	writableTarget[adapter.idKey] = sourceGame[adapter.idKey];
-	writableTarget[adapter.dataKey] = sourceGame[adapter.dataKey];
+	const record = getCandidateSourceRecord(sourceGame, source);
+	if (!record) {
+		return;
+	}
+
+	target.sources = mergeCandidateSources([
+		target,
+		{
+			sources: [record],
+		},
+	]);
 }
 
 function createMetadataError(
@@ -272,7 +281,7 @@ class GameMetadataService {
 		mixedEnabledSources?: readonly SourceType[];
 		signal?: AbortSignal;
 	}): Promise<MixedSourceCandidates> {
-		const { query, bgmToken, defaults, mixedEnabledSources, signal } = params;
+		const { query, bgmToken, mixedEnabledSources, signal } = params;
 
 		try {
 			const result = await fetchMixedData({
@@ -283,18 +292,10 @@ class GameMetadataService {
 			});
 
 			return {
-				bgm: (result.bgm_data ?? []).map((game) =>
-					this.applyDefaults(game, defaults),
-				),
-				vndb: (result.vndb_data ?? []).map((game) =>
-					this.applyDefaults(game, defaults),
-				),
-				ymgal: (result.ymgal_data ?? []).map((game) =>
-					this.applyDefaults(game, defaults),
-				),
-				kun: (result.kun_data ?? []).map((game) =>
-					this.applyDefaults(game, defaults),
-				),
+				bgm: result.bgm ?? [],
+				vndb: result.vndb ?? [],
+				ymgal: result.ymgal ?? [],
+				kun: result.kun ?? [],
 			};
 		} catch (error) {
 			throw createMetadataError(
@@ -365,8 +366,8 @@ class GameMetadataService {
 			return selectedGame;
 		}
 
-		const sourceData = selectedGame[adapter.dataKey];
-		if (!selectedGame[adapter.idKey] || !sourceData) {
+		const sourceData = getCandidateSourceData(selectedGame, source);
+		if (!getCandidateSourceId(selectedGame, source) || !sourceData) {
 			return selectedGame;
 		}
 
@@ -375,8 +376,23 @@ class GameMetadataService {
 			adapter,
 			adapter.toDisplayFields(sourceData),
 		);
-		const candidate = await adapter.enrichOnSelect(sourceCandidate, ctx);
+		const candidate = await this.enrichSourceCandidateDetails(
+			sourceCandidate,
+			ctx,
+		);
 		return candidate.raw;
+	}
+
+	private async enrichSourceCandidateDetails(
+		candidate: SourceCandidate,
+		ctx: MetadataSourceContext = {},
+	): Promise<SourceCandidate> {
+		const adapter = getRuntimeSourceAdapter(candidate.source);
+		if (!adapter.enrichOnSelect || !candidate.externalId) {
+			return candidate;
+		}
+
+		return adapter.enrichOnSelect(candidate, ctx);
 	}
 
 	/**
@@ -395,14 +411,13 @@ class GameMetadataService {
 					return;
 				}
 
-				const selectedGame = selection[source];
-				if (!selectedGame) {
+				const selectedCandidate = selection[source];
+				if (!selectedCandidate) {
 					return;
 				}
 
-				nextSelection[source] = await this.enrichSourceSelectionDetails(
-					selectedGame,
-					source,
+				nextSelection[source] = await this.enrichSourceCandidateDetails(
+					selectedCandidate,
 					{
 						enrichCrossSource: false,
 					},

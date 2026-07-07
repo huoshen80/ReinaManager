@@ -12,7 +12,11 @@ import {
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Virtuoso } from "react-virtuoso";
-import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
+import {
+	getCandidateSourceData,
+	getRuntimeSourceAdapter,
+	REGISTERED_SOURCE_KEYS,
+} from "@/metadata";
 import type { GameCandidateData, ScanResult } from "@/types";
 
 export interface BulkImportItem extends ScanResult {
@@ -63,7 +67,7 @@ function getMatchedGameName(
 	const useChineseName = language === "zh-CN";
 	const displays = REGISTERED_SOURCE_KEYS.map((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
-		const data = gameData[adapter.dataKey];
+		const data = getCandidateSourceData(gameData, source);
 		return data ? adapter.toDisplayFields(data) : null;
 	});
 

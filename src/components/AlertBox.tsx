@@ -26,7 +26,11 @@ import Typography from "@mui/material/Typography";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
-import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
+import {
+	getCandidateSourceData,
+	getRuntimeSourceAdapter,
+	REGISTERED_SOURCE_KEYS,
+} from "@/metadata";
 import type { GameCandidateData, SourceType } from "@/types";
 
 interface ViewGameSourceItem {
@@ -245,7 +249,7 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 
 	REGISTERED_SOURCE_KEYS.forEach((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
-		const data = fullgame[adapter.dataKey];
+		const data = getCandidateSourceData(fullgame, source);
 		if (data) {
 			const display = adapter.toDisplayFields(data);
 			viewGameSources.push({

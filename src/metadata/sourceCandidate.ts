@@ -1,9 +1,13 @@
 import type {
 	GameCandidateData,
+	GameSourceRecord,
+	JsonValue,
+	SourceCandidateRecord,
 	SourceDataKey,
 	SourceIdType,
 	SourceType,
 } from "@/types";
+import { SOURCE_FIELD_KEYS } from "@/types";
 
 export interface SourceDisplayFields {
 	image?: string;
@@ -23,13 +27,13 @@ export interface SourceDisplayFields {
 
 export interface SourceCandidate<TData = unknown> {
 	source: SourceType;
-	idKey: SourceIdType;
-	dataKey: SourceDataKey;
 	externalId?: string;
 	data: TData;
 	display: SourceDisplayFields;
 	raw: GameCandidateData;
 }
+
+const SOURCE_ORDER = Object.keys(SOURCE_FIELD_KEYS) as SourceType[];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -48,6 +52,137 @@ function mergeDefinedValues<T extends Record<string, unknown>>(
 	return merged;
 }
 
+export function createSourceCandidateRecord<TData>(
+	source: SourceType,
+	externalId: string,
+	data: TData,
+): SourceCandidateRecord<TData> {
+	return {
+		source,
+		external_id: externalId,
+		data,
+	};
+}
+
+export function candidateSourcesToGameSources(
+	sources: readonly SourceCandidateRecord[],
+): GameSourceRecord[] {
+	return sources.map((record) => ({
+		source: record.source,
+		external_id: record.external_id,
+		data: record.data as JsonValue,
+	}));
+}
+
+export function mergeCandidateSources(
+	candidates: readonly GameCandidateData[],
+): SourceCandidateRecord[] {
+	const sourceMap = new Map<SourceType, SourceCandidateRecord>();
+
+	for (const candidate of candidates) {
+		for (const source of SOURCE_ORDER) {
+			const record = getCandidateSourceRecord(candidate, source);
+			if (record) {
+				sourceMap.set(source, record);
+			}
+		}
+	}
+
+	return SOURCE_ORDER.map((source) => sourceMap.get(source)).filter(
+		(record): record is SourceCandidateRecord => Boolean(record),
+	);
+}
+
+export function createGameCandidate(params: {
+	idType?: string;
+	source?: SourceCandidateRecord;
+	sources?: readonly SourceCandidateRecord[];
+	localpath?: string;
+	customData?: GameCandidateData["custom_data"];
+}): GameCandidateData {
+	const sources = params.sources ?? (params.source ? [params.source] : []);
+	return {
+		id_type: params.idType,
+		sources: [...sources],
+		localpath: params.localpath,
+		custom_data: params.customData,
+	};
+}
+
+export function normalizeGameCandidateSources(
+	candidate: GameCandidateData,
+	fallbackIdType?: string,
+): GameCandidateData {
+	return createGameCandidate({
+		idType: candidate.id_type ?? fallbackIdType,
+		sources: mergeCandidateSources([candidate]),
+		localpath: candidate.localpath ?? undefined,
+		customData: candidate.custom_data,
+	});
+}
+
+export function getCandidateSourceRecord(
+	candidate: GameCandidateData,
+	source: SourceType,
+): SourceCandidateRecord | undefined {
+	const nativeRecord = candidate.sources?.find(
+		(record) => record.source === source,
+	);
+	if (nativeRecord) {
+		return nativeRecord;
+	}
+
+	const fields = SOURCE_FIELD_KEYS[source];
+	const externalId = candidate[fields.id];
+	const data = candidate[fields.data];
+	if (typeof externalId !== "string" || data == null) {
+		return undefined;
+	}
+
+	return createSourceCandidateRecord(source, externalId, data);
+}
+
+export function getCandidateSourceId(
+	candidate: GameCandidateData,
+	source: SourceType,
+): string | undefined {
+	return getCandidateSourceRecord(candidate, source)?.external_id;
+}
+
+export function getCandidateSourceData<TData = unknown>(
+	candidate: GameCandidateData,
+	source: SourceType,
+): TData | undefined {
+	return getCandidateSourceRecord(candidate, source)?.data as TData | undefined;
+}
+
+export function createSourceCandidate<TData>(params: {
+	source: SourceType;
+	externalId?: string;
+	data: TData;
+	display: SourceDisplayFields;
+	raw?: GameCandidateData;
+}): SourceCandidate<TData> {
+	return {
+		source: params.source,
+		externalId: params.externalId,
+		data: params.data,
+		display: params.display,
+		raw:
+			params.raw ??
+			(params.externalId
+				? createGameCandidate({
+						idType: params.source,
+						source: createSourceCandidateRecord(
+							params.source,
+							params.externalId,
+							params.data,
+						),
+					})
+				: { id_type: params.source }),
+	};
+}
+
 export function mergeCandidateWithDetails(
 	candidate: SourceCandidate,
 	details: GameCandidateData,
@@ -56,14 +191,31 @@ export function mergeCandidateWithDetails(
 		candidate.raw as Record<string, unknown>,
 		details as Record<string, unknown>,
 	) as GameCandidateData;
-	const baseSourceData = candidate.raw[candidate.dataKey];
-	const detailSourceData = details[candidate.dataKey];
+	const source = candidate.source;
+	const baseRecord = getCandidateSourceRecord(candidate.raw, source);
+	const detailRecord = getCandidateSourceRecord(details, source);
+	const baseSourceData = baseRecord?.data;
+	const detailSourceData = detailRecord?.data;
 
-	if (isRecord(baseSourceData) && isRecord(detailSourceData)) {
-		(merged as Record<string, unknown>)[candidate.dataKey] = mergeDefinedValues(
-			baseSourceData,
-			detailSourceData,
-		);
+	if (detailRecord && isRecord(baseSourceData) && isRecord(detailSourceData)) {
+		const fields = SOURCE_FIELD_KEYS[source];
+		const mergedData = mergeDefinedValues(baseSourceData, detailSourceData);
+		(merged as Record<string, unknown>)[fields.data] = mergedData;
+		merged.sources = mergeCandidateSources([
+			candidate.raw,
+			{
+				...details,
+				sources: [
+					createSourceCandidateRecord(
+						source,
+						detailRecord.external_id,
+						mergedData,
+					),
+				],
+			},
+		]);
+	} else {
+		merged.sources = mergeCandidateSources([candidate.raw, details]);
 	}
 
 	merged.localpath = candidate.raw.localpath ?? details.localpath;
@@ -79,29 +231,65 @@ export function getSourceCandidateFromGame<TData>(
 	},
 	display: SourceDisplayFields,
 ): SourceCandidate<TData> {
-	const data = game[source.dataKey];
+	const data = getCandidateSourceData<TData>(game, source.key);
 
 	if (!data) {
-		throw new Error(`Missing ${source.dataKey} in ${source.key} candidate`);
+		throw new Error(`Missing ${source.key} data in ${source.key} candidate`);
 	}
 
-	return {
+	return createSourceCandidate({
 		source: source.key,
-		idKey: source.idKey,
-		dataKey: source.dataKey,
-		externalId: game[source.idKey],
-		data: data as TData,
+		externalId: getCandidateSourceId(game, source.key),
+		data,
 		display,
 		raw: game,
-	};
+	});
 }
 
 export function sourceCandidateToGameCandidate(
 	candidate: SourceCandidate,
 ): GameCandidateData {
+	if (!candidate.externalId) {
+		throw new Error(`Missing ${candidate.source} external id in candidate`);
+	}
+
+	return createGameCandidate({
+		idType: candidate.source,
+		source: createSourceCandidateRecord(
+			candidate.source,
+			candidate.externalId,
+			candidate.data,
+		),
+	});
+}
+
+export function buildGameCandidateFromSourceSelection(params: {
+	selection: Partial<Record<SourceType, SourceCandidate | null>>;
+	defaults?: Partial<GameCandidateData>;
+}): GameCandidateData {
+	const selected = SOURCE_ORDER.map(
+		(source) => params.selection[source],
+	).filter((candidate): candidate is SourceCandidate => Boolean(candidate));
+
+	if (selected.length === 0) {
+		throw new Error("At least one source candidate must be selected");
+	}
+
+	const sources = selected.map((candidate) => {
+		if (!candidate.externalId) {
+			throw new Error(`Missing ${candidate.source} external id in candidate`);
+		}
+
+		return createSourceCandidateRecord(
+			candidate.source,
+			candidate.externalId,
+			candidate.data,
+		);
+	});
+
 	return {
-		id_type: candidate.source,
-		[candidate.idKey]: candidate.externalId,
-		[candidate.dataKey]: candidate.data,
+		...params.defaults,
+		id_type: sources.length === 1 ? sources[0].source : "mixed",
+		sources,
 	};
 }

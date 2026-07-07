@@ -12,7 +12,17 @@ export type {
 	SourceDisplayFields,
 } from "./sourceCandidate";
 export {
+	buildGameCandidateFromSourceSelection,
+	candidateSourcesToGameSources,
+	createGameCandidate,
+	createSourceCandidate,
+	createSourceCandidateRecord,
+	getCandidateSourceData,
+	getCandidateSourceId,
+	getCandidateSourceRecord,
 	getSourceCandidateFromGame,
+	mergeCandidateSources,
+	normalizeGameCandidateSources,
 	sourceCandidateToGameCandidate,
 } from "./sourceCandidate";
 export type { RuntimeSourceAdapter } from "./sourceRegistry";

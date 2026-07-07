@@ -5,18 +5,28 @@ import {
 	type MetadataSourceAdapter,
 } from "../sourceAdapter";
 import {
-	getSourceCandidateFromGame,
+	createSourceCandidate,
+	getCandidateSourceData,
+	getCandidateSourceId,
 	mergeCandidateWithDetails,
+	normalizeGameCandidateSources,
 	type SourceCandidate,
 	type SourceDisplayFields,
 } from "../sourceCandidate";
 
 function toYmgalCandidate(game: GameCandidateData): SourceCandidate<YmgalData> {
-	return getSourceCandidateFromGame<YmgalData>(
-		game,
-		ymgalAdapter,
-		ymgalAdapter.toDisplayFields(game.ymgal_data as YmgalData),
-	);
+	const data = getCandidateSourceData<YmgalData>(game, "ymgal");
+	if (!data) {
+		throw new Error("Missing ymgal data in ymgal candidate");
+	}
+
+	return createSourceCandidate({
+		source: "ymgal",
+		externalId: getCandidateSourceId(game, "ymgal"),
+		data,
+		display: ymgalAdapter.toDisplayFields(data),
+		raw: normalizeGameCandidateSources(game, "ymgal"),
+	});
 }
 
 export const ymgalAdapter: MetadataSourceAdapter<YmgalData> = {

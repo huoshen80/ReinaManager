@@ -18,7 +18,11 @@ import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
-import { getRuntimeSourceAdapter } from "@/metadata";
+import {
+	getCandidateSourceData,
+	getCandidateSourceId,
+	getRuntimeSourceAdapter,
+} from "@/metadata";
 import type { GameCandidateData, SourceType } from "@/types";
 
 interface GameSelectDialogProps {
@@ -48,8 +52,8 @@ export function extractDisplayInfo(
 	sourceLabel: string;
 } {
 	const adapter = getRuntimeSourceAdapter(apiSource);
-	const data = item[adapter.dataKey];
-	const id = item[adapter.idKey] || "";
+	const data = getCandidateSourceData(item, apiSource);
+	const id = getCandidateSourceId(item, apiSource) || "";
 	const display = data ? adapter.toDisplayFields(data) : {};
 
 	return {

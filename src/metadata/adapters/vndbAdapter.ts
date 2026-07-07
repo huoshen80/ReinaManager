@@ -5,17 +5,27 @@ import {
 	type MetadataSourceAdapter,
 } from "../sourceAdapter";
 import {
-	getSourceCandidateFromGame,
+	createSourceCandidate,
+	getCandidateSourceData,
+	getCandidateSourceId,
+	normalizeGameCandidateSources,
 	type SourceCandidate,
 	type SourceDisplayFields,
 } from "../sourceCandidate";
 
 function toVndbCandidate(game: GameCandidateData): SourceCandidate<VndbData> {
-	return getSourceCandidateFromGame<VndbData>(
-		game,
-		vndbAdapter,
-		vndbAdapter.toDisplayFields(game.vndb_data as VndbData),
-	);
+	const data = getCandidateSourceData<VndbData>(game, "vndb");
+	if (!data) {
+		throw new Error("Missing vndb data in vndb candidate");
+	}
+
+	return createSourceCandidate({
+		source: "vndb",
+		externalId: getCandidateSourceId(game, "vndb"),
+		data,
+		display: vndbAdapter.toDisplayFields(data),
+		raw: normalizeGameCandidateSources(game, "vndb"),
+	});
 }
 
 export const vndbAdapter: MetadataSourceAdapter<VndbData> = {

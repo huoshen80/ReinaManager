@@ -236,6 +236,12 @@ export interface GameSourceRecord {
 	data: JsonValue | null;
 }
 
+export interface SourceCandidateRecord<TData = unknown> {
+	source: SourceType;
+	external_id: string;
+	data: TData;
+}
+
 /**
  * 完整游戏数据 - 对应后端 V2 读取结构。
  *
@@ -256,6 +262,7 @@ export interface FullGameData extends GameRuntimePayload {
  * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
  */
 export interface GameCandidateData extends GamePayload {
+	sources?: SourceCandidateRecord[];
 	id?: never;
 }
 

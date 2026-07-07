@@ -21,12 +21,17 @@ import {
 import { getGameDisplayName, getGameNsfwStatus } from "@/utils/game";
 import type { SourceIdMap } from "../sourceAdapter";
 import {
+	buildGameCandidateFromSourceSelection,
+	type SourceCandidate,
+} from "../sourceCandidate";
+import {
+	getSourceData,
 	getSourceRecordMap,
-	getSourceRecordsFromLegacyPayload,
+	getSourceRecordsFromPayload,
 	type SourceRecordPayload,
 } from "../sourceRecord";
 import {
-	getRuntimeSourceAdapter,
+	getSourceAdapter,
 	MIXED_SOURCE_KEYS,
 	REGISTERED_SOURCE_KEYS,
 } from "../sourceRegistry";
@@ -63,87 +68,43 @@ interface SourceUpdateParams {
 }
 
 export interface MixedSourceResult {
-	bgm_data?: GameCandidateData | null;
-	vndb_data?: GameCandidateData | null;
-	ymgal_data?: GameCandidateData | null;
-	kun_data?: GameCandidateData | null;
+	bgm?: SourceCandidate | null;
+	vndb?: SourceCandidate | null;
+	ymgal?: SourceCandidate | null;
+	kun?: SourceCandidate | null;
 }
 
 export interface MixedSourceListResult {
-	bgm_data?: GameCandidateData[];
-	vndb_data?: GameCandidateData[];
-	ymgal_data?: GameCandidateData[];
-	kun_data?: GameCandidateData[];
+	bgm?: SourceCandidate[];
+	vndb?: SourceCandidate[];
+	ymgal?: SourceCandidate[];
+	kun?: SourceCandidate[];
 }
 
-interface MixedSourceMergeRule {
-	source: SourceType;
-	resultKey: keyof MixedSourceResult;
-}
-
-export type MixedSourceCandidates = Record<SourceType, GameCandidateData[]>;
+export type MixedSourceCandidates = Record<SourceType, SourceCandidate[]>;
 export type MixedSourceSelection = Partial<
-	Record<SourceType, GameCandidateData | null>
+	Record<SourceType, SourceCandidate | null>
 >;
 export type MixedSourceEnabled = Partial<Record<SourceType, boolean>>;
-
-const mixedSourceMergeRules: readonly MixedSourceMergeRule[] =
-	MIXED_SOURCE_KEYS.map((source) => ({
-		source,
-		resultKey: getRuntimeSourceAdapter(source)
-			.dataKey as keyof MixedSourceResult,
-	}));
-
-function assignGameField<Key extends keyof GameCandidateData>(
-	target: GameCandidateData,
-	source: GameCandidateData,
-	key: Key,
-): void {
-	target[key] = source[key];
-}
-
-function mergeSourceIntoGame(
-	target: GameCandidateData,
-	source: GameCandidateData,
-	sourceType: SourceType,
-): void {
-	const { idKey, dataKey } = getRuntimeSourceAdapter(sourceType);
-	assignGameField(target, source, idKey);
-	assignGameField(target, source, dataKey);
-}
 
 export function mergeMixedResult(
 	result: MixedSourceResult,
 ): GameCandidateData | null {
-	const mergedGame: GameCandidateData = {
-		id_type: "mixed",
-	};
-	let hasMergedSource = false;
-
-	for (const rule of mixedSourceMergeRules) {
-		const sourceGame = result[rule.resultKey];
-		if (!sourceGame) {
-			continue;
-		}
-		hasMergedSource = true;
-		mergeSourceIntoGame(mergedGame, sourceGame, rule.source);
-	}
-
-	if (!hasMergedSource) {
+	const selection = Object.fromEntries(
+		MIXED_SOURCE_KEYS.map((source) => [source, result[source] ?? null]),
+	) as MixedSourceSelection;
+	if (!MIXED_SOURCE_KEYS.some((source) => selection[source])) {
 		return null;
 	}
 
-	return mergedGame;
+	return buildGameCandidateFromSourceSelection({ selection });
 }
 
 export function pickFirstMixedResult(
 	result: MixedSourceListResult,
 ): MixedSourceResult {
 	return Object.fromEntries(
-		mixedSourceMergeRules.map((rule) => [
-			rule.resultKey,
-			result[rule.resultKey]?.[0] ?? null,
-		]),
+		MIXED_SOURCE_KEYS.map((source) => [source, result[source]?.[0] ?? null]),
 	) as MixedSourceResult;
 }
 
@@ -153,44 +114,27 @@ export function buildGameFromMixedSelection(params: {
 	defaults?: Partial<GameCandidateData>;
 }): GameCandidateData {
 	const { selection, enabled, defaults } = params;
-	const selectedEntries = mixedSourceMergeRules
-		.map(({ source }) => ({
-			source,
-			game: enabled[source] ? selection[source] : null,
-		}))
-		.filter((entry): entry is { source: SourceType; game: GameCandidateData } =>
-			Boolean(entry.game),
-		);
+	const selectedEntries = MIXED_SOURCE_KEYS.map((source) => ({
+		source,
+		candidate: enabled[source] ? selection[source] : null,
+	})).filter(
+		(entry): entry is { source: SourceType; candidate: SourceCandidate } =>
+			Boolean(entry.candidate),
+	);
 
 	if (selectedEntries.length === 0) {
 		throw new Error("At least one mixed source must be selected");
 	}
 
-	if (selectedEntries.length === 1) {
-		const [{ source, game }] = selectedEntries;
-		const result: GameCandidateData = {
-			...defaults,
-			id_type: source,
-		};
-		mergeSourceIntoGame(result, game, source);
-
-		return result;
-	}
-
-	const mixedResult = mergeMixedResult(
-		Object.fromEntries(
-			mixedSourceMergeRules.map((rule) => [
-				rule.resultKey,
-				enabled[rule.source] ? selection[rule.source] : null,
+	return buildGameCandidateFromSourceSelection({
+		selection: Object.fromEntries(
+			MIXED_SOURCE_KEYS.map((source) => [
+				source,
+				enabled[source] ? selection[source] : null,
 			]),
-		) as MixedSourceResult,
-	);
-
-	if (!mixedResult) {
-		throw new Error("At least one mixed source must be selected");
-	}
-
-	return defaults ? { ...defaults, ...mixedResult } : mixedResult;
+		) as MixedSourceSelection,
+		defaults,
+	});
 }
 
 // ---------------------- 核心业务逻辑区 ----------------------
@@ -260,8 +204,8 @@ function getGameCandidateDate(gameData: GameCandidateData): string | undefined {
 			: REGISTERED_SOURCE_KEYS;
 	return dateSources
 		.map((source) => {
-			const adapter = getRuntimeSourceAdapter(source);
-			const data = gameData[adapter.dataKey];
+			const adapter = getSourceAdapter(source);
+			const data = getSourceData(gameData, source);
 			return data ? adapter.toDisplayFields(data).date?.trim() : undefined;
 		})
 		.find(Boolean);
@@ -273,7 +217,7 @@ export async function buildInsertGameData(
 ): Promise<InsertGameParams> {
 	const insertData: InsertGameParams = {
 		id_type: gameData.id_type || "mixed",
-		sources: getSourceRecordsFromLegacyPayload(gameData),
+		sources: getSourceRecordsFromPayload(gameData),
 		date: getGameCandidateDate(gameData),
 		localpath: gameData.localpath ?? undefined,
 		custom_data: gameData.custom_data ?? undefined,
@@ -300,7 +244,7 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 export function buildMetadataUpdatePayload(
 	gameData: GameCandidateData,
 ): UpdateGameParams {
-	const records = getSourceRecordsFromLegacyPayload(gameData);
+	const records = getSourceRecordsFromPayload(gameData);
 	const presentSources = new Set(records.map((record) => record.source));
 	const updateData: UpdateGameParams = {
 		id_type: gameData.id_type,

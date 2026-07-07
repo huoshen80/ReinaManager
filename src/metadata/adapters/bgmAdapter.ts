@@ -5,7 +5,10 @@ import {
 	type MetadataSourceAdapter,
 } from "../sourceAdapter";
 import {
-	getSourceCandidateFromGame,
+	createSourceCandidate,
+	getCandidateSourceData,
+	getCandidateSourceId,
+	normalizeGameCandidateSources,
 	type SourceCandidate,
 	type SourceDisplayFields,
 } from "../sourceCandidate";
@@ -14,11 +17,18 @@ import {
 // 但是需要R18等信息時還是需要登錄
 
 function toBgmCandidate(game: GameCandidateData): SourceCandidate<BgmData> {
-	return getSourceCandidateFromGame<BgmData>(
-		game,
-		bgmAdapter,
-		bgmAdapter.toDisplayFields(game.bgm_data as BgmData),
-	);
+	const data = getCandidateSourceData<BgmData>(game, "bgm");
+	if (!data) {
+		throw new Error("Missing bgm data in bgm candidate");
+	}
+
+	return createSourceCandidate({
+		source: "bgm",
+		externalId: getCandidateSourceId(game, "bgm"),
+		data,
+		display: bgmAdapter.toDisplayFields(data),
+		raw: normalizeGameCandidateSources(game, "bgm"),
+	});
 }
 
 export const bgmAdapter: MetadataSourceAdapter<BgmData> = {

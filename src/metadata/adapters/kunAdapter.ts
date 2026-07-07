@@ -5,18 +5,28 @@ import {
 	type MetadataSourceAdapter,
 } from "../sourceAdapter";
 import {
-	getSourceCandidateFromGame,
+	createSourceCandidate,
+	getCandidateSourceData,
+	getCandidateSourceId,
 	mergeCandidateWithDetails,
+	normalizeGameCandidateSources,
 	type SourceCandidate,
 	type SourceDisplayFields,
 } from "../sourceCandidate";
 
 function toKunCandidate(game: GameCandidateData): SourceCandidate<KunData> {
-	return getSourceCandidateFromGame<KunData>(
-		game,
-		kunAdapter,
-		kunAdapter.toDisplayFields(game.kun_data as KunData),
-	);
+	const data = getCandidateSourceData<KunData>(game, "kun");
+	if (!data) {
+		throw new Error("Missing kun data in kun candidate");
+	}
+
+	return createSourceCandidate({
+		source: "kun",
+		externalId: getCandidateSourceId(game, "kun"),
+		data,
+		display: kunAdapter.toDisplayFields(data),
+		raw: normalizeGameCandidateSources(game, "kun"),
+	});
 }
 
 export const kunAdapter: MetadataSourceAdapter<KunData> = {
