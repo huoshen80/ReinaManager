@@ -238,10 +238,13 @@ export function buildMetadataUpdatePayload(
 ): UpdateGameParams {
 	const records = candidateSourcesToGameSources(gameData.sources);
 	const presentSources = new Set(records.map((record) => record.source));
+	const sourceDate = getGameCandidateDate(gameData);
 	const updateData: UpdateGameParams = {
 		id_type: gameData.id_type,
-		date: getGameCandidateDate(gameData) ?? null,
 	};
+	if (sourceDate) {
+		updateData.date = sourceDate;
+	}
 
 	if (gameData.id_type && isSourceType(gameData.id_type)) {
 		updateData.upsert_sources = records.filter(

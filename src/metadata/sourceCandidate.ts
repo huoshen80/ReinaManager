@@ -80,6 +80,7 @@ export function mergeCandidateSources(
 		for (const source of SOURCE_ORDER) {
 			const record = getCandidateSourceRecord(candidate, source);
 			if (record) {
+				// 后传入的草稿优先级更高，用于详情数据覆盖搜索结果数据。
 				sourceMap.set(source, record);
 			}
 		}
