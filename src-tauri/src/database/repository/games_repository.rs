@@ -612,7 +612,7 @@ impl GamesRepository {
     ) -> Select<Games> {
         query
             .order_by(Expr::cust(format!("({expression}) IS NULL")), Order::Asc)
-            .order_by(Expr::cust(expression), direction)
+            .order_by(Expr::cust(format!("({expression})")), direction)
     }
 
     async fn find_ids_sql(
