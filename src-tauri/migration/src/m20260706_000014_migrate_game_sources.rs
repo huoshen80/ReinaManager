@@ -22,6 +22,7 @@ impl MigrationTrait for Migration {
         migrate_schema(&transaction).await?;
         transaction.commit().await?;
 
+        vacuum_database(manager.get_connection()).await?;
         ensure_database_integrity(manager.get_connection()).await
     }
 
@@ -393,6 +394,14 @@ where
     } else {
         Err(DbErr::Custom(format!("数据库完整性检查失败: {}", result)))
     }
+}
+
+async fn vacuum_database<C>(connection: &C) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    connection.execute_unprepared("VACUUM").await?;
+    Ok(())
 }
 
 struct SourceColumns {
