@@ -1,8 +1,9 @@
-import type { SourceType } from "@/types";
+import type { GameMetadataDraft, SourceType } from "@/types";
 import {
 	getCandidateSourceData,
 	getSourceCandidateFromGame,
 	type SourceCandidate,
+	sourceCandidateToDraft,
 } from "./sourceCandidate";
 import { getRuntimeSourceAdapter } from "./sourceRegistry";
 
@@ -14,6 +15,22 @@ export interface AutoResolveSourceCandidateParams {
 	signal?: AbortSignal;
 }
 
+async function searchFirstSourceCandidate({
+	query,
+	source,
+	bgmToken,
+	signal,
+}: AutoResolveSourceCandidateParams): Promise<SourceCandidate | null> {
+	const adapter = getRuntimeSourceAdapter(source);
+	const [candidate] = await adapter.searchByName(query, {
+		bgmToken,
+		limit: 1,
+		signal,
+	});
+
+	return candidate ?? null;
+}
+
 export async function resolveAutoSelectedSourceCandidate({
 	query,
 	source,
@@ -22,9 +39,10 @@ export async function resolveAutoSelectedSourceCandidate({
 	signal,
 }: AutoResolveSourceCandidateParams): Promise<SourceCandidate | null> {
 	const adapter = getRuntimeSourceAdapter(source);
-	const [candidate] = await adapter.searchByName(query, {
+	const candidate = await searchFirstSourceCandidate({
+		query,
+		source,
 		bgmToken,
-		limit: 1,
 		signal,
 	});
 
@@ -48,4 +66,24 @@ export async function resolveAutoSelectedSourceCandidate({
 		adapter,
 		adapter.toDisplayFields(data),
 	);
+}
+
+export async function resolveAutoSelectedGameDraft(
+	params: AutoResolveSourceCandidateParams,
+): Promise<GameMetadataDraft | null> {
+	const candidate = await searchFirstSourceCandidate(params);
+	if (!candidate) {
+		return null;
+	}
+
+	const adapter = getRuntimeSourceAdapter(params.source);
+	if (!adapter.enrichOnSelect || !candidate.externalId) {
+		return sourceCandidateToDraft(candidate);
+	}
+
+	return adapter.enrichOnSelect(candidate, {
+		bgmToken: params.bgmToken,
+		enrichCrossSource: params.enrichCrossSource ?? true,
+		signal: params.signal,
+	});
 }

@@ -10,7 +10,7 @@ import type { apiSourceType, GameMetadataDraft, SourceType } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 import { fetchMixedData } from "../api/mixed";
 import type { MetadataSourceContext, SourceIdMap } from "../sourceAdapter";
-import { resolveAutoSelectedSourceCandidate } from "../sourceAutoResolve";
+import { resolveAutoSelectedGameDraft } from "../sourceAutoResolve";
 import {
 	getCandidateSourceData,
 	getCandidateSourceId,
@@ -236,16 +236,14 @@ class GameMetadataService {
 		signal?: AbortSignal;
 	}): Promise<GameMetadataDraft | null> {
 		const { query, source, bgmToken, defaults, signal } = params;
-		const candidate = await resolveAutoSelectedSourceCandidate({
+		const draft = await resolveAutoSelectedGameDraft({
 			query,
 			source,
 			bgmToken,
 			signal,
 		});
 
-		return candidate
-			? this.resolveSourceCandidateSelection({ candidate, defaults })
-			: null;
+		return draft ? this.applyDefaults(draft, defaults) : null;
 	}
 
 	/**
