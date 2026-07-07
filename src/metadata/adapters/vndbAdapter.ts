@@ -31,8 +31,6 @@ function toVndbCandidate(game: GameCandidateData): SourceCandidate<VndbData> {
 export const vndbAdapter: MetadataSourceAdapter<VndbData> = {
 	key: "vndb",
 	label: "VNDB",
-	idKey: "vndb_id",
-	dataKey: "vndb_data",
 	iconUrl: "https://vndb.org/favicon.ico",
 	participatesInMixed: true,
 	defaultMixedEnabled: true,

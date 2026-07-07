@@ -17,6 +17,10 @@
 import { useStore } from "@/store/appStore";
 import type { GameCandidateData, VndbData } from "@/types";
 import { AppError, isApiRateLimitError } from "@/utils/errors";
+import {
+	createGameCandidate,
+	createSourceCandidateRecord,
+} from "../sourceCandidate";
 import http, { type TauriHttpOptions, USER_AGENT } from "./http";
 
 const VNDB_API_BASE = "https://api.vndb.org/kana";
@@ -186,7 +190,7 @@ function transformVndbData(
 		.map(({ name }) => name);
 	const releasedDate = VNDBdata.released ?? undefined;
 
-	const vndb_data: VndbData = {
+	const vndbData: VndbData = {
 		date: releasedDate,
 		image: VNDBdata.image?.url,
 		summary: VNDBdata.description ?? undefined,
@@ -210,9 +214,10 @@ function transformVndbData(
 	};
 
 	return {
-		vndb_id: VNDBdata.id,
-		...(update_batch ? {} : { id_type: "vndb" }),
-		vndb_data,
+		...createGameCandidate({
+			idType: update_batch ? undefined : "vndb",
+			source: createSourceCandidateRecord("vndb", VNDBdata.id, vndbData),
+		}),
 	};
 }
 
@@ -290,7 +295,7 @@ export async function fetchVndbById(
  * @example
  * // 获取 250 个游戏（自动分 3 批：100 + 100 + 50）
  * const results = await fetchVNDBByIds(largeIdArray);
- * // 返回: [{ game, vndb_data, ... }, { game, vndb_data, ... }, ...]
+ * // 返回: [{ id_type, sources }, ...]
  */
 export async function fetchVNDBByIds(
 	ids: string[],

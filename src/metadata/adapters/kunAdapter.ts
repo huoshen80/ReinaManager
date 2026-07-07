@@ -32,8 +32,6 @@ function toKunCandidate(game: GameCandidateData): SourceCandidate<KunData> {
 export const kunAdapter: MetadataSourceAdapter<KunData> = {
 	key: "kun",
 	label: "Kungal",
-	idKey: "kun_id",
-	dataKey: "kun_data",
 	iconUrl: "https://www.kungal.com/favicon.ico",
 	participatesInMixed: true,
 	defaultMixedEnabled: false,

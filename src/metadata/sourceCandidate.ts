@@ -3,11 +3,9 @@ import type {
 	GameSourceRecord,
 	JsonValue,
 	SourceCandidateRecord,
-	SourceDataKey,
-	SourceIdType,
 	SourceType,
 } from "@/types";
-import { SOURCE_FIELD_KEYS } from "@/types";
+import { SOURCE_TYPES } from "@/types";
 
 export interface SourceDisplayFields {
 	image?: string;
@@ -33,7 +31,7 @@ export interface SourceCandidate<TData = unknown> {
 	raw: GameCandidateData;
 }
 
-const SOURCE_ORDER = Object.keys(SOURCE_FIELD_KEYS) as SourceType[];
+const SOURCE_ORDER = [...SOURCE_TYPES];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -131,15 +129,6 @@ export function getCandidateSourceRecord(
 	if (nativeRecord) {
 		return nativeRecord;
 	}
-
-	const fields = SOURCE_FIELD_KEYS[source];
-	const externalId = candidate[fields.id];
-	const data = candidate[fields.data];
-	if (typeof externalId !== "string" || data == null) {
-		return undefined;
-	}
-
-	return createSourceCandidateRecord(source, externalId, data);
 }
 
 export function getCandidateSourceId(
@@ -179,7 +168,7 @@ export function createSourceCandidate<TData>(params: {
 							params.data,
 						),
 					})
-				: { id_type: params.source }),
+				: createGameCandidate({ idType: params.source })),
 	};
 }
 
@@ -188,9 +177,9 @@ export function mergeCandidateWithDetails(
 	details: GameCandidateData,
 ): GameCandidateData {
 	const merged = mergeDefinedValues(
-		candidate.raw as Record<string, unknown>,
-		details as Record<string, unknown>,
-	) as GameCandidateData;
+		candidate.raw as unknown as Record<string, unknown>,
+		details as unknown as Record<string, unknown>,
+	) as unknown as GameCandidateData;
 	const source = candidate.source;
 	const baseRecord = getCandidateSourceRecord(candidate.raw, source);
 	const detailRecord = getCandidateSourceRecord(details, source);
@@ -198,9 +187,7 @@ export function mergeCandidateWithDetails(
 	const detailSourceData = detailRecord?.data;
 
 	if (detailRecord && isRecord(baseSourceData) && isRecord(detailSourceData)) {
-		const fields = SOURCE_FIELD_KEYS[source];
 		const mergedData = mergeDefinedValues(baseSourceData, detailSourceData);
-		(merged as Record<string, unknown>)[fields.data] = mergedData;
 		merged.sources = mergeCandidateSources([
 			candidate.raw,
 			{
@@ -226,8 +213,6 @@ export function getSourceCandidateFromGame<TData>(
 	game: GameCandidateData,
 	source: {
 		key: SourceType;
-		idKey: SourceIdType;
-		dataKey: SourceDataKey;
 	},
 	display: SourceDisplayFields,
 ): SourceCandidate<TData> {

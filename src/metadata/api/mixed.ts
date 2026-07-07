@@ -43,18 +43,8 @@ export type MixedSourceCandidateResult = Partial<
 	Record<SourceType, SourceCandidate[]>
 >;
 
-const MIXED_ID_KEYS = {
-	bgm: "bgm_id",
-	vndb: "vndb_id",
-	ymgal: "ymgal_id",
-	kun: "kun_id",
-} as const satisfies Record<SourceType, keyof FetchMixedDataOptions>;
-
 interface FetchMixedDataOptions {
-	bgm_id?: string;
-	vndb_id?: string;
-	ymgal_id?: string;
-	kun_id?: string;
+	sourceIds?: Partial<Record<SourceType, string>>;
 	name?: string;
 	bgmToken?: string;
 	enabledSources?: readonly SourceType[];
@@ -128,7 +118,7 @@ function getProvidedSourceIds(
 	return adapters
 		.map((adapter) => ({
 			adapter,
-			id: options[MIXED_ID_KEYS[adapter.key]],
+			id: options.sourceIds?.[adapter.key],
 		}))
 		.filter((entry): entry is { adapter: RuntimeSourceAdapter; id: string } =>
 			Boolean(entry.id),
@@ -142,10 +132,7 @@ function getProvidedSourceIds(
  * - 游戏名称：所有源都返回候选列表
  *
  * @param options 配置选项
- * @param options.bgm_id Bangumi 条目 ID（可选）
- * @param options.vndb_id VNDB 游戏 ID（可选）
- * @param options.ymgal_id YMGal 游戏 ID（可选）
- * @param options.kun_id Kungal 游戏 ID（可选，仅用于更新等非 mixed ID 输入场景）
+ * @param options.sourceIds 按 source 传入的外部 ID（可选）
  * @param options.name 游戏名称（可选）
  * @param options.bgmToken Bangumi API 访问令牌（可选）
  * @returns 返回按 source 分组的候选列表

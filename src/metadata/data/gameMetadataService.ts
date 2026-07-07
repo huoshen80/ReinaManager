@@ -6,12 +6,7 @@
  * @copyright AGPL-3.0
  */
 
-import type {
-	apiSourceType,
-	GameCandidateData,
-	SourceIdType,
-	SourceType,
-} from "@/types";
+import type { apiSourceType, GameCandidateData, SourceType } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 import { fetchMixedData } from "../api/mixed";
 import type { MetadataSourceContext, SourceIdMap } from "../sourceAdapter";
@@ -45,8 +40,6 @@ const mixedIdTypePriority: readonly SourceType[] = [
 	"bgm",
 ];
 
-type MixedSourceIdParams = Partial<Record<SourceIdType, string>>;
-
 function hasSourceId(
 	game: Partial<GameCandidateData>,
 	source: SourceType,
@@ -71,15 +64,6 @@ function getEnabledSourceIds(
 			return [source, id || undefined];
 		}),
 	) as SourceIdMap;
-}
-
-function toMixedSourceIdParams(sourceIds: SourceIdMap): MixedSourceIdParams {
-	return Object.fromEntries(
-		REGISTERED_SOURCE_KEYS.map((source) => {
-			const { idKey } = getRuntimeSourceAdapter(source);
-			return [idKey, getSourceId(sourceIds, source)];
-		}),
-	) as MixedSourceIdParams;
 }
 
 function mergeSourceFields(
@@ -544,7 +528,7 @@ class GameMetadataService {
 		try {
 			if (providedSources.length === 1) {
 				const result = await fetchMixedData({
-					...toMixedSourceIdParams(enabledSourceIds),
+					sourceIds: enabledSourceIds,
 					bgmToken,
 					enabledSources,
 				});
@@ -569,7 +553,11 @@ class GameMetadataService {
 				}),
 			);
 
-			const mergedGame: GameCandidateData = { ...defaults, id_type: "mixed" };
+			const mergedGame: GameCandidateData = {
+				...defaults,
+				id_type: "mixed",
+				sources: defaults?.sources ?? [],
+			};
 
 			REGISTERED_SOURCE_KEYS.forEach((source, index) => {
 				const game = results[index];

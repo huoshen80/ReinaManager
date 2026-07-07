@@ -1,4 +1,4 @@
-import type { SourceDataKey, SourceIdType, SourceType } from "@/types";
+import type { SourceType } from "@/types";
 import type { SourceCandidate, SourceDisplayFields } from "./sourceCandidate";
 
 export type SourceIdMap = Partial<Record<SourceType, string>>;
@@ -15,8 +15,6 @@ export interface MetadataSourceContext {
 export interface MetadataSourceAdapter<TData = unknown> {
 	key: SourceType;
 	label: string;
-	idKey: SourceIdType;
-	dataKey: SourceDataKey;
 	iconUrl: string;
 	participatesInMixed: boolean;
 	defaultMixedEnabled: boolean;

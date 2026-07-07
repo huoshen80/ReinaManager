@@ -34,8 +34,6 @@ function toBgmCandidate(game: GameCandidateData): SourceCandidate<BgmData> {
 export const bgmAdapter: MetadataSourceAdapter<BgmData> = {
 	key: "bgm",
 	label: "Bangumi",
-	idKey: "bgm_id",
-	dataKey: "bgm_data",
 	iconUrl: "https://bgm.tv/img/favicon.ico",
 	participatesInMixed: true,
 	defaultMixedEnabled: true,

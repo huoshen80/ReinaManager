@@ -10,6 +10,13 @@ import i18next from "i18next";
 import { useStore } from "@/store/appStore";
 import type { GameCandidateData, KunData } from "@/types";
 import { AppError } from "@/utils/errors";
+import {
+	createGameCandidate,
+	createSourceCandidateRecord,
+	getCandidateSourceData,
+	getCandidateSourceId,
+	mergeCandidateSources,
+} from "../sourceCandidate";
 import http, { type TauriHttpOptions, USER_AGENT } from "./http";
 import { fetchVndbById } from "./vndb";
 
@@ -207,7 +214,7 @@ const transformKunData = (
 ): GameCandidateData => {
 	const summary = pickLocalizedText(kunData.markdown);
 
-	const kun_data: KunData = {
+	const sourceData: KunData = {
 		image: kunData.banner,
 		name: pickLocalizedText(kunData.name),
 		name_cn:
@@ -226,10 +233,14 @@ const transformKunData = (
 	};
 
 	const result: GameCandidateData = {
-		kun_id: String(kunData.id),
-		vndb_id: kunData.vndbId,
-		id_type: kunData.vndbId ? "mixed" : "kun",
-		kun_data,
+		...createGameCandidate({
+			idType: "kun",
+			source: createSourceCandidateRecord(
+				"kun",
+				String(kunData.id),
+				sourceData,
+			),
+		}),
 	};
 
 	if (import.meta.env.DEV) {
@@ -270,34 +281,45 @@ export async function fetchGalgameById(
 	}
 
 	const kunResult = transformKunData(kunData);
+	const vndbId = kunData.vndbId;
 
-	if (!enrichVndb || !kunResult.vndb_id) {
+	if (!enrichVndb || !vndbId) {
 		return kunResult;
 	}
 
 	try {
-		const vndbResult = await fetchVndbById(kunResult.vndb_id, signal);
+		const vndbResult = await fetchVndbById(vndbId, signal);
 
 		return {
 			...kunResult,
-			vndb_data: vndbResult.vndb_data,
+			id_type: "mixed",
+			sources: mergeCandidateSources([kunResult, vndbResult]),
 		};
 	} catch (error) {
 		if (import.meta.env.DEV) {
 			console.warn(
-				`[Kungal API] VNDB 增强失败，回退到 Kungal 原始数据: ${kunResult.vndb_id}`,
+				`[Kungal API] VNDB 增强失败，回退到 Kungal 原始数据: ${vndbId}`,
 				error,
 			);
 		}
 
+		const kunSourceData = getCandidateSourceData<KunData>(kunResult, "kun");
 		return {
 			...kunResult,
 			id_type: "kun",
-			kun_data: {
-				...kunResult.kun_data,
-				// VNDB 不可用时，保留鲲源自身 tags，避免 kun 源整体失效。
-				tags: extractKunTags(kunData.tag),
-			},
+			sources: kunSourceData
+				? [
+						createSourceCandidateRecord(
+							"kun",
+							getCandidateSourceId(kunResult, "kun") ?? id,
+							{
+								...kunSourceData,
+								// VNDB 不可用时，保留鲲源自身 tags，避免 kun 源整体失效。
+								tags: extractKunTags(kunData.tag),
+							},
+						),
+					]
+				: kunResult.sources,
 		};
 	}
 }
@@ -342,18 +364,22 @@ export async function searchGalgame(
 	}
 
 	const results = items.map((item) => ({
-		kun_id: String(item.id),
-		id_type: "kun",
-		kun_data: {
-			name: pickLocalizedText(item.name),
-			image: item.banner,
-			date: item.releaseDate ?? undefined,
-		},
+		...createGameCandidate({
+			idType: "kun",
+			source: createSourceCandidateRecord("kun", String(item.id), {
+				name: pickLocalizedText(item.name),
+				image: item.banner,
+				date: item.releaseDate ?? undefined,
+			}),
+		}),
 	}));
 
 	// 如果启用二步请求且有结果，用第一个结果的 ID 获取完整详情
-	if (fetchDetailById && results.length > 0 && results[0].kun_id) {
-		const detailedData = await fetchGalgameById(results[0].kun_id, options);
+	const firstResultId = results[0]
+		? getCandidateSourceId(results[0], "kun")
+		: undefined;
+	if (fetchDetailById && firstResultId) {
+		const detailedData = await fetchGalgameById(firstResultId, options);
 		return [detailedData];
 	}
 

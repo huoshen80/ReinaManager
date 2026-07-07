@@ -17,6 +17,12 @@
 
 import type { GameCandidateData, YmgalData } from "@/types";
 import { AppError, isHttpStatus, toError } from "@/utils/errors";
+import {
+	createGameCandidate,
+	createSourceCandidateRecord,
+	getCandidateSourceData,
+	getCandidateSourceId,
+} from "../sourceCandidate";
 import http, { type TauriHttpOptions, USER_AGENT } from "./http";
 
 /**
@@ -271,7 +277,7 @@ function transformYmData(
 ): GameCandidateData {
 	const aliases = ymData.extensionName?.map((ext) => ext.name).filter(Boolean);
 
-	const ymgal_data: YmgalData = {
+	const ymgalData: YmgalData = {
 		date: ymData.releaseDate,
 		image: ymData.mainImg,
 		name: ymData.name,
@@ -283,9 +289,14 @@ function transformYmData(
 	};
 
 	return {
-		ymgal_id: String(ymData.gid),
-		...(update_batch ? {} : { id_type: "ymgal" }),
-		ymgal_data,
+		...createGameCandidate({
+			idType: update_batch ? undefined : "ymgal",
+			source: createSourceCandidateRecord(
+				"ymgal",
+				String(ymData.gid),
+				ymgalData,
+			),
+		}),
 	};
 }
 
@@ -324,7 +335,7 @@ export async function fetchYmByName(
 
 	// 将列表数据转换为统一格式（不包含详细信息）
 	const results = data.result.map((item: YmGameListItem): GameCandidateData => {
-		const ymgal_data: YmgalData = {
+		const ymgalData: YmgalData = {
 			date: item.releaseDate,
 			image: item.mainImg,
 			name: item.name,
@@ -334,17 +345,25 @@ export async function fetchYmByName(
 		};
 
 		return {
-			ymgal_id: String(item.id),
-			id_type: "ymgal",
-			ymgal_data,
+			...createGameCandidate({
+				idType: "ymgal",
+				source: createSourceCandidateRecord(
+					"ymgal",
+					String(item.id),
+					ymgalData,
+				),
+			}),
 		};
 	});
 
 	// 如果启用二步请求且有结果，用第一个结果的 ID 获取完整详情。
 	// 注意：详情请求失败时降级为首条轻量数据，避免上层 mixed 链路整体失败。
-	if (fetchDetailById && results.length > 0 && results[0].ymgal_id) {
+	const firstResultId = results[0]
+		? getCandidateSourceId(results[0], "ymgal")
+		: undefined;
+	if (fetchDetailById && firstResultId) {
 		try {
-			const detailedData = await fetchYmById(results[0].ymgal_id, signal);
+			const detailedData = await fetchYmById(firstResultId, signal);
 			return [detailedData];
 		} catch {
 			return [results[0]];
@@ -377,8 +396,9 @@ export async function fetchYmById(
 	}
 
 	const result = transformYmData(data.game);
-	if (result.ymgal_data) {
-		result.ymgal_data.developer = await fetchOrganizationName(
+	const ymgalData = getCandidateSourceData<YmgalData>(result, "ymgal");
+	if (ymgalData) {
+		ymgalData.developer = await fetchOrganizationName(
 			data.game?.developerId,
 			signal,
 		);

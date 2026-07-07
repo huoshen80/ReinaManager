@@ -32,8 +32,6 @@ function toYmgalCandidate(game: GameCandidateData): SourceCandidate<YmgalData> {
 export const ymgalAdapter: MetadataSourceAdapter<YmgalData> = {
 	key: "ymgal",
 	label: "YMGal",
-	idKey: "ymgal_id",
-	dataKey: "ymgal_data",
 	iconUrl: "https://www.ymgal.games/favicon.ico",
 	participatesInMixed: true,
 	defaultMixedEnabled: false,

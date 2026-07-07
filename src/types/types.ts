@@ -168,45 +168,19 @@ export interface SourceScores {
 
 // ==================== 游戏数据类型（DTO 三位一体） ====================
 
-export type SourceType = "bgm" | "vndb" | "ymgal" | "kun";
-export type SourceIdType = "bgm_id" | "vndb_id" | "ymgal_id" | "kun_id";
-export type SourceDataKey =
-	| "bgm_data"
-	| "vndb_data"
-	| "ymgal_data"
-	| "kun_data";
+export const SOURCE_TYPES = ["bgm", "vndb", "ymgal", "kun"] as const;
+export type SourceType = (typeof SOURCE_TYPES)[number];
 
 export type apiSourceType = SourceType | "mixed";
 
-export const SOURCE_FIELD_KEYS = {
-	bgm: { id: "bgm_id", data: "bgm_data" },
-	vndb: { id: "vndb_id", data: "vndb_data" },
-	ymgal: { id: "ymgal_id", data: "ymgal_data" },
-	kun: { id: "kun_id", data: "kun_data" },
-} as const satisfies Record<
-	SourceType,
-	{
-		id: SourceIdType;
-		data: SourceDataKey;
-	}
->;
-
 export function isSourceType(value: string): value is SourceType {
-	return value in SOURCE_FIELD_KEYS;
+	return SOURCE_TYPES.includes(value as SourceType);
 }
 
 /**
  * 数据源 ID 类型
  */
 export type IdType = apiSourceType | "custom" | "Whitecloud";
-
-export interface GameSourceIdPayload {
-	bgm_id?: string;
-	vndb_id?: string;
-	ymgal_id?: string;
-	kun_id?: string;
-	id_type?: IdType | string;
-}
 
 interface GameRuntimePayload {
 	localpath?: Nullable<string>;
@@ -218,17 +192,9 @@ interface GameRuntimePayload {
 	magpie?: number;
 }
 
-interface GameMetadataPayload {
-	bgm_data?: Nullable<BgmData>;
-	vndb_data?: Nullable<VndbData>;
-	ymgal_data?: Nullable<YmgalData>;
-	kun_data?: Nullable<KunData>;
+interface GameCustomPayload {
 	custom_data?: Nullable<CustomData>;
 }
-
-type GamePayload = GameSourceIdPayload &
-	GameRuntimePayload &
-	GameMetadataPayload;
 
 export interface GameSourceRecord {
 	source: string;
@@ -261,8 +227,11 @@ export interface FullGameData extends GameRuntimePayload {
 /**
  * 游戏候选数据 - 来自外部 API 或添加链路，尚未写入数据库
  */
-export interface GameCandidateData extends GamePayload {
-	sources?: SourceCandidateRecord[];
+export interface GameCandidateData
+	extends GameRuntimePayload,
+		GameCustomPayload {
+	id_type?: IdType | string;
+	sources: SourceCandidateRecord[];
 	id?: never;
 }
 
