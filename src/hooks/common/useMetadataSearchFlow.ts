@@ -20,6 +20,7 @@ interface SearchResultState {
 	open: boolean;
 	results: SourceCandidate[];
 	apiSource: SourceType;
+	defaults?: Partial<GameMetadataDraft>;
 }
 
 interface MixedCandidateState {
@@ -95,9 +96,6 @@ export function useMetadataSearchFlow({
 	const [lastMixedDefaults, setLastMixedDefaults] = useState<
 		Partial<GameMetadataDraft> | undefined
 	>();
-	const [lastSearchDefaults, setLastSearchDefaults] = useState<
-		Partial<GameMetadataDraft> | undefined
-	>();
 
 	const getNoResultsText = useCallback(
 		(source: apiSourceType) => getDefaultNoResultsMessage(t, source),
@@ -120,7 +118,6 @@ export function useMetadataSearchFlow({
 		closeMixedCandidates();
 		setIsSearching(false);
 		setLastMixedDefaults(undefined);
-		setLastSearchDefaults(undefined);
 	}, [closeMixedCandidates, closeSearchResult]);
 
 	const searchMetadata = useCallback(
@@ -133,7 +130,6 @@ export function useMetadataSearchFlow({
 		}: SearchMetadataParams) => {
 			setIsSearching(true);
 			setLastMixedDefaults(defaults);
-			setLastSearchDefaults(source === "mixed" ? undefined : defaults);
 
 			try {
 				if (source === "mixed") {
@@ -189,13 +185,12 @@ export function useMetadataSearchFlow({
 				}
 
 				const searchCandidates = (bgmToken?: string) => {
-					const searchPromise =
-						gameMetadataService.searchSourceCandidatesByName({
-							query,
-							source,
-							bgmToken,
-							signal,
-						});
+					const searchPromise = gameMetadataService.searchByName({
+						query,
+						source,
+						bgmToken,
+						signal,
+					});
 					return withAbort ? withAbort(searchPromise) : searchPromise;
 				};
 				const results =
@@ -211,6 +206,7 @@ export function useMetadataSearchFlow({
 					open: true,
 					results,
 					apiSource: source,
+					defaults,
 				});
 			} catch (error) {
 				if (isAbortError(error)) {
@@ -238,7 +234,7 @@ export function useMetadataSearchFlow({
 				const resolvedGame =
 					await gameMetadataService.resolveSourceCandidateSelection({
 						candidate: selectedCandidate,
-						defaults: lastSearchDefaults,
+						defaults: searchResultState.defaults,
 					});
 				await onResolved(resolvedGame);
 				closeSearchResult();
@@ -248,7 +244,7 @@ export function useMetadataSearchFlow({
 				setIsSearching(false);
 			}
 		},
-		[closeSearchResult, lastSearchDefaults, onError, onResolved, t],
+		[closeSearchResult, onError, onResolved, searchResultState.defaults, t],
 	);
 
 	const confirmMixedSelection = useCallback(

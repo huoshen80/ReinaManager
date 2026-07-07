@@ -91,16 +91,6 @@ export function hasSourceRecord(
 	return getSourceRecord(payload, source) !== undefined;
 }
 
-export function getSourceDataMap(payload: SourceRecordPayload): SourceDataMap {
-	const sources: SourceDataMap = {};
-	for (const [source, record] of getSourceRecordMap(payload)) {
-		if (record.data != null) {
-			sources[source] = record.data;
-		}
-	}
-	return sources;
-}
-
 export function getSourceIdMap(payload: SourceRecordPayload): SourceIdMap {
 	const ids: SourceIdMap = {};
 	for (const [source, record] of getSourceRecordMap(payload)) {

@@ -14,7 +14,6 @@ import { useTranslation } from "react-i18next";
 import {
 	appendGamesToCaches,
 	patchGameCaches,
-	patchManyGameCaches,
 	removeGamesFromCaches,
 } from "@/hooks/queries/gameCachePatch";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke";
@@ -220,34 +219,12 @@ function useUpdateGame() {
 	});
 }
 
-function useBatchUpdateGames() {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: (updates: Array<[number, UpdateGameParams]>) =>
-			gameService.updateBatch(updates),
-		onSuccess: (updatedFullGames, updates) => {
-			if (updatedFullGames.length === 0) {
-				return;
-			}
-			patchManyGameCaches(queryClient, gameKeys, updatedFullGames);
-			queryClient.invalidateQueries({ queryKey: gameKeys.idLists() });
-			if (
-				updates.some(([, update]) => shouldInvalidateSourceIdCaches(update))
-			) {
-				invalidateSourceIdCaches(queryClient);
-			}
-		},
-	});
-}
-
 export {
 	useAddGame,
 	useAllBgmIds,
 	useAllGames,
 	useAllVndbIds,
 	useBatchAddGames,
-	useBatchUpdateGames,
 	useDeleteGame,
 	useDeleteGames,
 	useGameIdList,

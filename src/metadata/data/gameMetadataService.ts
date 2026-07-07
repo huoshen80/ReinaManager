@@ -205,19 +205,19 @@ class GameMetadataService {
 			return [this.applyDefaults(game, defaults)];
 		}
 
-		const candidates = await this.searchByName(
+		const candidates = await this.searchByName({
 			query,
 			source,
 			bgmToken,
 			limit,
 			signal,
-		);
+		});
 		return candidates.map((candidate) =>
 			this.applyDefaults(sourceCandidateToDraft(candidate), defaults),
 		);
 	}
 
-	async searchSourceCandidatesByName(params: {
+	async searchByName(params: {
 		query: string;
 		source: SourceType;
 		bgmToken?: string;
@@ -225,7 +225,19 @@ class GameMetadataService {
 		signal?: AbortSignal;
 	}): Promise<SourceCandidate[]> {
 		const { query, source, bgmToken, limit, signal } = params;
-		return this.searchByName(query, source, bgmToken, limit, signal);
+		try {
+			return await getSourceAdapter(source).searchByName(query, {
+				bgmToken,
+				limit,
+				signal,
+			});
+		} catch (error) {
+			throw createMetadataError(
+				`Failed to search ${source} metadata by name`,
+				error,
+				`Metadata request failed for ${source} name search`,
+			);
+		}
 	}
 
 	async searchBestMatch(params: {
@@ -332,25 +344,6 @@ class GameMetadataService {
 		}
 	}
 
-	/**
-	 * 处理“用户从搜索结果中选择一项”后的详情补全。
-	 * 规则：
-	 * - mixed 搜索：直接返回原数据
-	 * - 单源名称搜索：仅 ymgal/kun 需要按 id 拉取完整详情
-	 */
-	async enrichSelectedGameDetails(params: {
-		selectedGame: GameMetadataDraft;
-		source: apiSourceType;
-	}): Promise<GameMetadataDraft> {
-		const { selectedGame, source } = params;
-
-		if (source === "mixed") {
-			return selectedGame;
-		}
-
-		return this.enrichSourceSelectionDetails(selectedGame, source);
-	}
-
 	async resolveSourceCandidateSelection(params: {
 		candidate: SourceCandidate;
 		defaults?: Partial<GameMetadataDraft>;
@@ -358,33 +351,6 @@ class GameMetadataService {
 		const { candidate, defaults } = params;
 		const draft = await this.resolveSourceCandidateDraft(candidate);
 		return this.applyDefaults(draft, defaults);
-	}
-
-	private async enrichSourceSelectionDetails(
-		selectedGame: GameMetadataDraft,
-		source: SourceType,
-		ctx: MetadataSourceContext = {},
-	): Promise<GameMetadataDraft> {
-		const adapter = getRuntimeSourceAdapter(source);
-		if (!adapter.enrichOnSelect) {
-			return selectedGame;
-		}
-
-		const sourceData = getCandidateSourceData(selectedGame, source);
-		if (!getCandidateSourceId(selectedGame, source) || !sourceData) {
-			return selectedGame;
-		}
-
-		const sourceCandidate = getSourceCandidateFromGame(
-			selectedGame,
-			adapter,
-			adapter.toDisplayFields(sourceData),
-		);
-		const candidate = await this.resolveSourceCandidateDraft(
-			sourceCandidate,
-			ctx,
-		);
-		return candidate;
 	}
 
 	private async resolveSourceCandidateDraft(
@@ -466,31 +432,6 @@ class GameMetadataService {
 			enabled,
 			defaults,
 		});
-	}
-
-	/**
-	 * 根据名称搜索单个数据源
-	 */
-	private async searchByName(
-		name: string,
-		source: SourceType,
-		bgmToken?: string,
-		limit?: number,
-		signal?: AbortSignal,
-	): Promise<SourceCandidate[]> {
-		try {
-			return await getSourceAdapter(source).searchByName(name, {
-				bgmToken,
-				limit,
-				signal,
-			});
-		} catch (error) {
-			throw createMetadataError(
-				`Failed to search ${source} metadata by name`,
-				error,
-				`Metadata request failed for ${source} name search`,
-			);
-		}
 	}
 
 	/**

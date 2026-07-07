@@ -1,10 +1,6 @@
 import type { CustomData, GameData, SourceType } from "@/types";
 import type { SourceDisplayFields } from "../sourceCandidate";
-import {
-	getSourceDataMap as getSourceRecordDataMap,
-	type SourceDataMap,
-	type SourceRecordPayload,
-} from "../sourceRecord";
+import type { SourceDataMap } from "../sourceRecord";
 import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
@@ -53,10 +49,6 @@ function assignBasicFields(
 	if (fields.summary != null) target.summary = fields.summary;
 	if (fields.developer != null) target.developer = fields.developer;
 	if (fields.nsfw != null) target.nsfw = fields.nsfw;
-}
-
-export function getSourceDataMap(game: SourceRecordPayload): SourceDataMap {
-	return getSourceRecordDataMap(game);
 }
 
 export function getSourceDisplayFields(
