@@ -291,12 +291,9 @@ class GameMetadataService {
 				signal,
 			});
 
-			return {
-				bgm: result.bgm ?? [],
-				vndb: result.vndb ?? [],
-				ymgal: result.ymgal ?? [],
-				kun: result.kun ?? [],
-			};
+			return Object.fromEntries(
+				REGISTERED_SOURCE_KEYS.map((source) => [source, result[source] ?? []]),
+			) as MixedSourceCandidates;
 		} catch (error) {
 			throw createMetadataError(
 				"Failed to search mixed source candidates by name",

@@ -67,20 +67,12 @@ interface SourceUpdateParams {
 	bgmToken?: string;
 }
 
-export interface MixedSourceResult {
-	bgm?: SourceCandidate | null;
-	vndb?: SourceCandidate | null;
-	ymgal?: SourceCandidate | null;
-	kun?: SourceCandidate | null;
-}
-
-export interface MixedSourceListResult {
-	bgm?: SourceCandidate[];
-	vndb?: SourceCandidate[];
-	ymgal?: SourceCandidate[];
-	kun?: SourceCandidate[];
-}
-
+export type MixedSourceResult = Partial<
+	Record<SourceType, SourceCandidate | null>
+>;
+export type MixedSourceListResult = Partial<
+	Record<SourceType, SourceCandidate[]>
+>;
 export type MixedSourceCandidates = Record<SourceType, SourceCandidate[]>;
 export type MixedSourceSelection = Partial<
 	Record<SourceType, SourceCandidate | null>
