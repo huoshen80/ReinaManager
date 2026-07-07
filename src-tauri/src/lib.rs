@@ -83,7 +83,6 @@ pub fn run() {
             delete_game,
             delete_games_batch,
             count_games,
-            source_binding_exists,
             get_source_bindings,
             update_games_batch,
             // 存档备份相关 commands

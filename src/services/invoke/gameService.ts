@@ -130,27 +130,6 @@ class GameService extends BaseService {
 	}
 
 	/**
-	 * 检查指定 source ID 是否已存在
-	 */
-	async sourceBindingExists(
-		source: string,
-		externalId: string,
-	): Promise<boolean> {
-		return this.invoke<boolean>("source_binding_exists", {
-			source,
-			externalId,
-		});
-	}
-
-	async gameExistsByBgmId(bgmId: string): Promise<boolean> {
-		return this.sourceBindingExists("bgm", bgmId);
-	}
-
-	async gameExistsByVndbId(vndbId: string): Promise<boolean> {
-		return this.sourceBindingExists("vndb", vndbId);
-	}
-
-	/**
 	 * 获取指定 source 的游戏绑定
 	 */
 	async getSourceBindings(source: string): Promise<Array<[number, string]>> {

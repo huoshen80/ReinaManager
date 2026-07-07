@@ -546,19 +546,6 @@ impl GamesRepository {
             .await
     }
 
-    pub async fn source_binding_exists(
-        db: &DatabaseConnection,
-        source: &str,
-        external_id: &str,
-    ) -> Result<bool, DbErr> {
-        Ok(GameSources::find()
-            .filter(game_sources::Column::Source.eq(source))
-            .filter(game_sources::Column::ExternalId.eq(external_id))
-            .count(db)
-            .await?
-            > 0)
-    }
-
     pub async fn get_all_localpaths(db: &DatabaseConnection) -> Result<HashSet<String>, DbErr> {
         Games::find()
             .select_only()

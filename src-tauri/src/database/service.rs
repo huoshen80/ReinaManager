@@ -165,18 +165,6 @@ pub async fn count_games(db: State<'_, DatabaseConnection>) -> Result<u64, Strin
         .map_err(|e| format!("获取游戏总数失败: {}", e))
 }
 
-/// 检查 source external ID 是否已存在
-#[tauri::command]
-pub async fn source_binding_exists(
-    db: State<'_, DatabaseConnection>,
-    source: String,
-    external_id: String,
-) -> Result<bool, String> {
-    GamesRepository::source_binding_exists(&db, &source, &external_id)
-        .await
-        .map_err(|e| format!("检查 source ID 是否存在失败: {}", e))
-}
-
 /// 获取指定 source 的全部游戏绑定
 #[tauri::command]
 pub async fn get_source_bindings(
