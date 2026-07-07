@@ -10,6 +10,7 @@ type SourceRecordLike = {
 
 export type SourceRecordPayload = {
 	sources?: readonly SourceRecordLike[] | null;
+	sourceIds?: Partial<Record<SourceType, string>> | null;
 };
 
 export type SourceRecordMap = Map<SourceType, GameSourceRecord>;
@@ -28,6 +29,17 @@ export function getSourceRecordMap(
 			source: record.source,
 			external_id: record.external_id ?? null,
 			data: (record.data ?? null) as JsonValue | null,
+		});
+	}
+
+	for (const source of REGISTERED_SOURCE_KEYS) {
+		if (map.has(source)) continue;
+		const externalId = payload.sourceIds?.[source];
+		if (!externalId) continue;
+		map.set(source, {
+			source,
+			external_id: externalId,
+			data: null,
 		});
 	}
 

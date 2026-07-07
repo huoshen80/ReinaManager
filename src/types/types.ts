@@ -312,7 +312,7 @@ export interface GameData
 	// 基础字段
 	id: number;
 	id_type?: IdType | string;
-	sources: GameSourceRecord[];
+	sourceIds: Partial<Record<SourceType, string>>;
 	date?: string;
 	localpath?: string;
 	savepath?: string;

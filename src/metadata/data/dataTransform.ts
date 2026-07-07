@@ -10,7 +10,11 @@
 
 import type { FullGameData, GameData } from "@/types";
 import { isSourceType } from "@/types";
-import { getSourceRecordMap, type SourceDataMap } from "../sourceRecord";
+import {
+	getSourceIdMap,
+	getSourceRecordMap,
+	type SourceDataMap,
+} from "../sourceRecord";
 import {
 	applyCustomDataOverride,
 	applyCustomSourceDisplay,
@@ -43,7 +47,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 	const baseData: GameData = {
 		id: fullData.id,
 		id_type: fullData.id_type,
-		sources: fullData.sources,
+		sourceIds: getSourceIdMap(fullData),
 		date: fullData.date,
 		localpath: nullToUndefined(fullData.localpath),
 		savepath: nullToUndefined(fullData.savepath),
