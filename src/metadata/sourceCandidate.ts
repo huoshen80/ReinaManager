@@ -190,6 +190,7 @@ export function mergeCandidateWithDetails(
 		const mergedData = mergeDefinedValues(baseSourceData, detailSourceData);
 		merged.sources = mergeCandidateSources([
 			candidate.raw,
+			details,
 			{
 				...details,
 				sources: [
