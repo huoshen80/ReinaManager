@@ -15,7 +15,7 @@ import { Virtuoso } from "react-virtuoso";
 import {
 	getCandidateSourceData,
 	getRuntimeSourceAdapter,
-	REGISTERED_SOURCE_KEYS,
+	SEARCHABLE_SOURCE_KEYS,
 } from "@/metadata";
 import type { GameMetadataDraft, ScanResult } from "@/types";
 
@@ -65,7 +65,7 @@ function getMatchedGameName(
 	}
 
 	const useChineseName = language === "zh-CN";
-	const displays = REGISTERED_SOURCE_KEYS.map((source) => {
+	const displays = SEARCHABLE_SOURCE_KEYS.map((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
 		const data = getCandidateSourceData(gameData, source);
 		return data ? adapter.toDisplayFields(data) : null;

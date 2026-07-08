@@ -32,6 +32,10 @@ export const REGISTERED_SOURCE_KEYS = Object.keys(
 	SOURCE_ADAPTERS,
 ) as SourceType[];
 
+export const SEARCHABLE_SOURCE_KEYS = REGISTERED_SOURCE_KEYS.filter(
+	(source) => !SOURCE_ADAPTERS[source].isBanned,
+);
+
 export const MIXED_SOURCE_KEYS = REGISTERED_SOURCE_KEYS.filter(
 	(source) => SOURCE_ADAPTERS[source].participatesInMixed,
 );

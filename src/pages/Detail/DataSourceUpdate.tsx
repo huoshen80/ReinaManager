@@ -20,7 +20,7 @@ import { useShallow } from "zustand/react/shallow";
 import GameSelectDialog from "@/components/AddModal/GameSelectDialog";
 import MixedSourceConfirmDialog from "@/components/AddModal/MixedSourceConfirmDialog";
 import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
-import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
+import { getRuntimeSourceAdapter, SEARCHABLE_SOURCE_KEYS } from "@/metadata";
 import { fetchMetadataForUpdate } from "@/metadata/data/metadata";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
@@ -49,7 +49,7 @@ type SourceIdState = Record<SourceType, string>;
 
 function getSourceIdState(game: GameData): SourceIdState {
 	return Object.fromEntries(
-		REGISTERED_SOURCE_KEYS.map((source) => {
+		SEARCHABLE_SOURCE_KEYS.map((source) => {
 			return [source, getSourceIdFromDisplay(game, source) || ""];
 		}),
 	) as SourceIdState;
@@ -102,7 +102,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 		isLoading || isSwitching || metadataSearchFlow.isSearching || disabled;
 	const isMixedSourceEnabled = (source: SourceType) =>
 		mixedEnabledSources.includes(source);
-	const sourceInputs = REGISTERED_SOURCE_KEYS.map((source) => {
+	const sourceInputs = SEARCHABLE_SOURCE_KEYS.map((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
 		return {
 			source,
@@ -247,7 +247,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 						label={t("pages.Detail.DataSourceUpdate.dataSource", "数据源")}
 						size="small"
 					>
-						{REGISTERED_SOURCE_KEYS.map((source) => {
+						{SEARCHABLE_SOURCE_KEYS.map((source) => {
 							const adapter = getRuntimeSourceAdapter(source);
 							return (
 								<MenuItem key={source} value={source}>

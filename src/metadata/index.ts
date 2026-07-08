@@ -37,5 +37,6 @@ export {
 	getSourceAdapter,
 	MIXED_SOURCE_KEYS,
 	REGISTERED_SOURCE_KEYS,
+	SEARCHABLE_SOURCE_KEYS,
 	SOURCE_ADAPTERS,
 } from "./sourceRegistry";

@@ -38,8 +38,8 @@ export interface GalgameDetailTag {
 	id: number;
 	name: string;
 	category: string;
-	galgameCount: number;
-	spoilerLevel: number;
+	galgame_count: number;
+	spoiler_level: number;
 }
 
 export interface GalgameOfficialItem {
@@ -49,29 +49,29 @@ export interface GalgameOfficialItem {
 	category: string;
 	lang: string;
 	alias: string[];
-	galgameCount: number;
+	galgame_count: number;
 }
 
 export interface GalgameDetailResponse {
 	id: number;
-	vndbId?: string;
+	vndb_id?: string;
 	name: Partial<KunLanguage>;
 	banner?: string;
 	introduction?: Partial<KunLanguage>;
-	contentLimit?: "sfw" | "nsfw";
+	content_limit?: "sfw" | "nsfw";
 	markdown?: Partial<KunLanguage>;
-	ageLimit?: "all" | "r18";
+	age_limit?: "all" | "r18";
 	alias?: string[];
 	official?: GalgameOfficialItem[];
 	tag?: GalgameDetailTag[];
-	releaseDate?: string | null;
+	release_date?: string | null;
 }
 
 export interface SearchResultGalgame {
 	id: number;
 	name: KunLanguage;
 	banner: string;
-	releaseDate?: string | null;
+	release_date?: string | null;
 }
 
 export interface KunApiResponse<T> {
@@ -157,8 +157,8 @@ function extractKunTags(tags?: GalgameDetailTag[]): string[] {
 	const filterLevel = useStore.getState().spoilerLevel;
 
 	return tags
-		.toSorted((a, b) => (b.galgameCount || 0) - (a.galgameCount || 0))
-		.filter((tag) => (tag.spoilerLevel ?? 0) <= filterLevel)
+		.toSorted((a, b) => (b.galgame_count || 0) - (a.galgame_count || 0))
+		.filter((tag) => (tag.spoiler_level ?? 0) <= filterLevel)
 		.map((tag) => tag.name?.trim())
 		.filter((name): name is string => Boolean(name));
 }
@@ -186,8 +186,8 @@ function extractDeveloper(
 }
 
 function computeNsfw(payload: GalgameDetailResponse): boolean {
-	const contentLimitNsfw = payload.contentLimit === "nsfw";
-	return contentLimitNsfw || payload.ageLimit === "r18";
+	const contentLimitNsfw = payload.content_limit === "nsfw";
+	return contentLimitNsfw || payload.age_limit === "r18";
 }
 
 function buildKunRateLimitedOptions(
@@ -226,10 +226,10 @@ const transformKunData = (
 			new Set((kunData.alias || []).map((alias) => alias.trim())),
 		),
 		summary,
-		tags: kunData.vndbId ? undefined : extractKunTags(kunData.tag),
+		tags: kunData.vndb_id ? undefined : extractKunTags(kunData.tag),
 		developer: extractDeveloper(kunData.official),
 		nsfw: computeNsfw(kunData),
-		date: kunData.releaseDate ?? undefined,
+		date: kunData.release_date ?? undefined,
 	};
 
 	const result: GameMetadataDraft = {
@@ -265,7 +265,7 @@ export async function fetchGalgameById(
 		url,
 		buildKunRateLimitedOptions({
 			params: {
-				galgameId: Number(id),
+				galgame_id: Number(id),
 			},
 			signal,
 		}),
@@ -281,7 +281,7 @@ export async function fetchGalgameById(
 	}
 
 	const kunResult = transformKunData(kunData);
-	const vndbId = kunData.vndbId;
+	const vndbId = kunData.vndb_id;
 
 	if (!enrichVndb || !vndbId) {
 		return kunResult;
@@ -369,7 +369,7 @@ export async function searchGalgame(
 			source: createSourceCandidateRecord("kun", String(item.id), {
 				name: pickLocalizedText(item.name),
 				image: item.banner,
-				date: item.releaseDate ?? undefined,
+				date: item.release_date ?? undefined,
 			}),
 		}),
 	}));

@@ -4,6 +4,7 @@ import {
 	gameMetadataService,
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
+	SEARCHABLE_SOURCE_KEYS,
 	type SourceCandidate,
 } from "@/metadata";
 import type {
@@ -54,7 +55,7 @@ const EMPTY_MIXED_CANDIDATES = REGISTERED_SOURCE_KEYS.reduce(
 const initialSearchResultState: SearchResultState = {
 	open: false,
 	results: [],
-	apiSource: REGISTERED_SOURCE_KEYS[0] as SourceType,
+	apiSource: SEARCHABLE_SOURCE_KEYS[0] as SourceType,
 };
 
 function hasAnyMixedCandidate(candidates: MixedSourceCandidates): boolean {

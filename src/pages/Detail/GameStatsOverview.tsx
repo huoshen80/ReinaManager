@@ -344,9 +344,6 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 			? 48
 			: (String(Math.ceil(maxChartPlaytime / 60)).length + 6) * 8 + 12;
 
-	/**
-	 * 格式化X轴标签
-	 */
 	const xAxisFormatter = useCallback(
 		(value: string) => {
 			if (timeRange === "1Y" || (timeRange === "ALL" && value.length === 7)) {
@@ -363,6 +360,18 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 		},
 		[timeRange],
 	);
+
+	/**
+	 * 动态计算右侧边距，防止最后一个标签溢出被截断
+	 */
+	const rightMargin = useMemo(() => {
+		if (chartData.length === 0) return 8;
+		const lastLabel = xAxisFormatter(chartData[chartData.length - 1].date);
+		// 估算字符宽度（假设约 8-9px/字符）。由于标签是以最后一个点为中心对齐的，
+		// 溢出右边界的部分大约是文本宽度的一半，即：(length * 8) / 2 = length * 4。
+		// 最后加上额外的基础留白（如 12px）保证图形圆点（Mark）不会贴边。
+		return Math.max(8, lastLabel.length * 4 + 12);
+	}, [chartData, xAxisFormatter]);
 
 	/**
 	 * 图表配置项
@@ -618,7 +627,7 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 								},
 							]}
 							height={300}
-							margin={{ left: 8, right: 8 }}
+							margin={{ left: 8, right: rightMargin }}
 							grid={{ vertical: true, horizontal: true }}
 							sx={{
 								[`& .${axisClasses.left} .${axisClasses.line}, & .${axisClasses.left} .${axisClasses.tick}`]:

@@ -1,3 +1,51 @@
+## [0.24.3](https://github.com/huoshen80/ReinaManager/compare/v0.24.1...v0.24.3) (2026-07-07)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ◀️ 回退
+
+- *(ci)* 恢复 tauri action v0 [skip ci] ([2d8bf4e](https://github.com/huoshen80/ReinaManager/commit/2d8bf4e33e02eaf1aea131020d65e68d26ec61c4))
+
+### ✨ 新功能
+
+- *(stats)* 改进会话追踪与数据库完整性 (#65) ([ea9169b](https://github.com/huoshen80/ReinaManager/commit/ea9169b0fcb58dffe7dc87a024208afb717a09df))
+- *(settings)* 添加启动页偏好设置 ([45716ee](https://github.com/huoshen80/ReinaManager/commit/45716ee9bc71e4c5194daa5cd7db3f4d632be85d))
+- *(metadata)* 暂时在所有搜索和更新链路中禁用 Kungal 数据源 ([7d3754b](https://github.com/huoshen80/ReinaManager/commit/7d3754be307a22458098f0ce70f6b2648754cece))
+
+### 🐛 Bug 修复
+
+- *(stats)* 改进图表时间的易读性 ([99272ea](https://github.com/huoshen80/ReinaManager/commit/99272ea6f28fdb55f891e234125984317a767d69))
+- *(kun)* 读取蛇形命名 API 字段 ([cfbbc50](https://github.com/huoshen80/ReinaManager/commit/cfbbc50a74e2ad2788558f916e67d86c460a56cc))
+- *(stats)* 防止图表最右侧数据点及标签被截断 ([479e34f](https://github.com/huoshen80/ReinaManager/commit/479e34fb6e182917eddb22ff74ba69e0e694ea3c))
+
+### 🚜 重构
+
+- *(store)* 直接使用注册表的默认值 ([b0cde0d](https://github.com/huoshen80/ReinaManager/commit/b0cde0d1da0a1ab73c153bd66cab457931594db4))
+
+</details>
+
+### ◀️ Revert
+
+- *(ci)* Restore tauri action v0 [skip ci] ([2d8bf4e](https://github.com/huoshen80/ReinaManager/commit/2d8bf4e33e02eaf1aea131020d65e68d26ec61c4))
+
+### ✨ Features
+
+- *(stats)* Improve session tracking and database integrity (#65) ([ea9169b](https://github.com/huoshen80/ReinaManager/commit/ea9169b0fcb58dffe7dc87a024208afb717a09df))
+- *(settings)* Add startup page preference ([45716ee](https://github.com/huoshen80/ReinaManager/commit/45716ee9bc71e4c5194daa5cd7db3f4d632be85d))
+- *(metadata)* Temporarily ban kungal data source from all search and update workflows ([7d3754b](https://github.com/huoshen80/ReinaManager/commit/7d3754be307a22458098f0ce70f6b2648754cece))
+
+### 🐛 Bug Fixes
+
+- *(stats)* Improve chart time readability ([99272ea](https://github.com/huoshen80/ReinaManager/commit/99272ea6f28fdb55f891e234125984317a767d69))
+- *(kun)* Read snake case API fields ([cfbbc50](https://github.com/huoshen80/ReinaManager/commit/cfbbc50a74e2ad2788558f916e67d86c460a56cc))
+- *(stats)* Prevent rightmost chart point and label from clipping ([479e34f](https://github.com/huoshen80/ReinaManager/commit/479e34fb6e182917eddb22ff74ba69e0e694ea3c))
+
+### 🚜 Refactor
+
+- *(store)* Use registry defaults directly ([b0cde0d](https://github.com/huoshen80/ReinaManager/commit/b0cde0d1da0a1ab73c153bd66cab457931594db4))
+
+
 ## [0.24.1](https://github.com/huoshen80/ReinaManager/compare/v0.24.0...v0.24.1) (2026-06-30)
 
 <details>

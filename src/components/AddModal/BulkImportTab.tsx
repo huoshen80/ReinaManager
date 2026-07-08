@@ -27,7 +27,7 @@ import { useAllSettings } from "@/hooks/queries/useSettings";
 import {
 	gameMetadataService,
 	getRuntimeSourceAdapter,
-	REGISTERED_SOURCE_KEYS,
+	SEARCHABLE_SOURCE_KEYS,
 } from "@/metadata";
 import { snackbar } from "@/providers/snackBar";
 import { isBgmAuthExpiredError, withBgmAuth } from "@/services/bgmAuthSession";
@@ -53,7 +53,7 @@ interface BulkImportTabProps {
 
 const DEFAULT_SCAN_DEPTH = 3;
 const SCAN_DEPTH_OPTIONS = [2, 3, 4, 5] as const;
-const BULK_API_SOURCE_OPTIONS = REGISTERED_SOURCE_KEYS.map((source) => ({
+const BULK_API_SOURCE_OPTIONS = SEARCHABLE_SOURCE_KEYS.map((source) => ({
 	value: source,
 	label: getRuntimeSourceAdapter(source).label,
 }));
