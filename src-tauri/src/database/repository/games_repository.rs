@@ -9,6 +9,7 @@ use crate::entity::{game_sources, game_statistics, games, savedata};
 use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
@@ -146,16 +147,93 @@ impl GamesRepository {
             return;
         }
 
-        game.date = game.sources.iter().find_map(|source| {
-            source
-                .data
+        game.date = game
+            .sources
+            .iter()
+            .find_map(|source| Self::extract_source_date(source.data.as_ref()));
+    }
+
+    fn extract_source_date(data: Option<&Value>) -> Option<String> {
+        data.and_then(|data| data.get("date"))
+            .and_then(|date| date.as_str())
+            .map(str::trim)
+            .filter(|date| !date.is_empty())
+            .map(ToOwned::to_owned)
+    }
+
+    fn resolve_source_date(source_data: &HashMap<String, Option<Value>>) -> Option<String> {
+        for source in Self::MIXED_NAME_PRIORITY {
+            if let Some(date) = source_data
+                .get(source)
+                .and_then(|data| Self::extract_source_date(data.as_ref()))
+            {
+                return Some(date);
+            }
+        }
+
+        let mut other_sources = source_data
+            .keys()
+            .filter(|source| !Self::MIXED_NAME_PRIORITY.contains(&source.as_str()))
+            .collect::<Vec<_>>();
+        other_sources.sort();
+
+        other_sources.into_iter().find_map(|source| {
+            source_data
+                .get(source)
+                .and_then(|data| Self::extract_source_date(data.as_ref()))
+        })
+    }
+
+    async fn current_source_data<C>(
+        db: &C,
+        game_id: i32,
+    ) -> Result<HashMap<String, Option<Value>>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        GameSources::find()
+            .filter(game_sources::Column::GameId.eq(game_id))
+            .all(db)
+            .await
+            .map(|sources| {
+                sources
+                    .into_iter()
+                    .map(|source| (source.source, source.data))
+                    .collect()
+            })
+    }
+
+    async fn normalize_update_date<C>(
+        db: &C,
+        game_id: i32,
+        mut updates: UpdateGameData,
+    ) -> Result<UpdateGameData, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let has_source_changes = updates
+            .upsert_sources
+            .as_ref()
+            .is_some_and(|sources| !sources.is_empty())
+            || updates
+                .remove_sources
                 .as_ref()
-                .and_then(|data| data.get("date"))
-                .and_then(|date| date.as_str())
-                .map(str::trim)
-                .filter(|date| !date.is_empty())
-                .map(ToOwned::to_owned)
-        });
+                .is_some_and(|sources| !sources.is_empty());
+        if !(matches!(updates.date, Some(None)) || updates.date.is_none() && has_source_changes) {
+            return Ok(updates);
+        }
+
+        let mut source_data = Self::current_source_data(db, game_id).await?;
+
+        for source in updates.remove_sources.as_deref().unwrap_or_default() {
+            source_data.remove(source);
+        }
+        for source in updates.upsert_sources.as_deref().unwrap_or_default() {
+            source_data.insert(source.source.clone(), source.data.clone());
+        }
+
+        updates.date = Some(Self::resolve_source_date(&source_data));
+        Ok(updates)
     }
 
     fn build_insert_active_model(game: &InsertGameData, now: i32) -> games::ActiveModel {
@@ -361,15 +439,27 @@ impl GamesRepository {
     where
         C: ConnectionTrait,
     {
-        let upserts = updates.upsert_sources.as_deref().unwrap_or_default();
-        let removes = updates.remove_sources.as_deref().unwrap_or_default();
-        Self::validate_source_changes(upserts, removes)?;
+        Self::validate_source_changes(
+            updates.upsert_sources.as_deref().unwrap_or_default(),
+            updates.remove_sources.as_deref().unwrap_or_default(),
+        )?;
+        let updates = Self::normalize_update_date(db, game_id, updates).await?;
 
         Self::build_update_active_model(game_id, &updates, now)
             .update(db)
             .await?;
-        Self::remove_sources(db, game_id, removes).await?;
-        Self::upsert_sources(db, game_id, upserts).await?;
+        Self::remove_sources(
+            db,
+            game_id,
+            updates.remove_sources.as_deref().unwrap_or_default(),
+        )
+        .await?;
+        Self::upsert_sources(
+            db,
+            game_id,
+            updates.upsert_sources.as_deref().unwrap_or_default(),
+        )
+        .await?;
 
         Self::find_full_by_id(db, game_id)
             .await?
@@ -981,7 +1071,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(updated.date.as_deref(), Some("2024-01-02"));
+        assert_eq!(updated.date.as_deref(), Some("2025-01-01"));
         assert_eq!(updated.sources.len(), 2);
         assert_eq!(
             updated
@@ -996,6 +1086,18 @@ mod tests {
             Some("新标题")
         );
 
+        let normalized = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                date: Some(None),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(normalized.date.as_deref(), Some("2025-01-01"));
+
         let switched = GamesRepository::update(
             &database,
             inserted.id,
@@ -1008,6 +1110,19 @@ mod tests {
         .unwrap();
         assert_eq!(switched.id_type, "vndb");
         assert_eq!(switched.sources.len(), 2);
+
+        let removed = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                remove_sources: Some(vec!["bgm".to_string()]),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(removed.date, None);
+        assert_eq!(removed.sources.len(), 1);
     }
 
     #[tokio::test]

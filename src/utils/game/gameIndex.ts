@@ -48,7 +48,7 @@ function buildSourceAvailability(game: FullGameData): SourceAvailability {
 	const sourceMap = getSourceRecordMap(game);
 
 	for (const source of REGISTERED_SOURCE_KEYS) {
-		availability[source] = sourceMap.has(source);
+		availability[source] = sourceMap.get(source)?.data != null;
 	}
 
 	return availability;
