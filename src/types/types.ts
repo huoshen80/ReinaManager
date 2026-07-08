@@ -209,9 +209,10 @@ export interface SourceCandidateRecord<TData = unknown> {
 }
 
 /**
- * 完整游戏数据 - 对应后端 V2 读取结构。
+ * 完整游戏数据 - 对应后端 V2 读取结构（对应数据库 games 表）。
  *
- * `sources` 是真实元数据来源；候选数据仍暂时保留旧宽字段。
+ * 这是后端返回的原始数据格式，用于 UI 渲染和数据展示。
+ * 数据库主键必定存在，`sources` 包含聚合的真实元数据（以 JSON 存储）。
  */
 export interface FullGameData extends GameRuntimePayload {
 	// --- 主键 ---

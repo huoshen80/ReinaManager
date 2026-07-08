@@ -63,6 +63,10 @@ function buildCandidateDisplayInfo(
 	};
 }
 
+/**
+ * 从 SourceCandidate 中提取显示信息
+ * 由于条件渲染，传入的 results 往往只包含单一数据源的数据
+ */
 export function extractSourceCandidateDisplayInfo(
 	candidate: SourceCandidate,
 	apiSource: SourceType,

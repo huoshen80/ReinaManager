@@ -16,7 +16,7 @@ use crate::game::cover::{DownloadState, delete_game_cover_dir};
 
 // ==================== 游戏数据相关 ====================
 
-/// 插入游戏数据（单表架构）
+/// 插入游戏数据（聚合架构）
 #[tauri::command]
 pub async fn insert_game(
     db: State<'_, DatabaseConnection>,
@@ -77,7 +77,7 @@ pub async fn find_game_ids(
         .map_err(|e| format!("获取游戏 ID 列表失败: {}", e))
 }
 
-/// 更新游戏数据（单表架构）
+/// 更新游戏数据（聚合架构）
 #[tauri::command]
 pub async fn update_game(
     db: State<'_, DatabaseConnection>,

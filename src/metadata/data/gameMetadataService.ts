@@ -217,6 +217,9 @@ class GameMetadataService {
 		);
 	}
 
+	/**
+	 * 根据名称搜索单个数据源
+	 */
 	async searchByName(params: {
 		query: string;
 		source: SourceType;
@@ -344,6 +347,12 @@ class GameMetadataService {
 		}
 	}
 
+	/**
+	 * 处理“用户从搜索结果中选择一项”后的详情补全。
+	 * 规则：
+	 * - mixed 搜索：直接返回原数据
+	 * - 单源名称搜索：仅特定数据源（如 ymgal/kun）需要按 id 拉取完整详情
+	 */
 	async resolveSourceCandidateSelection(params: {
 		candidate: SourceCandidate;
 		defaults?: Partial<GameMetadataDraft>;

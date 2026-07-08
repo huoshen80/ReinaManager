@@ -1,6 +1,13 @@
 /**
  * @file 游戏数据服务
  * @description 封装所有游戏相关的后端调用
+ *
+ * 重构说明:
+ * - 采用聚合架构，元数据分离为 game_sources 表管理
+ * - 使用 DTO 模式区分读取、插入、更新操作
+ * - InsertGameParams: 新增游戏
+ * - UpdateGameParams: 更新游戏（支持三态逻辑）
+ * - FullGameData: 读取游戏数据
  */
 
 import type {
@@ -18,7 +25,7 @@ type WireBatchOperationResult = Omit<BatchOperationResult, "games"> & {
 
 class GameService extends BaseService {
 	/**
-	 * 插入游戏数据（单表架构）
+	 * 插入游戏数据（聚合架构）
 	 * @param game 插入参数（不含 id 和时间戳）
 	 */
 	async insertGame(game: InsertGameParams): Promise<FullGameData> {
@@ -88,7 +95,7 @@ class GameService extends BaseService {
 	}
 
 	/**
-	 * 更新游戏数据（单表架构）
+	 * 更新游戏数据（聚合架构）
 	 *
 	 * 支持三态逻辑：
 	 * - undefined: 不修改
@@ -138,10 +145,18 @@ class GameService extends BaseService {
 		});
 	}
 
+	/**
+	 * 获取所有游戏的 BGM ID 列表
+	 * @returns 返回 [id, bgm_id] 的数组，只包含有 BGM ID 的游戏
+	 */
 	async getAllBgmIds(): Promise<Array<[number, string]>> {
 		return this.getSourceBindings("bgm");
 	}
 
+	/**
+	 * 获取所有游戏的 VNDB ID 列表
+	 * @returns 返回 [id, vndb_id] 的数组，只包含有 VNDB ID 的游戏
+	 */
 	async getAllVndbIds(): Promise<Array<[number, string]>> {
 		return this.getSourceBindings("vndb");
 	}

@@ -47,6 +47,7 @@ pub enum GameType {
 pub struct GamesRepository;
 
 impl GamesRepository {
+    /// 缺省游戏状态：想玩 / WISH
     const DEFAULT_PLAY_STATUS: i32 = 1;
     const MIXED_NAME_PRIORITY: [&str; 4] = ["bgm", "vndb", "ymgal", "kun"];
     const FULL_GAME_SELECT: &str = r#"
@@ -183,6 +184,8 @@ impl GamesRepository {
                 .and_then(|data| Self::extract_source_date(data.as_ref()))
         })
     }
+
+    // ==================== 私有方法 ====================
 
     async fn current_source_data<C>(
         db: &C,
@@ -352,6 +355,8 @@ impl GamesRepository {
             .await?
             .ok_or_else(|| DbErr::RecordNotFound(format!("game {} not found", model.id)))
     }
+
+    // ==================== 游戏 CRUD 操作 ====================
 
     pub async fn insert(
         db: &DatabaseConnection,
@@ -540,12 +545,15 @@ impl GamesRepository {
         sort_order: SortOrder,
         language: Option<String>,
     ) -> Result<Vec<i32>, DbErr> {
+        // 名称排序：应用层排序，名称来自 JSON 列
         if matches!(sort_option, SortOption::Namesort) {
             return Self::find_name_sorted_ids(db, game_type, sort_order, language).await;
         }
 
         Self::find_ids_sql(db, game_type, sort_option, sort_order).await
     }
+
+    // ==================== 查询操作 ====================
 
     async fn find_full_games_in_order<C>(db: &C, ids: &[i32]) -> Result<Vec<FullGameData>, DbErr>
     where
@@ -636,6 +644,10 @@ impl GamesRepository {
             .await
     }
 
+    /// 获取所有非空本地路径，用于扫描去重
+    ///
+    /// 返回数据库中所有 `localpath` 字段的集合（仅非 NULL 值），
+    /// 使用 `HashSet` 以便调用方做 O(1) 精确匹配；前缀检查由调用方负责。
     pub async fn get_all_localpaths(db: &DatabaseConnection) -> Result<HashSet<String>, DbErr> {
         Games::find()
             .select_only()
@@ -661,6 +673,7 @@ impl GamesRepository {
         }
     }
 
+    /// 发行日期排序：无日期的游戏始终置末尾，升序/降序只影响非空日期。
     fn apply_date_order(query: Select<Games>, sort_order: SortOrder) -> Select<Games> {
         let query = query.order_by(Expr::col(games::Column::Date).is_null(), Order::Asc);
         match sort_order {
@@ -670,6 +683,7 @@ impl GamesRepository {
         .order_by_asc(games::Column::Id)
     }
 
+    /// 最近游玩排序：无游玩记录始终置末尾，升序按最近优先，降序按最久优先。
     fn apply_last_played_order(query: Select<Games>, sort_order: SortOrder) -> Select<Games> {
         let query = query.left_join(game_statistics::Entity).order_by(
             Expr::col(game_statistics::Column::LastPlayed).is_null(),
@@ -682,6 +696,7 @@ impl GamesRepository {
         .order_by_asc(games::Column::Id)
     }
 
+    /// 应用层排序：按可选数值键排序，None 值统一置末尾
     fn apply_optional_expression_order(
         query: Select<Games>,
         expression: &str,
@@ -751,6 +766,12 @@ impl GamesRepository {
         query.into_tuple::<i32>().all(db).await
     }
 
+    /// 从游戏记录中提取用于排序的显示名称
+    ///
+    /// 优先级与前端 `getGameDisplayName` 保持一致：
+    /// `custom_data.name` > `name_cn`（仅 zh-CN）> 按 `id_type` 取 `name`
+    ///
+    /// 返回值为排序键字符串：zh-CN 时汉字转拼音，其他情况转小写
     async fn find_name_sorted_ids(
         db: &DatabaseConnection,
         game_type: GameType,
