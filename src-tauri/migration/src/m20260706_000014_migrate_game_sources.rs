@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         ensure_sqlite_version(manager.get_connection()).await?;
 
-        let backup_path = backup_sqlite("pre_source_table_v1").await?;
+        let backup_path = backup_sqlite("source_table_v2").await?;
         log::info!(
             "[MIGRATION] Source table backup created: {}",
             backup_path.display()
