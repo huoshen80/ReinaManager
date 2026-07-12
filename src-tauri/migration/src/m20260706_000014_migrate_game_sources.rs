@@ -3,6 +3,7 @@
 use crate::backup::backup_sqlite;
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::sea_orm::{ConnectionTrait, Statement, TransactionTrait};
+use std::path::Path;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -19,11 +20,16 @@ impl MigrationTrait for Migration {
         );
 
         let transaction = manager.get_connection().begin().await?;
+        isolate_invalid_json(&transaction, &backup_path).await?;
         migrate_schema(&transaction).await?;
+        ensure_database_integrity(&transaction).await?;
         transaction.commit().await?;
 
-        vacuum_database(manager.get_connection()).await?;
-        ensure_database_integrity(manager.get_connection()).await
+        if let Err(error) = vacuum_database(manager.get_connection()).await {
+            log::warn!("[MIGRATION] VACUUM failed: {}", error);
+        }
+
+        Ok(())
     }
 
     async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
@@ -158,6 +164,60 @@ where
             )));
         }
     }
+
+    Ok(())
+}
+
+async fn isolate_invalid_json<C>(connection: &C, backup_path: &Path) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    isolate_invalid_json_column(connection, "custom_data", "custom_data", backup_path).await?;
+
+    for source in SOURCES {
+        isolate_invalid_json_column(connection, source.data_column, source.key, backup_path)
+            .await?;
+    }
+
+    Ok(())
+}
+
+async fn isolate_invalid_json_column<C>(
+    connection: &C,
+    column: &str,
+    label: &str,
+    backup_path: &Path,
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    let invalid_count = query_count(
+        connection,
+        &format!(
+            "SELECT COUNT(*) AS count FROM games \
+             WHERE {column} IS NOT NULL AND NOT json_valid({column})"
+        ),
+    )
+    .await?;
+    if invalid_count == 0 {
+        return Ok(());
+    }
+
+    let game_ids = invalid_json_game_ids(connection, column).await?;
+    log::warn!(
+        "[MIGRATION] Isolating {} invalid JSON row(s) from {}, game_id={:?}; original data is preserved in backup {}",
+        invalid_count,
+        label,
+        game_ids,
+        backup_path.display()
+    );
+
+    connection
+        .execute_unprepared(&format!(
+            "UPDATE games SET {column} = NULL \
+             WHERE {column} IS NOT NULL AND NOT json_valid({column})"
+        ))
+        .await?;
 
     Ok(())
 }
