@@ -1,3 +1,4 @@
+import { join } from "@tauri-apps/api/path";
 import i18n from "@/providers/i18n";
 import {
 	type CloudPlayStatusContext,
@@ -239,8 +240,10 @@ export async function buildInsertGameData(
 	};
 }
 
-function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
-	return item.selectedExe ? `${item.path}\\${item.selectedExe}` : item.path;
+async function getBatchImportLocalPath(
+	item: BatchImportGameCandidate,
+): Promise<string> {
+	return item.selectedExe ? await join(item.path, item.selectedExe) : item.path;
 }
 
 export function buildMetadataUpdatePayload(
@@ -387,9 +390,10 @@ export async function buildBulkImportGameData(
 	item: BatchImportGameCandidate,
 	cloudStatusContext?: CloudPlayStatusContext,
 ): Promise<InsertGameParams> {
+	const localpath = await getBatchImportLocalPath(item);
 	if (item.matchedData) {
 		return buildInsertGameData(item.matchedData, {
-			localpath: getBatchImportLocalPath(item),
+			localpath,
 			cloudStatusContext,
 		});
 	}
@@ -400,7 +404,7 @@ export async function buildBulkImportGameData(
 		custom_data: {
 			name: item.name,
 		},
-		localpath: getBatchImportLocalPath(item),
+		localpath,
 	};
 }
 
