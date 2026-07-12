@@ -27,6 +27,7 @@ import {
 } from "../sourceRegistry";
 import {
 	buildGameFromMixedSelection,
+	type MetadataFetchResult,
 	type MixedSourceCandidates,
 	type MixedSourceEnabled,
 	type MixedSourceSelection,
@@ -278,7 +279,10 @@ class GameMetadataService {
 		bgmToken?: string;
 		mixedEnabledSources?: readonly SourceType[];
 		signal?: AbortSignal;
-	}): Promise<MixedSourceCandidates> {
+	}): Promise<{
+		candidates: MixedSourceCandidates;
+		failedSources: SourceType[];
+	}> {
 		const { query, bgmToken, mixedEnabledSources, signal } = params;
 
 		try {
@@ -289,9 +293,15 @@ class GameMetadataService {
 				signal,
 			});
 
-			return Object.fromEntries(
-				REGISTERED_SOURCE_KEYS.map((source) => [source, result[source] ?? []]),
-			) as MixedSourceCandidates;
+			return {
+				candidates: Object.fromEntries(
+					REGISTERED_SOURCE_KEYS.map((source) => [
+						source,
+						result.candidates[source] ?? [],
+					]),
+				) as MixedSourceCandidates,
+				failedSources: result.failedSources,
+			};
 		} catch (error) {
 			throw createMetadataError(
 				"Failed to search mixed source candidates by name",
@@ -440,7 +450,7 @@ class GameMetadataService {
 				signal,
 			});
 
-			return mergeMixedResult(pickFirstMixedResult(result));
+			return mergeMixedResult(pickFirstMixedResult(result.candidates));
 		} catch (error) {
 			throw createMetadataError(
 				"Failed to search mixed metadata by name",
@@ -464,7 +474,7 @@ class GameMetadataService {
 		sourceIds?: SourceIdMap;
 		bgmToken?: string;
 		enabledSources?: readonly SourceType[];
-	}): Promise<GameMetadataDraft> {
+	}): Promise<MetadataFetchResult> {
 		const { sourceIds, bgmToken, enabledSources } = params;
 		const enabledSourceIds = getEnabledSourceIds(sourceIds, enabledSources);
 		const providedSources = REGISTERED_SOURCE_KEYS.filter((source) =>
@@ -486,11 +496,14 @@ class GameMetadataService {
 					enabledSources,
 				});
 				const mergedResult = ensureMixedResult(
-					mergeMixedResult(pickFirstMixedResult(result)),
+					mergeMixedResult(pickFirstMixedResult(result.candidates)),
 				);
 				mergedResult.id_type = this.determineIdType(mergedResult);
 
-				return mergedResult;
+				return {
+					data: mergedResult,
+					failedSources: result.failedSources,
+				};
 			}
 
 			const results = await Promise.all(
@@ -531,7 +544,10 @@ class GameMetadataService {
 			}
 			mergedGame.id_type = this.determineIdType(mergedGame);
 
-			return mergedGame;
+			return {
+				data: mergedGame,
+				failedSources: [],
+			};
 		} catch (error) {
 			throw createMetadataError(
 				"Failed to fetch metadata by multiple ids",

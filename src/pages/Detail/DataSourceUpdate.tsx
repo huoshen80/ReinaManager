@@ -21,7 +21,10 @@ import GameSelectDialog from "@/components/AddModal/GameSelectDialog";
 import MixedSourceConfirmDialog from "@/components/AddModal/MixedSourceConfirmDialog";
 import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
 import { getRuntimeSourceAdapter, SEARCHABLE_SOURCE_KEYS } from "@/metadata";
-import { fetchMetadataForUpdate } from "@/metadata/data/metadata";
+import {
+	fetchMetadataForUpdate,
+	type MetadataFetchResult,
+} from "@/metadata/data/metadata";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
 import { isBgmAuthExpiredError, withBgmAuth } from "@/services/bgmAuthSession";
@@ -39,8 +42,11 @@ import { getGameDisplayName } from "@/utils/game";
 interface DataSourceUpdateProps {
 	selectedGame: GameData;
 	sourceAvailability: Record<SourceType, boolean>;
-	onDataFetched: (data: GameMetadataDraft) => void;
-	onDirectDataUpdate: (data: GameMetadataDraft) => Promise<void>;
+	onDataFetched: (result: MetadataFetchResult) => void;
+	onDirectDataUpdate: (
+		data: GameMetadataDraft,
+		failedSources?: readonly SourceType[],
+	) => Promise<void>;
 	onSourceSwitch: (idType: string) => Promise<void>;
 	disabled?: boolean;
 }

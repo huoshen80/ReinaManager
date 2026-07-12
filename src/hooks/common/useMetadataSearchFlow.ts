@@ -26,6 +26,7 @@ interface SearchResultState {
 interface MixedCandidateState {
 	open: boolean;
 	candidates: MixedSourceCandidates;
+	failedSources: SourceType[];
 }
 
 interface SearchMetadataParams {
@@ -38,7 +39,10 @@ interface SearchMetadataParams {
 interface MetadataSearchFlowOptions {
 	mixedEnabledSources?: readonly SourceType[];
 	t: TFunction;
-	onResolved: (gameData: GameMetadataDraft) => void | Promise<void>;
+	onResolved: (
+		gameData: GameMetadataDraft,
+		failedSources?: readonly SourceType[],
+	) => void | Promise<void>;
 	onError: (message: string) => void;
 }
 
@@ -90,6 +94,7 @@ export function useMetadataSearchFlow({
 		useState<MixedCandidateState>({
 			open: false,
 			candidates: EMPTY_MIXED_CANDIDATES,
+			failedSources: [],
 		});
 	const [isSearching, setIsSearching] = useState(false);
 
@@ -106,6 +111,7 @@ export function useMetadataSearchFlow({
 		setMixedCandidateState({
 			open: false,
 			candidates: EMPTY_MIXED_CANDIDATES,
+			failedSources: [],
 		});
 	}, []);
 
@@ -131,18 +137,19 @@ export function useMetadataSearchFlow({
 							});
 						return withAbort ? withAbort(candidatesPromise) : candidatesPromise;
 					};
-					const candidates =
+					const result =
 						mixedEnabledSources?.includes("bgm") === false
 							? await searchMixedCandidates()
 							: await withBgmAuth(searchMixedCandidates);
 
-					if (!hasAnyMixedCandidate(candidates)) {
+					if (!hasAnyMixedCandidate(result.candidates)) {
 						throw new Error(getNoResultsText(source));
 					}
 
 					setMixedCandidateState({
 						open: true,
-						candidates,
+						candidates: result.candidates,
+						failedSources: result.failedSources,
 					});
 					return;
 				}
@@ -239,7 +246,7 @@ export function useMetadataSearchFlow({
 					selection,
 					enabled,
 				});
-				await onResolved(gameData);
+				await onResolved(gameData, mixedCandidateState.failedSources);
 				closeMixedCandidates();
 			} catch (error) {
 				closeMixedCandidates();
@@ -248,7 +255,13 @@ export function useMetadataSearchFlow({
 				setIsSearching(false);
 			}
 		},
-		[closeMixedCandidates, onError, onResolved, t],
+		[
+			closeMixedCandidates,
+			mixedCandidateState.failedSources,
+			onError,
+			onResolved,
+			t,
+		],
 	);
 
 	return useMemo(

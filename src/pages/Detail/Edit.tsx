@@ -15,10 +15,18 @@ import { ViewGameBox } from "@/components/AlertBox";
 import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import { useUpdateGame } from "@/hooks/queries/useGames";
-import { buildMetadataUpdatePayload } from "@/metadata/data/metadata";
+import {
+	buildMetadataUpdatePayload,
+	type MetadataFetchResult,
+} from "@/metadata/data/metadata";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
-import type { GameData, GameMetadataDraft, UpdateGameParams } from "@/types";
+import type {
+	GameData,
+	GameMetadataDraft,
+	SourceType,
+	UpdateGameParams,
+} from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { EMPTY_SOURCE_AVAILABILITY } from "@/utils/game/gameIndex";
 import { DataSourceUpdate } from "./DataSourceUpdate";
@@ -47,14 +55,21 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 
 	// UI 状态
 	const [gameData, setGameData] = useState<GameMetadataDraft | null>(null);
+	const [failedSources, setFailedSources] = useState<readonly SourceType[]>([]);
 	const [openViewBox, setOpenViewBox] = useState(false);
 	const sourceAvailability =
 		gameIndex.sourceAvailabilityById.get(id) ?? EMPTY_SOURCE_AVAILABILITY;
 	const rawGame = gameIndex.rawById.get(id);
 
-	const updateGameFromMetadata = async (data: GameMetadataDraft) => {
+	const updateGameFromMetadata = async (
+		data: GameMetadataDraft,
+		failedMetadataSources: readonly SourceType[] = [],
+	) => {
 		await fileService.deleteCloudCoverCache(id);
-		const updateData: UpdateGameParams = buildMetadataUpdatePayload(data);
+		const updateData: UpdateGameParams = buildMetadataUpdatePayload(
+			data,
+			failedMetadataSources,
+		);
 		await updateGameMutation.mutateAsync({ gameId: id, updates: updateData });
 		snackbar.success(t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"));
 	};
@@ -62,14 +77,15 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 	// 确认更新游戏数据（从数据源）
 	const handleConfirmGameUpdate = async () => {
 		if (gameData) {
-			await updateGameFromMetadata(gameData);
+			await updateGameFromMetadata(gameData, failedSources);
 			setOpenViewBox(false);
 		}
 	};
 
 	// 处理数据源获取的数据
-	const handleDataSourceFetched = (result: GameMetadataDraft) => {
-		setGameData(result);
+	const handleDataSourceFetched = (result: MetadataFetchResult) => {
+		setGameData(result.data);
+		setFailedSources(result.failedSources);
 		setOpenViewBox(true);
 	};
 

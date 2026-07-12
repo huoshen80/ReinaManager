@@ -79,6 +79,11 @@ export type MixedSourceSelection = Partial<
 >;
 export type MixedSourceEnabled = Partial<Record<SourceType, boolean>>;
 
+export interface MetadataFetchResult {
+	data: GameMetadataDraft;
+	failedSources: SourceType[];
+}
+
 export function mergeMixedResult(
 	result: MixedSourceResult,
 ): GameMetadataDraft | null {
@@ -135,7 +140,7 @@ export async function fetchMetadataForUpdate({
 	sourceIds,
 	enabledSources,
 	bgmToken,
-}: SourceUpdateParams): Promise<GameMetadataDraft> {
+}: SourceUpdateParams): Promise<MetadataFetchResult> {
 	if (!selectedGame) {
 		throw new Error(
 			i18n.t("pages.Detail.DataSourceUpdate.noGameSelected", "未选择游戏"),
@@ -151,16 +156,17 @@ export async function fetchMetadataForUpdate({
 		);
 	}
 
-	let apiData: GameMetadataDraft;
-
 	if (idType === "mixed") {
 		const enabled = new Set(enabledSources ?? MIXED_SOURCE_KEYS);
-		apiData = await gameMetadataService.getGameByIds({
+		return gameMetadataService.getGameByIds({
 			sourceIds,
 			bgmToken: enabled.has("bgm") ? bgmToken : undefined,
 			enabledSources,
 		});
-	} else if (isSourceType(idType)) {
+	}
+
+	let apiData: GameMetadataDraft;
+	if (isSourceType(idType)) {
 		const sourceId = sourceIds?.[idType];
 		if (!sourceId) {
 			throw new Error(
@@ -184,7 +190,10 @@ export async function fetchMetadataForUpdate({
 		);
 	}
 
-	return apiData;
+	return {
+		data: apiData,
+		failedSources: [],
+	};
 }
 
 function getGameCandidateDate(gameData: GameMetadataDraft): string | undefined {
@@ -236,9 +245,11 @@ function getBatchImportLocalPath(item: BatchImportGameCandidate): string {
 
 export function buildMetadataUpdatePayload(
 	gameData: GameMetadataDraft,
+	failedSources: readonly SourceType[] = [],
 ): UpdateGameParams {
 	const records = candidateSourcesToGameSources(gameData.sources);
 	const presentSources = new Set(records.map((record) => record.source));
+	const failedSourceSet = new Set(failedSources);
 	const sourceDate = getGameCandidateDate(gameData);
 	const updateData: UpdateGameParams = {
 		id_type: gameData.id_type,
@@ -252,12 +263,12 @@ export function buildMetadataUpdatePayload(
 			(record) => record.source === gameData.id_type,
 		);
 		updateData.remove_sources = REGISTERED_SOURCE_KEYS.filter(
-			(source) => source !== gameData.id_type,
+			(source) => source !== gameData.id_type && !failedSourceSet.has(source),
 		);
 	} else {
 		updateData.upsert_sources = records;
 		updateData.remove_sources = REGISTERED_SOURCE_KEYS.filter(
-			(source) => !presentSources.has(source),
+			(source) => !presentSources.has(source) && !failedSourceSet.has(source),
 		);
 	}
 

@@ -47,6 +47,11 @@ export type MixedSourceCandidateResult = Partial<
 	Record<SourceType, SourceCandidate[]>
 >;
 
+export interface MixedSourceFetchResult {
+	candidates: MixedSourceCandidateResult;
+	failedSources: SourceType[];
+}
+
 interface FetchMixedDataOptions {
 	sourceIds?: Partial<Record<SourceType, string>>;
 	name?: string;
@@ -95,16 +100,19 @@ function assertNotAllAttemptedSourcesFailed(
 	}
 }
 
-function toSourceResult(
-	results: SafeFetchResult[],
-): MixedSourceCandidateResult {
+function toSourceResult(results: SafeFetchResult[]): MixedSourceFetchResult {
 	const mixedResult: MixedSourceCandidateResult = {};
 
 	for (const result of results) {
 		mixedResult[result.source] = result.data;
 	}
 
-	return mixedResult;
+	return {
+		candidates: mixedResult,
+		failedSources: results
+			.filter((result) => result.failed)
+			.map((result) => result.source),
+	};
 }
 
 function extractNameFromApi(
