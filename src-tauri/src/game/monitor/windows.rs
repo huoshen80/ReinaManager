@@ -37,7 +37,7 @@ use windows::Win32::{
             PROCESS_TERMINATE, QueryFullProcessImageNameW, TerminateProcess,
         },
     },
-    UI::WindowsAndMessaging::GetWindowThreadProcessId,
+    UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
 };
 
 // ============================================================================
@@ -473,9 +473,7 @@ fn start_foreground_hook(
     tokio::task::spawn_blocking(move || {
         debug!("前台窗口 Hook 线程已启动");
 
-        use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
-
-        let mut last_pid: u32 = 0;
+        let mut last_pid = None;
 
         // 双重路径预处理：原始路径 + 真实物理规范化路径（如果可获取）
         let canonical_game_dir = std::fs::canonicalize(&game_directory)
@@ -487,81 +485,90 @@ fn start_foreground_hook(
             // 200ms 检查一次，平衡响应速度和性能
             std::thread::sleep(Duration::from_millis(200));
 
-            unsafe {
-                let hwnd = GetForegroundWindow();
-                if hwnd.0.is_null() {
-                    // 没有前台窗口，更新状态后继续
-                    state.write().is_foreground = false;
-                    continue;
-                }
-
-                let mut new_pid: u32 = 0;
-                GetWindowThreadProcessId(hwnd, Some(&mut new_pid));
-
-                if new_pid == 0 {
-                    continue;
-                }
-
-                // 只有当 PID 变化时才处理
-                if new_pid == last_pid {
-                    continue;
-                }
-
-                last_pid = new_pid;
-
-                // 检查 1：新 PID 是否在候选列表中
-                let is_in_candidates = candidate_pids.read().contains(&new_pid);
-
-                if is_in_candidates {
-                    // 更新状态（缩小锁的持有范围）
-                    {
-                        let mut s = state.write();
-                        s.is_foreground = true;
-                        if s.best_pid != new_pid {
-                            s.best_pid = new_pid;
-                            debug!("前台窗口切换到已知游戏进程: PID {}", new_pid);
-                        }
-                    }
-                    continue;
-                }
-
-                // 检查 2：新 PID 的可执行文件是否在游戏目录下（逃逸检测）
-                if let Some(exe_path) = get_process_executable_path(new_pid) {
-                    let exe_path_str = exe_path.to_string_lossy();
-                    // 双重无开销短路匹配
-                    let mut matches = is_sub_path_ignore_case(&exe_path_str, &game_directory);
-                    if !matches && let Some(canon_str) = &canonical_game_dir {
-                        matches = is_sub_path_ignore_case(&exe_path_str, canon_str);
-                    }
-
-                    if matches {
-                        // 发现新的游戏进程！
-                        info!(
-                            "检测到新的游戏进程（逃逸）: PID {}, 路径: {}",
-                            new_pid, exe_path_str
-                        );
-
-                        // 添加到候选列表
-                        candidate_pids.write().insert(new_pid);
-
-                        // 更新状态
-                        {
-                            let mut s = state.write();
-                            s.is_foreground = true;
-                            s.best_pid = new_pid;
-                        }
-
-                        continue;
-                    }
-                }
-
-                // 否则，前台窗口不属于游戏
-                state.write().is_foreground = false;
-            }
+            update_foreground_state(
+                &state,
+                &candidate_pids,
+                &game_directory,
+                canonical_game_dir.as_deref(),
+                &mut last_pid,
+                get_foreground_pid(),
+            );
         }
 
         debug!("前台窗口 Hook 线程已停止");
     });
+}
+
+/// 获取当前前台窗口所属的进程 PID。
+fn get_foreground_pid() -> Option<u32> {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return None;
+        }
+
+        let mut pid = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        (pid != 0).then_some(pid)
+    }
+}
+
+/// 根据当前前台 PID 更新单个游戏会话的状态。
+fn update_foreground_state(
+    state: &RwLock<MonitorState>,
+    candidate_pids: &RwLock<HashSet<u32>>,
+    game_directory: &str,
+    canonical_game_dir: Option<&str>,
+    last_pid: &mut Option<u32>,
+    foreground_pid: Option<u32>,
+) {
+    let Some(new_pid) = foreground_pid else {
+        // 无有效窗口时同时失效 PID 缓存，确保同一 PID 恢复后会重新判断。
+        *last_pid = None;
+        state.write().is_foreground = false;
+        return;
+    };
+
+    // 候选集会被主监控循环更新，因此必须先检查候选集，再按 PID 去重。
+    if candidate_pids.read().contains(&new_pid) {
+        *last_pid = Some(new_pid);
+        let mut session_state = state.write();
+        session_state.is_foreground = true;
+        if session_state.best_pid != new_pid {
+            session_state.best_pid = new_pid;
+            debug!("前台窗口切换到已知游戏进程: PID {}", new_pid);
+        }
+        return;
+    }
+
+    // 未知 PID 仅在变化时执行较重的进程路径查询。
+    if *last_pid == Some(new_pid) {
+        return;
+    }
+    *last_pid = Some(new_pid);
+
+    if let Some(exe_path) = get_process_executable_path(new_pid) {
+        let exe_path_str = exe_path.to_string_lossy();
+        let mut matches = is_sub_path_ignore_case(&exe_path_str, game_directory);
+        if !matches && let Some(canonical_game_dir) = canonical_game_dir {
+            matches = is_sub_path_ignore_case(&exe_path_str, canonical_game_dir);
+        }
+
+        if matches {
+            info!(
+                "检测到新的游戏进程（逃逸）: PID {}, 路径: {}",
+                new_pid, exe_path_str
+            );
+            candidate_pids.write().insert(new_pid);
+
+            let mut session_state = state.write();
+            session_state.is_foreground = true;
+            session_state.best_pid = new_pid;
+            return;
+        }
+    }
+
+    state.write().is_foreground = false;
 }
 
 // ============================================================================
@@ -830,4 +837,69 @@ fn get_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("系统时间错误: 时间回溯")
         .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn same_pid_recovers_after_foreground_becomes_unavailable() {
+        let state = RwLock::new(MonitorState::new(123));
+        let candidate_pids = RwLock::new(HashSet::from([123]));
+        let mut last_pid = None;
+
+        update_foreground_state(
+            &state,
+            &candidate_pids,
+            "C:\\Games\\Example",
+            None,
+            &mut last_pid,
+            Some(123),
+        );
+        assert!(state.read().is_foreground);
+
+        update_foreground_state(
+            &state,
+            &candidate_pids,
+            "C:\\Games\\Example",
+            None,
+            &mut last_pid,
+            None,
+        );
+        assert!(!state.read().is_foreground);
+        assert_eq!(last_pid, None);
+
+        update_foreground_state(
+            &state,
+            &candidate_pids,
+            "C:\\Games\\Example",
+            None,
+            &mut last_pid,
+            Some(123),
+        );
+        assert!(state.read().is_foreground);
+    }
+
+    #[test]
+    fn same_pid_is_rechecked_after_becoming_candidate() {
+        let state = RwLock::new(MonitorState::new(1));
+        let candidate_pids = RwLock::new(HashSet::new());
+        // 模拟该 PID 已按非游戏进程处理，但随后被主监控循环加入候选集。
+        let mut last_pid = Some(123);
+        candidate_pids.write().insert(123);
+
+        update_foreground_state(
+            &state,
+            &candidate_pids,
+            "C:\\Games\\Example",
+            None,
+            &mut last_pid,
+            Some(123),
+        );
+
+        let state = state.read();
+        assert!(state.is_foreground);
+        assert_eq!(state.best_pid, 123);
+    }
 }
