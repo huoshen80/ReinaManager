@@ -217,9 +217,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const handleSelectExeFile = async (key: keyof PathSettingsDraft) => {
 		try {
 			const currentPath = draft[key];
-			const selectedPath = await handleExeFile(
-				currentPath ? dirname(currentPath) : "",
-			);
+			const selectedPath = await handleExeFile(dirname(currentPath));
 			if (selectedPath) {
 				const nextDraft = { ...draft, [key]: selectedPath };
 				setDraft(nextDraft);
