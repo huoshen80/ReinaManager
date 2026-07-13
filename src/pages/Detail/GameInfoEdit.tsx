@@ -1171,14 +1171,16 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 									: undefined
 							}
 							sx={{ flex: 2, minWidth: 0 }}
-							InputProps={{
-								endAdornment: (
-									<InputAdornment position="end">
-										<Typography aria-hidden color="text.secondary">
-											{PATH_SEPARATOR}
-										</Typography>
-									</InputAdornment>
-								),
+							slotProps={{
+								input: {
+									endAdornment: (
+										<InputAdornment position="end">
+											<Typography aria-hidden color="text.secondary">
+												{PATH_SEPARATOR}
+											</Typography>
+										</InputAdornment>
+									),
+								},
 							}}
 						/>
 						<TextField
@@ -1197,19 +1199,21 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 									: undefined
 							}
 							sx={{ flex: 1, minWidth: "10rem" }}
-							InputProps={{
-								endAdornment: (
-									<InputAdornment position="end">
-										<IconButton
-											onClick={handleSelectExecutable}
-											disabled={isLoading || disabled}
-											edge="end"
-											size="small"
-										>
-											<FileOpenIcon />
-										</IconButton>
-									</InputAdornment>
-								),
+							slotProps={{
+								input: {
+									endAdornment: (
+										<InputAdornment position="end">
+											<IconButton
+												onClick={handleSelectExecutable}
+												disabled={isLoading || disabled}
+												edge="end"
+												size="small"
+											>
+												<FileOpenIcon />
+											</IconButton>
+										</InputAdornment>
+									),
+								},
 							}}
 						/>
 					</Box>

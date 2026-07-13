@@ -12,6 +12,7 @@ import {
 	Divider,
 	FormControlLabel,
 	IconButton,
+	InputAdornment,
 	List,
 	ListItem,
 	ListItemText,
@@ -327,31 +328,37 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 								{t("pages.Detail.Backup.savePathSettings", "存档路径设置")}
 							</Typography>
 
-							<Box sx={{ display: "flex", gap: 1 }}>
-								<TextField
-									label={t(
-										"pages.Detail.Backup.saveDataPath",
-										"存档文件夹路径",
-									)}
-									variant="outlined"
-									fullWidth
-									value={saveDataPath}
-									onChange={(e) => setSaveDataPath(e.target.value)}
-									disabled={isSaving}
-									placeholder={t(
-										"pages.Detail.Backup.selectSaveDataFolder",
-										"选择存档文件夹",
-									)}
-								/>
-								<Button
-									variant="outlined"
-									onClick={handleSelectSaveDataPath}
-									disabled={isSaving}
-									className="min-w-10 px-1"
-								>
-									<FolderOpenIcon />
-								</Button>
-							</Box>
+							<TextField
+								label={t(
+									"pages.Detail.Backup.saveDataPath",
+									"存档文件夹路径",
+								)}
+								variant="outlined"
+								fullWidth
+								value={saveDataPath}
+								onChange={(e) => setSaveDataPath(e.target.value)}
+								disabled={isSaving}
+								placeholder={t(
+									"pages.Detail.Backup.selectSaveDataFolder",
+									"选择存档文件夹",
+								)}
+								slotProps={{
+									input: {
+										endAdornment: (
+											<InputAdornment position="end">
+												<IconButton
+													onClick={handleSelectSaveDataPath}
+													disabled={isSaving}
+													edge="end"
+													size="small"
+												>
+													<FolderOpenIcon />
+												</IconButton>
+											</InputAdornment>
+										),
+									},
+								}}
+							/>
 
 							<Divider />
 
