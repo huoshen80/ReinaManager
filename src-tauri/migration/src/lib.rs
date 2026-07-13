@@ -15,6 +15,7 @@ mod m20260508_000011_bgm_oauth;
 mod m20260525_000012_move_custom_date_to_games;
 mod m20260706_000013_reconcile_indexes;
 mod m20260706_000014_migrate_game_sources;
+mod m20260712_000015_split_game_local_path;
 
 pub struct Migrator;
 
@@ -36,6 +37,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260525_000012_move_custom_date_to_games::Migration),
             Box::new(m20260706_000013_reconcile_indexes::Migration),
             Box::new(m20260706_000014_migrate_game_sources::Migration),
+            Box::new(m20260712_000015_split_game_local_path::Migration),
         ]
     }
 }

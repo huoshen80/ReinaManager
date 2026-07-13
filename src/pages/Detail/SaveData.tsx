@@ -28,10 +28,7 @@ import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { snackbar } from "@/providers/snackBar";
-import {
-	getLocalPathPickerDirectory,
-	handleFolder,
-} from "@/services/fs/fileDialog";
+import { handleFolder } from "@/services/fs/fileDialog";
 import {
 	openGameBackupFolder,
 	openGameSaveDataFolder,
@@ -162,10 +159,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 
 	// 选择存档文件夹
 	const handleSelectSaveDataPath = async () => {
-		const defaultPath = await getLocalPathPickerDirectory(
-			selectedGame.localpath,
-		);
-		const selectedPath = await handleFolder(defaultPath);
+		const selectedPath = await handleFolder(selectedGame.localpath ?? "");
 		if (selectedPath) {
 			setSaveDataPath(selectedPath);
 		}
@@ -353,7 +347,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 									variant="outlined"
 									onClick={handleSelectSaveDataPath}
 									disabled={isSaving}
-									sx={{ minWidth: "40px", px: 1 }}
+									className="min-w-10 px-1"
 								>
 									<FolderOpenIcon />
 								</Button>

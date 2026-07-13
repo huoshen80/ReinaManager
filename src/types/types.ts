@@ -220,6 +220,7 @@ export type IdType = apiSourceType | "custom" | "Whitecloud";
 
 interface GameRuntimePayload {
 	localpath?: Nullable<string>;
+	executable?: Nullable<string>;
 	savepath?: Nullable<string>;
 	autosave?: number;
 	maxbackups?: number;
@@ -280,11 +281,12 @@ export interface GameMetadataDraft extends GameCustomPayload {
  * - id_type 是必需的
  */
 export interface InsertGameParams
-	extends Omit<GameRuntimePayload, "localpath" | "savepath"> {
+	extends Omit<GameRuntimePayload, "localpath" | "executable" | "savepath"> {
 	id_type: IdType | string; // 必需字段
 	sources: GameSourceRecord[];
 	date?: string;
 	localpath?: string;
+	executable?: string;
 	savepath?: string;
 	custom_data?: Nullable<CustomData>;
 }
@@ -305,6 +307,7 @@ export interface UpdateGameParams {
 	// --- 核心状态（支持三态） ---
 	date?: Nullable<string>;
 	localpath?: Nullable<string>;
+	executable?: Nullable<string>;
 	savepath?: Nullable<string>;
 	autosave?: Nullable<number>;
 	maxbackups?: Nullable<number>;
@@ -344,13 +347,14 @@ export interface UpdateSettingsParams {
  * 注意：所有可选字段使用 undefined（与 Rust 后端保持一致）
  */
 export interface GameData
-	extends Omit<GameRuntimePayload, "localpath" | "savepath"> {
+	extends Omit<GameRuntimePayload, "localpath" | "executable" | "savepath"> {
 	// 基础字段
 	id: number;
 	id_type?: IdType | string;
 	sourceIds: Partial<Record<SourceType, string>>;
 	date?: string;
 	localpath?: string;
+	executable?: string;
 	savepath?: string;
 	custom_data?: CustomData;
 	created_at?: number;

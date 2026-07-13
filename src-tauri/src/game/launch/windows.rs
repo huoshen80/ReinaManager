@@ -1,12 +1,11 @@
 use crate::database::dto::UpdateSettingsData;
 use crate::database::repository::games_repository::GamesRepository;
 use crate::database::repository::settings_repository::{DbSettingsExt, SettingsRepository};
-use crate::game::local_path::{GameLaunchTarget, resolve_launch_target};
 use crate::game::monitor::{TimeTrackingMode, monitor_game, stop_game_session};
 use crate::utils::command_ext::CommandGuiExt;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::{AppHandle, Runtime, State, command};
 use {
@@ -18,8 +17,6 @@ use {
 pub struct LaunchResult {
     success: bool,
     message: String,
-    code: Option<String>,
-
     process_id: Option<u32>, // 添加进程ID字段
 }
 
@@ -250,27 +247,16 @@ pub async fn launch_game<R: Runtime>(
         .await
         .map_err(|e| format!("查询游戏失败: {}", e))?
         .ok_or_else(|| format!("游戏不存在: {}", game_id))?;
-    let launch_target = resolve_launch_target(game.localpath.as_deref());
-    let GameLaunchTarget::NormalExecutable {
-        executable_path,
-        working_dir: game_dir,
-        detection_dir,
-    } = launch_target
-    else {
-        return match launch_target {
-            GameLaunchTarget::DirectoryOnly { game_dir } => Ok(LaunchResult {
-                success: false,
-                message: format!("请选择启动程序: {}", game_dir.display()),
-                code: Some("NEED_EXECUTABLE".to_string()),
-                process_id: None,
-            }),
-            GameLaunchTarget::MissingLocalPath => Err("游戏路径未设置".to_string()),
-            GameLaunchTarget::MissingPath { raw_path } => {
-                Err(format!("游戏路径不存在: {}", raw_path.display()))
-            }
-            GameLaunchTarget::NormalExecutable { .. } => unreachable!(),
-        };
-    };
+    let game_dir = PathBuf::from(
+        game.localpath
+            .as_deref()
+            .ok_or_else(|| "游戏目录未设置".to_string())?,
+    );
+    let executable_path = game_dir.join(
+        game.executable
+            .as_deref()
+            .ok_or_else(|| "游戏启动文件未设置".to_string())?,
+    );
     let game_path = executable_path.to_string_lossy().to_string();
 
     let use_le = game.le_launch.unwrap_or(0) == 1;
@@ -346,7 +332,7 @@ pub async fn launch_game<R: Runtime>(
 
     match command.gui_safe().spawn() {
         Ok(child) => {
-            let detection_dir_str = detection_dir.to_string_lossy().to_string();
+            let detection_dir_str = game_dir.to_string_lossy().to_string();
             let process_id = child.id();
             info!(
                 "游戏启动成功 game_id={} pid={} mode={} magpie={}",
@@ -385,7 +371,6 @@ pub async fn launch_game<R: Runtime>(
                     game_dir,
                     if use_le { " (LE转区)" } else { "" }
                 ),
-                code: None,
                 process_id: Some(process_id),
             })
         }
@@ -419,7 +404,7 @@ pub async fn launch_game<R: Runtime>(
                     &game_dir,
                 ) {
                     Ok(pid) => {
-                        let detection_dir_str = detection_dir.to_string_lossy().to_string();
+                        let detection_dir_str = game_dir.to_string_lossy().to_string();
                         info!(
                             "游戏提权启动成功 game_id={} pid={} mode={} magpie={}",
                             game_id,
@@ -456,7 +441,6 @@ pub async fn launch_game<R: Runtime>(
                                 if use_le { " (LE转区)" } else { "" },
                                 game_dir
                             ),
-                            code: None,
                             process_id: Some(pid),
                         })
                     }

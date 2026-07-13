@@ -1,6 +1,6 @@
 import ContentPasteIcon from "@mui/icons-material/ContentPaste";
 import DeleteIcon from "@mui/icons-material/Delete";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import FileOpenIcon from "@mui/icons-material/FileOpen";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
@@ -20,6 +20,8 @@ import {
 	DialogContent,
 	DialogTitle,
 	FormControlLabel,
+	IconButton,
+	InputAdornment,
 	ListItemIcon,
 	ListItemText,
 	Menu,
@@ -29,6 +31,7 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
+import { sep } from "@tauri-apps/api/path";
 import { basename } from "pathe";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,10 +47,7 @@ import {
 } from "@/metadata/data/sourceImage";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
-import {
-	getLocalPathPickerDirectory,
-	handleExeFile,
-} from "@/services/fs/fileDialog";
+import { handleExeFile, splitExecutablePath } from "@/services/fs/fileDialog";
 import {
 	deleteGameCustomCovers,
 	selectImageFile,
@@ -93,6 +93,16 @@ const CHIP_INPUT_STYLE = {
 	padding: "4px",
 	color: "inherit",
 } as const;
+
+const PATH_SEPARATOR = sep();
+
+function isInvalidExecutableName(executable: string): boolean {
+	const normalized = executable.trim();
+	return (
+		normalized !== "" &&
+		(normalized === "." || normalized === ".." || /[\\/]/.test(normalized))
+	);
+}
 
 function getSourceLabel(source: SourceType): string {
 	return getRuntimeSourceAdapter(source).label;
@@ -319,6 +329,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 	// 游戏信息编辑相关状态
 	const [localPath, setLocalPath] = useState<string>("");
+	const [executable, setExecutable] = useState<string>("");
 	const [gameNote, setGameNote] = useState<string>("");
 	const [aliases, setAliases] = useState<string[]>([]);
 	const [summary, setSummary] = useState<string>("");
@@ -382,6 +393,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	const initForm = useCallback(
 		(game: GameData) => {
 			setLocalPath(game.localpath ?? "");
+			setExecutable(game.executable ?? "");
 			setGameNote(getGameDisplayName(game));
 			setAliases(game.custom_data?.aliases ?? []);
 			setSummary(game.summary ?? "");
@@ -407,6 +419,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		selectedGameSourceIdSignature,
 		selectedGame.id_type,
 		selectedGame.localpath,
+		selectedGame.executable,
 		// 3. 对于对象类型，使用 JSON 字符串化进行"值比较"
 		//    否则每次父组件刷新，custom_data 对象引用都会变，导致无限重置
 		JSON.stringify(selectedGame.custom_data),
@@ -443,6 +456,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 		return (
 			localPath !== (selectedGame.localpath ?? "") ||
+			executable !== (selectedGame.executable ?? "") ||
 			gameNote !== currentCustomName ||
 			selectedImagePath !== null || // 有选择的图片但未保存
 			shouldDeleteImage ||
@@ -456,18 +470,18 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		);
 	};
 
-	// 处理选择可执行文件路径
-	const handleSelectLocalPath = async () => {
+	// 选择完整启动文件后，拆分为游戏目录和文件名。
+	const handleSelectExecutable = async () => {
 		try {
-			const selectedPath = await handleExeFile(
-				await getLocalPathPickerDirectory(localPath),
-			);
+			const selectedPath = await handleExeFile(localPath);
 			if (selectedPath) {
-				setLocalPath(selectedPath);
+				const executablePathParts = await splitExecutablePath(selectedPath);
+				setLocalPath(executablePathParts.localpath);
+				setExecutable(executablePathParts.executable);
 			}
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.GameInfoEdit.selectPathFailed", "选择路径失败")}: ${getUserErrorMessage(error, t)}`,
+				`${t("pages.Detail.GameInfoEdit.selectExecutableFailed", "选择可执行文件失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -662,6 +676,24 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 统一保存所有更改
 	const handleSaveAll = async () => {
 		if (!hasChanges()) return;
+		if (!localPath.trim() && executable.trim()) {
+			snackbar.error(
+				t(
+					"pages.Detail.GameInfoEdit.localPathRequiredForExecutable",
+					"填写可执行文件时，游戏目录不能为空",
+				),
+			);
+			return;
+		}
+		if (isInvalidExecutableName(executable)) {
+			snackbar.error(
+				t(
+					"pages.Detail.GameInfoEdit.invalidExecutable",
+					"可执行文件必须是单个文件名，不能包含路径分隔符",
+				),
+			);
+			return;
+		}
 
 		const coverSourceChanged = hasSourceCoverChanged();
 		const originalSourceCoverImage = resolveSourceImage(
@@ -692,6 +724,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			// 2. 纯逻辑：使用纯函数构建 Payload
 			const updateData = buildGameInfoUpdatePayload(selectedGame, {
 				newLocalPath: localPath,
+				newExecutable: executable,
 				newName: gameNote,
 				newImageExt: uploadedImageExt,
 				newCoverSource: coverSource,
@@ -717,6 +750,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 			// 3. 执行保存
 			const updatedGame = await onSave(updateData);
 			setLocalPath(updatedGame.localpath ?? "");
+			setExecutable(updatedGame.executable ?? "");
 
 			if (clipboardTempImagePath) {
 				await cleanupClipboardTempImage();
@@ -1108,29 +1142,76 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 				</CardContent>
 			</Card>
 
-			{/* 可执行文件路径区域 */}
+			{/* 游戏目录与可执行文件区域 */}
 			<Card>
 				<CardContent>
 					<Typography variant="h6" gutterBottom>
 						{t("pages.Detail.GameInfoEdit.gamePath", "游戏路径")}
 					</Typography>
-					<Box className="flex gap-1">
+					<Box
+						sx={{
+							display: "flex",
+							alignItems: "flex-start",
+							gap: 1,
+						}}
+					>
 						<TextField
-							label={t("pages.Detail.GameInfoEdit.localPath", "可执行文件路径")}
+							label={t("pages.Detail.GameInfoEdit.localPath", "游戏目录")}
 							variant="outlined"
-							fullWidth
 							value={localPath}
 							onChange={(e) => setLocalPath(e.target.value)}
 							disabled={isLoading || disabled}
+							error={!localPath.trim() && Boolean(executable.trim())}
+							helperText={
+								!localPath.trim() && executable.trim()
+									? t(
+											"pages.Detail.GameInfoEdit.localPathRequiredForExecutable",
+											"填写可执行文件时，游戏目录不能为空",
+										)
+									: undefined
+							}
+							sx={{ flex: 2, minWidth: 0 }}
+							InputProps={{
+								endAdornment: (
+									<InputAdornment position="end">
+										<Typography aria-hidden color="text.secondary">
+											{PATH_SEPARATOR}
+										</Typography>
+									</InputAdornment>
+								),
+							}}
 						/>
-						<Button
+						<TextField
+							label={t("pages.Detail.GameInfoEdit.executable", "可执行文件")}
 							variant="outlined"
-							onClick={handleSelectLocalPath}
+							value={executable}
+							onChange={(e) => setExecutable(e.target.value)}
 							disabled={isLoading || disabled}
-							className="min-w-10 px-1"
-						>
-							<FolderOpenIcon />
-						</Button>
+							error={isInvalidExecutableName(executable)}
+							helperText={
+								isInvalidExecutableName(executable)
+									? t(
+											"pages.Detail.GameInfoEdit.invalidExecutable",
+											"可执行文件必须是单个文件名，不能包含路径分隔符",
+										)
+									: undefined
+							}
+							sx={{ flex: 1, minWidth: "10rem" }}
+							InputProps={{
+								endAdornment: (
+									<InputAdornment position="end">
+										<IconButton
+											onClick={handleSelectExecutable}
+											disabled={isLoading || disabled}
+											edge="end"
+											size="small"
+										>
+											<FileOpenIcon />
+										</IconButton>
+									</InputAdornment>
+								),
+							}}
+						/>
 					</Box>
 				</CardContent>
 			</Card>

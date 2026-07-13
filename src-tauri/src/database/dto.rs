@@ -51,6 +51,20 @@ fn clean_double_option_local_path(value: Option<Option<String>>) -> Option<Optio
     value.map(|inner| inner.and_then(clean_local_path))
 }
 
+/// 清洗启动文件名；合法性由仓库基于最终字段组合统一校验。
+fn clean_executable(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+fn clean_option_executable(value: Option<String>) -> Option<String> {
+    value.and_then(clean_executable)
+}
+
+fn clean_double_option_executable(value: Option<Option<String>>) -> Option<Option<String>> {
+    value.map(|inner| inner.and_then(clean_executable))
+}
+
 fn clean_bgm_auth(mut auth: BgmAuth) -> Option<BgmAuth> {
     auth.access_token = auth.access_token.trim().to_string();
     if auth.access_token.is_empty() {
@@ -66,6 +80,7 @@ impl InsertGameData {
     pub fn cleaned(mut self) -> Self {
         self.date = clean_option_string(self.date);
         self.localpath = clean_option_local_path(self.localpath);
+        self.executable = clean_option_executable(self.executable);
         self.savepath = clean_option_string(self.savepath);
         self.sources = self
             .sources
@@ -82,6 +97,7 @@ impl UpdateGameData {
     pub fn cleaned(mut self) -> Self {
         self.date = clean_double_option_string(self.date);
         self.localpath = clean_double_option_local_path(self.localpath);
+        self.executable = clean_double_option_executable(self.executable);
         self.savepath = clean_double_option_string(self.savepath);
         self.upsert_sources = self.upsert_sources.map(|sources| {
             sources
@@ -209,6 +225,7 @@ pub struct FullGameData {
     pub id_type: String,
     pub date: Option<String>,
     pub localpath: Option<String>,
+    pub executable: Option<String>,
     pub savepath: Option<String>,
     pub autosave: Option<i32>,
     pub maxbackups: Option<i32>,
@@ -229,6 +246,7 @@ pub struct InsertGameData {
     // === 核心状态 ===
     pub date: Option<String>,
     pub localpath: Option<String>,
+    pub executable: Option<String>,
     pub savepath: Option<String>,
     pub autosave: Option<i32>,
     pub maxbackups: Option<i32>,
@@ -270,6 +288,8 @@ pub struct UpdateGameData {
     pub date: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub localpath: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub executable: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub savepath: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]

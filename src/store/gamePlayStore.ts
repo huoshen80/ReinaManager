@@ -37,7 +37,6 @@ import { toError } from "@/utils/errors";
 interface LaunchGameResult {
 	success: boolean;
 	message: string;
-	code?: string | null;
 	process_id?: number;
 }
 

@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
+use std::path::{Component, Path};
 
 /// 游戏数据排序选项
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -56,6 +57,7 @@ impl GamesRepository {
             g.id_type,
             g.date,
             g.localpath,
+            g.executable,
             g.savepath,
             g.autosave,
             g.maxbackups,
@@ -140,6 +142,26 @@ impl GamesRepository {
             }
         }
 
+        Ok(())
+    }
+
+    fn validate_path_state(localpath: Option<&str>, executable: Option<&str>) -> Result<(), DbErr> {
+        if localpath.is_none() && executable.is_some() {
+            return Err(DbErr::Custom(
+                "executable 不能在 localpath 为空时单独存在".to_string(),
+            ));
+        }
+        if let Some(executable) = executable {
+            let mut components = Path::new(executable).components();
+            let is_single_file_name = matches!(components.next(), Some(Component::Normal(_)))
+                && components.next().is_none()
+                && !executable.contains(['/', '\\']);
+            if !is_single_file_name {
+                return Err(DbErr::Custom(
+                    "executable 必须是单个文件名，不能包含路径".to_string(),
+                ));
+            }
+        }
         Ok(())
     }
 
@@ -239,12 +261,41 @@ impl GamesRepository {
         Ok(updates)
     }
 
+    async fn normalize_update_path_state<C>(
+        db: &C,
+        game_id: i32,
+        mut updates: UpdateGameData,
+    ) -> Result<UpdateGameData, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if updates.localpath.is_none() && updates.executable.is_none() {
+            return Ok(updates);
+        }
+
+        let current = Games::find_by_id(game_id)
+            .one(db)
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound(format!("game {game_id} not found")))?;
+
+        // 清空目录意味着游戏不再位于本地，启动文件名必须同步清空。
+        if matches!(updates.localpath, Some(None)) {
+            updates.executable = Some(None);
+        }
+
+        let final_localpath = updates.localpath.clone().unwrap_or(current.localpath);
+        let final_executable = updates.executable.clone().unwrap_or(current.executable);
+        Self::validate_path_state(final_localpath.as_deref(), final_executable.as_deref())?;
+        Ok(updates)
+    }
+
     fn build_insert_active_model(game: &InsertGameData, now: i32) -> games::ActiveModel {
         games::ActiveModel {
             id: NotSet,
             id_type: Set(game.id_type.clone()),
             date: Set(game.date.clone()),
             localpath: Set(game.localpath.clone()),
+            executable: Set(game.executable.clone()),
             savepath: Set(game.savepath.clone()),
             autosave: Set(game.autosave),
             maxbackups: Set(game.maxbackups),
@@ -268,6 +319,7 @@ impl GamesRepository {
             id_type: updates.id_type.clone().map_or(NotSet, Set),
             date: updates.date.clone().map_or(NotSet, Set),
             localpath: updates.localpath.clone().map_or(NotSet, Set),
+            executable: updates.executable.clone().map_or(NotSet, Set),
             savepath: updates.savepath.clone().map_or(NotSet, Set),
             autosave: updates.autosave.map_or(NotSet, Set),
             maxbackups: updates.maxbackups.map_or(NotSet, Set),
@@ -344,6 +396,7 @@ impl GamesRepository {
         C: ConnectionTrait,
     {
         Self::validate_source_changes(&game.sources, &[])?;
+        Self::validate_path_state(game.localpath.as_deref(), game.executable.as_deref())?;
         Self::normalize_insert_date(&mut game);
 
         let model = Self::build_insert_active_model(&game, now)
@@ -449,6 +502,7 @@ impl GamesRepository {
             updates.remove_sources.as_deref().unwrap_or_default(),
         )?;
         let updates = Self::normalize_update_date(db, game_id, updates).await?;
+        let updates = Self::normalize_update_path_state(db, game_id, updates).await?;
 
         Self::build_update_active_model(game_id, &updates, now)
             .update(db)
@@ -598,6 +652,7 @@ impl GamesRepository {
             id_type: row.try_get("", "id_type")?,
             date: row.try_get("", "date")?,
             localpath: row.try_get("", "localpath")?,
+            executable: row.try_get("", "executable")?,
             savepath: row.try_get("", "savepath")?,
             autosave: row.try_get("", "autosave")?,
             maxbackups: row.try_get("", "maxbackups")?,
@@ -644,11 +699,13 @@ impl GamesRepository {
             .await
     }
 
-    /// 获取所有非空本地路径，用于扫描去重
+    /// 获取所有非空游戏目录，用于扫描去重
     ///
     /// 返回数据库中所有 `localpath` 字段的集合（仅非 NULL 值），
     /// 使用 `HashSet` 以便调用方做 O(1) 精确匹配；前缀检查由调用方负责。
-    pub async fn get_all_localpaths(db: &DatabaseConnection) -> Result<HashSet<String>, DbErr> {
+    pub async fn get_all_game_directories(
+        db: &DatabaseConnection,
+    ) -> Result<HashSet<String>, DbErr> {
         Games::find()
             .select_only()
             .column(games::Column::Localpath)
@@ -977,6 +1034,7 @@ mod tests {
                     id_type TEXT NOT NULL,
                     date TEXT,
                     localpath TEXT,
+                    executable TEXT,
                     savepath TEXT,
                     autosave INTEGER,
                     maxbackups INTEGER,
@@ -1038,6 +1096,7 @@ mod tests {
             id_type: id_type.to_string(),
             date: None,
             localpath: None,
+            executable: None,
             savepath: None,
             autosave: None,
             maxbackups: None,
@@ -1144,6 +1203,111 @@ mod tests {
         .unwrap();
         assert_eq!(removed.date, None);
         assert_eq!(removed.sources.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn preserves_split_path_fields_and_cascades_directory_clear() {
+        let database = setup_database().await;
+        let first_directory = Path::new("games")
+            .join("first")
+            .to_string_lossy()
+            .to_string();
+        let second_directory = Path::new("games")
+            .join("second")
+            .to_string_lossy()
+            .to_string();
+        let mut game = insert_data("custom", None, Vec::new());
+        game.localpath = Some(first_directory);
+        game.executable = Some("  game.exe  ".to_string());
+
+        let inserted = GamesRepository::insert(&database, game).await.unwrap();
+        assert_eq!(inserted.executable.as_deref(), Some("game.exe"));
+
+        let moved = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                localpath: Some(Some(second_directory.clone())),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(moved.localpath.as_deref(), Some(second_directory.as_str()));
+        assert_eq!(moved.executable.as_deref(), Some("game.exe"));
+
+        let cleared = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                localpath: Some(None),
+                executable: Some(Some("ignored.exe".to_string())),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(cleared.localpath, None);
+        assert_eq!(cleared.executable, None);
+    }
+
+    #[tokio::test]
+    async fn rejects_orphan_and_non_basename_executables() {
+        let database = setup_database().await;
+        let mut orphan = insert_data("custom", None, Vec::new());
+        orphan.executable = Some("game.exe".to_string());
+        assert!(
+            GamesRepository::insert(&database, orphan)
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("localpath")
+        );
+
+        for invalid in [".", "..", "bin/game.exe", r"bin\game.exe"] {
+            let mut game = insert_data("custom", None, Vec::new());
+            game.localpath = Some("games".to_string());
+            game.executable = Some(invalid.to_string());
+            assert!(
+                GamesRepository::insert(&database, game)
+                    .await
+                    .unwrap_err()
+                    .to_string()
+                    .contains("单个文件名"),
+                "{invalid}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn directory_only_game_is_local_and_empty_executable_becomes_null() {
+        let database = setup_database().await;
+        let mut local = insert_data("custom", None, Vec::new());
+        local.localpath = Some("games".to_string());
+        local.executable = Some("   ".to_string());
+        let inserted = GamesRepository::insert(&database, local).await.unwrap();
+        assert_eq!(inserted.executable, None);
+
+        let local_ids = GamesRepository::find_ids(
+            &database,
+            GameType::Local,
+            SortOption::Addtime,
+            SortOrder::Asc,
+            None,
+        )
+        .await
+        .unwrap();
+        let online_ids = GamesRepository::find_ids(
+            &database,
+            GameType::Online,
+            SortOption::Addtime,
+            SortOrder::Asc,
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(local_ids, vec![inserted.id]);
+        assert!(online_ids.is_empty());
     }
 
     #[tokio::test]

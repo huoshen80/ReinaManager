@@ -1,5 +1,3 @@
-use crate::game::local_path::resolve_game_directory;
-
 #[cfg(target_os = "windows")]
 use crate::utils::command_ext::CommandGuiExt;
 
@@ -52,7 +50,14 @@ fn is_supported_local_executable(path: &Path) -> bool {
 /// 操作结果
 #[command]
 pub async fn open_directory(dir_path: String) -> Result<(), String> {
-    let open_path = resolve_game_directory(&dir_path)?;
+    let dir_path = dir_path.trim();
+    if dir_path.is_empty() {
+        return Err("目录未设置".to_string());
+    }
+    let open_path = PathBuf::from(dir_path);
+    if !open_path.is_dir() {
+        return Err(format!("目录不存在或不是文件夹: {}", open_path.display()));
+    }
 
     #[cfg(target_os = "windows")]
     {
@@ -94,11 +99,6 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
             Err(e) => Err(format!("无法打开目录 '{}': {}", open_path.display(), e)),
         }
     }
-}
-
-#[command]
-pub async fn resolve_local_path_directory(local_path: String) -> Result<String, String> {
-    resolve_game_directory(&local_path).map(|path| path.to_string_lossy().to_string())
 }
 
 #[command]

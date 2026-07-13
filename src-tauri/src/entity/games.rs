@@ -22,6 +22,8 @@ pub struct Model {
     #[sea_orm(column_type = "Text", nullable)]
     pub localpath: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
+    pub executable: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
     pub savepath: Option<String>,
     pub autosave: Option<i32>,
     pub maxbackups: Option<i32>,

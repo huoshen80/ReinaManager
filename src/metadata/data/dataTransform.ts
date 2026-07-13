@@ -51,6 +51,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 		sourceIds: getSourceIdMap(fullData),
 		date: fullData.date,
 		localpath: nullToUndefined(fullData.localpath),
+		executable: nullToUndefined(fullData.executable),
 		savepath: nullToUndefined(fullData.savepath),
 		autosave: nullToUndefined(fullData.autosave),
 		maxbackups: nullToUndefined(fullData.maxbackups),

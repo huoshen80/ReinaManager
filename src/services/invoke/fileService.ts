@@ -67,13 +67,6 @@ class FileService extends BaseService {
 	}
 
 	/**
-	 * 解析本地路径对应的游戏目录
-	 */
-	async resolveLocalPathDirectory(localPath: string): Promise<string> {
-		return this.invoke<string>("resolve_local_path_directory", { localPath });
-	}
-
-	/**
 	 * 解析拖拽路径，避免前端 fs scope 限制
 	 */
 	async resolveDroppedLocalPath(

@@ -1,3 +1,4 @@
+import { basename, dirname } from "@tauri-apps/api/path";
 import { open as openDirectory } from "@tauri-apps/plugin-dialog";
 import i18next, { t } from "i18next";
 import { snackbar } from "@/providers/snackBar";
@@ -28,17 +29,20 @@ export const handleOpenFolder = async (
 	}
 };
 
-/** 获取文件选择器默认目录；历史路径失效时从默认位置打开。 */
-export const getLocalPathPickerDirectory = async (
-	localPath?: string | null,
-): Promise<string> => {
-	if (!localPath) return "";
-	try {
-		return await fileService.resolveLocalPathDirectory(localPath);
-	} catch {
-		return "";
-	}
-};
+export interface ExecutablePathParts {
+	localpath: string;
+	executable: string;
+}
+
+/** 将文件选择器返回的完整路径拆为游戏目录与文件名。 */
+export async function splitExecutablePath(
+	selectedPath: string,
+): Promise<ExecutablePathParts> {
+	return {
+		localpath: await dirname(selectedPath),
+		executable: await basename(selectedPath),
+	};
+}
 
 export const handleFolder = async (defaultPath: string = "") => {
 	const selectedPath = await openDirectory({

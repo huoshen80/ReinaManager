@@ -37,6 +37,7 @@ import { useAllSettings } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import {
 	handleExeFile,
+	splitExecutablePath,
 	trimDirnameToSearchName,
 } from "@/services/fs/fileDialog";
 import { useStore } from "@/store/appStore";
@@ -149,10 +150,10 @@ const AddModal: React.FC = () => {
 
 	const handleAddGame = useCallback(
 		async (gameData: GameMetadataDraft) => {
-			const game = await addGameFromMetadata(
-				gameData,
-				addModalPath || undefined,
-			);
+			const executablePathParts = addModalPath
+				? await splitExecutablePath(addModalPath)
+				: undefined;
+			const game = await addGameFromMetadata(gameData, executablePathParts);
 			closeAddModal();
 			showGameAddedSuccess({ gameId: game.id, navigate, t });
 		},
@@ -217,9 +218,6 @@ const AddModal: React.FC = () => {
 		}, REQUEST_TIMEOUT_MS);
 
 		try {
-			const defaultdata = {
-				localpath: addModalPath,
-			};
 			// 手动模式只写入本地路径和自定义名称，不请求元数据源。
 			if (addMode === "custom") {
 				if (!addModalPath) {
@@ -229,8 +227,9 @@ const AddModal: React.FC = () => {
 					return;
 				}
 				setCustomLoading(true);
+				const executablePathParts = await splitExecutablePath(addModalPath);
 				const customGameData: InsertGameParams = {
-					...defaultdata,
+					...executablePathParts,
 					id_type: "custom", // 标记为自定义
 					sources: [],
 					custom_data: {

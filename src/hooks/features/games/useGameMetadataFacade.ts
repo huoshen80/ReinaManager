@@ -17,6 +17,7 @@ import {
 } from "@/metadata/sourceRecord";
 import i18n from "@/providers/i18n";
 import { createCloudPlayStatusContext } from "@/services/cloudPlayStatus";
+import type { ExecutablePathParts } from "@/services/fs/fileDialog";
 import type {
 	BatchOperationResult,
 	GameMetadataDraft,
@@ -78,12 +79,15 @@ export function useSingleGameAddActions() {
 	const metadataAddActionMutation = useMutation({
 		mutationFn: async ({
 			gameData,
-			localpath,
+			executablePathParts,
 		}: {
 			gameData: GameMetadataDraft;
-			localpath?: string;
+			executablePathParts?: ExecutablePathParts;
 		}) => {
-			const insertData = await buildInsertGameData(gameData, { localpath });
+			const insertData = await buildInsertGameData(
+				gameData,
+				executablePathParts,
+			);
 
 			if (checkGameExists(insertData)) {
 				throw new Error(i18n.t("components.AddModal.gameExists", "游戏已存在"));
@@ -94,10 +98,13 @@ export function useSingleGameAddActions() {
 	});
 
 	const addGameFromMetadata = useCallback(
-		async (gameData: GameMetadataDraft, localpath?: string) => {
+		async (
+			gameData: GameMetadataDraft,
+			executablePathParts?: ExecutablePathParts,
+		) => {
 			return metadataAddActionMutation.mutateAsync({
 				gameData,
-				localpath,
+				executablePathParts,
 			});
 		},
 		[metadataAddActionMutation],

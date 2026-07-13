@@ -2,10 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
-import {
-	getLocalPathPickerDirectory,
-	handleExeFile,
-} from "@/services/fs/fileDialog";
+import { handleExeFile, splitExecutablePath } from "@/services/fs/fileDialog";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameData, UpdateGameParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
@@ -19,11 +16,10 @@ export function useGameLaunchFlow() {
 		async (game: GameData) => {
 			let selectedPath: string | null;
 			try {
-				const defaultPath = await getLocalPathPickerDirectory(game.localpath);
-				selectedPath = await handleExeFile(defaultPath);
+				selectedPath = await handleExeFile(game.localpath);
 			} catch (error) {
 				snackbar.error(
-					`${t("components.LaunchModal.selectFolder", "选择文件夹")}: ${getUserErrorMessage(error, t)}`,
+					`${t("components.LaunchModal.selectExecutableFailed", "选择可执行文件失败")}: ${getUserErrorMessage(error, t)}`,
 				);
 				return false;
 			}
@@ -39,8 +35,9 @@ export function useGameLaunchFlow() {
 			}
 
 			try {
+				const executablePathParts = await splitExecutablePath(selectedPath);
 				const updateData: UpdateGameParams = {
-					localpath: selectedPath,
+					...executablePathParts,
 				};
 
 				await updateGame({
@@ -63,19 +60,17 @@ export function useGameLaunchFlow() {
 		async (game: GameData) => {
 			try {
 				if (!game.localpath) {
+					await syncLocalPath(game);
+					return;
+				}
+
+				if (!game.executable) {
 					const synced = await syncLocalPath(game);
 					if (!synced) return;
 				}
 
-				let result = await launchGame(game.id);
+				const result = await launchGame(game.id);
 				if (result.success) return;
-
-				if (result.code === "NEED_EXECUTABLE") {
-					const synced = await syncLocalPath(game);
-					if (!synced) return;
-					result = await launchGame(game.id);
-					if (result.success) return;
-				}
 
 				snackbar.error(result.message);
 			} catch (error) {

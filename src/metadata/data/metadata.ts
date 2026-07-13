@@ -1,4 +1,3 @@
-import { join } from "@tauri-apps/api/path";
 import i18n from "@/providers/i18n";
 import {
 	type CloudPlayStatusContext,
@@ -40,6 +39,7 @@ import { gameMetadataService } from "./gameMetadataService";
 
 export interface GameInfoUpdateDraft {
 	newLocalPath: string;
+	newExecutable?: string;
 	newName: string;
 	newImageExt?: string | null;
 	newCoverSource?: SourceType | null;
@@ -215,6 +215,7 @@ export async function buildInsertGameData(
 	gameData: GameMetadataDraft,
 	options: {
 		localpath?: string;
+		executable?: string;
 		cloudStatusContext?: CloudPlayStatusContext;
 	} = {},
 ): Promise<InsertGameParams> {
@@ -223,6 +224,7 @@ export async function buildInsertGameData(
 		sources: candidateSourcesToGameSources(gameData.sources),
 		date: getGameCandidateDate(gameData),
 		localpath: options.localpath,
+		executable: options.executable,
 		custom_data: gameData.custom_data ?? undefined,
 	};
 	const cloudStatus = await resolveCloudPlayStatus(
@@ -238,12 +240,6 @@ export async function buildInsertGameData(
 		...insertData,
 		clear: cloudStatus,
 	};
-}
-
-async function getBatchImportLocalPath(
-	item: BatchImportGameCandidate,
-): Promise<string> {
-	return item.selectedExe ? await join(item.path, item.selectedExe) : item.path;
 }
 
 export function buildMetadataUpdatePayload(
@@ -286,6 +282,15 @@ export function buildGameInfoUpdatePayload(
 	const localPathDiff = getDiff(draft.newLocalPath, originalGame.localpath);
 	if (localPathDiff !== undefined) {
 		payload.localpath = localPathDiff;
+	}
+	if (draft.newExecutable !== undefined) {
+		const executableDiff = getDiff(
+			draft.newExecutable,
+			originalGame.executable,
+		);
+		if (executableDiff !== undefined) {
+			payload.executable = executableDiff;
+		}
 	}
 
 	const currentCustomData = originalGame.custom_data || {};
@@ -390,10 +395,10 @@ export async function buildBulkImportGameData(
 	item: BatchImportGameCandidate,
 	cloudStatusContext?: CloudPlayStatusContext,
 ): Promise<InsertGameParams> {
-	const localpath = await getBatchImportLocalPath(item);
 	if (item.matchedData) {
 		return buildInsertGameData(item.matchedData, {
-			localpath,
+			localpath: item.path,
+			executable: item.selectedExe,
 			cloudStatusContext,
 		});
 	}
@@ -404,7 +409,8 @@ export async function buildBulkImportGameData(
 		custom_data: {
 			name: item.name,
 		},
-		localpath,
+		localpath: item.path,
+		executable: item.selectedExe,
 	};
 }
 
