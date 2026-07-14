@@ -10,6 +10,7 @@ use sea_orm_migration::sea_orm::DbErr;
 /// 自动读取数据库中 `user.db_backup_path` 字段：
 /// - 若存在且非空，则备份到该路径下
 /// - 否则备份到数据库所在目录的 `backups/` 子目录
+/// - 自定义目录备份失败时记录警告并回退默认目录；默认目录备份失败则终止迁移
 pub async fn backup_sqlite(version: &str) -> Result<PathBuf, DbErr> {
     let db_path =
         get_db_path().map_err(|e| DbErr::Custom(format!("Failed to get database path: {}", e)))?;
@@ -27,29 +28,16 @@ pub async fn backup_sqlite(version: &str) -> Result<PathBuf, DbErr> {
         .ok()
         .flatten();
 
-    let target_dir = match custom_path {
-        Some(p) if !p.trim().is_empty() => PathBuf::from(p.trim()),
-        _ => db_path.parent().unwrap().join("backups"),
-    };
+    let default_dir = db_path.parent().unwrap().join("backups");
+    let custom_dir = custom_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .map(Path::new);
 
-    fs::create_dir_all(&target_dir)
-        .map_err(|e| DbErr::Custom(format!("Failed to create backup dir: {}", e)))?;
-
-    let timestamp = Local::now().format("%Y%m%d_%H%M%S_%3f");
-    let backup_path = target_dir.join(format!("reina_manager_{}_{}.db", version, timestamp));
-
-    create_snapshot(&pool, &backup_path).await?;
-
+    let backup_result = create_backup_with_fallback(&pool, version, custom_dir, &default_dir).await;
     pool.close().await;
-
-    let backup_url = path_to_sqlite_url_with_mode(&backup_path, "ro")?;
-    let backup_pool = sqlx::SqlitePool::connect(&backup_url)
-        .await
-        .map_err(|e| DbErr::Custom(format!("Failed to open backup: {}", e)))?;
-    verify_integrity(&backup_pool, "备份数据库").await?;
-    backup_pool.close().await;
-
-    Ok(backup_path)
+    backup_result
 }
 
 /// 将文件路径转换为 sqlite 连接 URL
@@ -88,26 +76,109 @@ async fn create_snapshot(pool: &sqlx::SqlitePool, path: &Path) -> Result<(), DbE
     Ok(())
 }
 
+async fn create_verified_backup(
+    pool: &sqlx::SqlitePool,
+    version: &str,
+    target_dir: &Path,
+) -> Result<PathBuf, DbErr> {
+    fs::create_dir_all(target_dir).map_err(|e| {
+        DbErr::Custom(format!(
+            "无法创建数据库备份目录 {}: {}",
+            target_dir.display(),
+            e
+        ))
+    })?;
+
+    let timestamp = Local::now().format("%Y%m%d_%H%M%S_%3f");
+    let backup_path = target_dir.join(format!("reina_manager_{}_{}.db", version, timestamp));
+
+    create_snapshot(pool, &backup_path).await.map_err(|e| {
+        DbErr::Custom(format!(
+            "无法在 {} 创建数据库快照: {}",
+            backup_path.display(),
+            e
+        ))
+    })?;
+
+    let backup_url = path_to_sqlite_url_with_mode(&backup_path, "ro").map_err(|e| {
+        DbErr::Custom(format!(
+            "无法生成备份数据库连接地址 {}: {}",
+            backup_path.display(),
+            e
+        ))
+    })?;
+    let backup_pool = sqlx::SqlitePool::connect(&backup_url).await.map_err(|e| {
+        DbErr::Custom(format!(
+            "无法打开备份数据库 {}: {}",
+            backup_path.display(),
+            e
+        ))
+    })?;
+    let label = format!("备份数据库 {}", backup_path.display());
+    let integrity_result = verify_integrity(&backup_pool, &label).await;
+    backup_pool.close().await;
+    integrity_result?;
+
+    Ok(backup_path)
+}
+
+async fn create_backup_with_fallback(
+    pool: &sqlx::SqlitePool,
+    version: &str,
+    custom_dir: Option<&Path>,
+    default_dir: &Path,
+) -> Result<PathBuf, DbErr> {
+    let Some(custom_dir) = custom_dir else {
+        return create_verified_backup(pool, version, default_dir).await;
+    };
+
+    match create_verified_backup(pool, version, custom_dir).await {
+        Ok(backup_path) => Ok(backup_path),
+        Err(custom_error) => {
+            log::warn!(
+                "[MIGRATION] 自定义数据库备份失败，将尝试默认目录。custom_dir={}, default_dir={}, error={}",
+                custom_dir.display(),
+                default_dir.display(),
+                custom_error
+            );
+
+            create_verified_backup(pool, version, default_dir)
+                .await
+                .map_err(|default_error| {
+                    DbErr::Custom(format!(
+                        "自定义数据库备份失败，回退默认目录后仍失败；custom_dir={}；custom_error={}；default_dir={}；default_error={}",
+                        custom_dir.display(),
+                        custom_error,
+                        default_dir.display(),
+                        default_error
+                    ))
+                })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    #[async_std::test]
-    async fn vacuum_into_creates_readable_snapshot() {
+    fn create_test_directory(name: &str) -> PathBuf {
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
         let directory = std::env::temp_dir().join(format!(
-            "reina_backup_test_{}_{}",
+            "reina_backup_{}_{}_{}",
+            name,
             std::process::id(),
             unique
         ));
         fs::create_dir_all(&directory).unwrap();
-        let source_path = directory.join("source.db");
-        let backup_path = directory.join("backup.db");
+        directory
+    }
 
+    async fn create_test_source(directory: &Path) -> sqlx::SqlitePool {
+        let source_path = directory.join("source.db");
         let source_pool = sqlx::SqlitePool::connect(&path_to_sqlite_url(&source_path).unwrap())
             .await
             .unwrap();
@@ -119,6 +190,27 @@ mod tests {
             .execute(&source_pool)
             .await
             .unwrap();
+        source_pool
+    }
+
+    async fn read_test_value(backup_path: &Path) -> String {
+        let backup_pool =
+            sqlx::SqlitePool::connect(&path_to_sqlite_url_with_mode(backup_path, "ro").unwrap())
+                .await
+                .unwrap();
+        let value = sqlx::query_scalar("SELECT value FROM values_table")
+            .fetch_one(&backup_pool)
+            .await
+            .unwrap();
+        backup_pool.close().await;
+        value
+    }
+
+    #[async_std::test]
+    async fn vacuum_into_creates_readable_snapshot() {
+        let directory = create_test_directory("snapshot_test");
+        let backup_path = directory.join("backup.db");
+        let source_pool = create_test_source(&directory).await;
 
         create_snapshot(&source_pool, &backup_path).await.unwrap();
         source_pool.close().await;
@@ -134,6 +226,58 @@ mod tests {
             .unwrap();
         assert_eq!(value, "kept");
         backup_pool.close().await;
+
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[async_std::test]
+    async fn custom_backup_failure_falls_back_to_verified_default_directory() {
+        let directory = create_test_directory("fallback_test");
+        let invalid_custom_dir = directory.join("invalid-custom");
+        let default_dir = directory.join("missing").join("backups");
+        fs::write(&invalid_custom_dir, "not a directory").unwrap();
+
+        let source_pool = create_test_source(&directory).await;
+        let backup_path = create_backup_with_fallback(
+            &source_pool,
+            "fallback_test",
+            Some(&invalid_custom_dir),
+            &default_dir,
+        )
+        .await
+        .unwrap();
+        assert_eq!(backup_path.parent(), Some(default_dir.as_path()));
+
+        let value = read_test_value(&backup_path).await;
+        assert_eq!(value, "kept");
+        source_pool.close().await;
+
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[async_std::test]
+    async fn fallback_failure_reports_both_directories() {
+        let directory = create_test_directory("fallback_error_test");
+        let invalid_custom_dir = directory.join("invalid-custom");
+        let invalid_default_dir = directory.join("invalid-default");
+        fs::write(&invalid_custom_dir, "not a directory").unwrap();
+        fs::write(&invalid_default_dir, "not a directory").unwrap();
+
+        let source_pool = create_test_source(&directory).await;
+        let error = create_backup_with_fallback(
+            &source_pool,
+            "fallback_error_test",
+            Some(&invalid_custom_dir),
+            &invalid_default_dir,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains(invalid_custom_dir.to_string_lossy().as_ref()));
+        assert!(error.contains(invalid_default_dir.to_string_lossy().as_ref()));
+        assert!(error.contains("回退默认目录后仍失败"));
+        source_pool.close().await;
 
         fs::remove_dir_all(directory).unwrap();
     }
