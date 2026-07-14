@@ -47,6 +47,7 @@ import BulkImportResultTable, {
 import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 import {
+	type AddGameMode,
 	type MetadataMatchMode,
 	MetadataMatchModeToggleGroup,
 	SingleSourceSelect,
@@ -56,10 +57,16 @@ interface BulkImportTabProps {
 	// 控制此 tab 是否隐藏（通过 CSS display:none 而非卸载）
 	hidden: boolean;
 	onClose: () => void;
+	addMode: AddGameMode;
+	onAddModeChange: (mode: AddGameMode) => void;
+	bulkApiSource: SourceType;
+	onBulkApiSourceChange: (source: SourceType) => void;
+	scanMode: GameScanMode;
+	onScanModeChange: (mode: GameScanMode) => void;
+	scanMaxDepth: number;
+	onScanMaxDepthChange: (depth: number) => void;
 }
 
-const DEFAULT_SCAN_DEPTH = 3;
-const DEFAULT_SCAN_MODE: GameScanMode = "executable";
 const SCAN_DEPTH_OPTIONS = [2, 3, 4, 5] as const;
 const BULK_API_SOURCE_OPTIONS = SEARCHABLE_SOURCE_KEYS.map((source) => ({
 	value: source,
@@ -72,7 +79,18 @@ function isVisibleBulkImportItem(
 	return item.status !== "imported";
 }
 
-const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
+const BulkImportTab = ({
+	hidden,
+	onClose,
+	addMode,
+	onAddModeChange,
+	bulkApiSource,
+	onBulkApiSourceChange,
+	scanMode,
+	onScanModeChange,
+	scanMaxDepth,
+	onScanMaxDepthChange,
+}: BulkImportTabProps) => {
 	const { t } = useTranslation();
 	const { data: settings } = useAllSettings();
 	const hasBgmAuth = Boolean(settings?.bgm_auth);
@@ -82,22 +100,14 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		})),
 	);
 	const { addGamesFromBulkImport, isAddingGames } = useBulkGameAddActions();
-	const defaultBulkApiSource: SourceType = hasBgmAuth ? "bgm" : "vndb";
 
 	const [isScanningDirectories, setIsScanningDirectories] = useState(false);
 	const [isMatchingMetadata, setIsMatchingMetadata] = useState(false);
 	const [rootPath, setRootPath] = useState("");
 	const [items, setItems] = useState<BulkImportItem[]>([]);
-	const [bulkApiSource, setBulkApiSource] =
-		useState<SourceType>(defaultBulkApiSource);
-	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
-	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
 	const [editItemPath, setEditItemPath] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
-	const [editMatchMode, setEditMatchMode] =
-		useState<MetadataMatchMode>("mixed");
-	const [editApiSource, setEditApiSource] =
-		useState<SourceType>(defaultBulkApiSource);
+	const [editApiSource, setEditApiSource] = useState<SourceType>(bulkApiSource);
 	const [customImportConfirmOpen, setCustomImportConfirmOpen] = useState(false);
 	const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(
 		null,
@@ -111,6 +121,8 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const customImportCount = items.filter(
 		(item) => item.status !== "matched",
 	).length;
+	const editMatchMode: MetadataMatchMode =
+		addMode === "single" ? "single" : "mixed";
 
 	useEffect(() => {
 		return () => {
@@ -160,14 +172,11 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 		setIsMatchingMetadata(false);
 		setRootPath("");
 		setItems([]);
-		setBulkApiSource(defaultBulkApiSource);
-		setScanMode(DEFAULT_SCAN_MODE);
-		setScanMaxDepth(DEFAULT_SCAN_DEPTH);
 		setEditItemPath(null);
 		setEditName("");
 		setCustomImportConfirmOpen(false);
 		metadataSearchFlow.reset();
-	}, [defaultBulkApiSource, metadataSearchFlow]);
+	}, [metadataSearchFlow]);
 
 	const handleCloseEditDialog = useCallback(() => {
 		if (editSearchAbortControllerRef.current) {
@@ -226,14 +235,14 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	};
 
 	const handleScanDepthChange = (nextDepth: number) => {
-		setScanMaxDepth(nextDepth);
+		onScanMaxDepthChange(nextDepth);
 		if (rootPath && scanMode === "executable") {
 			void scanSelectedFolder(rootPath, nextDepth, scanMode);
 		}
 	};
 
 	const handleScanModeChange = (nextMode: GameScanMode) => {
-		setScanMode(nextMode);
+		onScanModeChange(nextMode);
 		if (rootPath) {
 			void scanSelectedFolder(rootPath, scanMaxDepth, nextMode);
 		}
@@ -545,7 +554,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								value={bulkApiSource}
 								label={t("components.BulkImportModal.apiSource", "匹配数据源")}
 								onChange={(event) =>
-									setBulkApiSource(event.target.value as SourceType)
+									onBulkApiSourceChange(event.target.value as SourceType)
 								}
 							>
 								{BULK_API_SOURCE_OPTIONS.map((option) => (
@@ -743,7 +752,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 						<Stack spacing={2}>
 							<MetadataMatchModeToggleGroup
 								value={editMatchMode}
-								onChange={setEditMatchMode}
+								onChange={onAddModeChange}
 								disabled={searchResultLoading}
 								sx={{ width: "100%" }}
 							/>

@@ -41,7 +41,12 @@ import {
 	trimDirnameToSearchName,
 } from "@/services/fs/fileDialog";
 import { useStore } from "@/store/appStore";
-import type { GameMetadataDraft, InsertGameParams } from "@/types";
+import type {
+	GameMetadataDraft,
+	GameScanMode,
+	InsertGameParams,
+	SourceType,
+} from "@/types";
 import { createAbortableRunner } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
 import BulkImportTab from "./BulkImportTab";
@@ -58,6 +63,8 @@ import {
  */
 const REQUEST_TIMEOUT_MS = 100000; // 请求超时时间
 const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
+const DEFAULT_SCAN_DEPTH = 3;
+const DEFAULT_SCAN_MODE: GameScanMode = "executable";
 
 type AddModalTab = "single" | "bulk";
 
@@ -117,8 +124,12 @@ const AddModal: React.FC = () => {
 	const [error, setError] = useState("");
 	const [customLoading, setCustomLoading] = useState(false);
 	const [addMode, setAddMode] = useState<AddGameMode>("mixed");
+	const [bulkApiSource, setBulkApiSource] = useState<SourceType>();
+	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
+	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const previousFocus = useRef<HTMLElement | null>(null);
+	const resolvedBulkApiSource = bulkApiSource ?? (hasBgmAuth ? "bgm" : "vndb");
 
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
@@ -403,6 +414,14 @@ const AddModal: React.FC = () => {
 				<BulkImportTab
 					hidden={activeTab !== "bulk"}
 					onClose={handleCloseModal}
+					addMode={addMode}
+					onAddModeChange={setAddMode}
+					bulkApiSource={resolvedBulkApiSource}
+					onBulkApiSourceChange={setBulkApiSource}
+					scanMode={scanMode}
+					onScanModeChange={setScanMode}
+					scanMaxDepth={scanMaxDepth}
+					onScanMaxDepthChange={setScanMaxDepth}
 				/>
 				{activeTab === "single" && (
 					<DialogActions>
