@@ -524,21 +524,15 @@ export const Home: React.FC = () => {
 	];
 
 	return (
-		<Box className="box-border h-[calc(100dvh-64px)] max-h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-[var(--mui-palette-background-default)] p-3 min-[600px]:p-4 min-[1200px]:p-5">
+		<Box className="box-border h-[calc(100dvh-64px)] max-h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-[var(--mui-palette-background-default)] p-4 min-[1200px]:p-5">
 			<Paper
 				variant="outlined"
-				className="grid shrink-0 grid-cols-1 overflow-hidden min-[600px]:grid-cols-2 min-[900px]:grid-cols-4"
+				className="grid shrink-0 grid-cols-4 overflow-hidden"
 			>
 				{stats.map((stat, index) => (
 					<Box
 						key={stat.key}
-						className={[
-							"relative min-h-[82px] min-w-0 flex items-center gap-2 border-0 border-solid border-[var(--mui-palette-divider)] px-3 py-3.5 min-[900px]:min-h-[88px] min-[1200px]:gap-3.5 min-[1200px]:px-4 min-[1536px]:px-6",
-							index > 0 ? "border-t min-[600px]:border-t-0" : "border-t-0",
-							index > 1 ? "min-[600px]:border-t" : "",
-							index % 2 === 1 ? "min-[600px]:border-l" : "",
-							"min-[900px]:border-l-0 min-[900px]:border-t-0",
-						].join(" ")}
+						className="relative min-h-[88px] min-w-0 flex items-center gap-2 border-0 border-solid border-[var(--mui-palette-divider)] px-3 py-3.5 min-[1200px]:gap-3.5 min-[1200px]:px-4 min-[1536px]:px-6"
 						sx={{
 							"&::before": {
 								content: '""',
@@ -549,10 +543,7 @@ export const Home: React.FC = () => {
 								width: "1px",
 								bgcolor: "divider",
 								opacity: 0.55,
-								display: {
-									xs: "none",
-									md: index > 0 ? "block" : "none",
-								},
+								display: index > 0 ? "block" : "none",
 							},
 						}}
 					>
@@ -626,7 +617,7 @@ export const Home: React.FC = () => {
 					</Button>
 				</Paper>
 			) : (
-				<Box className="mt-4 min-h-0 flex-1 grid grid-cols-1 items-stretch gap-4 min-[900px]:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.9fr)]">
+				<Box className="mt-4 min-h-0 flex-1 grid grid-cols-[minmax(0,1.7fr)_minmax(300px,0.9fr)] items-stretch gap-4">
 					<Box className="min-h-0 min-w-0 grid grid-rows-[minmax(0,1fr)_150px] gap-4">
 						<Paper
 							variant="outlined"
@@ -647,7 +638,7 @@ export const Home: React.FC = () => {
 												"linear-gradient(90deg, rgba(7, 13, 27, .94) 0%, rgba(7, 13, 27, .76) 42%, rgba(7, 13, 27, .18) 76%, rgba(7, 13, 27, .32) 100%)",
 										}}
 									/>
-									<Box className="relative z-1 h-full flex flex-col p-4 min-[900px]:p-5">
+									<Box className="relative z-1 h-full flex flex-col p-5">
 										<Chip
 											label={
 												focusIsRunning
@@ -749,18 +740,14 @@ export const Home: React.FC = () => {
 														{t("home.focus.recent", "最近玩过")}
 													</Typography>
 												</Box>
-												<Box className="grid grid-cols-2 gap-2 min-[600px]:grid-cols-4">
-													{recentGames.map((game, gameIndex) => {
+												<Box className="grid grid-cols-4 gap-2">
+													{recentGames.map((game) => {
 														const lastPlayed = lastPlayedMap.get(game.id);
 														return (
 															<ButtonBase
 																key={game.id}
 																onClick={() => setSelectedFocusGameId(game.id)}
-																className={`h-13 min-w-0 flex justify-start overflow-hidden rounded-2xl border border-solid bg-[rgba(7,13,27,.48)] text-left ${
-																	gameIndex === 3
-																		? "min-[900px]:hidden min-[1200px]:flex"
-																		: ""
-																}`}
+																className="h-13 min-w-0 flex justify-start overflow-hidden rounded-2xl border border-solid bg-[rgba(7,13,27,.48)] text-left"
 																sx={{
 																	borderColor:
 																		focusGame.id === game.id
@@ -827,7 +814,7 @@ export const Home: React.FC = () => {
 								</Button>
 							</Box>
 							{randomGame ? (
-								<Box className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 min-[600px]:grid-cols-[112px_minmax(0,1fr)_auto] min-[1200px]:grid-cols-[140px_minmax(0,1fr)_auto]">
+								<Box className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-4 min-[1200px]:grid-cols-[140px_minmax(0,1fr)_auto]">
 									<Box
 										component="img"
 										src={getVisibleCover(randomGame, nsfwCoverReplace)}
@@ -864,7 +851,7 @@ export const Home: React.FC = () => {
 											))}
 										</Box>
 									</Box>
-									<Box className="col-span-full flex gap-2 min-[600px]:col-auto min-[600px]:justify-end">
+									<Box className="flex justify-end gap-2">
 										<Tooltip title={t("home.focus.details", "查看详情")}>
 											<IconButton
 												component={Link}
@@ -886,7 +873,7 @@ export const Home: React.FC = () => {
 													? launchGame(randomGame)
 													: syncLocalPath(randomGame))
 											}
-											className="flex-1 min-[600px]:flex-initial"
+											className="flex-initial"
 										>
 											{runningGameIds.has(randomGame.id)
 												? t("home.focus.running", "正在运行")
