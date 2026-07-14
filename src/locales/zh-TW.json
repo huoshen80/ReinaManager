@@ -74,6 +74,7 @@
 		},
 		"BulkImportModal": {
 			"actions": "操作",
+			"advancedSettings": "進階設定",
 			"apiSource": "匹配資料源",
 			"cancel": "取消",
 			"editMetadata": "編輯遊戲資訊",

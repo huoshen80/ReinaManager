@@ -74,6 +74,7 @@
 		},
 		"BulkImportModal": {
 			"actions": "Actions",
+			"advancedSettings": "Advanced Settings",
 			"apiSource": "Match Source",
 			"cancel": "Cancel",
 			"editMetadata": "Edit Game Info",

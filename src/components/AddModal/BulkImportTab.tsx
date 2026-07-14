@@ -1,5 +1,6 @@
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import SearchIcon from "@mui/icons-material/Search";
+import SettingsIcon from "@mui/icons-material/Settings";
 import {
 	Alert,
 	Box,
@@ -10,8 +11,10 @@ import {
 	DialogContent,
 	DialogTitle,
 	FormControl,
+	IconButton,
 	InputLabel,
 	MenuItem,
+	Popover,
 	Select,
 	Stack,
 	TextField,
@@ -96,6 +99,9 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 	const [editApiSource, setEditApiSource] =
 		useState<SourceType>(defaultBulkApiSource);
 	const [customImportConfirmOpen, setCustomImportConfirmOpen] = useState(false);
+	const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(
+		null,
+	);
 	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
 	const matchAbortControllerRef = useRef<AbortController | null>(null);
 	const loading = isMatchingMetadata || isScanningDirectories || isAddingGames;
@@ -497,73 +503,105 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 					spacing={2}
 					className="pt-2 w-full flex-1 self-stretch h-full min-h-0 overflow-hidden"
 				>
-					<Stack direction="row" spacing={1.5} alignItems="flex-start">
-						<Stack
-							direction="row"
-							spacing={1.5}
-							alignItems="center"
-							flexWrap="wrap"
-							useFlexGap
-							className="flex-[1_1_auto] min-w-0"
+					<Stack
+						direction="row"
+						spacing={1.5}
+						alignItems="center"
+						flexWrap="wrap"
+						useFlexGap
+					>
+						<Button
+							variant="contained"
+							startIcon={<FolderOpenIcon />}
+							onClick={scanFolder}
+							disabled={loading}
+							className="shrink-0"
 						>
-							<Button
-								variant="contained"
-								startIcon={<FolderOpenIcon />}
-								onClick={scanFolder}
-								disabled={loading}
-								className="shrink-0"
-							>
-								{t(
-									"components.BulkImportModal.selectRootFolder",
-									"选择根文件夹",
+							{t("components.BulkImportModal.selectRootFolder", "选择根文件夹")}
+						</Button>
+						<Typography
+							variant="body2"
+							className="flex-[1_1_160px] min-w-0"
+							color={rootPath ? "text.primary" : "text.secondary"}
+							noWrap
+						>
+							{rootPath ||
+								t(
+									"components.BulkImportModal.noFolderSelected",
+									"未选择文件夹",
 								)}
-							</Button>
+						</Typography>
+
+						<FormControl
+							size="small"
+							disabled={loading}
+							className="flex-[0_0_160px]"
+						>
+							<InputLabel id="bulk-import-api-source-label">
+								{t("components.BulkImportModal.apiSource", "匹配数据源")}
+							</InputLabel>
+							<Select
+								labelId="bulk-import-api-source-label"
+								value={bulkApiSource}
+								label={t("components.BulkImportModal.apiSource", "匹配数据源")}
+								onChange={(event) =>
+									setBulkApiSource(event.target.value as SourceType)
+								}
+							>
+								{BULK_API_SOURCE_OPTIONS.map((option) => (
+									<MenuItem
+										key={option.value}
+										value={option.value}
+										disabled={option.value === "bgm" && !hasBgmAuth}
+									>
+										{option.label}
+									</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+
+						<IconButton
+							size="small"
+							onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
+							title={t(
+								"components.BulkImportModal.advancedSettings",
+								"高级设置",
+							)}
+							className="shrink-0"
+						>
+							<SettingsIcon />
+						</IconButton>
+
+						{items.length > 0 && (
 							<Typography
 								variant="body2"
-								className="flex-[1_1_220px] min-w-40"
-								noWrap
+								color="text.secondary"
+								className="whitespace-nowrap shrink-0"
 							>
-								{rootPath ||
-									t(
-										"components.BulkImportModal.noFolderSelected",
-										"未选择文件夹",
-									)}
+								{t(
+									"components.BulkImportModal.gamesCount",
+									"共 {{count}} 个游戏",
+									{ count: items.length },
+								)}
 							</Typography>
-							<FormControl
-								size="small"
-								disabled={loading}
-								className="flex-[0_0_160px]"
-							>
-								<InputLabel id="bulk-import-api-source-label">
-									{t("components.BulkImportModal.apiSource", "匹配数据源")}
-								</InputLabel>
-								<Select
-									labelId="bulk-import-api-source-label"
-									value={bulkApiSource}
-									label={t(
-										"components.BulkImportModal.apiSource",
-										"匹配数据源",
-									)}
-									onChange={(event) =>
-										setBulkApiSource(event.target.value as SourceType)
-									}
-								>
-									{BULK_API_SOURCE_OPTIONS.map((option) => (
-										<MenuItem
-											key={option.value}
-											value={option.value}
-											disabled={option.value === "bgm" && !hasBgmAuth}
-										>
-											{option.label}
-										</MenuItem>
-									))}
-								</Select>
-							</FormControl>
-							<FormControl
-								size="small"
-								disabled={loading}
-								className="flex-[0_0_180px]"
-							>
+						)}
+					</Stack>
+
+					<Popover
+						open={Boolean(settingsAnchorEl)}
+						anchorEl={settingsAnchorEl}
+						onClose={() => setSettingsAnchorEl(null)}
+						anchorOrigin={{
+							vertical: "bottom",
+							horizontal: "right",
+						}}
+						transformOrigin={{
+							vertical: "top",
+							horizontal: "right",
+						}}
+					>
+						<Stack spacing={2} sx={{ p: 2.5, minWidth: 260 }}>
+							<FormControl size="small" disabled={loading} fullWidth>
 								<InputLabel id="bulk-import-scan-mode-label">
 									{t("components.BulkImportModal.scanMode", "扫描模式")}
 								</InputLabel>
@@ -592,7 +630,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 							<FormControl
 								size="small"
 								disabled={loading || scanMode !== "executable"}
-								className="flex-[0_0_140px]"
+								fullWidth
 							>
 								<InputLabel id="bulk-import-scan-depth-label">
 									{t("components.BulkImportModal.scanDepth", "扫描深度")}
@@ -617,22 +655,7 @@ const BulkImportTab = ({ hidden, onClose }: BulkImportTabProps) => {
 								</Select>
 							</FormControl>
 						</Stack>
-						{items.length > 0 && (
-							<Typography
-								variant="body2"
-								color="text.secondary"
-								className="whitespace-nowrap shrink-0 pt-2"
-							>
-								{t(
-									"components.BulkImportModal.gamesCount",
-									"共 {{count}} 个游戏",
-									{
-										count: items.length,
-									},
-								)}
-							</Typography>
-						)}
-					</Stack>
+					</Popover>
 
 					<BulkImportResultTable
 						items={items.filter(isVisibleBulkImportItem)}
