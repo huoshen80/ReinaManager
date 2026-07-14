@@ -652,7 +652,8 @@ export const Home: React.FC = () => {
 										/>
 										<Typography
 											component="h1"
-											className="mt-3 max-w-[72%] text-[26px] leading-[1.2] font-800 min-[1200px]:text-[34px]"
+											className="mt-3 max-w-[72%] line-clamp-2 text-[26px] leading-[1.2] font-800 min-[1200px]:text-[34px]"
+											title={getGameDisplayName(focusGame)}
 										>
 											{getGameDisplayName(focusGame)}
 										</Typography>
@@ -733,7 +734,7 @@ export const Home: React.FC = () => {
 										</Box>
 
 										{recentGames.length > 0 ? (
-											<Box className="mt-auto pt-2">
+											<Box className="mt-auto pt-2 [@media(max-height:705px)]:hidden">
 												<Box className="mb-1.5 flex items-center gap-2">
 													<HistoryIcon fontSize="small" />
 													<Typography variant="body2" fontWeight={700}>
