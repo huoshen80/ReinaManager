@@ -263,8 +263,9 @@
 				"removeFromCategoryFailed": "移出分類失敗",
 				"removeFromCategorySuccess_other": "已從目前分類移除 {{count}} 個遊戲",
 				"selectAll": "全選",
-				"selectedCount_other": "已選 {{count}}",
-				"start": "批量操作"
+				"selectedCount_other": "已選 {{count}}/{{total}}",
+				"start": "批量操作",
+				"totalCount_other": "共 {{count}} 個遊戲"
 			},
 			"Category": {
 				"availableGames": "可用遊戲",

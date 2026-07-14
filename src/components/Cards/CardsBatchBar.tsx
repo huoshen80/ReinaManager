@@ -152,14 +152,15 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 							<Typography variant="body2" color="text.secondary">
 								{t("components.Toolbar.Batch.selectedCount", {
 									count: selectedCount,
-									defaultValue: "已选 {{count}}",
+									total: gameIds.length,
+									defaultValue: "已选 {{count}}/{{total}}",
 								})}
 							</Typography>
 						</>
 					)}
 				</Box>
 
-				{batchMode && (
+				{batchMode ? (
 					<Box className="flex items-center gap-1">
 						{isCollectionCategory ? (
 							<>
@@ -205,6 +206,13 @@ export const CardsBatchBar: React.FC<CardsBatchBarProps> = ({
 							</>
 						)}
 					</Box>
+				) : (
+					<Typography variant="body2" color="text.secondary">
+						{t("components.Toolbar.Batch.totalCount", {
+							count: gameIds.length,
+							defaultValue: "共 {{count}} 个游戏",
+						})}
+					</Typography>
 				)}
 			</Box>
 

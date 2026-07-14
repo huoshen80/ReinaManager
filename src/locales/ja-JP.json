@@ -263,8 +263,9 @@
 				"removeFromCategoryFailed": "カテゴリからの削除に失敗しました",
 				"removeFromCategorySuccess_other": "{{count}} 個のゲームを現在のカテゴリから削除しました",
 				"selectAll": "すべて選択",
-				"selectedCount_other": "{{count}} 個選択中",
-				"start": "一括操作"
+				"selectedCount_other": "{{count}}/{{total}} 個選択中",
+				"start": "一括操作",
+				"totalCount_other": "合計 {{count}} 個のゲーム"
 			},
 			"Category": {
 				"availableGames": "利用可能なゲーム",

@@ -273,9 +273,11 @@
 				"removeFromCategorySuccess_one": "Removed {{count}} game from current category",
 				"removeFromCategorySuccess_other": "Removed {{count}} games from current category",
 				"selectAll": "Select All",
-				"selectedCount_one": "{{count}} selected",
-				"selectedCount_other": "{{count}} selected",
-				"start": "Batch Actions"
+				"selectedCount_one": "{{count}}/{{total}} selected",
+				"selectedCount_other": "{{count}}/{{total}} selected",
+				"start": "Batch Actions",
+				"totalCount_one": "{{count}} game total",
+				"totalCount_other": "{{count}} games total"
 			},
 			"Category": {
 				"availableGames": "Available Games",
