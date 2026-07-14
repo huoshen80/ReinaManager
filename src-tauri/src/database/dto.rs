@@ -35,6 +35,28 @@ fn clean_double_option_string(s: Option<Option<String>>) -> Option<Option<String
     s.map(|inner| inner.filter(|v| !v.trim().is_empty()))
 }
 
+/// 递归移除 JSON 中没有实际值的成员。
+///
+/// `false` 和 `0` 是有效元数据，必须保留；空数组和清洗后为空的对象不写入数据库。
+fn clean_json_value(value: Value) -> Option<Value> {
+    match value {
+        Value::Null => None,
+        Value::String(value) => (!value.trim().is_empty()).then_some(Value::String(value)),
+        Value::Array(values) => {
+            let values: Vec<Value> = values.into_iter().filter_map(clean_json_value).collect();
+            (!values.is_empty()).then_some(Value::Array(values))
+        }
+        Value::Object(values) => {
+            let values: serde_json::Map<String, Value> = values
+                .into_iter()
+                .filter_map(|(key, value)| clean_json_value(value).map(|value| (key, value)))
+                .collect();
+            (!values.is_empty()).then_some(Value::Object(values))
+        }
+        value => Some(value),
+    }
+}
+
 /// 清洗并按当前平台的路径组件规则规范化本地路径。
 fn clean_local_path(value: String) -> Option<String> {
     let trimmed = value.trim();
@@ -120,6 +142,7 @@ impl UpsertGameSourceData {
     fn cleaned(mut self) -> Self {
         self.source = self.source.trim().to_string();
         self.external_id = clean_option_string(self.external_id);
+        self.data = self.data.and_then(clean_json_value);
         self
     }
 }
@@ -310,8 +333,59 @@ pub struct UpdateGameData {
 
 #[cfg(test)]
 mod tests {
-    use super::{clean_double_option_local_path, clean_local_path};
+    use super::{
+        UpsertGameSourceData, clean_double_option_local_path, clean_json_value, clean_local_path,
+    };
+    use serde_json::json;
     use std::path::{MAIN_SEPARATOR, PathBuf};
+
+    #[test]
+    fn clean_json_value_removes_empty_values_recursively() {
+        let cleaned = clean_json_value(json!({
+            "null": null,
+            "empty_string": "",
+            "blank_string": "   ",
+            "empty_array": [],
+            "empty_object": {},
+            "nested": {
+                "empty": null,
+                "name": "有效值"
+            },
+            "items": [null, "", [], {}, "标签", 0, false],
+            "zero": 0,
+            "false": false
+        }));
+
+        assert_eq!(
+            cleaned,
+            Some(json!({
+                "nested": {
+                    "name": "有效值"
+                },
+                "items": ["标签", 0, false],
+                "zero": 0,
+                "false": false
+            }))
+        );
+    }
+
+    #[test]
+    fn source_cleaner_removes_data_without_effective_fields() {
+        let source = UpsertGameSourceData {
+            source: " vndb ".to_string(),
+            external_id: Some("v1".to_string()),
+            data: Some(json!({
+                "tags": [],
+                "aliases": null,
+                "developer": ""
+            })),
+        }
+        .cleaned();
+
+        assert_eq!(source.source, "vndb");
+        assert_eq!(source.external_id.as_deref(), Some("v1"));
+        assert_eq!(source.data, None);
+    }
 
     #[test]
     fn clean_local_path_removes_trailing_separator() {

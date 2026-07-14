@@ -1117,6 +1117,68 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cleans_empty_source_metadata_before_insert_and_update() {
+        let database = setup_database().await;
+        let inserted = GamesRepository::insert(
+            &database,
+            insert_data(
+                "vndb",
+                None,
+                vec![source(
+                    "vndb",
+                    "v1",
+                    json!({
+                        "name": "标题",
+                        "tags": [],
+                        "aliases": null,
+                        "developer": "",
+                        "nested": { "empty": [] },
+                        "score": 0,
+                        "nsfw": false
+                    }),
+                )],
+            ),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            inserted.sources[0].data,
+            Some(json!({
+                "name": "标题",
+                "score": 0,
+                "nsfw": false
+            }))
+        );
+
+        let updated = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                upsert_sources: Some(vec![source(
+                    "vndb",
+                    "v1",
+                    json!({
+                        "name": "新标题",
+                        "all_titles": [],
+                        "average_hours": null
+                    }),
+                )]),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            updated.sources[0].data,
+            Some(json!({
+                "name": "新标题"
+            }))
+        );
+    }
+
+    #[tokio::test]
     async fn writes_and_updates_game_aggregate_transactionally() {
         let database = setup_database().await;
         let inserted = GamesRepository::insert(
