@@ -43,7 +43,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 ## Features
 
-- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from VNDB, Bangumi, YmGal and Kungal APIs
+- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from VNDB, Bangumi, YmGal, Kungal and other APIs
 - 🔍 **Powerful Search** - Quickly search games by titles, aliases, custom names, and other information
 - 🗂️ **Filter and Sort** - Filter and sort games across multiple dimensions, such as source, status, tags, and more
 - 📚 **Collection Management** - Organize your game library with groups and categories, with support for drag and drop sorting
@@ -87,7 +87,7 @@ For more, you can download the latest Release Version: [Download](https://github
 Contributions are welcome! If you have suggestions for improvements, bug reports, or want to submit a pull request, please follow these steps:
 
 1. Fork this repository and create your branch from `main`.
-2. If you have fixed a bug or added a feature, please try to conduct the corresponding tests.
+2. If you have fixed a bug or added a feature, please try to conduct the corresponding tests (This project uses Biome to format and lint code).
 3. Ensure your code follows the existing style and passes all checks.
 4. Submit a pull request with a clear description of your changes.
 

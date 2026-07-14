@@ -1,3 +1,127 @@
+## [0.25.0](https://github.com/huoshen80/ReinaManager/compare/v0.24.3...v0.25.0) (2026-07-14)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ✨ 新功能
+
+- *(add-modal)* 改进数据源匹配模式 ([d0ab2cc](https://github.com/huoshen80/ReinaManager/commit/d0ab2cc1789652b5460bba00088f029e2596c1c7))
+- *(metadata)* 增加 erogamescape 数据源 ([a0a15dc](https://github.com/huoshen80/ReinaManager/commit/a0a15dc11308a4f9a77b47d9beb08a1f5bdff2be))
+- *(metadata)* 增加 dlsite 数据源 ([0d72c0d](https://github.com/huoshen80/ReinaManager/commit/0d72c0dc6caa4a76c43f5669c720bad21227b5a6))
+- *(localpath)* 统一本地路径解析逻辑 ([18a20b2](https://github.com/huoshen80/ReinaManager/commit/18a20b267c3de9a59ef61bbeeb4b7c13e0be8517))
+- *(import)* 增加一级目录扫描模式 ([e08b6b6](https://github.com/huoshen80/ReinaManager/commit/e08b6b67cd13f244b9329fe22658b638bc6a32f2))
+- *(home)* 重新设计主页仪表盘体验 ([d6c5fb7](https://github.com/huoshen80/ReinaManager/commit/d6c5fb765349763f0a7739e29011eb5b678a8eab))
+- *(import)* 将扫描选项移动至设置 ([d33e4bd](https://github.com/huoshen80/ReinaManager/commit/d33e4bdb6c0adab548e062c3f7f3b67c8a3848a1))
+- *(cards)* 在选择模式下显示游戏选中数量 ([d4cbe11](https://github.com/huoshen80/ReinaManager/commit/d4cbe117a9d8d821e5883536fc95e56834ed74e9))
+- *(dto)* 递归清理数据源 JSON 数据中的空值 ([9d66cbb](https://github.com/huoshen80/ReinaManager/commit/9d66cbb7403f63b176a802c0377a9f93571e7ea8))
+
+### 🎨 样式
+
+- *(ui)* 重构路径输入框使用内联图标按钮 ([f922450](https://github.com/huoshen80/ReinaManager/commit/f922450c93e58a87952dcdaf9b4a519ffdec56bb))
+
+### 🐛 Bug 修复
+
+- *(readme)* 修复 star 历史图表显示损坏的问题 [skip ci] ([1ca196a](https://github.com/huoshen80/ReinaManager/commit/1ca196a356adf723b102a9e49abc2756aea214e7))
+- *(metadata)* 恢复 kungal 数据源 ([5f770fa](https://github.com/huoshen80/ReinaManager/commit/5f770faee03eca408704146fa50923c666fc4d19))
+- *(detail)* 限制数据源封面的显示优先级 ([63f6f38](https://github.com/huoshen80/ReinaManager/commit/63f6f385eaba9ccd91d64a88e5ef886c20bc66e6))
+- *(metadata)* 移除爬取数据源的 User-Agent 限制 ([956dc72](https://github.com/huoshen80/ReinaManager/commit/956dc727382862491fac7c786be726405c64cdf7))
+- *(game)* 在添加元数据时保留原路径 ([1eb741a](https://github.com/huoshen80/ReinaManager/commit/1eb741af97e61f53045f238c01def450bbf9d95e))
+- *(fs)* 直接打开解析后的游戏目录 ([f75d88d](https://github.com/huoshen80/ReinaManager/commit/f75d88d41455c48e5199ef7e92f58733bf7c7800))
+- *(metadata)* 在批量导入时解析 DLsite ID ([b6edc91](https://github.com/huoshen80/ReinaManager/commit/b6edc91a1e2f726b05a3a44caa81c01740b04367))
+- *(launch)* 分离路径同步与游戏启动逻辑 ([0af4ef3](https://github.com/huoshen80/ReinaManager/commit/0af4ef3d0777473ce2a82d8324517de3b11006b5))
+- *(scan)* 优先扫描中文可执行文件 ([00e59fc](https://github.com/huoshen80/ReinaManager/commit/00e59fc5dc345b7ad80b26f28d3730e964858a61))
+- *(sort)* 修正最后游玩时间的排序 ([e15ee83](https://github.com/huoshen80/ReinaManager/commit/e15ee83cca9982879e86ef3377e8240c16360380))
+- *(db)* 增强数据源表迁移逻辑 ([7f5f075](https://github.com/huoshen80/ReinaManager/commit/7f5f0759680cd1031ae4f836699126ddc0d9d32d))
+- *(metadata)* 保留失败的数据源信息 ([eb655fe](https://github.com/huoshen80/ReinaManager/commit/eb655fef7a2b30c2688c021fb235c722dc2ff742))
+- *(import)* 根据平台拼接可执行文件路径 ([680526e](https://github.com/huoshen80/ReinaManager/commit/680526ee164d42177267d02f81ddb28f785bc892))
+- *(monitor)* 处理前台 PID 转换问题 ([be7bb72](https://github.com/huoshen80/ReinaManager/commit/be7bb721f35b42544f50d61d61cf3b04fc2482bf))
+- *(migration)* 回退使用默认的备份目录 ([d7d82b1](https://github.com/huoshen80/ReinaManager/commit/d7d82b15fbd10d1660a58373236f408098a31918))
+- *(add-modal)* 同步批量导入设置 ([91c2468](https://github.com/huoshen80/ReinaManager/commit/91c246871da947363ee5949ee86d530494f9a8d9))
+- *(home)* 防止主页焦点卡片内容溢出 ([5a4d170](https://github.com/huoshen80/ReinaManager/commit/5a4d1705848cc688231079e2ed2a996b06450b05))
+
+### 📚 文档
+
+- 更新部分文档内容 ([2cae39c](https://github.com/huoshen80/ReinaManager/commit/2cae39cc639c7e035636b2b233ed8b3a2f61e42f))
+- *(settings)* 澄清混合数据源相关的限制说明 ([01c7002](https://github.com/huoshen80/ReinaManager/commit/01c70023754481d70c525e4df6b830e435bbc172))
+
+### 🚀 性能优化
+
+- *(metadata)* 避免重复进行数据源 ID 扫描 ([7669438](https://github.com/huoshen80/ReinaManager/commit/76694386c48e82932ddb118a524a9b49724fea21))
+- *(scan)* 使用路径字典树过滤重复导入 ([781980f](https://github.com/huoshen80/ReinaManager/commit/781980ff50181d0ea2a85c9f7e0ce93fe6dde979))
+- *(fs)* 限制已删除路径的检查频率 ([08b7bfe](https://github.com/huoshen80/ReinaManager/commit/08b7bfef19196965d70b5b74cfba9b9e58d9d6d3))
+
+### 🚜 重构
+
+- 将游戏数据源修改为本地数据源模型 (#66) ([dd6bf12](https://github.com/huoshen80/ReinaManager/commit/dd6bf12bef0257e0ce8c57482a042a94ee210f55))
+- *(fs)* 将本地路径检查移至后端处理 ([2f73322](https://github.com/huoshen80/ReinaManager/commit/2f733226a14404add063348222ff6dbf1492c6b9))
+- *(game)* 统一启动路径的处理逻辑 ([6c3592f](https://github.com/huoshen80/ReinaManager/commit/6c3592f3aa1d6179aa6f311d808280c4215ae3f5))
+- *(game)* 使用原生的启动路径选择器 ([a68f6e9](https://github.com/huoshen80/ReinaManager/commit/a68f6e91c7ab280ecc0f30b374482f2c7b008c36))
+- *(datetime)* 集中管理日期相关标签 ([b11ae72](https://github.com/huoshen80/ReinaManager/commit/b11ae729761d3a64a793f45edc43542a453d0e98))
+- *(games)* 拆分启动路径相关字段 ([c84fdd4](https://github.com/huoshen80/ReinaManager/commit/c84fdd4e6f033d5b74e5847772e446a193b87d73))
+- *(settings)* 简化默认路径选择器 ([e76569b](https://github.com/huoshen80/ReinaManager/commit/e76569bc6188dca6dc011bfe38f861d098d3e52b))
+- *(home)* 简化主页仪表盘布局 ([223d109](https://github.com/huoshen80/ReinaManager/commit/223d109f6f14584fd85e62f5725ceedc7ff86587))
+
+</details>
+
+### ✨ Features
+
+- *(add-modal)* Refine source match modes ([d0ab2cc](https://github.com/huoshen80/ReinaManager/commit/d0ab2cc1789652b5460bba00088f029e2596c1c7))
+- *(metadata)* Add erogamescape source ([a0a15dc](https://github.com/huoshen80/ReinaManager/commit/a0a15dc11308a4f9a77b47d9beb08a1f5bdff2be))
+- *(metadata)* Add dlsite source ([0d72c0d](https://github.com/huoshen80/ReinaManager/commit/0d72c0dc6caa4a76c43f5669c720bad21227b5a6))
+- *(localpath)* Centralize local path resolution ([18a20b2](https://github.com/huoshen80/ReinaManager/commit/18a20b267c3de9a59ef61bbeeb4b7c13e0be8517))
+- *(import)* Add first-level directory scan ([e08b6b6](https://github.com/huoshen80/ReinaManager/commit/e08b6b67cd13f244b9329fe22658b638bc6a32f2))
+- *(home)* Redesign dashboard experience ([d6c5fb7](https://github.com/huoshen80/ReinaManager/commit/d6c5fb765349763f0a7739e29011eb5b678a8eab))
+- *(import)* Move scan options to settings ([d33e4bd](https://github.com/huoshen80/ReinaManager/commit/d33e4bdb6c0adab548e062c3f7f3b67c8a3848a1))
+- *(cards)* Show game selection counts ([d4cbe11](https://github.com/huoshen80/ReinaManager/commit/d4cbe117a9d8d821e5883536fc95e56834ed74e9))
+- *(dto)* Clean empty values from source JSON data recursively ([9d66cbb](https://github.com/huoshen80/ReinaManager/commit/9d66cbb7403f63b176a802c0377a9f93571e7ea8))
+
+### 🎨 Styling
+
+- *(ui)* Refactor path input to use inline icon buttons ([f922450](https://github.com/huoshen80/ReinaManager/commit/f922450c93e58a87952dcdaf9b4a519ffdec56bb))
+
+### 🐛 Bug Fixes
+
+- *(readme)* Fix broken star history chart display [skip ci] ([1ca196a](https://github.com/huoshen80/ReinaManager/commit/1ca196a356adf723b102a9e49abc2756aea214e7))
+- *(metadata)* Restore kungal source ([5f770fa](https://github.com/huoshen80/ReinaManager/commit/5f770faee03eca408704146fa50923c666fc4d19))
+- *(detail)* Limit source cover priority display ([63f6f38](https://github.com/huoshen80/ReinaManager/commit/63f6f385eaba9ccd91d64a88e5ef886c20bc66e6))
+- *(metadata)* Omit ua for scraped sources ([956dc72](https://github.com/huoshen80/ReinaManager/commit/956dc727382862491fac7c786be726405c64cdf7))
+- *(game)* Preserve path during metadata add ([1eb741a](https://github.com/huoshen80/ReinaManager/commit/1eb741af97e61f53045f238c01def450bbf9d95e))
+- *(fs)* Open resolved game directory directly ([f75d88d](https://github.com/huoshen80/ReinaManager/commit/f75d88d41455c48e5199ef7e92f58733bf7c7800))
+- *(metadata)* Resolve DLsite IDs in bulk import ([b6edc91](https://github.com/huoshen80/ReinaManager/commit/b6edc91a1e2f726b05a3a44caa81c01740b04367))
+- *(launch)* Separate path sync from game start ([0af4ef3](https://github.com/huoshen80/ReinaManager/commit/0af4ef3d0777473ce2a82d8324517de3b11006b5))
+- *(scan)* Prioritize cn executables ([00e59fc](https://github.com/huoshen80/ReinaManager/commit/00e59fc5dc345b7ad80b26f28d3730e964858a61))
+- *(sort)* Align last played time order ([e15ee83](https://github.com/huoshen80/ReinaManager/commit/e15ee83cca9982879e86ef3377e8240c16360380))
+- *(db)* Harden source table migration ([7f5f075](https://github.com/huoshen80/ReinaManager/commit/7f5f0759680cd1031ae4f836699126ddc0d9d32d))
+- *(metadata)* Preserve failed source data ([eb655fe](https://github.com/huoshen80/ReinaManager/commit/eb655fef7a2b30c2688c021fb235c722dc2ff742))
+- *(import)* Join executable paths by platform ([680526e](https://github.com/huoshen80/ReinaManager/commit/680526ee164d42177267d02f81ddb28f785bc892))
+- *(monitor)* Handle foreground PID transitions ([be7bb72](https://github.com/huoshen80/ReinaManager/commit/be7bb721f35b42544f50d61d61cf3b04fc2482bf))
+- *(migration)* Fallback to default backup dir ([d7d82b1](https://github.com/huoshen80/ReinaManager/commit/d7d82b15fbd10d1660a58373236f408098a31918))
+- *(add-modal)* Sync bulk import settings ([91c2468](https://github.com/huoshen80/ReinaManager/commit/91c246871da947363ee5949ee86d530494f9a8d9))
+- *(home)* Prevent focus card overflow ([5a4d170](https://github.com/huoshen80/ReinaManager/commit/5a4d1705848cc688231079e2ed2a996b06450b05))
+
+### 📚 Documentation
+
+- Update some docs ([2cae39c](https://github.com/huoshen80/ReinaManager/commit/2cae39cc639c7e035636b2b233ed8b3a2f61e42f))
+- *(settings)* Clarify mixed source limits ([01c7002](https://github.com/huoshen80/ReinaManager/commit/01c70023754481d70c525e4df6b830e435bbc172))
+
+### 🚀 Performance
+
+- *(metadata)* Avoid repeated source id scans ([7669438](https://github.com/huoshen80/ReinaManager/commit/76694386c48e82932ddb118a524a9b49724fea21))
+- *(scan)* Deduplicate imports with path trie ([781980f](https://github.com/huoshen80/ReinaManager/commit/781980ff50181d0ea2a85c9f7e0ce93fe6dde979))
+- *(fs)* Bound dropped path inspection ([08b7bfe](https://github.com/huoshen80/ReinaManager/commit/08b7bfef19196965d70b5b74cfba9b9e58d9d6d3))
+
+### 🚜 Refactor
+
+- Game metadata sources to source-native model (#66) ([dd6bf12](https://github.com/huoshen80/ReinaManager/commit/dd6bf12bef0257e0ce8c57482a042a94ee210f55))
+- *(fs)* Move local path checks to backend ([2f73322](https://github.com/huoshen80/ReinaManager/commit/2f733226a14404add063348222ff6dbf1492c6b9))
+- *(game)* Unify launch path handling ([6c3592f](https://github.com/huoshen80/ReinaManager/commit/6c3592f3aa1d6179aa6f311d808280c4215ae3f5))
+- *(game)* Use native launch path picker ([a68f6e9](https://github.com/huoshen80/ReinaManager/commit/a68f6e91c7ab280ecc0f30b374482f2c7b008c36))
+- *(datetime)* Centralize date labels ([b11ae72](https://github.com/huoshen80/ReinaManager/commit/b11ae729761d3a64a793f45edc43542a453d0e98))
+- *(games)* Split launch path fields ([c84fdd4](https://github.com/huoshen80/ReinaManager/commit/c84fdd4e6f033d5b74e5847772e446a193b87d73))
+- *(settings)* Simplify path picker default ([e76569b](https://github.com/huoshen80/ReinaManager/commit/e76569bc6188dca6dc011bfe38f861d098d3e52b))
+- *(home)* Simplify dashboard layout ([223d109](https://github.com/huoshen80/ReinaManager/commit/223d109f6f14584fd85e62f5725ceedc7ff86587))
+
+
 ## [0.24.3](https://github.com/huoshen80/ReinaManager/compare/v0.24.1...v0.24.3) (2026-07-07)
 
 <details>

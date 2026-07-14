@@ -329,10 +329,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 							</Typography>
 
 							<TextField
-								label={t(
-									"pages.Detail.Backup.saveDataPath",
-									"存档文件夹路径",
-								)}
+								label={t("pages.Detail.Backup.saveDataPath", "存档文件夹路径")}
 								variant="outlined"
 								fullWidth
 								value={saveDataPath}
