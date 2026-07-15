@@ -407,6 +407,19 @@ const AddModal: React.FC = () => {
 							autoComplete="off"
 							value={formText}
 							onChange={(event) => setFormText(event.target.value)}
+							onKeyDown={(event) => {
+								if (
+									event.key !== "Enter" ||
+									event.nativeEvent.isComposing ||
+									formText === "" ||
+									isBusy
+								) {
+									return;
+								}
+
+								event.preventDefault();
+								void handleSubmit();
+							}}
 						/>
 					</Stack>
 				</DialogContent>
