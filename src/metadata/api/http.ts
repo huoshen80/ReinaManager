@@ -254,7 +254,7 @@ export const tauriHttp = {
 	 * 发送 GET 请求
 	 * @param url 请求 URL
 	 * @param options 请求选项，包含 headers 和 params 等
-	 * @returns Promise<any> 响应数据
+	 * @returns Promise<TauriHttpResponse<T>> 响应数据
 	 */
 	async get<T = unknown>(url: string, options?: TauriHttpOptions) {
 		return requestTauriHttp<T>("GET", url, options);
@@ -272,7 +272,7 @@ export const tauriHttp = {
 	 * @param url 请求 URL
 	 * @param data 请求体数据
 	 * @param options 请求选项，包含 headers 等
-	 * @returns Promise<any> 响应数据
+	 * @returns Promise<TauriHttpResponse<T>> 响应数据
 	 */
 	async post<T = unknown>(
 		url: string,
@@ -287,7 +287,7 @@ export const tauriHttp = {
 	 * @param url 请求 URL
 	 * @param data 请求体数据
 	 * @param options 请求选项，包含 headers 等
-	 * @returns Promise<any> 响应数据
+	 * @returns Promise<TauriHttpResponse<T>> 响应数据
 	 */
 	async patch<T = unknown>(
 		url: string,

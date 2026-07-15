@@ -29,13 +29,36 @@ const BGM_JSON_HEADERS = {
 	"User-Agent": USER_AGENT,
 } as const;
 
+interface BgmSubjectInfoboxValue {
+	v: string;
+}
+
+interface BgmSubjectInfoboxItem {
+	key: string;
+	value: string | Array<string | BgmSubjectInfoboxValue>;
+}
+
+interface BgmSubjectTag {
+	name: string;
+	/** 搜索接口返回有效总数，条目详情和收藏接口固定返回 0。 */
+	total_cont: number;
+}
+
 interface BgmSubjectResponse {
-	id?: number;
+	id: number;
+	name: string;
+	name_cn: string;
+	summary: string;
+	nsfw: boolean;
 	date?: string;
+	images: { large: string };
+	infobox?: BgmSubjectInfoboxItem[];
+	rating: { rank: number; score: number };
+	tags: BgmSubjectTag[];
 }
 
 interface BgmSearchResponse {
-	data?: unknown[];
+	data: BgmSubjectResponse[];
 }
 
 export interface BgmUserCollection {
@@ -115,19 +138,14 @@ function filterSensitiveTags(tags: string[]): string[] {
 }
 
 // 新增：将 BGM API 返回对象转换为统一的结构
-// biome-ignore lint/suspicious/noExplicitAny: external API has dynamic shape
-const transformBgmData = (BGMdata: any): GameMetadataDraft => {
+const transformBgmData = (BGMdata: BgmSubjectResponse): GameMetadataDraft => {
 	// 处理 aliases 字段：可能是数组或字符串
-	const aliasesRaw = BGMdata.infobox?.find(
-		(k: { key: string }) => k.key === "别名",
-	)?.value;
+	const aliasesRaw = BGMdata.infobox?.find((k) => k.key === "别名")?.value;
 
 	let aliasesArray: string[] = [];
 	if (Array.isArray(aliasesRaw)) {
 		// 如果是数组，提取每个对象的 v 字段
-		aliasesArray = aliasesRaw.map((k: { v: string } | string) =>
-			typeof k === "string" ? k : k.v,
-		);
+		aliasesArray = aliasesRaw.map((k) => (typeof k === "string" ? k : k.v));
 	} else if (typeof aliasesRaw === "string") {
 		// 如果是字符串，直接包装成数组
 		aliasesArray = [aliasesRaw];
@@ -141,24 +159,24 @@ const transformBgmData = (BGMdata: any): GameMetadataDraft => {
 		name_cn: BGMdata.name_cn,
 		aliases: aliasesArray,
 		tags: filterSensitiveTags(
-			(BGMdata.tags || []).map((tag: { name: string }) => tag.name),
+			(BGMdata.tags || [])
+				.filter((tag) => tag.total_cont !== 1)
+				.map((tag) => tag.name),
 		),
 		rank: BGMdata.rating?.rank,
 		score: BGMdata.rating?.score,
 		developer: (() => {
 			const developers =
-				BGMdata.infobox?.flatMap(
-					(item: { key: string; value: string | unknown }) => {
-						if (DEVELOPER_KEYWORDS.includes(item.key)) {
-							if (typeof item.value !== "string") return [];
-							return item.value
-								.split(/、|×/g)
-								.map((name: string) => name.trim())
-								.filter((name: string) => name.length > 0);
-						}
-						return [];
-					},
-				) ?? [];
+				BGMdata.infobox?.flatMap((item) => {
+					if (DEVELOPER_KEYWORDS.includes(item.key)) {
+						if (typeof item.value !== "string") return [];
+						return item.value
+							.split(/、|×/g)
+							.map((name: string) => name.trim())
+							.filter((name: string) => name.length > 0);
+					}
+					return [];
+				}) ?? [];
 			const uniqueDevelopers = [...new Set(developers)];
 			return uniqueDevelopers.length > 0
 				? uniqueDevelopers.join("/")
@@ -235,8 +253,7 @@ export async function fetchBgmByName(
 
 	const rawResults = Array.isArray(resp.data) ? resp.data : [];
 
-	// biome-ignore lint/suspicious/noExplicitAny: external API has dynamic shape
-	return rawResults.map((item: any) => transformBgmData(item));
+	return rawResults.map((item) => transformBgmData(item));
 }
 
 /**

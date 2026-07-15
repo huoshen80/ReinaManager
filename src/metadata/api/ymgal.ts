@@ -59,13 +59,24 @@ function buildYmgalRateLimitedOptions(
 
 interface YmTokenResponse {
 	access_token: string;
+	token_type: string;
+	expires_in: number;
+	scope: string;
 }
 
 interface YmApiEnvelope<T> {
 	success: boolean;
 	code: number;
-	msg?: string;
-	data: T;
+	msg?: string | null;
+	data?: T | null;
+}
+
+interface YmPageResponse<T> {
+	result: T[];
+	total: number;
+	hasNext: boolean;
+	pageNum: number;
+	pageSize: number;
 }
 
 /**
@@ -113,7 +124,7 @@ async function getAccessToken(
  * @param {string} path API 路径
  * @param {object} params 请求参数
  * @param {number} maxRetries 最大重试次数
- * @returns {Promise<any>} API 响应数据
+ * @returns {Promise<T>} API 响应数据
  */
 async function ymApiRequest<T>(
 	path: string,
@@ -160,6 +171,13 @@ async function ymApiRequest<T>(
 				});
 			}
 
+			if (response.data.data == null) {
+				throw new AppError({
+					code: "metadata_request_failed",
+					message: "YMGal API returned no data",
+				});
+			}
+
 			return response.data.data;
 		} catch (error: unknown) {
 			lastError = error;
@@ -189,9 +207,12 @@ async function fetchOrganizationName(
 ): Promise<string | undefined> {
 	if (!orgId) return undefined;
 	try {
-		const data = await ymApiRequest<{
-			org?: { chineseName?: string; name?: string };
-		}>("/open/archive", { orgId }, 2, signal);
+		const data = await ymApiRequest<YmOrganizationArchiveResponse>(
+			"/open/archive",
+			{ orgId },
+			2,
+			signal,
+		);
 		const org = data?.org;
 		return org?.chineseName || org?.name || undefined;
 	} catch {
@@ -204,20 +225,11 @@ async function fetchOrganizationName(
  */
 interface YmGameListItem {
 	id: number; // gid
-	orgId: number;
 	orgName: string;
-	releaseDate: string;
-	haveChinese: boolean;
-	restricted: boolean; // NSFW 限制级标识
+	releaseDate: string | null;
 	name: string;
-	chineseName: string;
-	state: string;
-	weights: number;
+	chineseName: string | null;
 	mainImg: string;
-	publishVersion: number;
-	publishTime: string;
-	publisher: number;
-	score: string;
 }
 
 /**
@@ -226,43 +238,28 @@ interface YmGameListItem {
 interface YmGameDetail {
 	gid: number;
 	developerId: number;
-	haveChinese: boolean;
-	typeDesc: string;
-	releaseDate: string;
+	releaseDate: string | null;
 	restricted: boolean; // NSFW 限制级标识
-	country: string;
-	publishVersion: number;
-	publishTime: string;
 	name: string;
-	chineseName: string;
-	extensionName: Array<{ name: string; type: string; desc: string }>;
+	chineseName: string | null;
+	extensionName: Array<{
+		name: string;
+		type: string | null;
+		desc: string | null;
+	}>;
 	introduction: string;
-	state: string;
-	weights: number;
 	mainImg: string;
-	moreEntry: Array<{ key: string; value: string }>;
-	characters: Array<{
-		cid: number;
-		cvId: number;
-		characterPosition: number;
-	}>;
-	releases: Array<{
-		id: number;
-		releaseName: string;
-		relatedLink: string;
-		platform: string;
-		releaseDate: string;
-		releaseLanguage: string;
-		restrictionLevel: string;
-	}>;
-	website: Array<{ title: string; link: string }>;
-	staff: Array<{
-		sid: number;
-		pid: number;
-		empName: string;
-		empDesc: string;
-		jobName: string;
-	}>;
+}
+
+interface YmGameArchiveResponse {
+	game?: YmGameDetail;
+}
+
+interface YmOrganizationArchiveResponse {
+	org?: {
+		name: string;
+		chineseName: string | null;
+	};
 }
 
 /**
@@ -278,10 +275,10 @@ function transformYmData(
 	const aliases = ymData.extensionName?.map((ext) => ext.name).filter(Boolean);
 
 	const ymgalData: YmgalData = {
-		date: ymData.releaseDate,
+		date: ymData.releaseDate ?? undefined,
 		image: ymData.mainImg,
 		name: ymData.name,
-		name_cn: ymData.chineseName,
+		name_cn: ymData.chineseName ?? undefined,
 		aliases: aliases && aliases.length > 0 ? aliases : undefined,
 		summary: ymData.introduction,
 		developer: undefined,
@@ -317,7 +314,7 @@ export async function fetchYmByName(
 	fetchDetailById = false,
 	signal?: AbortSignal,
 ): Promise<GameMetadataDraft[]> {
-	const data = await ymApiRequest<{ result?: YmGameListItem[] }>(
+	const data = await ymApiRequest<YmPageResponse<YmGameListItem>>(
 		"/open/archive/search-game",
 		{
 			mode: "list",
@@ -329,19 +326,18 @@ export async function fetchYmByName(
 		signal,
 	);
 
-	if (!data?.result || data.result.length === 0) {
+	if (data.result.length === 0) {
 		return [];
 	}
 
 	// 将列表数据转换为统一格式（不包含详细信息）
 	const results = data.result.map((item: YmGameListItem): GameMetadataDraft => {
 		const ymgalData: YmgalData = {
-			date: item.releaseDate,
+			date: item.releaseDate ?? undefined,
 			image: item.mainImg,
 			name: item.name,
-			name_cn: item.chineseName,
+			name_cn: item.chineseName ?? undefined,
 			developer: item.orgName,
-			nsfw: item.restricted,
 		};
 
 		return {
@@ -384,9 +380,12 @@ export async function fetchYmById(
 	signal?: AbortSignal,
 ): Promise<GameMetadataDraft> {
 	const id = Number(gid.replace(/^ga/i, ""));
-	const data = await ymApiRequest<{
-		game?: YmGameDetail;
-	}>("/open/archive", { gid: id }, 2, signal);
+	const data = await ymApiRequest<YmGameArchiveResponse>(
+		"/open/archive",
+		{ gid: id },
+		2,
+		signal,
+	);
 
 	if (!data?.game) {
 		throw new AppError({

@@ -35,36 +35,27 @@ export interface KunLanguage {
 }
 
 export interface GalgameDetailTag {
-	id: number;
 	name: string;
-	category: string;
 	galgame_count: number;
 	spoiler_level: number;
 }
 
 export interface GalgameOfficialItem {
-	id: number;
 	name: string;
-	link: string;
-	category: string;
-	lang: string;
-	alias: string[];
-	galgame_count: number;
 }
 
 export interface GalgameDetailResponse {
 	id: number;
-	vndb_id?: string;
-	name: Partial<KunLanguage>;
+	vndb_id: string;
+	name: KunLanguage;
 	effective_banner_url?: string;
-	introduction?: Partial<KunLanguage>;
-	content_limit?: "sfw" | "nsfw";
-	markdown?: Partial<KunLanguage>;
-	age_limit?: "all" | "r18";
-	alias?: string[];
-	official?: GalgameOfficialItem[];
-	tag?: GalgameDetailTag[];
-	release_date?: string | null;
+	content_limit: "sfw" | "nsfw";
+	markdown: KunLanguage;
+	age_limit: "all" | "r18";
+	alias: string[];
+	official: GalgameOfficialItem[];
+	tag: GalgameDetailTag[];
+	release_date: string | null;
 }
 
 export interface SearchResultGalgame {
@@ -273,7 +264,7 @@ export async function fetchGalgameById(
 
 	const kunData = resp.data?.data;
 
-	if (!kunData || resp.data.code === 233) {
+	if (!kunData) {
 		throw new AppError({
 			code: "metadata_not_found",
 			message: `Kungal game not found: ${id}`,

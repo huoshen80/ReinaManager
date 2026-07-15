@@ -61,7 +61,7 @@ function buildVndbRateLimitedAuthOptions(
 /**
  * VNDB 标题对象接口。
  */
-interface VNDB_title {
+interface VndbTitle {
 	title: string;
 	lang: string;
 	main: boolean;
@@ -70,9 +70,9 @@ interface VNDB_title {
 /**
  * VNDB API 原始数据接口
  */
-interface RawVNDBData {
+interface VndbVisualNovelResponse {
 	id: string;
-	titles: VNDB_title[];
+	titles: VndbTitle[];
 	aliases: string[];
 	image: { url: string } | null;
 	released: string | null;
@@ -81,6 +81,12 @@ interface RawVNDBData {
 	description: string | null;
 	developers: { name: string }[];
 	length_minutes: number | null;
+}
+
+interface VndbQueryResponse<T> {
+	results: T[];
+	more: boolean;
+	count?: number;
 }
 
 export interface VndbAuthInfo {
@@ -93,7 +99,11 @@ export interface VndbUserLabel {
 	id: number;
 	label: string;
 	private: boolean;
-	count?: number;
+	count: number;
+}
+
+interface VndbUserLabelsResponse {
+	labels: VndbUserLabel[];
 }
 
 export interface VndbUserCollectionLabel {
@@ -101,28 +111,9 @@ export interface VndbUserCollectionLabel {
 	label: string;
 }
 
-export interface VndbUserCollectionRelease {
-	id: string;
-	list_status: number;
-}
-
 export interface VndbUserCollectionItem {
 	id: string;
-	added: number;
-	voted: number | null;
-	lastmod: number;
-	vote: number | null;
-	started: string | null;
-	finished: string | null;
-	notes: string | null;
 	labels: VndbUserCollectionLabel[];
-	releases?: VndbUserCollectionRelease[];
-}
-
-interface VndbUserCollectionsResponse {
-	results?: VndbUserCollectionItem[];
-	more?: boolean;
-	count?: number;
 }
 
 export interface VndbUserCollectionsPage {
@@ -159,11 +150,11 @@ async function resolveVndbUserId(
  * @private
  */
 function transformVndbData(
-	VNDBdata: RawVNDBData,
+	VNDBdata: VndbVisualNovelResponse,
 	update_batch?: boolean,
 ): GameMetadataDraft {
 	// 处理标题信息
-	const titles = VNDBdata.titles.map((title: VNDB_title) => ({
+	const titles = VNDBdata.titles.map((title: VndbTitle) => ({
 		title: title.title,
 		lang: title.lang,
 		main: title.main,
@@ -173,14 +164,14 @@ function transformVndbData(
 		titles.find((title) => title.main)?.title ?? titles[0]?.title ?? "";
 	const chineseTitle =
 		titles.find(
-			(title: VNDB_title) =>
+			(title: VndbTitle) =>
 				title.lang === "zh-Hans" ||
 				title.lang === "zh-Hant" ||
 				title.lang === "zh",
 		)?.title || "";
 
 	// 提取所有标题
-	const allTitles: string[] = titles.map((title: VNDB_title) => title.title);
+	const allTitles: string[] = titles.map((title: VndbTitle) => title.title);
 
 	// 根据 spoilerLevel 过滤标签
 	const filterLevel = useStore.getState().spoilerLevel;
@@ -249,7 +240,7 @@ export async function fetchVndbByName(
 
 	// 调用 VNDB API
 	const rawResults = (
-		await http.post<{ results: RawVNDBData[] }>(
+		await http.post<VndbQueryResponse<VndbVisualNovelResponse>>(
 			`${VNDB_API_BASE}/vn`,
 			requestBody,
 			buildVndbRateLimitedOptions(signal),
@@ -326,11 +317,9 @@ export async function fetchVNDBByIds(
 			results: Math.min(batch.length, 100),
 		};
 
-		const response = await http.post<{ results: RawVNDBData[] }>(
-			`${VNDB_API_BASE}/vn`,
-			requestBody,
-			buildVndbRateLimitedOptions(signal),
-		);
+		const response = await http.post<
+			VndbQueryResponse<VndbVisualNovelResponse>
+		>(`${VNDB_API_BASE}/vn`, requestBody, buildVndbRateLimitedOptions(signal));
 
 		const results = response.data.results;
 
@@ -338,7 +327,7 @@ export async function fetchVNDBByIds(
 			return [];
 		}
 
-		return results.map((vndbData: RawVNDBData) =>
+		return results.map((vndbData: VndbVisualNovelResponse) =>
 			transformVndbData(vndbData, true),
 		);
 	};
@@ -398,7 +387,7 @@ export async function fetchVndbUserLabels(
 	if (!token) return [];
 
 	try {
-		const response = await http.get<{ labels: VndbUserLabel[] }>(
+		const response = await http.get<VndbUserLabelsResponse>(
 			`${VNDB_API_BASE}/ulist_labels`,
 			{
 				...buildVndbRateLimitedAuthOptions(token, signal),
@@ -433,7 +422,7 @@ export async function fetchVndbUserCollection(
 		const resolvedUserId = await resolveVndbUserId(token, userId, signal);
 		if (!resolvedUserId) return null;
 
-		const response = await http.post<{ results: VndbUserCollectionItem[] }>(
+		const response = await http.post<VndbQueryResponse<VndbUserCollectionItem>>(
 			`${VNDB_API_BASE}/ulist`,
 			{
 				user: resolvedUserId,
@@ -497,7 +486,7 @@ export async function fetchVndbUserCollectionsPage(
 	},
 	signal?: AbortSignal,
 ): Promise<VndbUserCollectionsPage> {
-	const response = await http.post<VndbUserCollectionsResponse>(
+	const response = await http.post<VndbQueryResponse<VndbUserCollectionItem>>(
 		`${VNDB_API_BASE}/ulist`,
 		{
 			user: params.userId,
