@@ -149,7 +149,7 @@ export const SearchBox = () => {
 			if (event.key === "Escape") {
 				setIsOpen(false);
 				event.stopPropagation();
-			} else if (event.key === "Enter") {
+			} else if (event.key === "Enter" && !event.nativeEvent.isComposing) {
 				commitSearch(searchInput);
 				setIsOpen(false);
 				event.stopPropagation();

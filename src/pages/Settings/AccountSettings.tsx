@@ -250,7 +250,7 @@ const BgmTokenLoginPanel = ({
 							onChange={(e) => onInputTokenChange(e.target.value)}
 							onBlur={onCommitToken}
 							onKeyDown={(event) => {
-								if (event.key === "Enter") {
+								if (event.key === "Enter" && !event.nativeEvent.isComposing) {
 									event.preventDefault();
 									(event.target as HTMLInputElement).blur();
 								}
@@ -492,7 +492,7 @@ export const VndbTokenSettings = () => {
 					onChange={(e) => setInputToken(e.target.value)}
 					onBlur={handleSaveToken}
 					onKeyDown={(event) => {
-						if (event.key === "Enter") {
+						if (event.key === "Enter" && !event.nativeEvent.isComposing) {
 							event.preventDefault();
 							(event.target as HTMLInputElement).blur();
 						}

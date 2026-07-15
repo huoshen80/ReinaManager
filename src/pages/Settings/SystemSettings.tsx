@@ -385,7 +385,7 @@ export const LinuxLaunchCommandSettings = () => {
 					onChange={(e) => setLaunchCommand(e.target.value)}
 					onBlur={() => void saveLaunchCommand()}
 					onKeyDown={(event) => {
-						if (event.key === "Enter") {
+						if (event.key === "Enter" && !event.nativeEvent.isComposing) {
 							event.preventDefault();
 							(event.target as HTMLInputElement).blur();
 						}
@@ -514,7 +514,7 @@ export const ProxySettings = () => {
 					onChange={handleUrlChange}
 					onBlur={saveProxyUrl}
 					onKeyDown={(event) => {
-						if (event.key === "Enter") {
+						if (event.key === "Enter" && !event.nativeEvent.isComposing) {
 							event.preventDefault();
 							saveProxyUrl();
 						}

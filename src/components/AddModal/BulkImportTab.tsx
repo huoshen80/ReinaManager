@@ -790,7 +790,11 @@ const BulkImportTab = ({
 							size="small"
 							disabled={searchResultLoading}
 							onKeyDown={(event) => {
-								if (event.key === "Enter" && !searchResultLoading) {
+								if (
+									event.key === "Enter" &&
+									!event.nativeEvent.isComposing &&
+									!searchResultLoading
+								) {
 									handleEditRowSearch();
 								}
 							}}

@@ -328,6 +328,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 						onKeyDown={(event) => {
 							if (
 								event.key === "Enter" &&
+								!event.nativeEvent.isComposing &&
 								searchName.trim() &&
 								searchSource &&
 								!isBusy

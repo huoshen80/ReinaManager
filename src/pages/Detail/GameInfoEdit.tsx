@@ -633,7 +633,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 	// 别名输入键盘事件
 	const handleAliasKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter") {
+		if (e.key === "Enter" && !e.nativeEvent.isComposing) {
 			e.preventDefault();
 			handleAddAlias();
 		} else if (
@@ -663,7 +663,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 	// 标签输入键盘事件
 	const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter") {
+		if (e.key === "Enter" && !e.nativeEvent.isComposing) {
 			e.preventDefault();
 			handleAddTag();
 		} else if (e.key === "Backspace" && tagInput === "" && tags.length > 0) {

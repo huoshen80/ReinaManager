@@ -195,7 +195,7 @@ export const FilterSortModal: React.FC = () => {
 	const handleTagInputKeyDown = (
 		event: React.KeyboardEvent<HTMLInputElement>,
 	) => {
-		if (event.key !== "Enter") return;
+		if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
 		const trimmed = tagInput.trim();
 		if (!trimmed) return;
 

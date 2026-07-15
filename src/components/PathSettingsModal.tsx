@@ -246,7 +246,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 		event: React.KeyboardEvent<HTMLDivElement>,
 		key: keyof PathSettingsDraft,
 	) => {
-		if (event.key === "Enter") {
+		if (event.key === "Enter" && !event.nativeEvent.isComposing) {
 			event.preventDefault();
 			(event.target as HTMLInputElement).blur();
 		}
