@@ -58,6 +58,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 		clear: nullToUndefined(fullData.clear),
 		le_launch: nullToUndefined(fullData.le_launch),
 		magpie: nullToUndefined(fullData.magpie),
+			webdav_sync: nullToUndefined(fullData.webdav_sync),
 		custom_data: displayCustomData,
 		created_at: fullData.created_at,
 		updated_at: fullData.updated_at,
