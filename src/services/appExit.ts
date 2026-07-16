@@ -2,7 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { StateFlags, saveWindowState } from "@tauri-apps/plugin-window-state";
 import i18n from "i18next";
-import { createAutoBackup } from "@/services/fs/dataMaintenance";
+import { createAutoBackup, createWebdavAutoBackup } from "@/services/fs/dataMaintenance";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import { toError } from "@/utils/errors";
@@ -93,7 +93,56 @@ async function runAutoBackupOnExitIfNeeded(): Promise<void> {
 	return exitAutoBackupPromise;
 }
 
+let exitWebdavAutoBackupPromise: Promise<void> | null = null;
+
+async function runWebdavAutoBackupIfNeeded(): Promise<void> {
+	const state = useStore.getState();
+	if (!state.webdavAutoBackupOnExit) return;
+
+	// 检查最小间隔
+	if (state.webdavAutoBackupLastSuccessAt) {
+		const hoursSinceLastBackup =
+			(Date.now() - state.webdavAutoBackupLastSuccessAt) / HOUR_MS;
+		if (
+			state.webdavAutoBackupMinIntervalHours > 0 &&
+			hoursSinceLastBackup < state.webdavAutoBackupMinIntervalHours
+		) {
+			console.log(
+				`WebDAV 自动备份跳过：距上次备份 ${hoursSinceLastBackup.toFixed(1)} 小时，最小间隔 ${state.webdavAutoBackupMinIntervalHours} 小时`,
+			);
+			return;
+		}
+	}
+
+	if (exitWebdavAutoBackupPromise) {
+		return exitWebdavAutoBackupPromise;
+	}
+
+	exitWebdavAutoBackupPromise = (async () => {
+		try {
+			const result = await createWebdavAutoBackup(
+				state.webdavAutoBackupRetentionCount,
+			);
+			useStore.getState().setWebdavAutoBackupLastResult(Date.now(), null);
+			console.log("WebDAV 自动备份完成:", result.path);
+		} catch (error) {
+			const message = toError(error, "WebDAV 自动备份失败").message;
+			console.error("WebDAV 自动备份失败:", error);
+			useStore
+				.getState()
+				.setWebdavAutoBackupLastResult(null, message);
+		} finally {
+			exitWebdavAutoBackupPromise = null;
+		}
+	})();
+
+	return exitWebdavAutoBackupPromise;
+}
+
 export const destroyCurrentWindow = async (): Promise<void> => {
+	// 先执行 WebDAV 自动备份（需要在数据库连接关闭前读取配置）
+	await runWebdavAutoBackupIfNeeded();
+	// 再执行本地自动备份（会关闭数据库连接）
 	await runAutoBackupOnExitIfNeeded();
 
 	try {

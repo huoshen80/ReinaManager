@@ -26,6 +26,7 @@ import {
 	StartupPageSettings,
 } from "./GeneralSettings";
 import { DatabaseBackupSettings } from "./MaintenanceSettings";
+import { WebDavBackupSettings } from "./WebDavBackupSettings";
 import { SettingsDivider, SettingsGroup, SettingsItem } from "./SettingsLayout";
 import {
 	AutoStartSettings,
@@ -177,7 +178,7 @@ export const Settings: React.FC = () => {
 				label: t("pages.Settings.sections.storage", "路径与备份"),
 				description: t(
 					"pages.Settings.sections.storageDescription",
-					"配置本地路径，执行数据备份和恢复。",
+					"配置本地路径，执行数据备份和 WebDAV 远程备份。",
 				),
 				content: (
 					<>
@@ -206,6 +207,8 @@ export const Settings: React.FC = () => {
 						</SettingsGroup>
 						<SettingsDivider />
 						<DatabaseBackupSettings />
+						<SettingsDivider />
+						<WebDavBackupSettings />
 					</>
 				),
 			},

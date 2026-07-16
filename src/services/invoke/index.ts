@@ -9,6 +9,7 @@ export type {
 	BackupResult,
 	ImportResult,
 	MoveBackupFolderResult,
+	WebdavBackupInfo,
 } from "./fileService";
 export { fileService } from "./fileService";
 // 导出所有服务

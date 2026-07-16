@@ -86,6 +86,20 @@ export interface AppState {
 		error: string | null,
 	) => void;
 
+	// WebDAV 退出时自动备份
+	webdavAutoBackupOnExit: boolean;
+	webdavAutoBackupMinIntervalHours: number;
+	webdavAutoBackupRetentionCount: number;
+	webdavAutoBackupLastSuccessAt: number | null;
+	webdavAutoBackupLastError: string | null;
+	setWebdavAutoBackupOnExit: (enabled: boolean) => void;
+	setWebdavAutoBackupMinIntervalHours: (hours: number) => void;
+	setWebdavAutoBackupRetentionCount: (count: number) => void;
+	setWebdavAutoBackupLastResult: (
+		successAt: number | null,
+		error: string | null,
+	) => void;
+
 	// UI 操作方法
 	setSelectedGameId: (id: number | null) => void;
 	openAddModal: (path?: string) => void;
@@ -233,6 +247,35 @@ export const useStore = create<AppState>()(
 				set((state) => ({
 					autoBackupLastSuccessAt: successAt ?? state.autoBackupLastSuccessAt,
 					autoBackupLastError: error,
+				})),
+
+			// WebDAV 退出时自动备份
+			webdavAutoBackupOnExit: false,
+			webdavAutoBackupMinIntervalHours: 6,
+			webdavAutoBackupRetentionCount: 7,
+			webdavAutoBackupLastSuccessAt: null,
+			webdavAutoBackupLastError: null,
+			setWebdavAutoBackupOnExit: (enabled: boolean) =>
+				set({ webdavAutoBackupOnExit: enabled }),
+			setWebdavAutoBackupMinIntervalHours: (hours: number) => {
+				const nextHours = Number.isFinite(hours) ? hours : 0;
+				set({
+					webdavAutoBackupMinIntervalHours: Math.max(0, Math.floor(nextHours)),
+				});
+			},
+			setWebdavAutoBackupRetentionCount: (count: number) => {
+				const nextCount = Number.isFinite(count) ? count : 1;
+				set({
+					webdavAutoBackupRetentionCount: Math.max(1, Math.floor(nextCount)),
+				});
+			},
+			setWebdavAutoBackupLastResult: (
+				successAt: number | null,
+				error: string | null,
+			) =>
+				set((state) => ({
+					webdavAutoBackupLastSuccessAt: successAt ?? state.webdavAutoBackupLastSuccessAt,
+					webdavAutoBackupLastError: error,
 				})),
 
 			// 数据来源选择
@@ -473,6 +516,12 @@ export const useStore = create<AppState>()(
 				autoBackupRetentionCount: state.autoBackupRetentionCount,
 				autoBackupLastSuccessAt: state.autoBackupLastSuccessAt,
 				autoBackupLastError: state.autoBackupLastError,
+				// WebDAV 退出时自动备份
+				webdavAutoBackupOnExit: state.webdavAutoBackupOnExit,
+				webdavAutoBackupMinIntervalHours: state.webdavAutoBackupMinIntervalHours,
+				webdavAutoBackupRetentionCount: state.webdavAutoBackupRetentionCount,
+				webdavAutoBackupLastSuccessAt: state.webdavAutoBackupLastSuccessAt,
+				webdavAutoBackupLastError: state.webdavAutoBackupLastError,
 				// 数据来源选择
 				apiSource: state.apiSource,
 				mixedEnabledSources: state.mixedEnabledSources,

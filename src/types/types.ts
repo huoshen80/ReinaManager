@@ -338,6 +338,12 @@ export interface UpdateSettingsParams {
 	dbBackupPath?: Nullable<string>;
 	lePath?: Nullable<string>;
 	magpiePath?: Nullable<string>;
+	// WebDAV 配置
+	webdavUrl?: Nullable<string>;
+	webdavUsername?: Nullable<string>;
+	webdavPassword?: Nullable<string>;
+	webdavRoot?: Nullable<string>;
+	webdavEnabled?: Nullable<boolean>;
 }
 
 /**

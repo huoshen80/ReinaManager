@@ -32,6 +32,12 @@ export interface PortableModeResult {
 	is_portable: boolean;
 }
 
+export interface WebdavBackupInfo {
+	name: string;
+	size: number;
+	modified: string;
+}
+
 export interface DroppedLocalPathResult {
 	kind:
 		| "executable"
@@ -156,6 +162,54 @@ class FileService extends BaseService {
 			newPath,
 		});
 	}
+
+	/**
+	 * 测试 WebDAV 连接
+	 */
+	async testWebdavConnection(
+		url: string,
+		username: string,
+		password: string,
+	): Promise<boolean> {
+		return this.invoke<boolean>("test_webdav_connection", { url, username, password });
+	}
+
+	/**
+	 * 备份数据库并上传到 WebDAV
+	 */
+	async webdavBackupDatabase(
+		options: BackupOptions | null = null,
+	): Promise<BackupResult> {
+		return this.invoke<BackupResult>("webdav_backup_database", { options });
+	}
+
+	/**
+	 * 从 WebDAV 下载备份并恢复数据库
+	 */
+	async webdavImportDatabase(
+		remoteFilename: string,
+	): Promise<ImportResult> {
+		return this.invoke<ImportResult>("webdav_import_database", {
+			remoteFilename,
+		});
+	}
+
+	/**
+	 * 列举 WebDAV 远程备份文件
+	 */
+	async listWebdavBackups(): Promise<WebdavBackupInfo[]> {
+		return this.invoke<WebdavBackupInfo[]>("list_webdav_backups");
+	}
+
+	/**
+	 * 删除 WebDAV 远程备份文件
+	 */
+	async deleteWebdavBackup(remoteFilename: string): Promise<void> {
+		return this.invoke<void>("delete_webdav_backup", {
+			remoteFilename,
+		});
+	}
+
 }
 
 export const fileService = new FileService();

@@ -13,6 +13,11 @@ export interface UserSettings {
 	db_backup_path?: string | null;
 	le_path?: string | null;
 	magpie_path?: string | null;
+	webdav_url?: string | null;
+	webdav_username?: string | null;
+	webdav_password?: string | null;
+	webdav_root?: string | null;
+	webdav_enabled?: boolean | null;
 }
 
 export interface ProxyConfig {
