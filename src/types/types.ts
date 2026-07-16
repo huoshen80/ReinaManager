@@ -227,6 +227,7 @@ interface GameRuntimePayload {
 	clear?: number;
 	le_launch?: number;
 	magpie?: number;
+	webdav_sync?: number;
 }
 
 interface GameCustomPayload {
@@ -314,6 +315,7 @@ export interface UpdateGameParams {
 	clear?: Nullable<number>;
 	le_launch?: Nullable<number>;
 	magpie?: Nullable<number>;
+	webdav_sync?: Nullable<number>;
 
 	// --- 元数据 Payload（支持三态） ---
 	custom_data?: Nullable<CustomData>;
@@ -338,6 +340,12 @@ export interface UpdateSettingsParams {
 	dbBackupPath?: Nullable<string>;
 	lePath?: Nullable<string>;
 	magpiePath?: Nullable<string>;
+	// WebDAV 配置
+	webdavUrl?: Nullable<string>;
+	webdavUsername?: Nullable<string>;
+	webdavPassword?: Nullable<string>;
+	webdavRoot?: Nullable<string>;
+	webdavEnabled?: Nullable<boolean>;
 }
 
 /**

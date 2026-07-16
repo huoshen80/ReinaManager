@@ -3,7 +3,10 @@ import {
 	type BackupResult,
 	fileService,
 	type ImportResult,
+	type WebdavBackupInfo,
 } from "@/services/invoke";
+
+export type { WebdavBackupInfo };
 
 export interface AutoBackupResult {
 	database: BackupResult;
@@ -113,3 +116,98 @@ export async function importDatabase(): Promise<ImportResult | null> {
 
 	return result;
 }
+
+// ==================== WebDAV 备份 ====================
+
+/**
+ * 测试 WebDAV 连接
+ */
+export async function testWebdavConnection(
+	url: string,
+	username: string,
+	password: string,
+): Promise<boolean> {
+	try {
+		const result = await fileService.testWebdavConnection(url, username, password);
+		console.log("WebDAV 连接测试通过");
+		return result;
+	} catch (error) {
+		console.error("WebDAV 连接测试失败:", error);
+		throw error;
+	}
+}
+
+/**
+ * 备份数据库到 WebDAV
+ */
+export async function webdavBackupDatabase(): Promise<BackupResult> {
+	try {
+		const result = await fileService.webdavBackupDatabase();
+		console.log(`数据库已备份到 WebDAV: ${result.path}`);
+		return result;
+	} catch (error) {
+		console.error("WebDAV 备份失败:", error);
+		throw error;
+	}
+}
+
+/**
+ * 从 WebDAV 恢复数据库
+ */
+export async function webdavImportDatabase(
+	remoteFilename: string,
+): Promise<ImportResult> {
+	try {
+		const result = await fileService.webdavImportDatabase(remoteFilename);
+		console.log(`已从 WebDAV 恢复数据库: ${remoteFilename}`);
+		return result;
+	} catch (error) {
+		console.error("WebDAV 恢复失败:", error);
+		throw error;
+	}
+}
+
+/**
+ * 列举 WebDAV 远程备份
+ */
+export async function listWebdavBackups(): Promise<WebdavBackupInfo[]> {
+	try {
+		return await fileService.listWebdavBackups();
+	} catch (error) {
+		console.error("列举 WebDAV 备份失败:", error);
+		throw error;
+	}
+}
+
+/**
+ * 删除 WebDAV 远程备份
+ */
+export async function deleteWebdavBackup(
+	remoteFilename: string,
+): Promise<void> {
+	try {
+		await fileService.deleteWebdavBackup(remoteFilename);
+		console.log(`已删除 WebDAV 备份: ${remoteFilename}`);
+	} catch (error) {
+		console.error("删除 WebDAV 备份失败:", error);
+		throw error;
+	}
+}
+
+/**
+ * 上传游戏存档备份到 WebDAV
+ */
+export async function webdavUploadSavedataBackup(
+	gameId: number,
+	localPath: string,
+): Promise<BackupResult> {
+	try {
+		const result = await fileService.webdavUploadSavedataBackup(gameId, localPath);
+		console.log(`游戏存档已上传到 WebDAV: ${result.path}`);
+		return result;
+	} catch (error) {
+		console.error("WebDAV 上传失败:", error);
+		throw error;
+	}
+}
+

@@ -94,6 +94,7 @@ async function runAutoBackupOnExitIfNeeded(): Promise<void> {
 }
 
 export const destroyCurrentWindow = async (): Promise<void> => {
+	// 先执行本地自动备份（会关闭数据库连接）
 	await runAutoBackupOnExitIfNeeded();
 
 	try {

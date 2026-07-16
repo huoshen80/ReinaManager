@@ -30,6 +30,7 @@ pub struct Model {
     pub clear: Option<i32>,
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
+    pub webdav_sync: Option<i32>,
 
     // === 用户覆盖元数据 ===
     #[sea_orm(column_type = "Text", nullable)]

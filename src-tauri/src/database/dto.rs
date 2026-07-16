@@ -209,6 +209,16 @@ pub struct UpdateSettingsData {
     pub le_path: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_username: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_password: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_root: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_enabled: Option<Option<bool>>,
 }
 
 /// 清洗 UpdateSettingsData 中的空字符串
@@ -221,6 +231,10 @@ impl UpdateSettingsData {
         self.db_backup_path = clean_double_option_string(self.db_backup_path);
         self.le_path = clean_double_option_string(self.le_path);
         self.magpie_path = clean_double_option_string(self.magpie_path);
+        self.webdav_url = clean_double_option_string(self.webdav_url);
+        self.webdav_username = clean_double_option_string(self.webdav_username);
+        self.webdav_password = clean_double_option_string(self.webdav_password);
+        self.webdav_root = clean_double_option_string(self.webdav_root);
         self
     }
 }
@@ -255,6 +269,7 @@ pub struct FullGameData {
     pub clear: Option<i32>,
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
+    pub webdav_sync: Option<i32>,
     pub custom_data: Option<CustomData>,
     pub sources: Vec<GameSourceData>,
     pub created_at: Option<i32>,
@@ -325,6 +340,8 @@ pub struct UpdateGameData {
     pub le_launch: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_sync: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
     pub custom_data: Option<Option<CustomData>>,
     pub upsert_sources: Option<Vec<UpsertGameSourceData>>,

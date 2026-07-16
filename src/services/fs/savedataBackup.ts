@@ -10,7 +10,12 @@ import { toError } from "@/utils/errors";
 export async function createGameSavedataBackup(
 	gameId: number,
 	saveDataPath: string,
-): Promise<{ folder_name: string; backup_time: number; file_size: number }> {
+): Promise<{
+	folder_name: string;
+	backup_time: number;
+	file_size: number;
+	backup_path: string;
+}> {
 	try {
 		const backupInfo = await savedataService.createBackup(gameId, saveDataPath);
 

@@ -1,4 +1,5 @@
 import BackupIcon from "@mui/icons-material/Backup";
+import CloudIcon from "@mui/icons-material/Cloud";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import RestoreIcon from "@mui/icons-material/Restore";
@@ -29,11 +30,15 @@ import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { snackbar } from "@/providers/snackBar";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { handleFolder } from "@/services/fs/fileDialog";
 import {
 	openGameBackupFolder,
 	openGameSaveDataFolder,
 } from "@/services/fs/savedataBackup";
+import { settingsService } from "@/services/invoke";
+import { webdavUploadSavedataBackup } from "@/services/fs/dataMaintenance";
+import { getGameDisplayName } from "@/utils/game/gameDisplay";
 import type { GameData, SavedataRecord } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 
@@ -90,6 +95,12 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 	const [saveDataPath, setSaveDataPath] = useState("");
 	const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
 	const [maxBackups, setMaxBackups] = useState(20);
+	const originalWebdavSync = selectedGame.webdav_sync === 1;
+	const [webdavSyncEnabled, setWebdavSyncEnabled] = useState(false);
+	const [webdavGloballyEnabled, setWebdavGloballyEnabled] = useState(false);
+	const [webdavUrl, setWebdavUrl] = useState("");
+	const [webdavRoot, setWebdavRoot] = useState("");
+	const [isWebdavUploading, setIsWebdavUploading] = useState(false);
 
 	// 对话框状态
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -101,26 +112,51 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 		null,
 	);
 
+	// 加载 WebDAV 全局启用状态
+	useEffect(() => {
+		settingsService
+			.getAllSettings()
+			.then((settings) => {
+				setWebdavGloballyEnabled(settings.webdav_enabled ?? false);
+				setWebdavUrl(settings.webdav_url ?? "");
+				setWebdavRoot(settings.webdav_root ?? "Reinamanager");
+			})
+			.catch(() => {
+				setWebdavGloballyEnabled(false);
+				setWebdavUrl("");
+				setWebdavRoot("Reinamanager");
+			});
+	}, []);
+
 	// 从 selectedGame 同步设置状态
 	useEffect(() => {
 		setAutoSaveEnabled(originalAutoSaveEnabled);
 		setSaveDataPath(originalSaveDataPath);
 		setMaxBackups(originalMaxBackups);
-	}, [originalAutoSaveEnabled, originalMaxBackups, originalSaveDataPath]);
+		setWebdavSyncEnabled(originalWebdavSync);
+	}, [
+		originalAutoSaveEnabled,
+		originalMaxBackups,
+		originalSaveDataPath,
+		originalWebdavSync,
+	]);
 
 	// 检测是否有未保存的更改
 	const hasUnsavedChanges = useMemo(
 		() =>
 			autoSaveEnabled !== originalAutoSaveEnabled ||
 			saveDataPath !== originalSaveDataPath ||
-			maxBackups !== originalMaxBackups,
+			maxBackups !== originalMaxBackups ||
+			webdavSyncEnabled !== originalWebdavSync,
 		[
 			autoSaveEnabled,
 			maxBackups,
 			originalAutoSaveEnabled,
 			originalMaxBackups,
 			originalSaveDataPath,
+			originalWebdavSync,
 			saveDataPath,
+			webdavSyncEnabled,
 		],
 	);
 
@@ -146,6 +182,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 					savepath: clearsavePath,
 					autosave: autosaveValue,
 					maxbackups: maxBackups,
+					webdav_sync: webdavSyncEnabled ? 1 : 0,
 				},
 			});
 			snackbar.success(
@@ -176,11 +213,37 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 		}
 
 		try {
-			await createBackupMutation.mutateAsync({
+			const backupInfo = await createBackupMutation.mutateAsync({
 				gameId,
 				savePath: originalSaveDataPath,
 			});
-			snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
+
+			if (webdavSyncEnabled && webdavGloballyEnabled) {
+				setIsWebdavUploading(true);
+				try {
+					await webdavUploadSavedataBackup(gameId, backupInfo.backup_path);
+					snackbar.success(
+						t("pages.Detail.Backup.webdavUploadSuccess", "备份已同步到 WebDAV"),
+					);
+				} catch (error) {
+					const errorMessage = getUserErrorMessage(
+						error,
+						t,
+						t("pages.Detail.Backup.webdavUploadFailed", "WebDAV 同步失败"),
+					);
+					snackbar.warning(
+						t(
+							"pages.Detail.Backup.webdavUploadWarning",
+							"本地备份成功，但 WebDAV 同步失败: {{error}}",
+							{ error: errorMessage },
+						),
+					);
+				} finally {
+					setIsWebdavUploading(false);
+				}
+			} else {
+				snackbar.success(t("pages.Detail.Backup.backupSuccess", "备份创建成功"));
+			}
 		} catch (error) {
 			snackbar.error(
 				`${t("pages.Detail.Backup.backupFailed", "备份失败")}: ${getUserErrorMessage(error, t)}`,
@@ -215,6 +278,20 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
+	};
+
+	// 打开 WebDAV 远程文件夹（当前游戏的目录）
+	const handleOpenWebdavFolder = () => {
+		if (!webdavUrl) return;
+		const baseUrl = webdavUrl.replace(/\/+$/, "");
+		const rootPath = webdavRoot.replace(/^\/+|\/+$/g, "");
+		const gameName = getGameDisplayName(selectedGame);
+		// 删除非法路径字符，与后端 sanitize_folder_name 保持一致
+		const sanitized = gameName.replace(/[\\/:*?"<>|]/g, "");
+		const folderUrl = rootPath
+			? `${baseUrl}/${rootPath}/${encodeURIComponent(sanitized)}/`
+			: `${baseUrl}/${encodeURIComponent(sanitized)}/`;
+		openUrl(folderUrl);
 	};
 
 	// 打开删除确认对话框
@@ -321,6 +398,30 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 								/>
 							</Box>
 
+							{/* WebDAV 同步开关 */}
+							<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+								<FormControlLabel
+									control={
+										<Switch
+											checked={webdavSyncEnabled}
+											onChange={(e) =>
+												setWebdavSyncEnabled(e.target.checked)
+											}
+											disabled={!webdavGloballyEnabled || isSaving}
+										/>
+									}
+									label={t("pages.Detail.Backup.webdavSync", "同步到 WebDAV")}
+								/>
+								{!webdavGloballyEnabled && (
+									<Typography variant="caption" color="text.secondary">
+										{t(
+											"pages.Detail.Backup.webdavNotConfigured",
+											"请先在设置中启用 WebDAV",
+										)}
+									</Typography>
+								)}
+							</Box>
+
 							<Divider />
 
 							{/* 存档路径设置 */}
@@ -407,6 +508,13 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 									: t("pages.Detail.Backup.createBackup", "创建备份")}
 							</Button>
 
+							{/* WebDAV 上传状态 */}
+							{isWebdavUploading && (
+								<Typography variant="caption" color="text.secondary">
+									{t("pages.Detail.Backup.webdavUploading", "正在同步到 WebDAV...")}
+								</Typography>
+							)}
+
 							{/* 打开文件夹按钮 */}
 							<Stack direction="row" spacing={1}>
 								<Button
@@ -432,6 +540,21 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 										"打开存档文件夹",
 									)}
 								</Button>
+
+								{webdavGloballyEnabled && (
+									<Button
+										variant="outlined"
+										size="medium"
+										onClick={handleOpenWebdavFolder}
+										startIcon={<CloudIcon />}
+										sx={{ flex: 1 }}
+									>
+										{t(
+											"pages.Detail.Backup.openWebdavFolder",
+											"打开 WebDAV",
+										)}
+									</Button>
+								)}
 							</Stack>
 						</Stack>
 					</CardContent>

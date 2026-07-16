@@ -5,7 +5,11 @@ mod game;
 mod utils;
 
 use backup::covers::backup_custom_covers;
-use backup::database::{backup_database, import_database};
+use backup::database::{
+    backup_database, delete_webdav_backup, import_database, list_webdav_backups,
+    test_webdav_connection, webdav_backup_database, webdav_import_database,
+    webdav_upload_savedata_backup,
+};
 use backup::savedata::{
     create_savedata_backup, delete_savedata_backup, move_backup_folder, restore_savedata_backup,
 };
@@ -73,6 +77,13 @@ pub fn run() {
             backup_database,
             backup_custom_covers,
             import_database,
+            // WebDAV 备份
+            test_webdav_connection,
+            webdav_backup_database,
+            webdav_import_database,
+            list_webdav_backups,
+            delete_webdav_backup,
+            webdav_upload_savedata_backup,
             // 游戏数据相关 commands
             insert_game,
             insert_games_batch,
