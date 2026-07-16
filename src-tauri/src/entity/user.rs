@@ -34,6 +34,17 @@ pub struct Model {
     pub le_path: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub magpie_path: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub webdav_url: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub webdav_username: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub webdav_password: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub webdav_root: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub webdav_sync_categories: Option<String>,
+    pub webdav_enabled: Option<bool>,
 }
 
 impl Model {
@@ -53,6 +64,26 @@ impl Model {
     #[cfg(target_os = "windows")]
     pub fn magpie_path_value(&self) -> Option<&str> {
         self.magpie_path.as_deref()
+    }
+
+    pub fn webdav_url_value(&self) -> Option<&str> {
+        self.webdav_url.as_deref()
+    }
+
+    pub fn webdav_username_value(&self) -> Option<&str> {
+        self.webdav_username.as_deref()
+    }
+
+    pub fn webdav_password_value(&self) -> Option<&str> {
+        self.webdav_password.as_deref()
+    }
+
+    pub fn webdav_root_value(&self) -> Option<&str> {
+        self.webdav_root.as_deref()
+    }
+
+    pub fn webdav_enabled_value(&self) -> bool {
+        self.webdav_enabled.unwrap_or(false)
     }
 }
 

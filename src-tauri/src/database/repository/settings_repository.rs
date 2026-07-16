@@ -34,6 +34,12 @@ impl SettingsRepository {
                 db_backup_path: Set(None),
                 le_path: Set(None),
                 magpie_path: Set(None),
+                webdav_url: Set(None),
+                webdav_username: Set(None),
+                webdav_password: Set(None),
+                webdav_root: Set(None),
+                webdav_sync_categories: Set(None),
+                webdav_enabled: Set(None),
             };
 
             user.insert(db).await?;
@@ -90,6 +96,26 @@ impl SettingsRepository {
 
         if let Some(path) = data.magpie_path {
             active.magpie_path = Set(path);
+        }
+
+        if let Some(url) = data.webdav_url {
+            active.webdav_url = Set(url);
+        }
+
+        if let Some(username) = data.webdav_username {
+            active.webdav_username = Set(username);
+        }
+
+        if let Some(password) = data.webdav_password {
+            active.webdav_password = Set(password);
+        }
+
+        if let Some(root) = data.webdav_root {
+            active.webdav_root = Set(root);
+        }
+
+        if let Some(enabled) = data.webdav_enabled {
+            active.webdav_enabled = Set(enabled);
         }
 
         active.update(db).await?;

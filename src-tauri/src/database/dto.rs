@@ -209,6 +209,16 @@ pub struct UpdateSettingsData {
     pub le_path: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_username: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_password: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_root: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub webdav_enabled: Option<Option<bool>>,
 }
 
 /// 清洗 UpdateSettingsData 中的空字符串
@@ -221,6 +231,10 @@ impl UpdateSettingsData {
         self.db_backup_path = clean_double_option_string(self.db_backup_path);
         self.le_path = clean_double_option_string(self.le_path);
         self.magpie_path = clean_double_option_string(self.magpie_path);
+        self.webdav_url = clean_double_option_string(self.webdav_url);
+        self.webdav_username = clean_double_option_string(self.webdav_username);
+        self.webdav_password = clean_double_option_string(self.webdav_password);
+        self.webdav_root = clean_double_option_string(self.webdav_root);
         self
     }
 }
