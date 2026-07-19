@@ -3,8 +3,14 @@
  * @description 封装所有合集相关的后端调用
  */
 
-import type { CollectionCategory, CollectionGroup } from "@/types/collection";
+import type {
+	CollectionBackendSortField,
+	CollectionCategory,
+	CollectionGroup,
+	CollectionGroupWithCount,
+} from "@/types/collection";
 import { BaseService } from "./base";
+import type { SortOrder } from "./types";
 
 class CollectionService extends BaseService {
 	/**
@@ -116,18 +122,6 @@ class CollectionService extends BaseService {
 	// ==================== 前端友好的组合 API ====================
 
 	/**
-	 * 批量获取多个分组的游戏数量（优化版）
-	 * 解决 N+1 查询问题
-	 */
-	async batchCountGamesInGroups(
-		groupIds: number[],
-	): Promise<Record<number, number>> {
-		return this.invoke<Record<number, number>>("batch_count_games_in_groups", {
-			groupIds,
-		});
-	}
-
-	/**
 	 * 获取分组中的游戏总数
 	 */
 	async countGamesInGroup(groupId: number): Promise<number> {
@@ -142,11 +136,33 @@ class CollectionService extends BaseService {
 	}
 
 	/**
+	 * 获取所有分组及游戏数量
+	 */
+	async getGroupsWithCount(
+		sortField?: CollectionBackendSortField,
+		sortOrder?: SortOrder,
+	): Promise<CollectionGroupWithCount[]> {
+		return this.invoke<CollectionGroupWithCount[]>(
+			"get_root_collections_with_count",
+			{
+				sortField: sortField ?? null,
+				sortOrder: sortOrder ?? null,
+			},
+		);
+	}
+
+	/**
 	 * 获取指定分组的分类列表（带游戏数量）
 	 */
-	async getCategoriesWithCount(groupId: number): Promise<CollectionCategory[]> {
+	async getCategoriesWithCount(
+		groupId: number,
+		sortField?: CollectionBackendSortField,
+		sortOrder?: SortOrder,
+	): Promise<CollectionCategory[]> {
 		return this.invoke<CollectionCategory[]>("get_categories_with_count", {
 			groupId,
+			sortField: sortField ?? null,
+			sortOrder: sortOrder ?? null,
 		});
 	}
 }

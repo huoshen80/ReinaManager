@@ -112,6 +112,7 @@ pub fn run() {
             // 合集相关 commands
             create_collection,
             find_root_collections,
+            get_root_collections_with_count,
             update_collection,
             delete_collection,
             remove_games_from_collection,
@@ -120,7 +121,6 @@ pub fn run() {
             add_games_to_collections,
             set_game_collections,
             update_category_games,
-            batch_count_games_in_groups,
             count_games_in_group,
             get_categories_with_count,
         ])

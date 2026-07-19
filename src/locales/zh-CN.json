@@ -411,6 +411,23 @@
 			"deleteCategoryTitle": "删除分类",
 			"deleteGroupMessage": "确定要删除分组 \"{{name}}\" 吗？此操作将同时删除该分组下的所有分类，且无法恢复。",
 			"deleteGroupTitle": "删除分组",
+			"developerSearch": {
+				"label": "搜索开发商",
+				"noResults": "没有找到匹配的开发商"
+			},
+			"entitySearch": {
+				"categories": "搜索分类",
+				"groups": "搜索分组",
+				"noCategories": "没有找到匹配的分类",
+				"noGroups": "没有找到匹配的分组"
+			},
+			"entitySort": {
+				"createdAt": "添加时间",
+				"gameCount": "游戏数量",
+				"label": "排序",
+				"name": "名称",
+				"updatedAt": "更新时间"
+			},
 			"errors": {
 				"cannotDeleteDefaultGroup": "默认分组不能删除",
 				"deleteCategoryFailed": "删除分类失败，请重试",
@@ -420,6 +437,7 @@
 			"gamesCount": "个游戏",
 			"noCategoriesHint": "当前分组下没有分类",
 			"noGamesInCategory": "当前分类下暂无游戏",
+			"noMatchingGames": "没有找到符合条件的游戏",
 			"success": {
 				"categoryDeleted": "已删除分类",
 				"groupDeleted": "已删除分组"

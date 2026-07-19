@@ -13,7 +13,7 @@ import Box from "@mui/material/Box";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VirtuosoGrid } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
@@ -29,21 +29,27 @@ import {
 	useVirtuosoGridRestore,
 } from "@/hooks/common/useScrollRestore";
 import { useVirtualCategories } from "@/hooks/common/useVirtualCollections";
-import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
+import {
+	useGameIndex,
+	useGameListFacade,
+} from "@/hooks/features/games/useGameListFacade";
 import {
 	useCategories,
 	useCategoryGames,
 	useDeleteCategory,
 	useDeleteGroup,
-	useGroupGameCounts,
-	useGroups,
+	useGroupsWithCount,
 	useRenameCategory,
 	useRenameGroup,
 } from "@/hooks/queries/useCollections";
 import { snackbar } from "@/providers/snackBar";
+import type { SortOrder } from "@/services/invoke";
 import { type SelectedCategory, useStore } from "@/store/appStore";
-import type { Category as CategoryType } from "@/types/collection";
-import { DefaultGroup } from "@/types/collection";
+import {
+	type Category as CategoryType,
+	type CollectionEntitySortField,
+	DefaultGroup,
+} from "@/types/collection";
 import { getUserErrorMessage } from "@/utils/errors";
 
 const SCROLL_CONTAINER_SELECTOR = "main";
@@ -52,6 +58,76 @@ const CATEGORY_GRID_TEMPLATE_COLUMNS = {
 	md: "repeat(3, 1fr)",
 	lg: "repeat(4, 1fr)",
 };
+interface SortableCollectionEntity {
+	id: string | number;
+	name: string;
+	game_count: number;
+	stableKey?: string;
+}
+
+function compareCollectionEntityIdentity(
+	a: SortableCollectionEntity,
+	b: SortableCollectionEntity,
+	collator: Intl.Collator,
+): number {
+	const nameComparison = collator.compare(a.name, b.name);
+	if (nameComparison !== 0) return nameComparison;
+
+	return collator.compare(
+		a.stableKey ?? String(a.id),
+		b.stableKey ?? String(b.id),
+	);
+}
+
+function sortCollectionEntityNames<T extends SortableCollectionEntity>(
+	entities: readonly T[],
+	order: SortOrder,
+	collator: Intl.Collator,
+): T[] {
+	return entities.toSorted((a, b) => {
+		const comparison = collator.compare(a.name, b.name);
+		return comparison === 0
+			? collator.compare(
+					a.stableKey ?? String(a.id),
+					b.stableKey ?? String(b.id),
+				)
+			: order === "asc"
+				? comparison
+				: -comparison;
+	});
+}
+
+function sortDeveloperCategories<T extends SortableCollectionEntity>(
+	entities: readonly T[],
+	field: CollectionEntitySortField,
+	order: SortOrder,
+	collator: Intl.Collator,
+): T[] {
+	if (field !== "game_count") {
+		return sortCollectionEntityNames(entities, order, collator);
+	}
+
+	return entities.toSorted((a, b) => {
+		const comparison = a.game_count - b.game_count;
+		return comparison === 0
+			? compareCollectionEntityIdentity(a, b, collator)
+			: order === "asc"
+				? comparison
+				: -comparison;
+	});
+}
+
+function normalizeCollectionSearch(value: string, locale?: string): string {
+	return value.trim().toLocaleLowerCase(locale);
+}
+
+function matchesCollectionSearch(
+	name: string,
+	normalizedSearch: string,
+	locale?: string,
+): boolean {
+	return name.toLocaleLowerCase(locale).includes(normalizedSearch);
+}
 
 const getScrollContainer = () =>
 	document.querySelector<HTMLElement>(SCROLL_CONTAINER_SELECTOR);
@@ -96,6 +172,23 @@ type CollectionMenuPosition =
 type CollectionMenuTarget =
 	| { type: "group"; id: string; name: string }
 	| { type: "category"; id: number; name: string };
+
+function CollectionEmptyState({ message }: { message: string }) {
+	return (
+		<Box
+			sx={{
+				display: "flex",
+				justifyContent: "center",
+				alignItems: "center",
+				minHeight: "400px",
+			}}
+		>
+			<Typography variant="h6" color="text.secondary">
+				{message}
+			</Typography>
+		</Box>
+	);
+}
 
 interface DeveloperCategoryGridProps {
 	categories: CategoryType[];
@@ -153,36 +246,98 @@ function DeveloperCategoryGrid({
 	);
 }
 
+interface DeveloperGamesViewProps {
+	sourceGameIds: number[];
+	scrollRestoreKey: string;
+}
+
+function DeveloperGamesView({
+	sourceGameIds,
+	scrollRestoreKey,
+}: DeveloperGamesViewProps) {
+	const { t } = useTranslation();
+	const gameList = useGameListFacade({
+		scopeGameIds: sourceGameIds,
+		applyNsfwFilter: false,
+	});
+	const emptyMessage =
+		sourceGameIds.length === 0
+			? t("pages.Collection.noGamesInCategory", "当前分类下暂无游戏")
+			: t("pages.Collection.noMatchingGames", "没有找到符合条件的游戏");
+
+	return (
+		<GameListStateView
+			loading={gameList.isLoading}
+			error={gameList.isError ? gameList.error : null}
+			empty={gameList.gameIds.length === 0}
+			emptyMessage={emptyMessage}
+		>
+			<VirtualCardsGrid
+				gameIds={gameList.gameIds}
+				displayById={gameList.displayById}
+				scrollRestoreKey={scrollRestoreKey}
+				enableBatchMode
+				enableSortFieldOverlay
+			/>
+		</GameListStateView>
+	);
+}
+
 // 原本的 GroupCard/CategoryCard 已被通用 EntityCard 取代
 
 export const Collection: React.FC = () => {
-	const { t } = useTranslation();
+	const { i18n, t } = useTranslation();
 	useScrollRestore("/collection");
 	const {
 		currentGroupId,
 		setSelectedCategory,
 		setCurrentGroup,
 		selectedCategory,
+		entitySortField,
+		entitySortOrder,
+		developerSortField,
+		developerSortOrder,
+		groupSearch,
+		categorySearch,
+		developerSearch,
 	} = useStore(
 		useShallow((s) => ({
 			currentGroupId: s.currentGroupId,
 			setSelectedCategory: s.setSelectedCategory,
 			setCurrentGroup: s.setCurrentGroup,
 			selectedCategory: s.selectedCategory,
+			entitySortField: s.collectionEntitySortField,
+			entitySortOrder: s.collectionEntitySortOrder,
+			developerSortField: s.developerCategorySortField,
+			developerSortOrder: s.developerCategorySortOrder,
+			groupSearch: s.collectionGroupSearch,
+			categorySearch: s.collectionCategorySearch,
+			developerSearch: s.developerCategorySearch,
 		})),
 	);
-	const { index: gameIndex } = useGameIndex();
+	const backendEntitySortField =
+		entitySortField === "name" ? undefined : entitySortField;
+	const backendEntitySortOrder = backendEntitySortField
+		? entitySortOrder
+		: undefined;
+	const gameIndexQuery = useGameIndex();
+	const { index: gameIndex } = gameIndexQuery;
 	const displayAllGames = gameIndex.displayList;
-	const groupsQuery = useGroups();
+	const groupsQuery = useGroupsWithCount(
+		backendEntitySortField,
+		backendEntitySortOrder,
+	);
 	const groups = groupsQuery.data ?? [];
-	const categoriesQuery = useCategories(currentGroupId);
+	const categoriesQuery = useCategories(
+		currentGroupId,
+		backendEntitySortField,
+		backendEntitySortOrder,
+	);
 	const currentCategories = categoriesQuery.data ?? [];
 	const selectedRealCategoryId =
 		selectedCategory?.type === "real" ? selectedCategory.id : null;
 	const categoryGamesQuery = useCategoryGames(selectedCategory, gameIndex);
 	const categoryGames = categoryGamesQuery.data;
-	const groupIds = useMemo(() => groups.map((group) => group.id), [groups]);
-	const groupGameCountsQuery = useGroupGameCounts(groupIds);
 	const deleteCategoryMutation = useDeleteCategory();
 	const deleteGroupMutation = useDeleteGroup();
 	const renameGroupMutation = useRenameGroup();
@@ -191,19 +346,6 @@ export const Collection: React.FC = () => {
 	// 使用统一的虚拟分类 Hook
 	const virtualCategories = useVirtualCategories(gameIndex);
 
-	const groupGameCounts = useMemo(() => {
-		const counts = new Map<string, number>();
-		counts.set(DefaultGroup.DEVELOPER, displayAllGames.length);
-
-		for (const [groupId, count] of Object.entries(
-			groupGameCountsQuery.data ?? {},
-		)) {
-			counts.set(groupId, count);
-		}
-
-		return counts;
-	}, [displayAllGames.length, groupGameCountsQuery.data]);
-
 	// 统一的右键菜单状态管理
 	const [menuPosition, setMenuPosition] =
 		useState<CollectionMenuPosition | null>(null);
@@ -211,6 +353,9 @@ export const Collection: React.FC = () => {
 	// 对话框状态（提升到父组件，避免右键菜单重新渲染时丢失）
 	const [renameDialogOpen, setRenameDialogOpen] = useState(false);
 	const [manageGamesDialogOpen, setManageGamesDialogOpen] = useState(false);
+	const deferredGroupSearch = useDeferredValue(groupSearch);
+	const deferredCategorySearch = useDeferredValue(categorySearch);
+	const deferredDeveloperSearch = useDeferredValue(developerSearch);
 	const [selectedItem, setSelectedItem] = useState<CollectionMenuTarget | null>(
 		null,
 	);
@@ -509,18 +654,6 @@ export const Collection: React.FC = () => {
 		);
 	};
 
-	/**
-	 * 获取当前显示的分类列表
-	 */
-	const getDisplayCategories = (): CategoryType[] => {
-		if (!currentGroupId) return [];
-		return virtualCategories.getCategoriesByGroupId(
-			currentGroupId,
-			currentCategories,
-		);
-	};
-
-	const categories = getDisplayCategories();
 	const currentGroupName = getCurrentGroupName();
 	const currentCategoryName = getCurrentCategoryName();
 
@@ -534,6 +667,84 @@ export const Collection: React.FC = () => {
 				: "groups";
 	const isDeveloperCategoryList =
 		showLevel === "categories" && currentGroupId === DefaultGroup.DEVELOPER;
+	const collator = useMemo(
+		() =>
+			new Intl.Collator(i18n.resolvedLanguage, {
+				numeric: true,
+				sensitivity: "base",
+			}),
+		[i18n.resolvedLanguage],
+	);
+	const normalizedGroupSearch = normalizeCollectionSearch(
+		deferredGroupSearch,
+		i18n.resolvedLanguage,
+	);
+	const normalizedCategorySearch = normalizeCollectionSearch(
+		deferredCategorySearch,
+		i18n.resolvedLanguage,
+	);
+	const normalizedDeveloperSearch = normalizeCollectionSearch(
+		deferredDeveloperSearch,
+		i18n.resolvedLanguage,
+	);
+	const filteredDeveloperCategories = useMemo(
+		() =>
+			virtualCategories.developerCategories
+				.filter((category) =>
+					matchesCollectionSearch(
+						category.name,
+						normalizedDeveloperSearch,
+						i18n.resolvedLanguage,
+					),
+				)
+				.map((category) => ({
+					...category,
+					stableKey: category.virtualKey ?? category.name,
+				})),
+		[
+			i18n.resolvedLanguage,
+			normalizedDeveloperSearch,
+			virtualCategories.developerCategories,
+		],
+	);
+	const filteredRealCategories = useMemo(
+		() =>
+			currentCategories.filter((category) =>
+				matchesCollectionSearch(
+					category.name,
+					normalizedCategorySearch,
+					i18n.resolvedLanguage,
+				),
+			),
+		[currentCategories, i18n.resolvedLanguage, normalizedCategorySearch],
+	);
+	const categories = useMemo((): CategoryType[] => {
+		if (currentGroupId === DefaultGroup.DEVELOPER) {
+			return sortDeveloperCategories(
+				filteredDeveloperCategories,
+				developerSortField,
+				developerSortOrder,
+				collator,
+			);
+		}
+
+		return entitySortField === "name"
+			? sortCollectionEntityNames(
+					filteredRealCategories,
+					entitySortOrder,
+					collator,
+				)
+			: filteredRealCategories;
+	}, [
+		collator,
+		currentGroupId,
+		developerSortField,
+		developerSortOrder,
+		entitySortField,
+		entitySortOrder,
+		filteredDeveloperCategories,
+		filteredRealCategories,
+	]);
 	const categoryColumns = useCategoryColumnCount();
 	const categoryScrollRestoreKey = isDeveloperCategoryList
 		? currentLevelKey
@@ -573,20 +784,55 @@ export const Collection: React.FC = () => {
 		);
 	};
 
-	// 准备默认分组和自定义分组
-	const defaultGroups = [
-		{
-			id: DefaultGroup.DEVELOPER,
-			name: t("pages.Collection.defaultGroups.developer", "开发商"),
-		},
+	const filteredCustomGroups = useMemo(
+		() =>
+			groups
+				.filter((group) =>
+					matchesCollectionSearch(
+						group.name,
+						normalizedGroupSearch,
+						i18n.resolvedLanguage,
+					),
+				)
+				.map((group) => ({
+					id: group.id.toString(),
+					name: group.name,
+					game_count: group.game_count,
+				})),
+		[groups, i18n.resolvedLanguage, normalizedGroupSearch],
+	);
+	const customGroups = useMemo(
+		() =>
+			entitySortField === "name"
+				? sortCollectionEntityNames(
+						filteredCustomGroups,
+						entitySortOrder,
+						collator,
+					)
+				: filteredCustomGroups,
+		[collator, entitySortField, entitySortOrder, filteredCustomGroups],
+	);
+	const developerGroupName = t(
+		"pages.Collection.defaultGroups.developer",
+		"开发商",
+	);
+	const showDeveloperGroup = matchesCollectionSearch(
+		developerGroupName,
+		normalizedGroupSearch,
+		i18n.resolvedLanguage,
+	);
+	const allGroups = [
+		...(showDeveloperGroup
+			? [
+					{
+						id: DefaultGroup.DEVELOPER,
+						name: developerGroupName,
+						game_count: displayAllGames.length,
+					},
+				]
+			: []),
+		...customGroups,
 	];
-
-	const customGroups = groups.map((g) => ({
-		id: g.id.toString(),
-		name: g.name,
-	}));
-
-	const allGroups = [...defaultGroups, ...customGroups];
 
 	return (
 		<Box sx={{ p: 3, pt: 0 }}>
@@ -664,69 +910,93 @@ export const Collection: React.FC = () => {
 			</Box>
 
 			{/* 主内容区域 */}
-			{showLevel === "groups" && (
-				<Box
-					sx={{
-						display: "grid",
-						gridTemplateColumns: CATEGORY_GRID_TEMPLATE_COLUMNS,
-						gap: 2,
-					}}
-				>
-					{allGroups.map((group) => {
-						const isDefault = group.id.startsWith("default_");
-						return (
-							<EntityCard
-								key={group.id}
-								entity={{
-									id: group.id,
-									name: group.name,
-									count: groupGameCounts.get(group.id) || 0,
-								}}
-								onClick={() => handleGroupClick(group.id)}
-								onDelete={
-									isDefault
-										? undefined
-										: (id) => handleDeleteGroup(id as string)
-								}
-								onContextMenu={(e, id, name) => {
-									if (!isDefault) handleGroupContextMenu(e, id as string, name);
-								}}
-								showDelete={!isDefault}
-								deleteTitle={t("pages.Collection.deleteGroupTitle", "删除分组")}
-								deleteMessage={t(
-									"pages.Collection.deleteGroupMessage",
-									'确定要删除分组 "{{name}}" 吗？此操作将同时删除该分组下的所有分类，且无法恢复。',
-									{
-										name: group.name,
-									},
-								)}
-								countLabel={t("pages.Collection.gamesCount", "个游戏")}
-							/>
-						);
-					})}
-				</Box>
-			)}
-
-			{showLevel === "categories" &&
-				(categories.length === 0 ? (
+			{showLevel === "groups" &&
+				(allGroups.length === 0 ? (
+					<CollectionEmptyState
+						message={t(
+							"pages.Collection.entitySearch.noGroups",
+							"没有找到匹配的分组",
+						)}
+					/>
+				) : (
 					<Box
 						sx={{
-							display: "flex",
-							justifyContent: "center",
-							alignItems: "center",
-							minHeight: "400px",
+							display: "grid",
+							gridTemplateColumns: CATEGORY_GRID_TEMPLATE_COLUMNS,
+							gap: 2,
 						}}
 					>
-						<Typography variant="h6" color="text.secondary">
-							{t("pages.Collection.noCategoriesHint", "当前分组下没有分类")}
-						</Typography>
+						{allGroups.map((group) => {
+							const isDefault = group.id.startsWith("default_");
+							return (
+								<EntityCard
+									key={group.id}
+									entity={{
+										id: group.id,
+										name: group.name,
+										count: group.game_count,
+									}}
+									onClick={() => handleGroupClick(group.id)}
+									onDelete={
+										isDefault
+											? undefined
+											: (id) => handleDeleteGroup(id as string)
+									}
+									onContextMenu={(e, id, name) => {
+										if (!isDefault)
+											handleGroupContextMenu(e, id as string, name);
+									}}
+									showDelete={!isDefault}
+									deleteTitle={t(
+										"pages.Collection.deleteGroupTitle",
+										"删除分组",
+									)}
+									deleteMessage={t(
+										"pages.Collection.deleteGroupMessage",
+										'确定要删除分组 "{{name}}" 吗？此操作将同时删除该分组下的所有分类，且无法恢复。',
+										{
+											name: group.name,
+										},
+									)}
+									countLabel={t("pages.Collection.gamesCount", "个游戏")}
+								/>
+							);
+						})}
 					</Box>
-				) : isDeveloperCategoryList ? (
-					<DeveloperCategoryGrid
-						categories={categories}
-						columns={categoryColumns}
-						renderCategory={renderCategoryCard}
-						scrollKey={categoryScrollRestoreKey}
+				))}
+
+			{showLevel === "categories" &&
+				(isDeveloperCategoryList ? (
+					<GameListStateView
+						loading={gameIndexQuery.isLoading}
+						error={gameIndexQuery.isError ? gameIndexQuery.error : null}
+						empty={categories.length === 0}
+						emptyMessage={
+							virtualCategories.developerCategories.length === 0
+								? t("pages.Collection.noCategoriesHint", "当前分组下没有分类")
+								: t(
+										"pages.Collection.developerSearch.noResults",
+										"没有找到匹配的开发商",
+									)
+						}
+					>
+						<DeveloperCategoryGrid
+							categories={categories}
+							columns={categoryColumns}
+							renderCategory={renderCategoryCard}
+							scrollKey={categoryScrollRestoreKey}
+						/>
+					</GameListStateView>
+				) : categories.length === 0 ? (
+					<CollectionEmptyState
+						message={
+							currentCategories.length === 0
+								? t("pages.Collection.noCategoriesHint", "当前分组下没有分类")
+								: t(
+										"pages.Collection.entitySearch.noCategories",
+										"没有找到匹配的分类",
+									)
+						}
 					/>
 				) : (
 					<Box
@@ -740,31 +1010,29 @@ export const Collection: React.FC = () => {
 					</Box>
 				))}
 
-			{showLevel === "games" && (
-				<GameListStateView
-					loading={categoryGamesQuery.isLoading}
-					error={categoryGamesQuery.isError ? categoryGamesQuery.error : null}
-					empty={categoryGames.length === 0}
-					emptyMessage={t(
-						"pages.Collection.noGamesInCategory",
-						"当前分类下暂无游戏",
-					)}
-				>
-					{selectedRealCategoryId !== null ? (
+			{showLevel === "games" &&
+				(selectedRealCategoryId !== null ? (
+					<GameListStateView
+						loading={categoryGamesQuery.isLoading}
+						error={categoryGamesQuery.isError ? categoryGamesQuery.error : null}
+						empty={categoryGames.length === 0}
+						emptyMessage={t(
+							"pages.Collection.noGamesInCategory",
+							"当前分类下暂无游戏",
+						)}
+					>
 						<SortableCardsGrid
 							gameIds={categoryGames}
 							displayById={gameIndex.displayById}
 							categoryId={selectedRealCategoryId}
 						/>
-					) : (
-						<VirtualCardsGrid
-							gameIds={categoryGames}
-							displayById={gameIndex.displayById}
-							scrollRestoreKey={currentLevelKey}
-						/>
-					)}
-				</GameListStateView>
-			)}
+					</GameListStateView>
+				) : (
+					<DeveloperGamesView
+						sourceGameIds={categoryGames}
+						scrollRestoreKey={currentLevelKey}
+					/>
+				))}
 
 			{/* 统一的右键菜单 */}
 			{menuPosition && (

@@ -1,11 +1,11 @@
 /**
  * @file SearchBox 组件
- * @description 游戏库顶部搜索框组件，支持输入关键字实时搜索，集成防抖、清空、国际化等功能。
+ * @description 通用搜索框组件；游戏模式额外支持搜索建议和防抖提交。
  * @module src/components/SearchBox/index
  * @copyright AGPL-3.0
  *
  * 主要导出：
- * - SearchBox：游戏搜索输入框组件
+ * - SearchBox：游戏搜索或受控通用搜索输入框组件
  *
  * 依赖：
  * - @mui/material
@@ -19,7 +19,10 @@ import { Autocomplete, Box, TextField } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
-import { useFilteredGamesFacade } from "@/hooks/features/games/useGameListFacade";
+import {
+	type GameListScopeOptions,
+	useFilteredGamesFacade,
+} from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
 import {
 	getSearchSuggestionsFromData,
@@ -38,30 +41,111 @@ const SEARCH_BOX_WIDTH_CONFIG: Record<string, string> = {
 	ja: "clamp(175px, 17vw, 400px)",
 	default: "clamp(200px, 20vw, 400px)",
 };
+const SEARCH_AUTOCOMPLETE_SX = {
+	"& .MuiOutlinedInput-root": {
+		transition: "all 0.3s",
+		"&:hover .MuiOutlinedInput-notchedOutline": {
+			borderColor: "primary.main",
+		},
+		"&.Mui-focused": {
+			"& .MuiOutlinedInput-notchedOutline": {
+				borderColor: "primary.main",
+				borderWidth: 2,
+			},
+		},
+	},
+} as const;
+const EMPTY_SEARCH_OPTIONS: readonly string[] = [];
+
+interface GameSearchBoxProps extends GameListScopeOptions {
+	mode?: "game";
+}
+
+interface ControlledSearchBoxProps {
+	mode: "controlled";
+	value: string;
+	onValueChange: (value: string) => void;
+	ariaLabel?: string;
+}
+
+export type SearchBoxProps = GameSearchBoxProps | ControlledSearchBoxProps;
+
+function getSearchBoxWidth(language: string): string {
+	if (language.startsWith("zh")) return SEARCH_BOX_WIDTH_CONFIG.zh;
+	if (language === "ja-JP") return SEARCH_BOX_WIDTH_CONFIG.ja;
+	return SEARCH_BOX_WIDTH_CONFIG.default;
+}
+
+function ControlledSearchBox({
+	value,
+	onValueChange,
+	ariaLabel,
+}: ControlledSearchBoxProps) {
+	const { i18n, t } = useTranslation();
+	const searchBoxWidth = getSearchBoxWidth(i18n.language);
+	const searchLabel = t("components.SearchBox.search", "搜索");
+
+	return (
+		<Box sx={{ width: searchBoxWidth }}>
+			<Autocomplete
+				freeSolo
+				value={null}
+				options={EMPTY_SEARCH_OPTIONS}
+				filterOptions={(options) => options}
+				inputValue={value}
+				selectOnFocus={false}
+				clearOnBlur={false}
+				onInputChange={(_, nextValue, reason) => {
+					if (reason === "input" || reason === "clear") {
+						onValueChange(nextValue);
+					}
+				}}
+				sx={SEARCH_AUTOCOMPLETE_SX}
+				renderInput={(params) => (
+					<TextField
+						{...params}
+						variant="outlined"
+						size="small"
+						placeholder={searchLabel}
+						slotProps={{
+							htmlInput: {
+								...params.inputProps,
+								"aria-label": ariaLabel ?? searchLabel,
+							},
+							input: {
+								...params.InputProps,
+								startAdornment: (
+									<SearchIcon fontSize="small" className="mr-1" />
+								),
+							},
+						}}
+					/>
+				)}
+			/>
+		</Box>
+	);
+}
 
 /**
- * SearchBox 组件
- * 用于输入关键字实时搜索游戏，支持防抖、清空、国际化。
+ * 游戏搜索模式
+ * 用于输入关键字实时搜索游戏，可通过游戏 ID 限定搜索范围。
  *
  * @component
  * @returns {JSX.Element} 搜索输入框
  */
-export const SearchBox = () => {
+function GameSearchBox({ scopeGameIds, applyNsfwFilter }: GameSearchBoxProps) {
 	const { t, i18n } = useTranslation();
 	const searchInput = useStore((state) => state.searchInput);
 	const setSearchInput = useStore((state) => state.setSearchInput);
 	const setSearchKeyword = useStore((state) => state.setSearchKeyword);
-	const { filteredGames } = useFilteredGamesFacade();
+	const { filteredGames } = useFilteredGamesFacade({
+		scopeGameIds,
+		applyNsfwFilter,
+	});
 
 	const [isOpen, setIsOpen] = useState(false);
 
-	// 根据语言动态调整搜索框宽度（使用 useMemo 缓存）
-	const searchBoxWidth = useMemo(() => {
-		const language = i18n.language;
-		if (language.startsWith("zh")) return SEARCH_BOX_WIDTH_CONFIG.zh;
-		if (language === "ja-JP") return SEARCH_BOX_WIDTH_CONFIG.ja;
-		return SEARCH_BOX_WIDTH_CONFIG.default;
-	}, [i18n.language]);
+	const searchBoxWidth = getSearchBoxWidth(i18n.language);
 
 	const debouncedSuggestions = useDebouncedValue(
 		searchInput,
@@ -173,20 +257,7 @@ export const SearchBox = () => {
 				blurOnSelect={false}
 				onInputChange={handleInputChange}
 				onChange={handleSelect}
-				sx={{
-					"& .MuiOutlinedInput-root": {
-						transition: "all 0.3s",
-						"&:hover .MuiOutlinedInput-notchedOutline": {
-							borderColor: "primary.main",
-						},
-						"&.Mui-focused": {
-							"& .MuiOutlinedInput-notchedOutline": {
-								borderColor: "primary.main",
-								borderWidth: 2,
-							},
-						},
-					},
-				}}
+				sx={SEARCH_AUTOCOMPLETE_SX}
 				renderInput={(params) => (
 					<TextField
 						{...params}
@@ -238,4 +309,12 @@ export const SearchBox = () => {
 			/>
 		</Box>
 	);
-};
+}
+
+export function SearchBox(props: SearchBoxProps) {
+	return props.mode === "controlled" ? (
+		<ControlledSearchBox {...props} />
+	) : (
+		<GameSearchBox {...props} />
+	);
+}

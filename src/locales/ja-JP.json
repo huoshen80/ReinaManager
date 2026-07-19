@@ -411,6 +411,23 @@
 			"deleteCategoryTitle": "カテゴリを削除",
 			"deleteGroupMessage": "グループ \"{{name}}\" を削除してもよろしいですか？この操作により、このグループ内のすべてのカテゴリも削除され、元に戻すことはできません。",
 			"deleteGroupTitle": "グループを削除",
+			"developerSearch": {
+				"label": "開発者を検索",
+				"noResults": "一致する開発者が見つかりません"
+			},
+			"entitySearch": {
+				"categories": "カテゴリーを検索",
+				"groups": "グループを検索",
+				"noCategories": "一致するカテゴリーが見つかりません",
+				"noGroups": "一致するグループが見つかりません"
+			},
+			"entitySort": {
+				"createdAt": "追加時間",
+				"gameCount": "ゲーム数",
+				"label": "並べ替え",
+				"name": "名前",
+				"updatedAt": "更新時間"
+			},
 			"errors": {
 				"cannotDeleteDefaultGroup": "デフォルトグループは削除できません",
 				"deleteCategoryFailed": "カテゴリの削除に失敗しました。もう一度お試しください",
@@ -420,6 +437,7 @@
 			"gamesCount": "ゲーム",
 			"noCategoriesHint": "現在のグループにカテゴリがありません",
 			"noGamesInCategory": "現在のカテゴリにゲームがありません",
+			"noMatchingGames": "条件に一致するゲームが見つかりません",
 			"success": {
 				"categoryDeleted": "カテゴリを削除しました",
 				"groupDeleted": "グループを削除しました"

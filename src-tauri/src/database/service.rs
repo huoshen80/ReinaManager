@@ -6,7 +6,9 @@ use crate::database::dto::{
     UpdateGameData, UpdateSettingsData,
 };
 use crate::database::repository::{
-    collections_repository::{CategoryWithCount, CollectionsRepository},
+    collections_repository::{
+        CategoryWithCount, CollectionBackendSortField, CollectionsRepository, GroupWithCount,
+    },
     game_stats_repository::{GameLastPlayed, GameStatsRepository},
     games_repository::{GameType, GamesRepository, SortOption, SortOrder},
     settings_repository::SettingsRepository,
@@ -349,6 +351,17 @@ pub async fn update_settings(
 
 // ==================== 合集相关 ====================
 
+fn validate_collection_sort(
+    sort_field: Option<CollectionBackendSortField>,
+    sort_order: Option<SortOrder>,
+) -> Result<Option<(CollectionBackendSortField, SortOrder)>, String> {
+    match (sort_field, sort_order) {
+        (None, None) => Ok(None),
+        (Some(sort_field), Some(sort_order)) => Ok(Some((sort_field, sort_order))),
+        _ => Err("排序字段和排序方向必须同时提供".to_string()),
+    }
+}
+
 /// 创建合集
 #[tauri::command]
 pub async fn create_collection(
@@ -379,6 +392,19 @@ pub async fn find_root_collections(
     CollectionsRepository::find_root_collections(&db)
         .await
         .map_err(|e| format!("获取根合集失败: {}", e))
+}
+
+/// 获取根分组列表（带游戏数量）
+#[tauri::command]
+pub async fn get_root_collections_with_count(
+    db: State<'_, DatabaseConnection>,
+    sort_field: Option<CollectionBackendSortField>,
+    sort_order: Option<SortOrder>,
+) -> Result<Vec<GroupWithCount>, String> {
+    let sort = validate_collection_sort(sort_field, sort_order)?;
+    CollectionsRepository::get_root_collections_with_count(&db, sort)
+        .await
+        .map_err(|e| format!("获取根分组列表失败: {}", e))
 }
 
 /// 更新合集
@@ -484,17 +510,6 @@ pub async fn update_category_games(
         .map_err(|e| format!("批量更新分类游戏失败: {}", e))
 }
 
-/// 批量获取多个分组的游戏数量（优化版）
-#[tauri::command]
-pub async fn batch_count_games_in_groups(
-    db: State<'_, DatabaseConnection>,
-    group_ids: Vec<i32>,
-) -> Result<std::collections::HashMap<i32, u64>, String> {
-    CollectionsRepository::batch_count_games_in_groups(&db, group_ids)
-        .await
-        .map_err(|e| format!("批量获取分组游戏数量失败: {}", e))
-}
-
 /// 获取分组中的游戏总数
 #[tauri::command]
 pub async fn count_games_in_group(
@@ -511,8 +526,11 @@ pub async fn count_games_in_group(
 pub async fn get_categories_with_count(
     db: State<'_, DatabaseConnection>,
     group_id: i32,
+    sort_field: Option<CollectionBackendSortField>,
+    sort_order: Option<SortOrder>,
 ) -> Result<Vec<CategoryWithCount>, String> {
-    CollectionsRepository::get_categories_with_count(&db, group_id)
+    let sort = validate_collection_sort(sort_field, sort_order)?;
+    CollectionsRepository::get_categories_with_count(&db, group_id, sort)
         .await
         .map_err(|e| format!("获取分类列表失败: {}", e))
 }

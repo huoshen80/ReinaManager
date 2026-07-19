@@ -28,7 +28,10 @@ import {
 import { type ProxyConfig, settingsService } from "@/services/invoke";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
 import type { SourceType } from "@/types";
-import type { PlayStatusFilter } from "@/types/collection";
+import type {
+	CollectionEntitySortField,
+	PlayStatusFilter,
+} from "@/types/collection";
 import { normalizeTagFilters } from "@/utils/game/tagFilter";
 import {
 	APP_STORE_VERSION,
@@ -168,6 +171,24 @@ export interface AppState {
 	selectedCategory: SelectedCategory; // 当前选中的分类
 	setCurrentGroup: (groupId: string | null) => void; // 设置当前分组
 	setSelectedCategory: (category: SelectedCategory) => void; // 设置当前选中的分类
+	collectionEntitySortField: CollectionEntitySortField;
+	collectionEntitySortOrder: SortOrder;
+	setCollectionEntitySort: (
+		field: CollectionEntitySortField,
+		order: SortOrder,
+	) => void;
+	developerCategorySortField: CollectionEntitySortField;
+	developerCategorySortOrder: SortOrder;
+	setDeveloperCategorySort: (
+		field: CollectionEntitySortField,
+		order: SortOrder,
+	) => void;
+	collectionGroupSearch: string;
+	setCollectionGroupSearch: (value: string) => void;
+	collectionCategorySearch: string;
+	setCollectionCategorySearch: (value: string) => void;
+	developerCategorySearch: string;
+	setDeveloperCategorySearch: (value: string) => void;
 
 	// 代理设置
 	proxyConfig: ProxyConfig;
@@ -418,6 +439,13 @@ export const useStore = create<AppState>()(
 			// 分组分类选择状态初始值
 			currentGroupId: null,
 			selectedCategory: null,
+			collectionEntitySortField: "created_at",
+			collectionEntitySortOrder: "asc",
+			developerCategorySortField: "game_count",
+			developerCategorySortOrder: "desc",
+			collectionGroupSearch: "",
+			collectionCategorySearch: "",
+			developerCategorySearch: "",
 
 			// 设置当前分组
 			setCurrentGroup: (groupId: string | null) => {
@@ -430,6 +458,33 @@ export const useStore = create<AppState>()(
 			// 设置当前选中的分类
 			setSelectedCategory: (category: SelectedCategory) => {
 				set({ selectedCategory: category });
+			},
+			setCollectionEntitySort: (
+				field: CollectionEntitySortField,
+				order: SortOrder,
+			) => {
+				set({
+					collectionEntitySortField: field,
+					collectionEntitySortOrder: order,
+				});
+			},
+			setDeveloperCategorySort: (
+				field: CollectionEntitySortField,
+				order: SortOrder,
+			) => {
+				set({
+					developerCategorySortField: field,
+					developerCategorySortOrder: order,
+				});
+			},
+			setCollectionGroupSearch: (value: string) => {
+				set({ collectionGroupSearch: value });
+			},
+			setCollectionCategorySearch: (value: string) => {
+				set({ collectionCategorySearch: value });
+			},
+			setDeveloperCategorySearch: (value: string) => {
+				set({ developerCategorySearch: value });
 			},
 
 			// 代理设置

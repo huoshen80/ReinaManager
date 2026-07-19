@@ -29,10 +29,12 @@ interface VirtualCardsGridProps {
 	gameIds: number[];
 	displayById: Map<number, GameData>;
 	scrollRestoreKey?: string | null;
+	enableBatchMode?: boolean;
+	enableSortFieldOverlay?: boolean;
 }
 
 /**
- * VirtualCardsGrid - 虚拟化卡片网格（用于 LibrariesPage）
+ * VirtualCardsGrid - 虚拟化游戏卡片网格
  *
  * 滚动恢复：
  * - 保存：scroll 事件中缓存 main.scrollTop - wrapper 相对偏移（列表内坐标），
@@ -44,8 +46,14 @@ export const VirtualCardsGrid = memo(
 		gameIds,
 		displayById,
 		scrollRestoreKey = "libraries",
+		enableBatchMode = false,
+		enableSortFieldOverlay = false,
 	}: VirtualCardsGridProps) => {
-		const { controls, getCardProps } = useCardsController({ gameIds });
+		const { controls, getCardProps } = useCardsController({
+			gameIds,
+			enableBatchMode,
+			enableSortFieldOverlay,
+		});
 		const [columns, setColumns] = useState(() => getColumnCount());
 
 		useEffect(() => {

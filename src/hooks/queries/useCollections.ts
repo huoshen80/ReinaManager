@@ -1,22 +1,50 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useMemo } from "react";
 import { getDeveloperCategoryGameIds } from "@/hooks/common/useVirtualCollections";
+import type { SortOrder } from "@/services/invoke";
 import { collectionService } from "@/services/invoke";
 import type { SelectedCategory } from "@/store/appStore";
+import type { CollectionBackendSortField } from "@/types/collection";
 import type { GameIndex } from "@/utils/game/gameIndex";
 
 export const collectionKeys = {
 	all: ["collections"] as const,
 	groups: () => [...collectionKeys.all, "groups"] as const,
+	groupList: (sortField?: CollectionBackendSortField, sortOrder?: SortOrder) =>
+		[
+			...collectionKeys.groups(),
+			"with-count",
+			...(sortField && sortOrder ? [{ sortField, sortOrder }] : []),
+		] as const,
 	categories: (groupId: string) =>
 		[...collectionKeys.all, "categories", groupId] as const,
+	categoryList: (
+		groupId: string,
+		sortField?: CollectionBackendSortField,
+		sortOrder?: SortOrder,
+	) =>
+		[
+			...collectionKeys.categories(groupId),
+			...(sortField && sortOrder ? [{ sortField, sortOrder }] : []),
+		] as const,
 	games: (categoryId: number) =>
 		[...collectionKeys.all, "games", categoryId] as const,
 	gameCategories: (gameId: number) =>
 		[...collectionKeys.all, "gameCategories", gameId] as const,
-	groupCounts: (groupIds: number[]) =>
-		[...collectionKeys.all, "groupCounts", groupIds] as const,
 };
+
+function isCategoryQueryForGroup(
+	queryKey: readonly unknown[],
+	groupId: string,
+): boolean {
+	const categoryPrefix = collectionKeys.categories(groupId);
+	return categoryPrefix.every((segment, index) => queryKey[index] === segment);
+}
 
 function useGroups() {
 	return useQuery({
@@ -25,19 +53,27 @@ function useGroups() {
 	});
 }
 
-function useGroupGameCounts(groupIds: number[]) {
+function useGroupsWithCount(
+	sortField?: CollectionBackendSortField,
+	sortOrder?: SortOrder,
+) {
 	return useQuery({
-		queryKey: collectionKeys.groupCounts(groupIds),
-		queryFn: () => collectionService.batchCountGamesInGroups(groupIds),
-		enabled: groupIds.length > 0,
+		queryKey: collectionKeys.groupList(sortField, sortOrder),
+		queryFn: () => collectionService.getGroupsWithCount(sortField, sortOrder),
+		placeholderData: keepPreviousData,
 	});
 }
 
-function useCategories(groupId: string | null) {
+function useCategories(
+	groupId: string | null,
+	sortField?: CollectionBackendSortField,
+	sortOrder?: SortOrder,
+) {
 	const isEnabled = Boolean(groupId) && !groupId?.startsWith("default_");
+	const queryGroupId = groupId ?? "none";
 
 	return useQuery({
-		queryKey: collectionKeys.categories(groupId ?? "none"),
+		queryKey: collectionKeys.categoryList(queryGroupId, sortField, sortOrder),
 		queryFn: async () => {
 			if (!groupId || groupId.startsWith("default_")) {
 				return [];
@@ -48,9 +84,18 @@ function useCategories(groupId: string | null) {
 				return [];
 			}
 
-			return collectionService.getCategoriesWithCount(groupIdNum);
+			return collectionService.getCategoriesWithCount(
+				groupIdNum,
+				sortField,
+				sortOrder,
+			);
 		},
 		enabled: isEnabled,
+		placeholderData: (previousData, previousQuery) =>
+			previousQuery &&
+			isCategoryQueryForGroup(previousQuery.queryKey, queryGroupId)
+				? previousData
+				: undefined,
 	});
 }
 
@@ -188,6 +233,9 @@ function useDeleteCategory() {
 			if (groupId) {
 				queryClient.invalidateQueries({
 					queryKey: collectionKeys.categories(groupId),
+				});
+				queryClient.invalidateQueries({
+					queryKey: collectionKeys.groups(),
 				});
 			} else {
 				queryClient.invalidateQueries({ queryKey: collectionKeys.all });
@@ -339,8 +387,8 @@ export {
 	useDeleteCategory,
 	useDeleteGroup,
 	useGameCategoryIds,
-	useGroupGameCounts,
 	useGroups,
+	useGroupsWithCount,
 	useRemoveGamesFromCategory,
 	useRenameCategory,
 	useRenameGroup,

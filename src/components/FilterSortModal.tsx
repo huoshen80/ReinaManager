@@ -27,12 +27,16 @@ import Typography from "@mui/material/Typography";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import { useFilteredGamesFacade } from "@/hooks/features/games/useGameListFacade";
+import {
+	type GameListScopeOptions,
+	useFilteredGamesFacade,
+} from "@/hooks/features/games/useGameListFacade";
 import { snackbar } from "@/providers/snackBar";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
 import { useStore } from "@/store/appStore";
 import {
 	ALL_PLAY_STATUSES,
+	type CollectionEntitySortField,
 	getPlayStatusLabel,
 	type PlayStatus,
 	type PlayStatusFilter,
@@ -51,7 +55,7 @@ const filterTypeOptions: Array<{ value: GameType; labelKey: string }> = [
 	{ value: "iscustom", labelKey: "customGames" },
 ];
 
-const sortOptions: Array<{ value: SortOption; labelKey: string }> = [
+const gameSortOptions: Array<{ value: SortOption; labelKey: string }> = [
 	{ value: "addtime", labelKey: "addTime" },
 	{ value: "namesort", labelKey: "nameSort" },
 	{ value: "datetime", labelKey: "releaseTime" },
@@ -62,6 +66,167 @@ const sortOptions: Array<{ value: SortOption; labelKey: string }> = [
 ];
 
 const MAX_TAG_SUGGESTIONS = 8;
+
+interface GameFilterSortModalProps extends GameListScopeOptions {
+	mode?: "game";
+}
+
+interface CollectionEntityFilterSortModalProps {
+	mode: "collection-entity";
+	sortFields: readonly CollectionEntitySortField[];
+	sortField: CollectionEntitySortField;
+	sortOrder: SortOrder;
+	onApply: (field: CollectionEntitySortField, order: SortOrder) => void;
+}
+
+export type FilterSortModalProps =
+	| GameFilterSortModalProps
+	| CollectionEntityFilterSortModalProps;
+
+interface FilterSortDialogProps {
+	open: boolean;
+	onClose: () => void;
+	onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+	titleId: string;
+	title: string;
+	icon: React.ReactNode;
+	children: React.ReactNode;
+}
+
+interface SortSectionProps<T extends string> {
+	options: readonly { value: T; label: string }[];
+	sortValue: T;
+	sortOrder: SortOrder;
+	onSortValueChange: (value: T) => void;
+	onSortOrderChange: (order: SortOrder) => void;
+	footer?: React.ReactNode;
+}
+
+function getCollectionEntitySortFieldLabel(
+	t: ReturnType<typeof useTranslation>["t"],
+	field: CollectionEntitySortField,
+): string {
+	switch (field) {
+		case "created_at":
+			return t("pages.Collection.entitySort.createdAt", "添加时间");
+		case "updated_at":
+			return t("pages.Collection.entitySort.updatedAt", "更新时间");
+		case "name":
+			return t("pages.Collection.entitySort.name", "名称");
+		case "game_count":
+			return t("pages.Collection.entitySort.gameCount", "游戏数量");
+	}
+}
+
+function FilterSortDialog({
+	open,
+	onClose,
+	onSubmit,
+	titleId,
+	title,
+	icon,
+	children,
+}: FilterSortDialogProps) {
+	const { t } = useTranslation();
+
+	return (
+		<Dialog
+			open={open}
+			onClose={onClose}
+			closeAfterTransition={false}
+			aria-labelledby={titleId}
+			maxWidth={false}
+			slotProps={{
+				transition: { timeout: 0 },
+				paper: {
+					component: "form",
+					onSubmit,
+					className: "w-fit min-w-88 max-w-[calc(100vw-2rem)] overflow-hidden",
+				},
+			}}
+		>
+			<DialogTitle id={titleId} className="flex items-center gap-2 px-5 py-4">
+				{icon}
+				<span className="text-base font-600">{title}</span>
+			</DialogTitle>
+			<DialogContent className="overflow-x-auto px-5 py-4">
+				<div className="w-max min-w-88 flex flex-col gap-4">{children}</div>
+			</DialogContent>
+			<DialogActions className="px-5 py-3">
+				<Button onClick={onClose}>
+					{t("components.FilterSortModal.cancel", "取消")}
+				</Button>
+				<Button type="submit" variant="contained">
+					{t("components.FilterSortModal.confirm", "确认")}
+				</Button>
+			</DialogActions>
+		</Dialog>
+	);
+}
+
+function SortSection<T extends string>({
+	options,
+	sortValue,
+	sortOrder,
+	onSortValueChange,
+	onSortOrderChange,
+	footer,
+}: SortSectionProps<T>) {
+	const { t } = useTranslation();
+	const sortMethodLabel = t(
+		"components.FilterSortModal.sortMethod",
+		"排序方式",
+	);
+
+	return (
+		<Box component="section" className="rounded-2 p-1">
+			<div className="mb-2 flex items-center gap-2">
+				<SortIcon fontSize="small" className="text-primary" />
+				<Typography variant="body2" className="font-600">
+					{sortMethodLabel}
+				</Typography>
+			</div>
+			<div className="flex flex-col gap-3">
+				<FormControl fullWidth size="small">
+					<Select
+						value={sortValue}
+						displayEmpty
+						inputProps={{ "aria-label": sortMethodLabel }}
+						onChange={(event: SelectChangeEvent) =>
+							onSortValueChange(event.target.value as T)
+						}
+					>
+						{options.map((option) => (
+							<MenuItem key={option.value} value={option.value}>
+								{option.label}
+							</MenuItem>
+						))}
+					</Select>
+				</FormControl>
+				<ToggleButtonGroup
+					exclusive
+					fullWidth
+					size="small"
+					value={sortOrder}
+					aria-label={t("components.FilterSortModal.sortOrder", "排序方向")}
+					onChange={(_, value: SortOrder | null) => {
+						if (value) onSortOrderChange(value);
+					}}
+				>
+					<ToggleButton value="asc" className="gap-1">
+						<ArrowUpwardIcon fontSize="small" />
+						{t("components.FilterSortModal.ascending", "升序")}
+					</ToggleButton>
+					<ToggleButton value="desc" className="gap-1">
+						<ArrowDownwardIcon fontSize="small" />
+						{t("components.FilterSortModal.descending", "降序")}
+					</ToggleButton>
+				</ToggleButtonGroup>
+				{footer}
+			</div>
+		</Box>
+	);
+}
 
 function getActiveFilterCount(
 	gameFilterType: GameType,
@@ -75,7 +240,10 @@ function getActiveFilterCount(
 	return count;
 }
 
-export const FilterSortModal: React.FC = () => {
+function GameFilterSortModal({
+	scopeGameIds,
+	applyNsfwFilter,
+}: GameFilterSortModalProps) {
 	const { t } = useTranslation();
 	const {
 		gameFilterType,
@@ -104,7 +272,10 @@ export const FilterSortModal: React.FC = () => {
 			setShowCardSortFieldOverlay: s.setShowCardSortFieldOverlay,
 		})),
 	);
-	const { baseFilteredGames } = useFilteredGamesFacade();
+	const { baseFilteredGames } = useFilteredGamesFacade({
+		scopeGameIds,
+		applyNsfwFilter,
+	});
 
 	const [open, setOpen] = useState(false);
 	const [localFilterType, setLocalFilterType] =
@@ -247,256 +418,249 @@ export const FilterSortModal: React.FC = () => {
 					</Tooltip>
 				)}
 			</Box>
-			<Dialog
+			<FilterSortDialog
 				open={open}
 				onClose={handleClose}
-				closeAfterTransition={false}
-				aria-labelledby="filter-sort-dialog-title"
-				maxWidth={false}
-				slotProps={{
-					transition: { timeout: 0 },
-					paper: {
-						component: "form",
-						onSubmit: handleSubmit,
-						className:
-							"w-fit min-w-88 max-w-[calc(100vw-2rem)] overflow-hidden",
-					},
-				}}
+				onSubmit={handleSubmit}
+				titleId="filter-sort-dialog-title"
+				title={t("components.FilterSortModal.title", "筛选排序")}
+				icon={<FilterAlt fontSize="small" className="text-primary" />}
 			>
-				<DialogTitle
-					id="filter-sort-dialog-title"
-					className="flex items-center gap-2 px-5 py-4"
-				>
-					<FilterAlt fontSize="small" className="text-primary" />
-					<span className="text-base font-600">
-						{t("components.FilterSortModal.title", "筛选排序")}
-					</span>
-				</DialogTitle>
-				<DialogContent className="overflow-x-auto px-5 py-4">
-					<div className="w-max min-w-88 flex flex-col gap-4">
-						<Box component="section" className="rounded-2 p-1">
-							<div className="mb-2 flex items-center gap-2">
-								<FilterListIcon fontSize="small" className="text-primary" />
-								<Typography variant="body2" className="font-600">
-									{t("components.FilterSortModal.filter", "筛选")}
-								</Typography>
-							</div>
-							<div className="flex flex-col gap-3">
-								<div className="flex flex-col gap-2">
-									<div className="flex items-center gap-2">
-										<Typography variant="caption" color="text.secondary">
-											{t("components.FilterSortModal.sourceFilter", "游戏来源")}
-										</Typography>
-									</div>
-									<FormControl fullWidth size="small">
-										<Select
-											labelId="library-filter-label"
-											value={localFilterType}
-											displayEmpty
-											onChange={(event: SelectChangeEvent) =>
-												setLocalFilterType(event.target.value as GameType)
-											}
-										>
-											{filterTypeOptions.map((option) => (
-												<MenuItem key={option.value} value={option.value}>
-													{t(`components.FilterSortModal.${option.labelKey}`)}
-												</MenuItem>
-											))}
-										</Select>
-									</FormControl>
-								</div>
-								<div className="flex flex-col gap-2">
-									<div className="flex items-center gap-2">
-										<Typography variant="caption" color="text.secondary">
-											{t(
-												"components.FilterSortModal.playStatusFilter",
-												"游戏状态",
-											)}
-										</Typography>
-									</div>
-									<fieldset className="grid w-max grid-flow-col auto-cols-max gap-1.5 border-0 p-0 m-0">
-										<legend className="sr-only">
-											{t(
-												"components.FilterSortModal.playStatusFilter",
-												"游戏状态",
-											)}
-										</legend>
-										<ToggleButton
-											size="small"
-											value="all"
-											selected={localPlayStatusFilter === "all"}
-											onClick={() => setLocalPlayStatusFilter("all")}
-											className="min-w-0 whitespace-nowrap px-2"
-										>
-											{t("components.FilterSortModal.allStatuses", "全部状态")}
-										</ToggleButton>
-										{ALL_PLAY_STATUSES.map((status: PlayStatus) => (
-											<ToggleButton
-												key={status}
-												size="small"
-												value={status}
-												selected={localPlayStatusFilter === status}
-												onClick={() => setLocalPlayStatusFilter(status)}
-												className="min-w-0 whitespace-nowrap px-2"
-											>
-												{getPlayStatusLabel(t, status)}
-											</ToggleButton>
-										))}
-									</fieldset>
-								</div>
-								<div className="flex flex-col gap-2">
-									<div className="flex items-center gap-2">
-										<LocalOfferIcon fontSize="small" className="text-primary" />
-										<Typography variant="caption" color="text.secondary">
-											{t("components.FilterSortModal.tagFilter", "Tag 筛选")}
-										</Typography>
-										{localTagFilters.length > 0 && (
-											<Chip
-												size="small"
-												label={localTagFilters.length}
-												color="primary"
-											/>
-										)}
-									</div>
-									<Autocomplete
-										multiple
-										freeSolo
-										options={tagOptions}
-										value={localTagFilters}
-										inputValue={tagInput}
-										filterOptions={(options) => options}
-										onInputChange={(_, value, reason) => {
-											if (reason === "input" || reason === "clear") {
-												setTagInput(value);
-											}
-										}}
-										onChange={(_, value) => {
-											handleTagFiltersChange(value);
-											setTagInput("");
-										}}
-										noOptionsText={t(
-											"components.FilterSortModal.noTagSuggestions",
-											"没有标签建议",
-										)}
-										renderTags={(value, getTagProps) =>
-											value.map((option, index) => {
-												const { key, ...tagProps } = getTagProps({ index });
-												return (
-													<Chip
-														key={key}
-														label={option}
-														size="small"
-														color="primary"
-														variant="outlined"
-														{...tagProps}
-													/>
-												);
-											})
-										}
-										renderInput={(params) => (
-											<TextField
-												{...params}
-												size="small"
-												placeholder={
-													localTagFilters.length === 0
-														? t(
-																"components.FilterSortModal.tagFilterPlaceholder",
-																"输入原始 tag 后按回车添加",
-															)
-														: ""
-												}
-												onKeyDown={handleTagInputKeyDown}
-											/>
-										)}
-										renderOption={(props, option) => {
-											const { key, ...optionProps } = props;
-											return (
-												<li key={key} {...optionProps}>
-													<span className="flex-1 truncate">{option}</span>
-												</li>
-											);
-										}}
-									/>
-								</div>
-							</div>
-						</Box>
-
-						<Box component="section" className="rounded-2 p-1">
-							<div className="mb-2 flex items-center gap-2">
-								<SortIcon fontSize="small" className="text-primary" />
-								<Typography variant="body2" className="font-600">
-									{t("components.FilterSortModal.sortMethod", "排序方式")}
-								</Typography>
-							</div>
-							<div className="flex flex-col gap-3">
-								<FormControl fullWidth size="small">
-									<Select
-										labelId="library-sort-label"
-										value={localSortOption}
-										displayEmpty
-										onChange={(event: SelectChangeEvent) =>
-											setLocalSortOption(event.target.value as SortOption)
-										}
-									>
-										{sortOptions.map((option) => (
-											<MenuItem key={option.value} value={option.value}>
-												{t(`components.FilterSortModal.${option.labelKey}`)}
-											</MenuItem>
-										))}
-									</Select>
-								</FormControl>
-								<ToggleButtonGroup
-									exclusive
-									fullWidth
-									size="small"
-									value={localSortOrder}
-									aria-label={t(
-										"components.FilterSortModal.sortOrder",
-										"排序方向",
-									)}
-									onChange={(_, value: SortOrder | null) => {
-										if (value) setLocalSortOrder(value);
-									}}
-								>
-									<ToggleButton value="asc" className="gap-1">
-										<ArrowUpwardIcon fontSize="small" />
-										{t("components.FilterSortModal.ascending", "升序")}
-									</ToggleButton>
-									<ToggleButton value="desc" className="gap-1">
-										<ArrowDownwardIcon fontSize="small" />
-										{t("components.FilterSortModal.descending", "降序")}
-									</ToggleButton>
-								</ToggleButtonGroup>
-								<FormControlLabel
-									control={
-										<Switch
-											size="small"
-											checked={localShowCardSortFieldOverlay}
-											onChange={(event) =>
-												setLocalShowCardSortFieldOverlay(event.target.checked)
-											}
-										/>
-									}
-									label={t(
-										"components.FilterSortModal.showCardSortFieldOverlay",
-										"封面展示排序字段",
-									)}
-									labelPlacement="start"
-									className="ml-0 justify-between"
-								/>
-							</div>
-						</Box>
+				<Box component="section" className="rounded-2 p-1">
+					<div className="mb-2 flex items-center gap-2">
+						<FilterListIcon fontSize="small" className="text-primary" />
+						<Typography variant="body2" className="font-600">
+							{t("components.FilterSortModal.filter", "筛选")}
+						</Typography>
 					</div>
-				</DialogContent>
-				<DialogActions className="px-5 py-3">
-					<Button onClick={handleClose}>
-						{t("components.FilterSortModal.cancel", "取消")}
-					</Button>
-					<Button type="submit" variant="contained">
-						{t("components.FilterSortModal.confirm", "确认")}
-					</Button>
-				</DialogActions>
-			</Dialog>
+					<div className="flex flex-col gap-3">
+						<div className="flex flex-col gap-2">
+							<div className="flex items-center gap-2">
+								<Typography variant="caption" color="text.secondary">
+									{t("components.FilterSortModal.sourceFilter", "游戏来源")}
+								</Typography>
+							</div>
+							<FormControl fullWidth size="small">
+								<Select
+									labelId="library-filter-label"
+									value={localFilterType}
+									displayEmpty
+									onChange={(event: SelectChangeEvent) =>
+										setLocalFilterType(event.target.value as GameType)
+									}
+								>
+									{filterTypeOptions.map((option) => (
+										<MenuItem key={option.value} value={option.value}>
+											{t(`components.FilterSortModal.${option.labelKey}`)}
+										</MenuItem>
+									))}
+								</Select>
+							</FormControl>
+						</div>
+						<div className="flex flex-col gap-2">
+							<div className="flex items-center gap-2">
+								<Typography variant="caption" color="text.secondary">
+									{t("components.FilterSortModal.playStatusFilter", "游戏状态")}
+								</Typography>
+							</div>
+							<fieldset className="grid w-max grid-flow-col auto-cols-max gap-1.5 border-0 p-0 m-0">
+								<legend className="sr-only">
+									{t("components.FilterSortModal.playStatusFilter", "游戏状态")}
+								</legend>
+								<ToggleButton
+									size="small"
+									value="all"
+									selected={localPlayStatusFilter === "all"}
+									onClick={() => setLocalPlayStatusFilter("all")}
+									className="min-w-0 whitespace-nowrap px-2"
+								>
+									{t("components.FilterSortModal.allStatuses", "全部状态")}
+								</ToggleButton>
+								{ALL_PLAY_STATUSES.map((status: PlayStatus) => (
+									<ToggleButton
+										key={status}
+										size="small"
+										value={status}
+										selected={localPlayStatusFilter === status}
+										onClick={() => setLocalPlayStatusFilter(status)}
+										className="min-w-0 whitespace-nowrap px-2"
+									>
+										{getPlayStatusLabel(t, status)}
+									</ToggleButton>
+								))}
+							</fieldset>
+						</div>
+						<div className="flex flex-col gap-2">
+							<div className="flex items-center gap-2">
+								<LocalOfferIcon fontSize="small" className="text-primary" />
+								<Typography variant="caption" color="text.secondary">
+									{t("components.FilterSortModal.tagFilter", "Tag 筛选")}
+								</Typography>
+								{localTagFilters.length > 0 && (
+									<Chip
+										size="small"
+										label={localTagFilters.length}
+										color="primary"
+									/>
+								)}
+							</div>
+							<Autocomplete
+								multiple
+								freeSolo
+								options={tagOptions}
+								value={localTagFilters}
+								inputValue={tagInput}
+								filterOptions={(options) => options}
+								onInputChange={(_, value, reason) => {
+									if (reason === "input" || reason === "clear") {
+										setTagInput(value);
+									}
+								}}
+								onChange={(_, value) => {
+									handleTagFiltersChange(value);
+									setTagInput("");
+								}}
+								noOptionsText={t(
+									"components.FilterSortModal.noTagSuggestions",
+									"没有标签建议",
+								)}
+								renderTags={(value, getTagProps) =>
+									value.map((option, index) => {
+										const { key, ...tagProps } = getTagProps({ index });
+										return (
+											<Chip
+												key={key}
+												label={option}
+												size="small"
+												color="primary"
+												variant="outlined"
+												{...tagProps}
+											/>
+										);
+									})
+								}
+								renderInput={(params) => (
+									<TextField
+										{...params}
+										size="small"
+										placeholder={
+											localTagFilters.length === 0
+												? t(
+														"components.FilterSortModal.tagFilterPlaceholder",
+														"输入原始 tag 后按回车添加",
+													)
+												: ""
+										}
+										onKeyDown={handleTagInputKeyDown}
+									/>
+								)}
+								renderOption={(props, option) => {
+									const { key, ...optionProps } = props;
+									return (
+										<li key={key} {...optionProps}>
+											<span className="flex-1 truncate">{option}</span>
+										</li>
+									);
+								}}
+							/>
+						</div>
+					</div>
+				</Box>
+
+				<SortSection
+					options={gameSortOptions.map((option) => ({
+						value: option.value,
+						label: t(`components.FilterSortModal.${option.labelKey}`),
+					}))}
+					sortValue={localSortOption}
+					sortOrder={localSortOrder}
+					onSortValueChange={setLocalSortOption}
+					onSortOrderChange={setLocalSortOrder}
+					footer={
+						<FormControlLabel
+							control={
+								<Switch
+									size="small"
+									checked={localShowCardSortFieldOverlay}
+									onChange={(event) =>
+										setLocalShowCardSortFieldOverlay(event.target.checked)
+									}
+								/>
+							}
+							label={t(
+								"components.FilterSortModal.showCardSortFieldOverlay",
+								"封面展示排序字段",
+							)}
+							labelPlacement="start"
+							className="ml-0 justify-between"
+						/>
+					}
+				/>
+			</FilterSortDialog>
 		</>
 	);
-};
+}
+
+function CollectionEntityFilterSortModal({
+	sortFields,
+	sortField,
+	sortOrder,
+	onApply,
+}: CollectionEntityFilterSortModalProps) {
+	const { t } = useTranslation();
+	const [open, setOpen] = useState(false);
+	const [localSortField, setLocalSortField] =
+		useState<CollectionEntitySortField>(sortField);
+	const [localSortOrder, setLocalSortOrder] = useState<SortOrder>(sortOrder);
+
+	const handleOpen = () => {
+		setLocalSortField(sortField);
+		setLocalSortOrder(sortOrder);
+		setOpen(true);
+	};
+
+	const handleClose = () => setOpen(false);
+
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		onApply(localSortField, localSortOrder);
+		handleClose();
+	};
+
+	const title = t("pages.Collection.entitySort.label", "排序");
+
+	return (
+		<>
+			<Button onClick={handleOpen} startIcon={<SortIcon />}>
+				{title}
+			</Button>
+			<FilterSortDialog
+				open={open}
+				onClose={handleClose}
+				onSubmit={handleSubmit}
+				titleId="collection-entity-sort-dialog-title"
+				title={title}
+				icon={<SortIcon fontSize="small" className="text-primary" />}
+			>
+				<SortSection
+					options={sortFields.map((field) => ({
+						value: field,
+						label: getCollectionEntitySortFieldLabel(t, field),
+					}))}
+					sortValue={localSortField}
+					sortOrder={localSortOrder}
+					onSortValueChange={setLocalSortField}
+					onSortOrderChange={setLocalSortOrder}
+				/>
+			</FilterSortDialog>
+		</>
+	);
+}
+
+export function FilterSortModal(props: FilterSortModalProps) {
+	if (props.mode === "collection-entity") {
+		return <CollectionEntityFilterSortModal {...props} />;
+	}
+
+	return <GameFilterSortModal {...props} />;
+}

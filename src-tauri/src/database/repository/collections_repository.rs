@@ -1,8 +1,10 @@
 use crate::database::dto::{InsertCollectionData, UpdateCollectionData};
+use crate::database::repository::games_repository::SortOrder;
 use crate::entity::prelude::*;
 use crate::entity::{collections, game_collection_link};
 use sea_orm::{sea_query::Expr, *};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 /// 合集数据仓库
 pub struct CollectionsRepository;
@@ -15,6 +17,78 @@ pub struct CategoryWithCount {
     pub icon: Option<String>,
     pub sort_order: i32,
     pub game_count: u64,
+    pub created_at: Option<i32>,
+    pub updated_at: Option<i32>,
+}
+
+/// 带游戏数量的根分组
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupWithCount {
+    pub id: i32,
+    pub name: String,
+    pub icon: Option<String>,
+    pub sort_order: i32,
+    pub game_count: u64,
+    pub created_at: Option<i32>,
+    pub updated_at: Option<i32>,
+}
+
+/// 由后端负责的合集排序字段
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectionBackendSortField {
+    CreatedAt,
+    UpdatedAt,
+    GameCount,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CollectionSortValues {
+    id: i32,
+    created_at: Option<i32>,
+    updated_at: Option<i32>,
+    game_count: u64,
+}
+
+fn apply_sort_order(ordering: Ordering, sort_order: SortOrder) -> Ordering {
+    match sort_order {
+        SortOrder::Asc => ordering,
+        SortOrder::Desc => ordering.reverse(),
+    }
+}
+
+fn compare_optional_time(left: Option<i32>, right: Option<i32>, sort_order: SortOrder) -> Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => apply_sort_order(left.cmp(&right), sort_order),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+fn sort_collection_results<T>(
+    values: &mut [T],
+    sort_field: CollectionBackendSortField,
+    sort_order: SortOrder,
+    get_values: impl Fn(&T) -> CollectionSortValues,
+) {
+    values.sort_by(|left, right| {
+        let left = get_values(left);
+        let right = get_values(right);
+        let field_ordering = match sort_field {
+            CollectionBackendSortField::CreatedAt => {
+                compare_optional_time(left.created_at, right.created_at, sort_order)
+            }
+            CollectionBackendSortField::UpdatedAt => {
+                compare_optional_time(left.updated_at, right.updated_at, sort_order)
+            }
+            CollectionBackendSortField::GameCount => {
+                apply_sort_order(left.game_count.cmp(&right.game_count), sort_order)
+            }
+        };
+
+        field_ordering.then_with(|| left.id.cmp(&right.id))
+    });
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -459,6 +533,41 @@ impl CollectionsRepository {
 
     // ==================== 前端友好的组合 API ====================
 
+    /// 获取根分组列表（带游戏数量）
+    pub async fn get_root_collections_with_count(
+        db: &DatabaseConnection,
+        sort: Option<(CollectionBackendSortField, SortOrder)>,
+    ) -> Result<Vec<GroupWithCount>, DbErr> {
+        let groups = Self::find_root_collections(db).await?;
+        let group_ids = groups.iter().map(|group| group.id).collect::<Vec<_>>();
+        let counts = Self::batch_count_games_in_groups(db, group_ids).await?;
+        let mut groups = groups
+            .into_iter()
+            .map(|group| GroupWithCount {
+                id: group.id,
+                name: group.name,
+                icon: group.icon,
+                sort_order: group.sort_order,
+                game_count: counts.get(&group.id).copied().unwrap_or(0),
+                created_at: group.created_at,
+                updated_at: group.updated_at,
+            })
+            .collect::<Vec<_>>();
+
+        if let Some((sort_field, sort_order)) = sort {
+            sort_collection_results(&mut groups, sort_field, sort_order, |group| {
+                CollectionSortValues {
+                    id: group.id,
+                    created_at: group.created_at,
+                    updated_at: group.updated_at,
+                    game_count: group.game_count,
+                }
+            });
+        }
+
+        Ok(groups)
+    }
+
     /// 批量获取多个分组的游戏数量
     ///
     /// 返回 HashMap<group_id, game_count>
@@ -535,6 +644,7 @@ impl CollectionsRepository {
     pub async fn get_categories_with_count(
         db: &DatabaseConnection,
         group_id: i32,
+        sort: Option<(CollectionBackendSortField, SortOrder)>,
     ) -> Result<Vec<CategoryWithCount>, DbErr> {
         use std::collections::HashMap;
 
@@ -560,7 +670,7 @@ impl CollectionsRepository {
             .map(|(collection_id, count)| (collection_id, count as u64))
             .collect::<HashMap<_, _>>();
 
-        Ok(categories
+        let mut categories = categories
             .into_iter()
             .map(|category| CategoryWithCount {
                 id: category.id,
@@ -568,7 +678,22 @@ impl CollectionsRepository {
                 icon: category.icon,
                 sort_order: category.sort_order,
                 game_count: counts.get(&category.id).copied().unwrap_or(0),
+                created_at: category.created_at,
+                updated_at: category.updated_at,
             })
-            .collect())
+            .collect::<Vec<_>>();
+
+        if let Some((sort_field, sort_order)) = sort {
+            sort_collection_results(&mut categories, sort_field, sort_order, |category| {
+                CollectionSortValues {
+                    id: category.id,
+                    created_at: category.created_at,
+                    updated_at: category.updated_at,
+                    game_count: category.game_count,
+                }
+            });
+        }
+
+        Ok(categories)
     }
 }

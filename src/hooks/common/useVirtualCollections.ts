@@ -75,21 +75,6 @@ export function useVirtualCategories(
 	const unknownDeveloper = t("category.unknownDeveloper", "未知开发商");
 
 	/**
-	 * 根据分组ID获取对应的分类列表
-	 */
-	const getCategoriesByGroupId = (
-		groupId: string,
-		realCategories: Category[],
-	): Category[] => {
-		switch (groupId) {
-			case "default_developer":
-				return developerCategories;
-			default:
-				return realCategories;
-		}
-	};
-
-	/**
 	 * 获取虚拟分类的名称（用于面包屑）
 	 */
 	const getVirtualCategoryName = (
@@ -102,7 +87,6 @@ export function useVirtualCategories(
 
 	return {
 		developerCategories,
-		getCategoriesByGroupId,
 		getVirtualCategoryName,
 		isVirtual: isVirtualCategory,
 	};

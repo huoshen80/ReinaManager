@@ -426,6 +426,23 @@
 			"deleteCategoryTitle": "Delete Category",
 			"deleteGroupMessage": "Are you sure you want to delete group \"{{name}}\"? This will also delete all categories in the group and cannot be undone.",
 			"deleteGroupTitle": "Delete Group",
+			"developerSearch": {
+				"label": "Search developers",
+				"noResults": "No matching developers found"
+			},
+			"entitySearch": {
+				"categories": "Search categories",
+				"groups": "Search groups",
+				"noCategories": "No matching categories found",
+				"noGroups": "No matching groups found"
+			},
+			"entitySort": {
+				"createdAt": "Date Added",
+				"gameCount": "Game Count",
+				"label": "Sort",
+				"name": "Name",
+				"updatedAt": "Date Updated"
+			},
 			"errors": {
 				"cannotDeleteDefaultGroup": "Default group cannot be deleted",
 				"deleteCategoryFailed": "Failed to delete category, please try again",
@@ -435,6 +452,7 @@
 			"gamesCount": "games",
 			"noCategoriesHint": "No categories in current group",
 			"noGamesInCategory": "No games in current category",
+			"noMatchingGames": "No matching games found",
 			"success": {
 				"categoryDeleted": "Category deleted",
 				"groupDeleted": "Group deleted"

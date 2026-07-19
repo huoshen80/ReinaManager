@@ -19,7 +19,12 @@ import { Toolbars } from "@/components/Toolbar";
 import {
 	saveScrollPosition,
 	scrollToTop,
+	setScrollPosition,
 } from "@/hooks/common/useScrollRestore";
+import { getDeveloperCategoryGameIds } from "@/hooks/common/useVirtualCollections";
+import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
+import { type SelectedCategory, useStore } from "@/store/appStore";
+import { DefaultGroup } from "@/types/collection";
 
 /**
  * 侧边栏底部信息组件
@@ -43,6 +48,124 @@ function SidebarFooter() {
 	);
 }
 
+function DeveloperGameSearchBox({ categoryKey }: { categoryKey: string }) {
+	const { index: gameIndex } = useGameIndex();
+	const developerGameIds = getDeveloperCategoryGameIds(categoryKey, gameIndex);
+
+	return <SearchBox scopeGameIds={developerGameIds} applyNsfwFilter={false} />;
+}
+
+type CollectionEntitySearchKind = "groups" | "categories" | "developers";
+
+type CollectionTitleMode =
+	| {
+			type: "entity-search";
+			kind: CollectionEntitySearchKind;
+			scrollKey: string;
+	  }
+	| { type: "developer-game-search"; categoryKey: string }
+	| { type: "none" };
+
+function getCollectionTitleMode(
+	pathname: string,
+	currentGroupId: string | null,
+	selectedCategory: SelectedCategory,
+): CollectionTitleMode {
+	if (pathname !== "/collection") {
+		return { type: "none" };
+	}
+
+	if (
+		currentGroupId === DefaultGroup.DEVELOPER &&
+		selectedCategory?.type === "developer"
+	) {
+		return {
+			type: "developer-game-search",
+			categoryKey: selectedCategory.key,
+		};
+	}
+
+	if (selectedCategory !== null) {
+		return { type: "none" };
+	}
+
+	switch (currentGroupId) {
+		case null:
+			return { type: "entity-search", kind: "groups", scrollKey: "groups" };
+		case DefaultGroup.DEVELOPER:
+			return {
+				type: "entity-search",
+				kind: "developers",
+				scrollKey: `categories:${DefaultGroup.DEVELOPER}`,
+			};
+		default:
+			return currentGroupId.startsWith("default_")
+				? { type: "none" }
+				: {
+						type: "entity-search",
+						kind: "categories",
+						scrollKey: `categories:${currentGroupId}`,
+					};
+	}
+}
+
+interface CollectionEntitySearchBoxProps {
+	kind: CollectionEntitySearchKind;
+	scrollKey: string;
+}
+
+function CollectionEntitySearchBox({
+	kind,
+	scrollKey,
+}: CollectionEntitySearchBoxProps) {
+	const { t } = useTranslation();
+	const value = useStore((state) => {
+		switch (kind) {
+			case "groups":
+				return state.collectionGroupSearch;
+			case "categories":
+				return state.collectionCategorySearch;
+			case "developers":
+				return state.developerCategorySearch;
+		}
+	});
+	const setValue = useStore((state) => {
+		switch (kind) {
+			case "groups":
+				return state.setCollectionGroupSearch;
+			case "categories":
+				return state.setCollectionCategorySearch;
+			case "developers":
+				return state.setDeveloperCategorySearch;
+		}
+	});
+	const ariaLabel = (() => {
+		switch (kind) {
+			case "groups":
+				return t("pages.Collection.entitySearch.groups", "搜索分组");
+			case "categories":
+				return t("pages.Collection.entitySearch.categories", "搜索分类");
+			case "developers":
+				return t("pages.Collection.developerSearch.label", "搜索开发商");
+		}
+	})();
+
+	const handleValueChange = (nextValue: string) => {
+		setScrollPosition(scrollKey, 0);
+		document.querySelector<HTMLElement>("main")?.scrollTo({ top: 0 });
+		setValue(nextValue);
+	};
+
+	return (
+		<SearchBox
+			mode="controlled"
+			value={value}
+			onValueChange={handleValueChange}
+			ariaLabel={ariaLabel}
+		/>
+	);
+}
+
 /**
  * 自定义应用标题组件
  * @returns {JSX.Element}
@@ -52,6 +175,13 @@ const CustomAppTitle = () => {
 	const location = useLocation();
 	const { t } = useTranslation();
 	const isLibraries = location.pathname === "/libraries";
+	const currentGroupId = useStore((state) => state.currentGroupId);
+	const selectedCategory = useStore((state) => state.selectedCategory);
+	const collectionTitleMode = getCollectionTitleMode(
+		location.pathname,
+		currentGroupId,
+		selectedCategory,
+	);
 
 	const handleBack = () => {
 		saveScrollPosition(location.pathname);
@@ -83,7 +213,16 @@ const CustomAppTitle = () => {
 			/>
 			<Typography variant="h6">ReinaManager</Typography>
 			<Chip size="small" label="BETA" color="info" />
-			{isLibraries && <SearchBox />}
+			{isLibraries ? (
+				<SearchBox />
+			) : collectionTitleMode.type === "entity-search" ? (
+				<CollectionEntitySearchBox
+					kind={collectionTitleMode.kind}
+					scrollKey={collectionTitleMode.scrollKey}
+				/>
+			) : collectionTitleMode.type === "developer-game-search" ? (
+				<DeveloperGameSearchBox categoryKey={collectionTitleMode.categoryKey} />
+			) : null}
 		</Stack>
 	);
 };

@@ -19,6 +19,11 @@ import {
 const EMPTY_IDS: number[] = [];
 const EMPTY_GAMES: GameData[] = [];
 
+export interface GameListScopeOptions {
+	scopeGameIds?: readonly number[];
+	applyNsfwFilter?: boolean;
+}
+
 function gameMatchesTagFilters(
 	game: GameData,
 	normalizedTagFilters: ReadonlySet<string>,
@@ -63,12 +68,15 @@ export function useGameIndex() {
  * 数据流：
  * 1. useAllGames → FullGameData[] → GameIndex（一次性派生）
  * 2. useGameIdList → number[]（排序/筛选后的 ID，IPC 仅传输几 KB）
- * 3. 从 GameIndex.displayById 读取 GameData → 前端过滤（游玩状态/NSFW）
+ * 3. 从 GameIndex.displayById 读取 GameData → 前端过滤（作用域/游玩状态/NSFW）
  *
  * 不处理搜索关键词，供 SearchBox 复用基础筛选结果生成建议，
  * 避免搜索框为建议列表重复执行完整搜索。
  */
-export function useFilteredGamesFacade() {
+export function useFilteredGamesFacade({
+	scopeGameIds,
+	applyNsfwFilter = true,
+}: GameListScopeOptions = {}) {
 	const {
 		gameFilterType,
 		playStatusFilter,
@@ -93,6 +101,10 @@ export function useFilteredGamesFacade() {
 	// 2. 排序/筛选后的 ID 列表（轻量 IPC，切换排序时仅传输几 KB）
 	const gameIdListQuery = useGameIdList(gameFilterType, sortOption, sortOrder);
 	const sortedIds = gameIdListQuery.data ?? EMPTY_IDS;
+	const scopedGameIdSet = useMemo(
+		() => (scopeGameIds ? new Set(scopeGameIds) : null),
+		[scopeGameIds],
+	);
 
 	// 3. 从 Map 读取 GameData，应用前端过滤
 	const baseFilteredGames = useMemo(() => {
@@ -102,6 +114,8 @@ export function useFilteredGamesFacade() {
 
 		const games: GameData[] = [];
 		for (const id of sortedIds) {
+			if (scopedGameIdSet && !scopedGameIdSet.has(id)) continue;
+
 			const game = index.displayById.get(id);
 			if (!game) continue;
 
@@ -112,7 +126,7 @@ export function useFilteredGamesFacade() {
 				continue;
 			}
 
-			if (nsfwFilter && getGameNsfwStatus(game)) {
+			if (applyNsfwFilter && nsfwFilter && getGameNsfwStatus(game)) {
 				continue;
 			}
 
@@ -120,7 +134,14 @@ export function useFilteredGamesFacade() {
 		}
 
 		return games;
-	}, [sortedIds, index.displayById, playStatusFilter, nsfwFilter]);
+	}, [
+		sortedIds,
+		index.displayById,
+		scopedGameIdSet,
+		playStatusFilter,
+		applyNsfwFilter,
+		nsfwFilter,
+	]);
 
 	const normalizedTagFilters = useMemo(() => {
 		return buildNormalizedTagSet(tagFilters);
@@ -147,15 +168,15 @@ export function useFilteredGamesFacade() {
 }
 
 /**
- * 游戏列表门面 Hook（用于 LibrariesPage）
+ * 游戏列表门面 Hook
  *
  * 在基础筛选结果上应用搜索关键词，返回最终卡片 ID 列表。
  * 只有实际展示游戏列表的页面才应使用这个 Hook。
  */
-export function useGameListFacade() {
+export function useGameListFacade(options: GameListScopeOptions = {}) {
 	const searchKeyword = useStore((s) => s.searchKeyword);
 	const { index, filteredGames, isLoading, isError, error } =
-		useFilteredGamesFacade();
+		useFilteredGamesFacade(options);
 	const trimmedSearchKeyword = searchKeyword.trim();
 	const shouldBuildSearchIndex = trimmedSearchKeyword.length > 0;
 

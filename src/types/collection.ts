@@ -5,13 +5,21 @@
 /**
  * 合集分组（一级容器）。
  *
- * 只保留前端当前实际消费的字段。`collections` 表里的 `icon`、
- * `created_at`、`updated_at` 目前没有投入使用，避免在业务类型里扩散。
+ * 只保留前端当前实际消费的字段。
  */
 export interface CollectionGroup {
 	id: number;
 	name: string;
 	sort_order: number;
+	created_at: number | null;
+	updated_at: number | null;
+}
+
+/**
+ * 带游戏数量的合集分组。
+ */
+export interface CollectionGroupWithCount extends CollectionGroup {
+	game_count: number;
 }
 
 /**
@@ -23,10 +31,23 @@ export interface CollectionCategory {
 	virtualKey?: string;
 	sort_order: number;
 	game_count: number;
+	created_at?: number | null;
+	updated_at?: number | null;
 }
 
 export type Group = CollectionGroup;
 export type Category = CollectionCategory;
+
+export type CollectionEntitySortField =
+	| "created_at"
+	| "updated_at"
+	| "name"
+	| "game_count";
+
+export type CollectionBackendSortField = Exclude<
+	CollectionEntitySortField,
+	"name"
+>;
 
 /**
  * 默认分组类型枚举

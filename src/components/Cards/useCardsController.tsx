@@ -18,18 +18,23 @@ import type { RightMenuHostHandle, SortableCardItemProps } from "./types";
 interface UseCardsControllerOptions {
 	gameIds: number[];
 	categoryId?: number;
+	enableBatchMode?: boolean;
+	enableSortFieldOverlay?: boolean;
 }
 
 export function useCardsController({
 	gameIds,
 	categoryId,
+	enableBatchMode = false,
+	enableSortFieldOverlay = false,
 }: UseCardsControllerOptions) {
 	const { i18n, t } = useTranslation();
 	const navigate = useNavigate();
 	const path = useLocation().pathname;
 	const isLibraries = path === "/libraries";
 	const isCollectionCategory = typeof categoryId === "number" && categoryId > 0;
-	const canUseBatchMode = isLibraries || isCollectionCategory;
+	const canUseBatchMode =
+		enableBatchMode || isLibraries || isCollectionCategory;
 	const rightMenuRef = useRef<RightMenuHostHandle>(null);
 
 	const {
@@ -47,7 +52,7 @@ export function useCardsController({
 	);
 	const { launchGame } = useGameLaunchFlow();
 	const shouldShowCardSortFieldOverlay =
-		isLibraries && showCardSortFieldOverlay;
+		(isLibraries || enableSortFieldOverlay) && showCardSortFieldOverlay;
 	const shouldLoadLastPlayed =
 		shouldShowCardSortFieldOverlay && sortOption === "lastplayed";
 	const lastPlayedQuery = useAllGameLastPlayedMap({

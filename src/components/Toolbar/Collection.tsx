@@ -18,8 +18,12 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { AlertConfirmBox } from "@/components/AlertBox";
 import { ManageGamesDialog } from "@/components/Collection";
+import { FilterSortModal } from "@/components/FilterSortModal";
 import { InputDialog } from "@/components/InputDialog";
 import { LaunchModal } from "@/components/LaunchModal";
+import { setScrollPosition } from "@/hooks/common/useScrollRestore";
+import { getDeveloperCategoryGameIds } from "@/hooks/common/useVirtualCollections";
+import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import {
 	useCategories,
 	useCreateCategory,
@@ -27,6 +31,33 @@ import {
 	useDeleteGroup,
 } from "@/hooks/queries/useCollections";
 import { useStore } from "@/store/appStore";
+import type { CollectionEntitySortField } from "@/types/collection";
+
+const REAL_ENTITY_SORT_FIELDS: readonly CollectionEntitySortField[] = [
+	"created_at",
+	"updated_at",
+	"name",
+	"game_count",
+];
+const DEVELOPER_SORT_FIELDS: readonly CollectionEntitySortField[] = [
+	"name",
+	"game_count",
+];
+
+function DeveloperGameActions({ categoryKey }: { categoryKey: string }) {
+	const { index: gameIndex } = useGameIndex();
+	const developerGameIds = getDeveloperCategoryGameIds(categoryKey, gameIndex);
+
+	return (
+		<>
+			<LaunchModal />
+			<FilterSortModal
+				scopeGameIds={developerGameIds}
+				applyNsfwFilter={false}
+			/>
+		</>
+	);
+}
 
 export const CollectionToolbar: React.FC = () => {
 	const { t } = useTranslation();
@@ -35,15 +66,35 @@ export const CollectionToolbar: React.FC = () => {
 		selectedCategory,
 		setCurrentGroup,
 		setSelectedCategory,
+		collectionEntitySortField,
+		collectionEntitySortOrder,
+		setCollectionEntitySort,
+		developerCategorySortField,
+		developerCategorySortOrder,
+		setDeveloperCategorySort,
 	} = useStore(
 		useShallow((s) => ({
 			currentGroupId: s.currentGroupId,
 			selectedCategory: s.selectedCategory,
 			setCurrentGroup: s.setCurrentGroup,
 			setSelectedCategory: s.setSelectedCategory,
+			collectionEntitySortField: s.collectionEntitySortField,
+			collectionEntitySortOrder: s.collectionEntitySortOrder,
+			setCollectionEntitySort: s.setCollectionEntitySort,
+			developerCategorySortField: s.developerCategorySortField,
+			developerCategorySortOrder: s.developerCategorySortOrder,
+			setDeveloperCategorySort: s.setDeveloperCategorySort,
 		})),
 	);
-	const categoriesQuery = useCategories(currentGroupId);
+	const backendEntitySortField =
+		collectionEntitySortField === "name"
+			? undefined
+			: collectionEntitySortField;
+	const categoriesQuery = useCategories(
+		currentGroupId,
+		backendEntitySortField,
+		backendEntitySortField ? collectionEntitySortOrder : undefined,
+	);
 	const currentCategories = categoriesQuery.data ?? [];
 	const createGroupMutation = useCreateGroup();
 	const createCategoryMutation = useCreateCategory();
@@ -60,6 +111,38 @@ export const CollectionToolbar: React.FC = () => {
 	const isDefaultGroup = currentGroupId?.startsWith("default_") ?? false;
 	const selectedRealCategoryId =
 		selectedCategory?.type === "real" ? selectedCategory.id : null;
+
+	const resetCurrentListScroll = () => {
+		const scrollKey = currentGroupId
+			? `categories:${currentGroupId}`
+			: "groups";
+		setScrollPosition(scrollKey, 0);
+		document.querySelector<HTMLElement>("main")?.scrollTo({ top: 0 });
+	};
+	const collectionEntitySortModal = (
+		<FilterSortModal
+			mode="collection-entity"
+			sortFields={REAL_ENTITY_SORT_FIELDS}
+			sortField={collectionEntitySortField}
+			sortOrder={collectionEntitySortOrder}
+			onApply={(field, order) => {
+				resetCurrentListScroll();
+				setCollectionEntitySort(field, order);
+			}}
+		/>
+	);
+	const developerCategorySortModal = (
+		<FilterSortModal
+			mode="collection-entity"
+			sortFields={DEVELOPER_SORT_FIELDS}
+			sortField={developerCategorySortField}
+			sortOrder={developerCategorySortOrder}
+			onApply={(field, order) => {
+				resetCurrentListScroll();
+				setDeveloperCategorySort(field, order);
+			}}
+		/>
+	);
 
 	// 获取当前分类名称
 	const getCurrentCategoryName = () => {
@@ -119,6 +202,7 @@ export const CollectionToolbar: React.FC = () => {
 				>
 					{t("components.Toolbar.Collection.Group.addGroup", "添加分组")}
 				</Button>
+				{collectionEntitySortModal}
 
 				<InputDialog
 					open={addGroupDialogOpen}
@@ -158,6 +242,7 @@ export const CollectionToolbar: React.FC = () => {
 				>
 					{t("components.Toolbar.Collection.Group.deleteGroup", "删除分组")}
 				</Button>
+				{collectionEntitySortModal}
 
 				<InputDialog
 					open={addCategoryDialogOpen}
@@ -195,6 +280,10 @@ export const CollectionToolbar: React.FC = () => {
 		);
 	}
 
+	if (selectedCategory === null && isDefaultGroup) {
+		return developerCategorySortModal;
+	}
+
 	// 层级3: 游戏列表页 - 显示"管理游戏"按钮（只在真实分类中显示）
 	if (selectedRealCategoryId !== null) {
 		return (
@@ -217,6 +306,9 @@ export const CollectionToolbar: React.FC = () => {
 		);
 	}
 
-	// 虚拟分类，不显示任何按钮
+	if (selectedCategory?.type === "developer") {
+		return <DeveloperGameActions categoryKey={selectedCategory.key} />;
+	}
+
 	return null;
 };

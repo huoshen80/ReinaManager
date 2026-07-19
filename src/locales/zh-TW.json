@@ -411,6 +411,23 @@
 			"deleteCategoryTitle": "刪除分類",
 			"deleteGroupMessage": "確定要刪除分組 \"{{name}}\" 嗎？此操作將同時刪除該分組下的所有分類，且無法恢復。",
 			"deleteGroupTitle": "刪除分組",
+			"developerSearch": {
+				"label": "搜尋開發商",
+				"noResults": "找不到符合條件的開發商"
+			},
+			"entitySearch": {
+				"categories": "搜尋分類",
+				"groups": "搜尋分組",
+				"noCategories": "找不到符合條件的分類",
+				"noGroups": "找不到符合條件的分組"
+			},
+			"entitySort": {
+				"createdAt": "添加時間",
+				"gameCount": "遊戲數量",
+				"label": "排序",
+				"name": "名稱",
+				"updatedAt": "更新時間"
+			},
 			"errors": {
 				"cannotDeleteDefaultGroup": "默認分組不能刪除",
 				"deleteCategoryFailed": "刪除分類失敗，請重試",
@@ -420,6 +437,7 @@
 			"gamesCount": "個遊戲",
 			"noCategoriesHint": "當前分組下沒有分類",
 			"noGamesInCategory": "當前分類下暫無遊戲",
+			"noMatchingGames": "沒有找到符合條件的遊戲",
 			"success": {
 				"categoryDeleted": "已刪除分類",
 				"groupDeleted": "已刪除分組"
