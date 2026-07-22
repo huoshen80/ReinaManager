@@ -36,14 +36,14 @@
 		"@tanstack/react-query-devtools": "^5.101.2",
 		"@tauri-apps/api": "~2.11.1",
 		"@tauri-apps/plugin-autostart": "~2.5.1",
-		"@tauri-apps/plugin-dialog": "~2.7.1",
+		"@tauri-apps/plugin-dialog": "~2.7.2",
 		"@tauri-apps/plugin-http": "~2.5.9",
 		"@tauri-apps/plugin-shell": "~2.3.5",
-		"@tauri-apps/plugin-store": "~2.4.3",
+		"@tauri-apps/plugin-store": "~2.4.4",
 		"@tauri-apps/plugin-updater": "~2.10.1",
 		"@tauri-apps/plugin-window-state": "=2.2.3",
 		"@toolpad/core": "^0.16.0",
-		"fuse.js": "^7.4.2",
+		"fuse.js": "^7.5.0",
 		"html-react-parser": "^5.2.17",
 		"i18next": "^26.3.6",
 		"i18next-browser-languagedetector": "^8.2.1",
@@ -53,13 +53,13 @@
 		"pinyin-pro": "^3.28.1",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
-		"react-i18next": "^17.0.9",
+		"react-i18next": "^17.0.10",
 		"react-router-dom": "^7.18.1",
-		"react-virtuoso": "^4.18.10",
+		"react-virtuoso": "^4.18.11",
 		"zustand": "^5.0.14"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.3",
+		"@biomejs/biome": "^2.5.4",
 		"@tauri-apps/cli": "~2.11.4",
 		"@types/node": "^24.13.3",
 		"@types/react": "^18.3.31",
@@ -69,7 +69,7 @@
 		"i18next-cli": "=1.58.3",
 		"typescript": "^7.0.2",
 		"unocss": "^66.7.5",
-		"vite": "^8.1.4"
+		"vite": "^8.1.5"
 	},
 	"packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882"
 }
