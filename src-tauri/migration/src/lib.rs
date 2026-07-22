@@ -16,6 +16,7 @@ mod m20260525_000012_move_custom_date_to_games;
 mod m20260706_000013_reconcile_indexes;
 mod m20260706_000014_migrate_game_sources;
 mod m20260712_000015_split_game_local_path;
+mod m20260722_000016_backfill_game_defaults;
 
 pub struct Migrator;
 
@@ -38,6 +39,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260706_000013_reconcile_indexes::Migration),
             Box::new(m20260706_000014_migrate_game_sources::Migration),
             Box::new(m20260712_000015_split_game_local_path::Migration),
+            Box::new(m20260722_000016_backfill_game_defaults::Migration),
         ]
     }
 }

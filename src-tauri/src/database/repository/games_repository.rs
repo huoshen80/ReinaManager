@@ -297,11 +297,11 @@ impl GamesRepository {
             localpath: Set(game.localpath.clone()),
             executable: Set(game.executable.clone()),
             savepath: Set(game.savepath.clone()),
-            autosave: Set(game.autosave),
-            maxbackups: Set(game.maxbackups),
+            autosave: NotSet,
+            maxbackups: NotSet,
             clear: Set(Some(game.clear.unwrap_or(Self::DEFAULT_PLAY_STATUS))),
-            le_launch: Set(game.le_launch),
-            magpie: Set(game.magpie),
+            le_launch: NotSet,
+            magpie: NotSet,
             custom_data: Set(game.custom_data.clone()),
             user_rating: NotSet,
             created_at: Set(Some(now)),
@@ -1036,11 +1036,11 @@ mod tests {
                     localpath TEXT,
                     executable TEXT,
                     savepath TEXT,
-                    autosave INTEGER,
-                    maxbackups INTEGER,
+                    autosave INTEGER DEFAULT 0,
+                    maxbackups INTEGER DEFAULT 20,
                     clear INTEGER,
-                    le_launch INTEGER,
-                    magpie INTEGER,
+                    le_launch INTEGER DEFAULT 0,
+                    magpie INTEGER DEFAULT 0,
                     custom_data TEXT,
                     user_rating REAL GENERATED ALWAYS AS (
                         CAST(json_extract(custom_data, '$.user_rating') AS REAL)
@@ -1114,6 +1114,29 @@ mod tests {
             external_id: Some(id.to_string()),
             data: Some(data),
         }
+    }
+
+    #[tokio::test]
+    async fn insert_and_batch_use_database_defaults() {
+        let database = setup_database().await;
+
+        let defaulted = GamesRepository::insert(&database, insert_data("custom", None, Vec::new()))
+            .await
+            .unwrap();
+        assert_eq!(defaulted.autosave, Some(0));
+        assert_eq!(defaulted.maxbackups, Some(20));
+        assert_eq!(defaulted.le_launch, Some(0));
+        assert_eq!(defaulted.magpie, Some(0));
+
+        let batch =
+            GamesRepository::insert_batch(&database, vec![insert_data("custom", None, Vec::new())])
+                .await;
+        assert_eq!(batch.success, 1);
+        assert_eq!(batch.failed, 0);
+        assert_eq!(batch.games[0].autosave, Some(0));
+        assert_eq!(batch.games[0].maxbackups, Some(20));
+        assert_eq!(batch.games[0].le_launch, Some(0));
+        assert_eq!(batch.games[0].magpie, Some(0));
     }
 
     #[tokio::test]
