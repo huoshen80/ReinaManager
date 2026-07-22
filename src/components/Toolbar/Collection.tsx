@@ -22,7 +22,6 @@ import { FilterSortModal } from "@/components/FilterSortModal";
 import { InputDialog } from "@/components/InputDialog";
 import { LaunchModal } from "@/components/LaunchModal";
 import { setScrollPosition } from "@/hooks/common/useScrollRestore";
-import { getDeveloperCategoryGameIds } from "@/hooks/common/useVirtualCollections";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import {
 	useCategories,
@@ -32,6 +31,7 @@ import {
 } from "@/hooks/queries/useCollections";
 import { useStore } from "@/store/appStore";
 import type { CollectionEntitySortField } from "@/types/collection";
+import { getDeveloperCategoryGameIds } from "@/utils/game/gameIndex";
 
 const REAL_ENTITY_SORT_FIELDS: readonly CollectionEntitySortField[] = [
 	"created_at",

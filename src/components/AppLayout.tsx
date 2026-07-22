@@ -21,10 +21,10 @@ import {
 	scrollToTop,
 	setScrollPosition,
 } from "@/hooks/common/useScrollRestore";
-import { getDeveloperCategoryGameIds } from "@/hooks/common/useVirtualCollections";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import { type SelectedCategory, useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
+import { getDeveloperCategoryGameIds } from "@/utils/game/gameIndex";
 
 /**
  * 侧边栏底部信息组件

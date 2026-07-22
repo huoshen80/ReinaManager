@@ -70,6 +70,15 @@ export function getDeveloperNames(
 	return developers.length > 0 ? developers : [unknownDeveloper];
 }
 
+export function getDeveloperCategoryGameIds(
+	categoryKey: string | null,
+	gameIndex: Pick<GameIndex, "developerGameIdsByName">,
+): number[] {
+	return categoryKey
+		? (gameIndex.developerGameIdsByName.get(categoryKey) ?? [])
+		: [];
+}
+
 function buildDeveloperIndex(games: GameData[], unknownDeveloper: string) {
 	const developerGameIdsByName = new Map<string, number[]>();
 

@@ -37,15 +37,13 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { CollectionPickerDialog } from "@/components/Collection";
-import {
-	getDeveloperNames,
-	useVirtualCategories,
-} from "@/hooks/common/useVirtualCollections";
+import { useVirtualCategories } from "@/hooks/features/collections/useVirtualCollections";
 import { useGameById } from "@/hooks/features/games/useGameFacade";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import { useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
 import { getGameCover, getGameDisplayName } from "@/utils/game";
+import { getDeveloperNames } from "@/utils/game/gameIndex";
 import { getTagDisplayName } from "@/utils/game/tagTranslation";
 import { Edit } from "./Edit";
 import { GameStatsOverview } from "./GameStatsOverview";

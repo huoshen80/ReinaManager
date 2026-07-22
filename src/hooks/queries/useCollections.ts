@@ -5,12 +5,14 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { getDeveloperCategoryGameIds } from "@/hooks/common/useVirtualCollections";
 import type { SortOrder } from "@/services/invoke";
 import { collectionService } from "@/services/invoke";
 import type { SelectedCategory } from "@/store/appStore";
 import type { CollectionBackendSortField } from "@/types/collection";
-import type { GameIndex } from "@/utils/game/gameIndex";
+import {
+	type GameIndex,
+	getDeveloperCategoryGameIds,
+} from "@/utils/game/gameIndex";
 
 export const collectionKeys = {
 	all: ["collections"] as const,

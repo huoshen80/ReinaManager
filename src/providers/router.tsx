@@ -23,7 +23,7 @@ const Detail = lazy(() =>
 	})),
 );
 const Collection = lazy(() =>
-	import("@/pages/CollectionPage").then((module) => ({
+	import("@/pages/Collection").then((module) => ({
 		default: module.Collection,
 	})),
 );

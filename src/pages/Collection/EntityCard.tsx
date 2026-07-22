@@ -1,7 +1,7 @@
 /**
- * @file EntityCard 通用实体卡片组件
- * @description 统一的分组/分类卡片组件，支持删除和右键菜单
- * @module src/components/Collection/EntityCard
+ * @file Collection EntityCard 组件
+ * @description 收藏夹分组/分类卡片，支持删除和右键菜单
+ * @module src/pages/Collection/EntityCard
  * @author ReinaManager
  * @copyright AGPL-3.0
  */
