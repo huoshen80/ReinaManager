@@ -24,8 +24,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { AlertBox } from "@/components/AlertBox";
-import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
+import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import {
 	gameMetadataService,

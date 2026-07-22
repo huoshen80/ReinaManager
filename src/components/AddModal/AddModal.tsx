@@ -29,9 +29,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
-import { useTauriDragDrop } from "@/hooks/common/useTauriDragDrop";
 import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
+import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { showGameAddedSuccess } from "@/providers/snackBar";
@@ -57,6 +56,7 @@ import {
 	AddGameModeToggleGroup,
 	SingleSourceSelect,
 } from "./SourceMatchControls";
+import { useTauriDragDrop } from "./useTauriDragDrop";
 
 /**
  * 常量定义

@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import GameSelectDialog from "@/components/AddModal/GameSelectDialog";
 import MixedSourceConfirmDialog from "@/components/AddModal/MixedSourceConfirmDialog";
-import { useMetadataSearchFlow } from "@/hooks/common/useMetadataSearchFlow";
+import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { getRuntimeSourceAdapter, SEARCHABLE_SOURCE_KEYS } from "@/metadata";
 import {
 	fetchMetadataForUpdate,

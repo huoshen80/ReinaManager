@@ -1,5 +1,5 @@
 /**
- * @file useTauriDragDrop Hook
+ * @file AddModal Tauri 拖放 Hook
  * @description 修复了弹窗重复触发的问题。
  * 核心策略：收到路径后立即清空 State，切断重渲染导致的二次触发。
  */

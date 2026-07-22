@@ -35,7 +35,6 @@ import { sep } from "@tauri-apps/api/path";
 import { basename } from "pathe";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useImagePreview } from "@/hooks/common/useImagePreview";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
 import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
@@ -66,6 +65,7 @@ import {
 	getGameDisplayName,
 	getGameNsfwStatus,
 } from "@/utils/game";
+import { useImagePreview } from "./useImagePreview";
 
 // 公共样式常量
 const CHIP_INPUT_BOX_SX = {
