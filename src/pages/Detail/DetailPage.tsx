@@ -46,9 +46,9 @@ import { getGameCover, getGameDisplayName } from "@/utils/game";
 import { getDeveloperNames } from "@/utils/game/gameIndex";
 import { getTagDisplayName } from "@/utils/game/tagTranslation";
 import { Edit } from "./Edit";
-import { GameStatsOverview } from "./GameStatsOverview";
 import { Review } from "./Review";
 import { SaveData } from "./SaveData";
+import { GameStatsOverview } from "./stats/GameStatsOverview";
 
 // Tab面板组件
 interface TabPanelProps {

@@ -30,7 +30,7 @@ import type {
 import { getUserErrorMessage } from "@/utils/errors";
 import { EMPTY_SOURCE_AVAILABILITY } from "@/utils/game/gameIndex";
 import { DataSourceUpdate } from "./DataSourceUpdate";
-import { GameInfoEdit } from "./GameInfoEdit";
+import { GameInfoEdit } from "./game-info/GameInfoEdit";
 
 /**
  * Edit 组件
