@@ -10,7 +10,7 @@ import Layout from "@/components/AppLayout";
 
 // 使用 React.lazy 懒加载页面组件
 const Home = lazy(() =>
-	import("@/pages/HomePage").then((module) => ({ default: module.Home })),
+	import("@/pages/Home").then((module) => ({ default: module.Home })),
 );
 const Libraries = lazy(() =>
 	import("@/pages/LibrariesPage").then((module) => ({
