@@ -7,12 +7,12 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import { useQueryClient } from "@tanstack/react-query";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { type ChangeEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { settingsKeys } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
+import { restartApp } from "@/services/appExit";
 import {
 	backupCustomCovers,
 	backupDatabase,
@@ -207,7 +207,7 @@ export const DatabaseBackupSettings = () => {
 					);
 					// 延迟重启应用，让用户看到成功提示
 					setTimeout(async () => {
-						await relaunch();
+						await restartApp();
 					}, 3000);
 				} else {
 					snackbar.error(

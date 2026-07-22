@@ -310,7 +310,7 @@ mod tests {
         assert_eq!(split_legacy_localpath("  "), (None, None));
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn migrates_rows_without_changing_count_or_creating_orphans() {
         let database = Database::connect("sqlite::memory:").await.unwrap();
         database
@@ -387,7 +387,7 @@ mod tests {
         );
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn restores_full_paths_and_removes_executable_column() {
         let database = Database::connect("sqlite::memory:").await.unwrap();
         database

@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { StateFlags, saveWindowState } from "@tauri-apps/plugin-window-state";
@@ -39,6 +40,10 @@ const confirmTrayExitIfNeeded = async (): Promise<boolean> => {
 
 export const getRunningGameCount = (): number => {
 	return useGamePlayStore.getState().runningGameIds.size;
+};
+
+export const restartApp = async (): Promise<void> => {
+	await invoke("restart_app");
 };
 
 function shouldRunAutoBackupOnExit(): boolean {

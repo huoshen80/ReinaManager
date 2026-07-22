@@ -10,7 +10,7 @@
 		"beforeBuildCommand": "pnpm build"
 	},
 	"app": {
-		"withGlobalTauri": true,
+		"withGlobalTauri": false,
 		"windows": [
 			{
 				"title": "ReinaManager Ciallo～(∠・ω< )⌒★",

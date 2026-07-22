@@ -566,7 +566,7 @@ mod tests {
         database
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn migrates_source_rows_and_generated_values() {
         let database = setup_legacy_database().await;
         database
@@ -652,7 +652,7 @@ mod tests {
         );
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn rejects_invalid_source_json_before_schema_changes() {
         let database = setup_legacy_database().await;
         database
@@ -676,7 +676,7 @@ mod tests {
         assert_eq!(table_count, 0);
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn rejects_invalid_custom_data_before_adding_user_rating() {
         let database = setup_legacy_database().await;
         database

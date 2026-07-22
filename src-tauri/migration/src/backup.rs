@@ -206,7 +206,7 @@ mod tests {
         value
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn vacuum_into_creates_readable_snapshot() {
         let directory = create_test_directory("snapshot_test");
         let backup_path = directory.join("backup.db");
@@ -230,7 +230,7 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn custom_backup_failure_falls_back_to_verified_default_directory() {
         let directory = create_test_directory("fallback_test");
         let invalid_custom_dir = directory.join("invalid-custom");
@@ -255,7 +255,7 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn fallback_failure_reports_both_directories() {
         let directory = create_test_directory("fallback_error_test");
         let invalid_custom_dir = directory.join("invalid-custom");

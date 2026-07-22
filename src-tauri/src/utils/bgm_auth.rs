@@ -150,9 +150,6 @@ pub async fn bgm_oauth_refresh_token(
 }
 
 fn read_bgm_app_secret() -> Result<String, String> {
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let _ = dotenvy::from_path(manifest_dir.join("../.env"));
-
     if let Some(value) = option_env!("BGM_APP_SECRET") {
         let value = value.trim().to_string();
         if !value.is_empty() {

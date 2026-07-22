@@ -29,13 +29,15 @@ use utils::{
 const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
 const LOG_KEEP_FILE_COUNT: usize = 5;
 
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    app.request_restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    register_image_proxy_protocol(register_game_cover_protocol(
-        tauri::Builder::default().plugin(tauri_plugin_os::init()),
-    ))
+    register_image_proxy_protocol(register_game_cover_protocol(tauri::Builder::default()))
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -51,7 +53,6 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             // 工具类 commands
@@ -109,6 +110,7 @@ pub fn run() {
             // 日志相关 commands（运行时动态调整）
             set_reina_log_level,
             get_reina_log_level,
+            restart_app,
             // 合集相关 commands
             create_collection,
             find_root_collections,

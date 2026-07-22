@@ -1,30 +1,34 @@
+use arboard::Clipboard;
 use image::{ColorType, ImageFormat};
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::command;
-use tauri_plugin_clipboard_manager::ClipboardExt;
+
+fn map_clipboard_error(error: arboard::Error) -> String {
+    let message = error.to_string();
+    let lower_message = message.to_lowercase();
+    if lower_message.contains("not available")
+        || lower_message.contains("unavailable")
+        || lower_message.contains("requested format")
+    {
+        "CLIPBOARD_IMAGE_NOT_FOUND".to_string()
+    } else {
+        format!("CLIPBOARD_IMAGE_READ_FAILED: {}", message)
+    }
+}
 
 /// 从剪贴板读取图片并写入临时 PNG 文件。
 ///
 /// 该文件只用于前端保存前预览，保存成功后仍由现有上传逻辑复制到正式封面目录。
 #[command]
-pub async fn import_clipboard_image_to_temp(
-    app: tauri::AppHandle,
-    game_id: u32,
-) -> Result<String, String> {
-    let clipboard_image = app.clipboard().read_image().map_err(|e| {
-        let message = e.to_string();
-        let lower_message = message.to_lowercase();
-        if lower_message.contains("not available")
-            || lower_message.contains("unavailable")
-            || lower_message.contains("requested format")
-        {
-            "CLIPBOARD_IMAGE_NOT_FOUND".to_string()
-        } else {
-            format!("CLIPBOARD_IMAGE_READ_FAILED: {}", message)
-        }
-    })?;
+pub async fn import_clipboard_image_to_temp(game_id: u32) -> Result<String, String> {
+    let mut clipboard = Clipboard::new().map_err(map_clipboard_error)?;
+    let clipboard_image = clipboard.get_image().map_err(map_clipboard_error)?;
+    let width = u32::try_from(clipboard_image.width)
+        .map_err(|_| "CLIPBOARD_IMAGE_READ_FAILED: 图片宽度超出支持范围".to_string())?;
+    let height = u32::try_from(clipboard_image.height)
+        .map_err(|_| "CLIPBOARD_IMAGE_READ_FAILED: 图片高度超出支持范围".to_string())?;
 
     let temp_dir = std::env::temp_dir()
         .join("ReinaManager")
@@ -42,9 +46,9 @@ pub async fn import_clipboard_image_to_temp(
 
     image::save_buffer_with_format(
         &target_path,
-        clipboard_image.rgba(),
-        clipboard_image.width(),
-        clipboard_image.height(),
+        clipboard_image.bytes.as_ref(),
+        width,
+        height,
         ColorType::Rgba8,
         ImageFormat::Png,
     )

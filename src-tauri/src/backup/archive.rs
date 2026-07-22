@@ -68,3 +68,31 @@ pub fn extract_7z_archive(
     decompress_file(archive_path, target_dir)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn zstd_archive_round_trip() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("reina_archive_test_{unique}"));
+        let source = root.join("source");
+        let archive = root.join("backup.7z");
+        let target = root.join("target");
+        let content = b"ReinaManager Zstd archive test";
+
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("savedata.bin"), content).unwrap();
+
+        create_7z_archive(&source, &archive).unwrap();
+        extract_7z_archive(&archive, &target).unwrap();
+
+        assert_eq!(fs::read(target.join("savedata.bin")).unwrap(), content);
+        fs::remove_dir_all(root).unwrap();
+    }
+}
