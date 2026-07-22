@@ -22,7 +22,6 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
-import { useBgmAuthController } from "@/hooks/features/useBgmAuthController";
 import {
 	useAllSettings,
 	useUpdateSettings,
@@ -33,6 +32,7 @@ import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { BgmAuth } from "@/types";
 import { SettingsGroup, SettingsItem } from "./SettingsLayout";
+import { useBgmAuthController } from "./useBgmAuthController";
 
 // ==================== BGM Token 设置 ====================
 
