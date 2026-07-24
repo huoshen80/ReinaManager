@@ -2,7 +2,7 @@ export function getDiff(
 	current: string,
 	original: string | undefined,
 ): string | null | undefined {
-	const normOriginal = original ?? "";
+	const normOriginal = (original ?? "").trim();
 	const normCurrent = current.trim();
 
 	if (normOriginal === normCurrent) return undefined;
