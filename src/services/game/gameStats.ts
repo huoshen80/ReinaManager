@@ -1,4 +1,4 @@
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import i18n from "i18next";
 import { createBackupAndSync } from "@/hooks/queries/useSavedata";
 import { queryClient } from "@/providers/queryClient";
@@ -141,10 +141,10 @@ export async function getFormattedGameStats(
 }
 
 // 初始化游戏时间跟踪
-export function initGameTimeTracking(
+export async function initGameTimeTracking(
 	onTimeUpdate?: TimeUpdateCallback,
 	onSessionEnd?: SessionEndCallback,
-): () => void {
+): Promise<() => void> {
 	// 游戏会话开始
 	const unlistenStart = listen<{
 		gameId: number;
@@ -245,10 +245,35 @@ export function initGameTimeTracking(
 		}
 	});
 
-	// 返回清理函数
+	const registrationResults = await Promise.allSettled([
+		unlistenStart,
+		unlistenUpdate,
+		unlistenEnd,
+	]);
+	const unlisteners: UnlistenFn[] = [];
+	let registrationFailed = false;
+	let registrationError: unknown;
+
+	for (const result of registrationResults) {
+		if (result.status === "fulfilled") {
+			unlisteners.push(result.value);
+		} else {
+			registrationFailed = true;
+			registrationError ??= result.reason;
+		}
+	}
+
+	if (registrationFailed) {
+		for (const unlisten of unlisteners) {
+			unlisten();
+		}
+		throw registrationError;
+	}
+
+	// 返回可重复安全调用的清理函数
 	return () => {
-		unlistenStart.then((fn) => fn());
-		unlistenUpdate.then((fn) => fn());
-		unlistenEnd.then((fn) => fn());
+		for (const unlisten of unlisteners.splice(0)) {
+			unlisten();
+		}
 	};
 }

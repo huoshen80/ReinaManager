@@ -499,7 +499,9 @@ export const useStore = create<AppState>()(
 			// 初始化方法
 			initialize: async () => {
 				// 初始化游戏时间跟踪（数据获取由 React Query 自动触发）
-				initializeGamePlayTracking();
+				await initializeGamePlayTracking().catch((error) => {
+					console.error("初始化游戏时间跟踪失败:", error);
+				});
 
 				// 启动时同步代理设置到后端
 				const { proxyConfig } = get();

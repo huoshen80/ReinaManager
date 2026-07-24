@@ -64,10 +64,12 @@ interface GamePlayState {
 	isGameRunning: (gameId?: number) => boolean;
 	launchGame: (gameId: number, args?: string[]) => Promise<LaunchGameResult>;
 	stopGame: (gameId: number) => Promise<StopGameResult>;
-	initTimeTracking: () => void;
+	initTimeTracking: () => Promise<void>;
 	clearActiveGame: () => void;
 	getGameRealTimeState: (gameId: number) => GameRealTimeState | null;
 }
+
+let trackingInitialization: Promise<() => void> | null = null;
 
 /**
  * useGamePlayStore
@@ -138,7 +140,7 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 
 			// 确保初始化了事件监听
 			if (!get().isTrackingInitialized) {
-				get().initTimeTracking();
+				await get().initTimeTracking();
 			}
 
 			const result = await launchGameWithTracking(
@@ -232,12 +234,16 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	 * 初始化游戏时间跟踪
 	 * 设置事件监听，自动管理运行状态与实时时长
 	 */
-	initTimeTracking: () => {
+	initTimeTracking: async () => {
 		if (get().isTrackingInitialized) return;
+		if (trackingInitialization) {
+			await trackingInitialization;
+			return;
+		}
 
 		try {
 			// 设置事件监听
-			const cleanup = initGameTimeTracking(
+			const initialization = initGameTimeTracking(
 				// 时间更新回调
 				(gameId: number, _minutes: number, totalSeconds: number) => {
 					// 更新实时游戏状态
@@ -287,18 +293,24 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				},
 			);
 
-			// 设置初始化标志
-			set({ isTrackingInitialized: true });
+			trackingInitialization = initialization;
 
-			// 添加全局事件清理函数
-			window.addEventListener("beforeunload", cleanup);
+			try {
+				const cleanup = await initialization;
 
-			return cleanup;
+				// 全部监听注册成功后才设置初始化标志
+				set({ isTrackingInitialized: true });
+
+				// 添加全局事件清理函数
+				window.addEventListener("beforeunload", cleanup, { once: true });
+			} finally {
+				if (trackingInitialization === initialization) {
+					trackingInitialization = null;
+				}
+			}
 		} catch (error) {
-			console.error(
-				"初始化游戏时间跟踪失败:",
-				toError(error, "Failed to initialize game time tracking").message,
-			);
+			set({ isTrackingInitialized: false });
+			throw toError(error, "Failed to initialize game time tracking");
 		}
 	},
 
@@ -317,6 +329,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
  * initializeGamePlayTracking
  * 在应用启动时初始化时间跟踪
  */
-export const initializeGamePlayTracking = (): void => {
-	useGamePlayStore.getState().initTimeTracking();
+export const initializeGamePlayTracking = async (): Promise<void> => {
+	await useGamePlayStore.getState().initTimeTracking();
 };
