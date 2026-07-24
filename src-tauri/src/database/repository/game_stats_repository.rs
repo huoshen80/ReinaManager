@@ -135,8 +135,10 @@ fn session_statistics_contribution<Tz: TimeZone>(
     let mut daily_stats = Vec::new();
 
     while current_date < end_date {
-        let boundary =
-            next_midnight_timestamp(timezone, current_date)?.min(i64::from(session.end_time));
+        let boundary = Ord::min(
+            next_midnight_timestamp(timezone, current_date)?,
+            i64::from(session.end_time),
+        );
         let elapsed_seconds = i128::from(boundary - i64::from(session.start_time));
         let cumulative_minutes = round_positive_ratio(
             elapsed_seconds * i128::from(session.duration),
@@ -245,7 +247,7 @@ fn apply_session_insert<Tz: TimeZone>(
     projection.last_played = Some(
         projection
             .last_played
-            .map_or(session.end_time, |value| value.max(session.end_time)),
+            .map_or(session.end_time, |value| Ord::max(value, session.end_time)),
     );
 
     for item in contribution.daily_stats {
@@ -675,7 +677,7 @@ mod tests {
         )
         .await
         .expect("应创建 game_statistics 表");
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "INSERT INTO games (id, id_type) VALUES (1, 'custom')",
         ))
@@ -923,7 +925,7 @@ mod tests {
         GameStatsRepository::record_session_with_statistics(&db, 1, timestamp(1, 10), end_time, 90)
             .await
             .expect("会话写入应成功");
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE game_statistics SET total_time = 1, session_count = 99",
         ))

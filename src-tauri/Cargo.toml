@@ -79,7 +79,7 @@ takanawa-reqwest = { package = "reqwest", version = "0.13.4", default-features =
 
 # Async runtime / DB
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "time", "sync", "fs", "io-util", "net"] }
-sea-orm = { version = "1.1.20", default-features = false, features = [
+sea-orm = { version = "2.0.1", default-features = false, features = [
     "sqlx-sqlite",
     "runtime-tokio",
     "macros",

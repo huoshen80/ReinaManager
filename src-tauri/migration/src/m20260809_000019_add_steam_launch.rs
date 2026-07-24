@@ -86,7 +86,7 @@ mod tests {
         add_steam_launch(&database).await.unwrap();
 
         let existing = database
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT launch_type, steam_launch_id FROM games WHERE id = 1".to_string(),
             ))
@@ -158,7 +158,7 @@ mod tests {
         remove_steam_launch(&database).await.unwrap();
 
         let columns = database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "PRAGMA table_info(games)".to_string(),
             ))

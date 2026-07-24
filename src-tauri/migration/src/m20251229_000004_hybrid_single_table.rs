@@ -156,7 +156,7 @@ impl MigrationTrait for Migration {
 
         // 幂等性检查：如果已存在 vndb_data 列则跳过
         let check_result = conn
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT COUNT(*) as cnt FROM pragma_table_info('games') WHERE name = 'vndb_data'",
             ))
@@ -197,7 +197,7 @@ impl MigrationTrait for Migration {
 
         // 2.1 迁移 vndb_data 表（使用 LEFT JOIN 避免 N+1 查询）
         let vndb_rows = txn
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"SELECT v.game_id, v.image, v.name, v.name_cn, v.all_titles, v.aliases, 
                           v.summary, v.tags, v.average_hours, v.developer, v.score, g.date
@@ -227,7 +227,7 @@ impl MigrationTrait for Migration {
             let json_str = to_json(&data)?;
 
             // 使用参数绑定确保类型安全
-            txn.execute(Statement::from_sql_and_values(
+            txn.execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "UPDATE games SET vndb_data = ? WHERE id = ?",
                 vec![json_str.into(), game_id.into()],
@@ -237,7 +237,7 @@ impl MigrationTrait for Migration {
 
         // 2.2 迁移 bgm_data 表（使用 LEFT JOIN）
         let bgm_rows = txn
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"SELECT b.game_id, b.image, b.name, b.name_cn, b.aliases, b.summary, 
                           b.tags, b.rank, b.score, b.developer, g.date
@@ -265,7 +265,7 @@ impl MigrationTrait for Migration {
 
             let json_str = to_json(&data)?;
 
-            txn.execute(Statement::from_sql_and_values(
+            txn.execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "UPDATE games SET bgm_data = ? WHERE id = ?",
                 vec![json_str.into(), game_id.into()],
@@ -275,7 +275,7 @@ impl MigrationTrait for Migration {
 
         // 2.3 迁移 other_data 表到 custom_data（合并 custom_name/custom_cover，使用 LEFT JOIN）
         let other_rows = txn
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"SELECT o.game_id, o.name, o.summary, o.tags, o.developer,
                           g.date, g.custom_name, g.custom_cover
@@ -301,7 +301,7 @@ impl MigrationTrait for Migration {
 
             let json_str = to_json(&data)?;
 
-            txn.execute(Statement::from_sql_and_values(
+            txn.execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "UPDATE games SET custom_data = ? WHERE id = ?",
                 vec![json_str.into(), game_id.into()],
@@ -311,7 +311,7 @@ impl MigrationTrait for Migration {
 
         // 2.4 处理没有 other_data 但有 custom_name/custom_cover 的记录
         let custom_only_rows = txn
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"SELECT id, date, custom_name, custom_cover FROM games 
                    WHERE (custom_name IS NOT NULL OR custom_cover IS NOT NULL) 
@@ -335,7 +335,7 @@ impl MigrationTrait for Migration {
 
             let json_str = to_json(&data)?;
 
-            txn.execute(Statement::from_sql_and_values(
+            txn.execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "UPDATE games SET custom_data = ? WHERE id = ?",
                 vec![json_str.into(), game_id.into()],

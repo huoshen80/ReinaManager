@@ -35,7 +35,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     let conn = manager.get_connection();
 
     // 0. 关闭外键约束
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         "PRAGMA foreign_keys = OFF;",
     ))
@@ -45,7 +45,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     let txn = conn.begin().await?;
 
     // 1. 创建新的核心 games 表（只保留本地管理相关字段）
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "games_new" (
             "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +66,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     .await?;
 
     // 2. 创建 BGM 数据表
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "bgm_data" (
             "game_id" INTEGER NOT NULL PRIMARY KEY,
@@ -85,7 +85,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     .await?;
 
     // 3. 创建 VNDB 数据表
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "vndb_data" (
             "game_id" INTEGER NOT NULL PRIMARY KEY,
@@ -105,7 +105,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     .await?;
 
     // 4. 创建其他数据表
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "other_data" (
             "game_id" INTEGER NOT NULL PRIMARY KEY,
@@ -121,7 +121,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
 
     // 5. 迁移数据从原 games 表到新表结构
     // 5.1 迁移核心 games 数据
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
      DatabaseBackend::Sqlite,
      r#"INSERT INTO "games_new" (id, bgm_id, vndb_id, id_type, date, localpath, savepath, autosave, clear, custom_name, custom_cover, created_at, updated_at)
       SELECT id, bgm_id, vndb_id, id_type, date, localpath, savepath, autosave, clear, custom_name, custom_cover,
@@ -135,7 +135,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     )).await?;
 
     // 5.2 迁移 BGM 相关数据
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"INSERT INTO "bgm_data" (game_id, image, name, name_cn, aliases, summary, tags, rank, score, developer)
          SELECT id, image, name, name_cn, aliases, summary, tags, rank, score, developer
@@ -143,7 +143,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     )).await?;
 
     // 5.3 迁移 VNDB 相关数据
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"INSERT INTO "vndb_data" (game_id, image, name, name_cn, all_titles, aliases, summary, tags, average_hours, developer, score)
          SELECT id, image, name, name_cn, all_titles, aliases, summary, tags,
@@ -153,7 +153,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     )).await?;
 
     // 5.4 迁移其他数据（custom, Whitecloud 等）
-    txn.execute(Statement::from_string(
+    txn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"INSERT INTO "other_data" (game_id, image, name, summary, tags, developer)
          SELECT id, image, name, summary, tags, developer
@@ -247,7 +247,7 @@ async fn split_games_table(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     txn.commit().await?;
 
     // 9. 重新开启外键约束
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         "PRAGMA foreign_keys = ON;",
     ))

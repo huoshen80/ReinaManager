@@ -262,7 +262,7 @@ impl CollectionsRepository {
             case_clause, ids
         );
 
-        txn.execute(Statement::from_string(DatabaseBackend::Sqlite, sql))
+        txn.execute_raw(Statement::from_string(DatabaseBackend::Sqlite, sql))
             .await?;
         Ok(())
     }
@@ -398,7 +398,7 @@ impl CollectionsRepository {
     ) -> Result<DeleteResult, DbErr> {
         let game_ids = Self::unique_ids(game_ids);
         if game_ids.is_empty() {
-            return Ok(DeleteResult { rows_affected: 0 });
+            return Ok(DeleteResult::empty());
         }
 
         GameCollectionLink::delete_many()

@@ -32,7 +32,7 @@ where
         .await?;
 
     let rows = connection
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"
             SELECT
@@ -99,7 +99,7 @@ where
             }
         }
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "UPDATE games SET localpath = ?, executable = ? WHERE id = ?",
                 [localpath.into(), executable.into(), id.into()],
@@ -134,7 +134,7 @@ where
     C: ConnectionTrait,
 {
     let rows = connection
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "SELECT id, localpath, executable FROM games WHERE executable IS NOT NULL".to_string(),
         ))
@@ -148,7 +148,7 @@ where
             .as_deref()
             .map(|directory| join_lexical_path(directory, &executable));
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "UPDATE games SET localpath = ? WHERE id = ?",
                 [restored.into(), id.into()],
@@ -167,7 +167,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             sql.to_string(),
         ))
@@ -345,7 +345,7 @@ mod tests {
         migrate_schema(&database).await.unwrap();
 
         let rows = database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT id, localpath, executable FROM games ORDER BY id".to_string(),
             ))
@@ -417,7 +417,7 @@ mod tests {
         restore_schema(&database).await.unwrap();
 
         let game = database
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT localpath FROM games WHERE id = 1".to_string(),
             ))
@@ -430,7 +430,7 @@ mod tests {
         );
 
         let columns = database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "PRAGMA table_info(games)".to_string(),
             ))

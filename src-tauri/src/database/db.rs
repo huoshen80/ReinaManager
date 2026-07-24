@@ -70,7 +70,7 @@ pub async fn establish_connection() -> Result<DatabaseConnection, DbErr> {
         .await?;
 
     let foreign_keys = connection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "PRAGMA foreign_keys".to_string(),
         ))

@@ -647,7 +647,7 @@ impl GamesRepository {
         C: ConnectionTrait,
     {
         let sql = format!("{} WHERE g.id = {}", Self::FULL_GAME_SELECT, id);
-        db.query_one(Statement::from_string(db.get_database_backend(), sql))
+        db.query_one_raw(Statement::from_string(db.get_database_backend(), sql))
             .await?
             .map(Self::full_game_from_row)
             .transpose()
@@ -704,7 +704,7 @@ impl GamesRepository {
         let sql = format!("{} WHERE g.id IN ({})", Self::FULL_GAME_SELECT, id_list);
         let mut by_id = HashMap::new();
         for row in db
-            .query_all(Statement::from_string(db.get_database_backend(), sql))
+            .query_all_raw(Statement::from_string(db.get_database_backend(), sql))
             .await?
         {
             let game = Self::full_game_from_row(row)?;
@@ -953,7 +953,7 @@ impl GamesRepository {
         );
 
         let rows = db
-            .query_all(Statement::from_string(DatabaseBackend::Sqlite, sql))
+            .query_all_raw(Statement::from_string(DatabaseBackend::Sqlite, sql))
             .await?;
         let mut entries: Vec<NameSortEntry> = Vec::new();
 

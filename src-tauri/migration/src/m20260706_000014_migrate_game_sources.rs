@@ -227,7 +227,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             connection.get_database_backend(),
             format!(
                 "SELECT id FROM games \
@@ -371,7 +371,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             connection.get_database_backend(),
             sql.to_string(),
         ))
@@ -385,7 +385,7 @@ where
     C: ConnectionTrait,
 {
     let version: String = connection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             connection.get_database_backend(),
             "SELECT sqlite_version() AS version".to_string(),
         ))
@@ -418,7 +418,7 @@ where
     C: ConnectionTrait,
 {
     let violations = connection
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             connection.get_database_backend(),
             "PRAGMA foreign_key_check".to_string(),
         ))
@@ -441,7 +441,7 @@ where
     ensure_no_foreign_key_violations(connection).await?;
 
     let result: String = connection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             connection.get_database_backend(),
             "PRAGMA integrity_check".to_string(),
         ))
@@ -591,7 +591,7 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let sources = database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT source, external_id, score, rank FROM game_sources ORDER BY source"
                     .to_string(),
@@ -610,7 +610,7 @@ mod tests {
         );
 
         let game = database
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT date, user_rating FROM games WHERE id = 1".to_string(),
             ))
@@ -627,7 +627,7 @@ mod tests {
         );
 
         let columns = database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "PRAGMA table_xinfo(games)".to_string(),
             ))

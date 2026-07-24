@@ -44,7 +44,7 @@ where
 {
     // 老版本可能没有 _sqlx_migrations，只能通过业务表判断是否已有旧数据。
     let legacy_table_exists = conn
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"SELECT 1 FROM sqlite_master
                WHERE type='table'
@@ -69,7 +69,7 @@ where
     C: ConnectionTrait,
 {
     // 1. 创建核心 games 表（只保留本地管理相关字段）
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "games" (
             "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +90,7 @@ where
     .await?;
 
     // 2. 创建 BGM 数据表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "bgm_data" (
             "game_id" INTEGER NOT NULL PRIMARY KEY,
@@ -109,7 +109,7 @@ where
     .await?;
 
     // 3. 创建 VNDB 数据表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "vndb_data" (
             "game_id" INTEGER NOT NULL PRIMARY KEY,
@@ -129,7 +129,7 @@ where
     .await?;
 
     // 4. 创建其他数据表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "other_data" (
             "game_id" INTEGER NOT NULL PRIMARY KEY,
@@ -147,7 +147,7 @@ where
     create_related_tables(conn).await?;
 
     // 6. 创建用户表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "user" (
             "id" INTEGER PRIMARY KEY,
@@ -170,7 +170,7 @@ where
     C: ConnectionTrait,
 {
     // 游戏会话记录表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "game_sessions" (
             "session_id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,7 +186,7 @@ where
     .await?;
 
     // 游戏统计信息表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "game_statistics" (
             "game_id" INTEGER PRIMARY KEY,
@@ -200,7 +200,7 @@ where
     .await?;
 
     // 存档备份表
-    conn.execute(Statement::from_string(
+    conn.execute_raw(Statement::from_string(
         DatabaseBackend::Sqlite,
         r#"CREATE TABLE "savedata" (
             "id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -251,7 +251,7 @@ where
     ];
 
     for (index_name, table_name, column_name) in &indexes {
-        conn.execute(Statement::from_string(
+        conn.execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             format!(
                 r#"CREATE INDEX IF NOT EXISTS "{}" ON "{}" ("{}")"#,

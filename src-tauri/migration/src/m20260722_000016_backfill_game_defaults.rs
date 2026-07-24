@@ -71,7 +71,7 @@ mod tests {
         backfill_defaults(&database).await.unwrap();
 
         let rows = database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT autosave, maxbackups, le_launch, magpie FROM games ORDER BY id".to_string(),
             ))
