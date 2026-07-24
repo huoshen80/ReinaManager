@@ -1,3 +1,63 @@
+## [0.26.0](https://github.com/huoshen80/ReinaManager/compare/v0.25.0...v0.26.0) (2026-07-24)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ✨ 新功能
+
+- *(add-modal)* 支持按 Enter 键提交 ([a946114](https://github.com/huoshen80/ReinaManager/commit/a9461147cd2c5f2f7dedb141398c80dfb1c37925))
+- *(collection)* 增强收藏浏览体验 ([6120a80](https://github.com/huoshen80/ReinaManager/commit/6120a80b257edc895903f41c4c2f84ff6392f34c))
+
+### 🐛 Bug 修复
+
+- *(ui)* 在输入法合成期间忽略 Enter 键 ([72b8ca2](https://github.com/huoshen80/ReinaManager/commit/72b8ca255d6e874539a6bfe71029a369debf6c0a))
+- *(db)* 恢复游戏设置默认值 ([c23e713](https://github.com/huoshen80/ReinaManager/commit/c23e7130370f18e4d0d30769feb98d5f9d3977e0))
+- *(bgm)* 将 total_cont 替换为 total_count ([f333802](https://github.com/huoshen80/ReinaManager/commit/f333802a991a2757a2bb7239722daef36eea9637))
+- *(stats)* 确保事件监听器初始化 ([f32dd4c](https://github.com/huoshen80/ReinaManager/commit/f32dd4ca88bbfa2932a2a465e5add2eeb2ba7293))
+
+### 🚀 性能优化
+
+- 减少应用依赖体积 ([3953aad](https://github.com/huoshen80/ReinaManager/commit/3953aad055e40443f8f9d05593cdf326594e21e8))
+
+### 🚜 重构
+
+- *(metadata)* 为外部 API 响应声明类型 ([28dd4c9](https://github.com/huoshen80/ReinaManager/commit/28dd4c970848d2a785668d6aac82a40178ea7959))
+- *(collection)* 同置页面内部逻辑 ([3dfab43](https://github.com/huoshen80/ReinaManager/commit/3dfab432e28d135a937c597e8728f46ebb9b1293))
+- *(hooks)* 对齐所有权边界 ([1e47397](https://github.com/huoshen80/ReinaManager/commit/1e47397228f858808fadbce7dc146cff6e853248))
+- *(home)* 拆分仪表盘模块 ([de50892](https://github.com/huoshen80/ReinaManager/commit/de5089237d56edc4b9bc885d85d5fc6f04c459d4))
+- *(detail)* 拆分统计与封面模块 ([9654e05](https://github.com/huoshen80/ReinaManager/commit/9654e05d85e2c48e5ffbb4e9eb39b5ff3ba73a10))
+- *(settings)* 同置 BGM 认证控制器 ([d514119](https://github.com/huoshen80/ReinaManager/commit/d5141195488b073e6ec998db94a8e806acca8d9d))
+- *(detail)* 分组页面功能模块 ([a6fbe9c](https://github.com/huoshen80/ReinaManager/commit/a6fbe9c1f36364f40a31c3a695d9377c2031820d))
+
+</details>
+
+### ✨ Features
+
+- *(add-modal)* Submit with Enter key ([a946114](https://github.com/huoshen80/ReinaManager/commit/a9461147cd2c5f2f7dedb141398c80dfb1c37925))
+- *(collection)* Enhance collection browsing ([6120a80](https://github.com/huoshen80/ReinaManager/commit/6120a80b257edc895903f41c4c2f84ff6392f34c))
+
+### 🐛 Bug Fixes
+
+- *(ui)* Ignore Enter during IME composition ([72b8ca2](https://github.com/huoshen80/ReinaManager/commit/72b8ca255d6e874539a6bfe71029a369debf6c0a))
+- *(db)* Restore game setting defaults ([c23e713](https://github.com/huoshen80/ReinaManager/commit/c23e7130370f18e4d0d30769feb98d5f9d3977e0))
+- *(bgm)* Replace total_cont with total_count ([f333802](https://github.com/huoshen80/ReinaManager/commit/f333802a991a2757a2bb7239722daef36eea9637))
+- *(stats)* Ensure event listeners initialize ([f32dd4c](https://github.com/huoshen80/ReinaManager/commit/f32dd4ca88bbfa2932a2a465e5add2eeb2ba7293))
+
+### 🚀 Performance
+
+- Reduce application dependency footprint ([3953aad](https://github.com/huoshen80/ReinaManager/commit/3953aad055e40443f8f9d05593cdf326594e21e8))
+
+### 🚜 Refactor
+
+- *(metadata)* Type external API responses ([28dd4c9](https://github.com/huoshen80/ReinaManager/commit/28dd4c970848d2a785668d6aac82a40178ea7959))
+- *(collection)* Colocate page internals ([3dfab43](https://github.com/huoshen80/ReinaManager/commit/3dfab432e28d135a937c597e8728f46ebb9b1293))
+- *(hooks)* Align ownership boundaries ([1e47397](https://github.com/huoshen80/ReinaManager/commit/1e47397228f858808fadbce7dc146cff6e853248))
+- *(home)* Split dashboard modules ([de50892](https://github.com/huoshen80/ReinaManager/commit/de5089237d56edc4b9bc885d85d5fc6f04c459d4))
+- *(detail)* Separate stats and cover modules ([9654e05](https://github.com/huoshen80/ReinaManager/commit/9654e05d85e2c48e5ffbb4e9eb39b5ff3ba73a10))
+- *(settings)* Colocate BGM auth controller ([d514119](https://github.com/huoshen80/ReinaManager/commit/d5141195488b073e6ec998db94a8e806acca8d9d))
+- *(detail)* Group page feature modules ([a6fbe9c](https://github.com/huoshen80/ReinaManager/commit/a6fbe9c1f36364f40a31c3a695d9377c2031820d))
+
+
 ## [0.25.0](https://github.com/huoshen80/ReinaManager/compare/v0.24.3...v0.25.0) (2026-07-14)
 
 <details>
