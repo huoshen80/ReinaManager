@@ -1,3 +1,19 @@
+## [0.26.1](https://github.com/huoshen80/ReinaManager/compare/v0.26.0...v0.26.1) (2026-07-24)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 🐛 Bug 修复
+
+- *(metadata)* 在比对前规范化原始文本 ([921eaf0](https://github.com/huoshen80/ReinaManager/commit/921eaf0d0942f4bed5539f0ac1b2d8377eac5470))
+
+</details>
+
+### 🐛 Bug Fixes
+
+- *(metadata)* Normalize original text before diff ([921eaf0](https://github.com/huoshen80/ReinaManager/commit/921eaf0d0942f4bed5539f0ac1b2d8377eac5470))
+
+
 ## [0.26.0](https://github.com/huoshen80/ReinaManager/compare/v0.25.0...v0.26.0) (2026-07-24)
 
 <details>
