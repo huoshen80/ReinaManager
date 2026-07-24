@@ -41,7 +41,7 @@ interface BgmSubjectInfoboxItem {
 interface BgmSubjectTag {
 	name: string;
 	/** 搜索接口返回有效总数，条目详情和收藏接口固定返回 0。 */
-	total_cont: number;
+	total_count: number;
 }
 
 interface BgmSubjectResponse {
@@ -160,7 +160,7 @@ const transformBgmData = (BGMdata: BgmSubjectResponse): GameMetadataDraft => {
 		aliases: aliasesArray,
 		tags: filterSensitiveTags(
 			(BGMdata.tags || [])
-				.filter((tag) => tag.total_cont !== 1)
+				.filter((tag) => tag.total_count !== 1)
 				.map((tag) => tag.name),
 		),
 		rank: BGMdata.rating?.rank,
