@@ -38,12 +38,13 @@ const DEVELOPER_PRIORITY: readonly SourceType[] = [
 	"ymgal",
 	"bgm",
 ];
-const MIXED_TAG_SOURCES: readonly SourceType[] = [
+const MIXED_TAG_SOURCE_PRIORITY: readonly SourceType[] = [
 	"bgm",
+	"vndb",
+	"ymgal",
+	"kun",
 	"dlsite",
 	"erogamescape",
-	"vndb",
-	"kun",
 ];
 const MIXED_ALIAS_SOURCES: readonly SourceType[] = [
 	"bgm",
@@ -140,6 +141,18 @@ function mergeArrays(
 	);
 }
 
+function firstNonEmptyArray(
+	displays: SourceDisplayMap,
+	sources: readonly SourceType[],
+	key: "tags" | "aliases" | "all_titles",
+): string[] {
+	for (const source of sources) {
+		const value = displays[source]?.[key];
+		if (value?.length) return value;
+	}
+	return [];
+}
+
 function resolveDisplayImage(
 	displays: SourceDisplayMap,
 	coverSource?: SourceType | null,
@@ -166,7 +179,7 @@ export function applyMixedSourceDisplay(
 	target.image = resolveDisplayImage(displays, coverSource);
 	target.summary = firstField(displays, SUMMARY_PRIORITY, "summary");
 	target.developer = firstField(displays, DEVELOPER_PRIORITY, "developer");
-	target.tags = mergeArrays(displays, MIXED_TAG_SOURCES, "tags");
+	target.tags = firstNonEmptyArray(displays, MIXED_TAG_SOURCE_PRIORITY, "tags");
 	target.aliases = mergeArrays(displays, MIXED_ALIAS_SOURCES, "aliases");
 	target.score =
 		displays.bgm?.score ?? displays.erogamescape?.score ?? displays.vndb?.score;
