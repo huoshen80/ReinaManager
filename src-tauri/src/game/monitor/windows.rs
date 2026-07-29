@@ -16,8 +16,7 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
-use std::time::SystemTime;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::time::{MissedTickBehavior, interval};
 
@@ -53,6 +52,11 @@ const TIME_UPDATE_INTERVAL_SECS: u64 = 1;
 /// 监控循环检查间隔（秒）
 const MONITOR_CHECK_INTERVAL_SECS: u64 = 1;
 
+/// 启动器进程退出后，等待实际游戏进程出现的宽限时间（秒）
+///
+/// Steam 等平台可能先退出启动占位进程，再延迟数秒创建实际游戏进程。
+const PROCESS_HANDOFF_GRACE_PERIOD_SECS: u64 = 30;
+
 // ============================================================================
 // 数据结构定义
 // ============================================================================
@@ -85,6 +89,30 @@ impl MonitorState {
             is_foreground: false,
             best_pid: initial_pid,
         }
+    }
+}
+
+#[derive(Debug, Default)]
+struct ProcessHandoffGrace {
+    started_at: Option<Instant>,
+}
+
+impl ProcessHandoffGrace {
+    fn should_keep_waiting(&mut self, now: Instant, has_observed_foreground: bool) -> bool {
+        if has_observed_foreground {
+            return false;
+        }
+
+        let Some(started_at) = self.started_at else {
+            self.started_at = Some(now);
+            return true;
+        };
+
+        now.duration_since(started_at) < Duration::from_secs(PROCESS_HANDOFF_GRACE_PERIOD_SECS)
+    }
+
+    fn reset(&mut self) {
+        self.started_at = None;
     }
 }
 
@@ -319,6 +347,8 @@ async fn run_game_monitor<R: Runtime>(
 
     let mut consecutive_failures = 0u32;
     let mut last_best_pid = best_pid;
+    let mut process_handoff_grace = ProcessHandoffGrace::default();
+    let mut has_observed_foreground = false;
 
     // 创建精确的 1 秒间隔定时器
     let mut tick_interval = interval(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS));
@@ -351,15 +381,36 @@ async fn run_game_monitor<R: Runtime>(
             );
 
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
-                warn!("最佳进程 {} 已失活，触发重新扫描", current_best_pid);
+                if consecutive_failures == MAX_CONSECUTIVE_FAILURES {
+                    warn!("最佳进程 {} 已失活，触发重新扫描", current_best_pid);
+                }
 
                 // 触发目录扫描，获取最新的候选 PID 列表
                 let new_candidate_pids_vec = get_all_candidate_pids(&detection_dir);
 
                 if new_candidate_pids_vec.is_empty() {
-                    info!("未找到可切换的活动进程，结束监控会话");
+                    if process_handoff_grace
+                        .should_keep_waiting(Instant::now(), has_observed_foreground)
+                    {
+                        debug!(
+                            "未找到可切换的活动进程，等待启动器交接（最长 {} 秒）",
+                            PROCESS_HANDOFF_GRACE_PERIOD_SECS
+                        );
+                        continue;
+                    }
+
+                    if has_observed_foreground {
+                        info!("游戏进程已结束，未找到可切换的活动进程");
+                    } else {
+                        info!(
+                            "启动器交接等待超过 {} 秒，结束监控会话",
+                            PROCESS_HANDOFF_GRACE_PERIOD_SECS
+                        );
+                    }
                     break;
                 }
+
+                process_handoff_grace.reset();
 
                 // 更新共享的候选列表
                 let new_candidate_pids_set: HashSet<u32> =
@@ -387,6 +438,7 @@ async fn run_game_monitor<R: Runtime>(
         } else {
             // 最佳 PID 仍在运行，重置失败计数
             consecutive_failures = 0;
+            process_handoff_grace.reset();
 
             // 如果 best_pid 变化了，记录日志
             if current_best_pid != last_best_pid {
@@ -396,6 +448,7 @@ async fn run_game_monitor<R: Runtime>(
 
             // 前台判定：仅检查共享状态（性能优化的关键）
             if is_foreground {
+                has_observed_foreground = true;
                 accumulated_seconds += 1;
 
                 // 发送时间更新
@@ -901,5 +954,41 @@ mod tests {
         let state = state.read();
         assert!(state.is_foreground);
         assert_eq!(state.best_pid, 123);
+    }
+
+    #[test]
+    fn process_handoff_grace_waits_for_late_game_process() {
+        let started_at = Instant::now();
+        let mut grace = ProcessHandoffGrace::default();
+
+        assert!(grace.should_keep_waiting(started_at, false));
+        assert!(grace.should_keep_waiting(
+            started_at + Duration::from_secs(PROCESS_HANDOFF_GRACE_PERIOD_SECS - 1),
+            false
+        ));
+        assert!(!grace.should_keep_waiting(
+            started_at + Duration::from_secs(PROCESS_HANDOFF_GRACE_PERIOD_SECS),
+            false
+        ));
+    }
+
+    #[test]
+    fn process_handoff_grace_does_not_delay_normal_game_exit() {
+        let mut grace = ProcessHandoffGrace::default();
+
+        assert!(!grace.should_keep_waiting(Instant::now(), true));
+    }
+
+    #[test]
+    fn process_handoff_grace_can_restart_after_process_recovery() {
+        let started_at = Instant::now();
+        let mut grace = ProcessHandoffGrace::default();
+
+        assert!(grace.should_keep_waiting(started_at, false));
+        grace.reset();
+        assert!(grace.should_keep_waiting(
+            started_at + Duration::from_secs(PROCESS_HANDOFF_GRACE_PERIOD_SECS),
+            false
+        ));
     }
 }
