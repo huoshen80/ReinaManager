@@ -1,11 +1,13 @@
 import "./App.css";
 import "@/providers/i18n";
+import Box from "@mui/material/Box";
 import { isTauri } from "@tauri-apps/api/core";
 import { SnackbarProvider } from "notistack";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 import { InstallRequestHandler } from "@/components/InstallRequestHandler";
+import { ThemeBackgroundLayer } from "@/components/ThemeBackgroundLayer";
 import WindowsHandler from "@/components/Windows";
 import { appRoutes } from "@/providers/router"; // 引入新的统一配置
 import { SnackbarUtilsConfigurator } from "@/providers/snackBar";
@@ -36,11 +38,14 @@ const App: React.FC = () => {
 			anchorOrigin={{ vertical: "top", horizontal: "center" }}
 		>
 			<SnackbarUtilsConfigurator />
-			<ToolpadReactRouterAppProvider navigation={Navigation}>
-				{isTauri() && <WindowsHandler />}
-				{isTauri() && <InstallRequestHandler />}
-				<Outlet />
-			</ToolpadReactRouterAppProvider>
+				<ToolpadReactRouterAppProvider navigation={Navigation}>
+					<ThemeBackgroundLayer />
+					<Box sx={{ position: "relative", zIndex: 1, minHeight: "100vh" }}>
+						{isTauri() && <WindowsHandler />}
+						{isTauri() && <InstallRequestHandler />}
+						<Outlet />
+					</Box>
+				</ToolpadReactRouterAppProvider>
 		</SnackbarProvider>
 	);
 };

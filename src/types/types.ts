@@ -339,6 +339,30 @@ export interface UpdateSettingsParams {
 	installRootPath?: Nullable<string>;
 	lePath?: Nullable<string>;
 	magpiePath?: Nullable<string>;
+	themeMode?: "light" | "dark" | "system";
+	activeThemePackageId?: Nullable<string>;
+	customThemeLightPalette?: Nullable<ThemePalette>;
+	customThemeDarkPalette?: Nullable<ThemePalette>;
+	themeApplyScope?: "light" | "dark" | "all";
+	themeBackgroundPath?: Nullable<string>;
+	themeBackgroundWidth?: Nullable<number>;
+	themeBackgroundHeight?: Nullable<number>;
+	themeBackgroundHash?: Nullable<string>;
+	themeBackgroundUpdatedAt?: Nullable<number>;
+	themeOverlayOpacity?: number;
+	themeBlur?: number;
+	themeBackgroundSize?: "cover" | "contain" | "fill";
+	themeAccentColor?: string;
+}
+
+export interface ThemePalette {
+	primary?: string | null;
+	secondary?: string | null;
+	backgroundDefault?: string | null;
+	backgroundPaper?: string | null;
+	textPrimary?: string | null;
+	textSecondary?: string | null;
+	divider?: string | null;
 }
 
 /**

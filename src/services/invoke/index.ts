@@ -31,5 +31,7 @@ export { savedataService } from "./savedataService";
 export type { ProxyConfig, UserSettings } from "./settingsService";
 export { settingsService } from "./settingsService";
 export { statsService } from "./statsService";
+export type { ThemeAssetInfo, ThemePackageInfo } from "./themeService";
+export { themeService } from "./themeService";
 // 导出类型
 export type { GameType, SortOption, SortOrder } from "./types";

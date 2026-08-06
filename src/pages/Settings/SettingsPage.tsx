@@ -14,6 +14,7 @@ import {
 	CollectionSyncSettings,
 	VndbTokenSettings,
 } from "./AccountSettings";
+import { AppearanceSettings } from "./AppearanceSettings";
 import {
 	DevSettings,
 	MixedSearchSourceSettings,
@@ -144,6 +145,15 @@ export const Settings: React.FC = () => {
 						<CardClickModeSettings />
 					</Box>
 				),
+			},
+			{
+				id: "appearance",
+				label: t("pages.Settings.sections.appearance", "外观"),
+				description: t(
+					"pages.Settings.sections.appearanceDescription",
+					"配置配色、全局背景和可导入导出的主题包。",
+				),
+				content: <AppearanceSettings />,
 			},
 			{
 				id: "system",

@@ -65,7 +65,7 @@ import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
-import { useAllSettings } from "@/hooks/queries/useSettings";
+import { useAllSettings, useUpdateSettings } from "@/hooks/queries/useSettings";
 import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
@@ -76,8 +76,9 @@ import type { PlayStatus } from "@/types/collection";
 import { CollectionToolbar } from "./Collection";
 
 type ThemeMode = "light" | "dark" | "system";
+type WindowThemeMode = "light" | "dark" | "system";
 
-let lastAppliedWindowTheme: ThemeMode | null = null;
+let lastAppliedWindowTheme: WindowThemeMode | null = null;
 
 const SourceLinkIcon = ({ source }: { source: SourceType }) => {
 	const [failedUrl, setFailedUrl] = useState<string>();
@@ -112,10 +113,18 @@ const SourceLinkIcon = ({ source }: { source: SourceType }) => {
 const ThemeSwitcher = () => {
 	const { t } = useTranslation();
 	const { mode, setMode, systemMode, allColorSchemes } = useColorScheme();
+	const { data: settings } = useAllSettings();
+	const updateSettings = useUpdateSettings();
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const menuOpen = Boolean(anchorEl);
 
-	const currentMode = (mode ?? "system") as ThemeMode;
+	const currentMode = (
+		settings?.theme_mode === "light" ||
+		settings?.theme_mode === "dark" ||
+		settings?.theme_mode === "system"
+			? settings.theme_mode
+			: mode ?? "system"
+	) as ThemeMode;
 	const resolvedMode = useMemo<"light" | "dark">(() => {
 		if (currentMode === "system") return systemMode ?? "light";
 		return currentMode;
@@ -124,16 +133,17 @@ const ThemeSwitcher = () => {
 
 	useEffect(() => {
 		if (!isTauri()) return;
-		if (lastAppliedWindowTheme === currentMode) return;
+		const windowMode: WindowThemeMode = currentMode;
+		if (lastAppliedWindowTheme === windowMode) return;
 
-		lastAppliedWindowTheme = currentMode;
+		lastAppliedWindowTheme = windowMode;
 		void getCurrentWindow()
-			.setTheme(currentMode === "system" ? null : currentMode)
+			.setTheme(windowMode === "system" ? null : windowMode)
 			.catch((error) => {
 				lastAppliedWindowTheme = null;
 				console.warn("更新窗口主题失败:", error);
 			});
-	}, [currentMode]);
+	}, [currentMode, resolvedMode]);
 
 	const handleOpenMenu = (event: MouseEvent<HTMLButtonElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -145,6 +155,7 @@ const ThemeSwitcher = () => {
 
 	const handleSelectMode = async (nextMode: ThemeMode) => {
 		setMode(nextMode);
+		await updateSettings.mutateAsync({ themeMode: nextMode });
 		handleCloseMenu();
 	};
 
@@ -210,7 +221,7 @@ const ThemeSwitcher = () => {
 						{t("components.Toolbar.themeSystem", "跟随系统")}
 					</ListItemText>
 				</MenuItem>
-			</Menu>
+				</Menu>
 		</>
 	);
 };

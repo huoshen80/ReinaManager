@@ -15,4 +15,6 @@ pub mod game_statistics;
 pub mod games;
 pub mod savedata;
 pub mod tasks;
+pub mod theme_assets;
+pub mod theme_packages;
 pub mod user;

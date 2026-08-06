@@ -4,7 +4,7 @@
 //! 重构后采用单表架构，元数据以 JSON 列形式嵌入 games 表。
 
 use crate::entity::custom_data::CustomData;
-use crate::entity::user::BgmAuth;
+use crate::entity::user::{BgmAuth, ThemePalette};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
@@ -211,6 +211,28 @@ pub struct UpdateSettingsData {
     pub le_path: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie_path: Option<Option<String>>,
+    pub theme_mode: Option<String>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub active_theme_package_id: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub custom_theme_light_palette: Option<Option<ThemePalette>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub custom_theme_dark_palette: Option<Option<ThemePalette>>,
+    pub theme_apply_scope: Option<String>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub theme_background_path: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub theme_background_width: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub theme_background_height: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub theme_background_hash: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub theme_background_updated_at: Option<Option<i64>>,
+    pub theme_overlay_opacity: Option<f64>,
+    pub theme_blur: Option<f64>,
+    pub theme_background_size: Option<String>,
+    pub theme_accent_color: Option<String>,
 }
 
 /// 清洗 UpdateSettingsData 中的空字符串
@@ -224,6 +246,22 @@ impl UpdateSettingsData {
         self.install_root_path = clean_double_option_local_path(self.install_root_path);
         self.le_path = clean_double_option_string(self.le_path);
         self.magpie_path = clean_double_option_string(self.magpie_path);
+        self.theme_mode = self
+            .theme_mode
+            .map(|value| value.trim().to_ascii_lowercase());
+        self.active_theme_package_id = clean_double_option_string(self.active_theme_package_id);
+        self.theme_apply_scope = self
+            .theme_apply_scope
+            .map(|value| value.trim().to_ascii_lowercase());
+        self.theme_background_path = clean_double_option_string(self.theme_background_path)
+            .map(|path| path.map(|value| value.replace('\\', "/")));
+        self.theme_background_hash = clean_double_option_string(self.theme_background_hash);
+        self.theme_background_size = self
+            .theme_background_size
+            .map(|value| value.trim().to_ascii_lowercase());
+        self.theme_accent_color = self
+            .theme_accent_color
+            .map(|value| value.trim().to_ascii_lowercase());
         self
     }
 }

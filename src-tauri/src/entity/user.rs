@@ -17,7 +17,19 @@ pub struct BgmAuth {
     pub nickname: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ThemePalette {
+    pub primary: Option<String>,
+    pub secondary: Option<String>,
+    pub background_default: Option<String>,
+    pub background_paper: Option<String>,
+    pub text_primary: Option<String>,
+    pub text_secondary: Option<String>,
+    pub divider: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "user")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
@@ -36,6 +48,29 @@ pub struct Model {
     pub le_path: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub magpie_path: Option<String>,
+    #[sea_orm(column_type = "Text")]
+    pub theme_mode: String,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub active_theme_package_id: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub custom_theme_light_palette: Option<ThemePalette>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub custom_theme_dark_palette: Option<ThemePalette>,
+    #[sea_orm(column_type = "Text")]
+    pub theme_apply_scope: String,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub theme_background_path: Option<String>,
+    pub theme_background_width: Option<i32>,
+    pub theme_background_height: Option<i32>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub theme_background_hash: Option<String>,
+    pub theme_background_updated_at: Option<i64>,
+    pub theme_overlay_opacity: f64,
+    pub theme_blur: f64,
+    #[sea_orm(column_type = "Text")]
+    pub theme_background_size: String,
+    #[sea_orm(column_type = "Text")]
+    pub theme_accent_color: String,
 }
 
 impl Model {

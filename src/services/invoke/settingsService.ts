@@ -3,7 +3,12 @@
  * @description 封装所有用户设置相关的后端调用
  */
 
-import type { BgmAuth, LogLevel, UpdateSettingsParams } from "@/types";
+import type {
+	BgmAuth,
+	LogLevel,
+	ThemePalette,
+	UpdateSettingsParams,
+} from "@/types";
 import { BaseService } from "./base";
 
 export interface UserSettings {
@@ -14,6 +19,20 @@ export interface UserSettings {
 	install_root_path?: string | null;
 	le_path?: string | null;
 	magpie_path?: string | null;
+	theme_mode?: "light" | "dark" | "system";
+	active_theme_package_id?: string | null;
+	custom_theme_light_palette?: ThemePalette | null;
+	custom_theme_dark_palette?: ThemePalette | null;
+	theme_apply_scope?: "light" | "dark" | "all";
+	theme_background_path?: string | null;
+	theme_background_width?: number | null;
+	theme_background_height?: number | null;
+	theme_background_hash?: string | null;
+	theme_background_updated_at?: number | null;
+	theme_overlay_opacity?: number;
+	theme_blur?: number;
+	theme_background_size?: "cover" | "contain" | "fill";
+	theme_accent_color?: string;
 }
 
 export interface ProxyConfig {
