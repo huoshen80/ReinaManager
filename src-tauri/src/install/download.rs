@@ -154,7 +154,7 @@ pub(crate) async fn download_file(
             .await
             .map_err(|error| TaskFailure::new("task_file_failed", error.to_string()))?;
 
-        if last_report.elapsed() >= Duration::from_millis(250)
+        if last_report.elapsed() >= Duration::from_millis(500)
             || downloaded.saturating_sub(last_reported_bytes) >= 4 * 1024 * 1024
         {
             update_task_progress(db, task.id, downloaded as i64, Some(request.size as i64)).await?;
