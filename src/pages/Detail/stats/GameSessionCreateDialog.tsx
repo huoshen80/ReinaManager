@@ -13,11 +13,9 @@ import {
 } from "@mui/material";
 import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parsePlaytimeInput } from "@/utils/dateTime";
 
 const MAX_DURATION_MINUTES = Math.floor(2_147_483_647 / 60);
-
-const isNonNegativeInteger = (value: string) =>
-	value === "" || (/^\d+$/.test(value) && Number.isSafeInteger(Number(value)));
 
 interface GameSessionCreateDialogProps {
 	open: boolean;
@@ -38,20 +36,18 @@ export function GameSessionCreateDialog({
 	const [durationMinutesPart, setDurationMinutesPart] = useState("");
 	const [submitted, setSubmitted] = useState(false);
 	const locale = t("common.locale", "zh-CN");
-	const validHours = isNonNegativeInteger(durationHours);
-	const validMinutesPart =
-		isNonNegativeInteger(durationMinutesPart) &&
-		Number(durationMinutesPart || 0) <= 59;
-	const durationMinutes =
-		Number(durationHours || 0) * 60 + Number(durationMinutesPart || 0);
+	const parsedDurationMinutes = parsePlaytimeInput(
+		durationHours,
+		durationMinutesPart,
+	);
+	const durationMinutes = parsedDurationMinutes ?? 0;
 	const startTimestamp = Math.floor(new Date(startTime).getTime() / 1000);
 	const validStartTime =
 		startTime !== "" &&
 		Number.isSafeInteger(startTimestamp) &&
 		startTimestamp > 0;
 	const validDuration =
-		validHours &&
-		validMinutesPart &&
+		parsedDurationMinutes !== null &&
 		Number.isSafeInteger(durationMinutes) &&
 		durationMinutes > 0 &&
 		durationMinutes <= MAX_DURATION_MINUTES;

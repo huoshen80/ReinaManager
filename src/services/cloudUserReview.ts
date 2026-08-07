@@ -24,6 +24,7 @@ export interface UserReviewPushPayload {
 	pushHikarinagi: boolean;
 	bgmPrivate: boolean;
 	hikarinagiSpoiler: boolean;
+	hikarinagiTimeToFinishMinutes?: number;
 }
 
 export interface UserReviewPushResult {
@@ -46,6 +47,10 @@ export function hasUserRating(
 
 function mapRatingToBgmRate(rating: number) {
 	return rating <= 0 ? 0 : Math.round(rating);
+}
+
+function mapRatingToHikarinagiRate(rating: number) {
+	return rating <= 0 ? null : Math.round(rating);
 }
 
 function mapRatingToVndbVote(rating: number) {
@@ -152,13 +157,18 @@ export async function pushGameUserReviewToHikarinagi(
 			});
 		}
 
+		const updatePayload = {
+			rate: mapRatingToHikarinagiRate(normalizeUserRating(payload.rating)),
+			rate_content: getReviewText(payload.review),
+			is_spoiler: payload.hikarinagiSpoiler,
+			...(payload.hikarinagiTimeToFinishMinutes !== undefined
+				? { time_to_finish_minutes: payload.hikarinagiTimeToFinishMinutes }
+				: {}),
+		};
+
 		return updateHikarinagiGameRate(
 			hikarinagiId,
-			{
-				rate: payload.rating <= 0 ? null : normalizeUserRating(payload.rating),
-				rate_content: getReviewText(payload.review),
-				is_spoiler: payload.hikarinagiSpoiler,
-			},
+			updatePayload,
 			token,
 			getNetworkRequestContext(),
 		);

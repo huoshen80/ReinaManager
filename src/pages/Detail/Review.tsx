@@ -21,6 +21,7 @@ import {
 	useAllSettings,
 	useVndbCurrentUserProfile,
 } from "@/hooks/queries/useSettings";
+import { useGameStats } from "@/hooks/queries/useStats";
 import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
@@ -31,6 +32,7 @@ import {
 	type UserReviewPushResult,
 } from "@/services/cloudUserReview";
 import type { GameData } from "@/types";
+import { parsePlaytimeInput } from "@/utils/dateTime";
 import { getUserErrorMessage } from "@/utils/errors";
 import { getGameDisplayName } from "@/utils/game";
 
@@ -96,6 +98,7 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 	const { t } = useTranslation();
 	const updateGameMutation = useUpdateGame();
 	const { data: settings, isLoading: isSettingsLoading } = useAllSettings();
+	const { data: gameStats } = useGameStats(selectedGame.id);
 	const bgmId = getSourceIdFromDisplay(selectedGame, "bgm");
 	const vndbId = getSourceIdFromDisplay(selectedGame, "vndb");
 	const hikarinagiId = getSourceIdFromDisplay(selectedGame, "hikarinagi");
@@ -113,6 +116,12 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 	const [pushHikarinagi, setPushHikarinagi] = useState(Boolean(hikarinagiId));
 	const [bgmPrivate, setBgmPrivate] = useState(false);
 	const [hikarinagiSpoiler, setHikarinagiSpoiler] = useState(false);
+	const [pushHikarinagiPlaytime, setPushHikarinagiPlaytime] = useState(true);
+	const [hikarinagiHoursInput, setHikarinagiHoursInput] = useState("0");
+	const [hikarinagiMinutesInput, setHikarinagiMinutesInput] = useState("0");
+	const [playtimeInitializedGameId, setPlaytimeInitializedGameId] = useState<
+		number | null
+	>(null);
 	const [pushResults, setPushResults] = useState<UserReviewPushResult[]>([]);
 	const [isPushing, setIsPushing] = useState(false);
 	const [pushDefaultsApplied, setPushDefaultsApplied] = useState(false);
@@ -131,6 +140,22 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 	const effectivePushBgm = pushBgm && canPushBgm;
 	const effectivePushVndb = pushVndb && canPushVndb;
 	const effectivePushHikarinagi = pushHikarinagi && canPushHikarinagi;
+	const hikarinagiPlaytimeInputsDisabled =
+		!effectivePushHikarinagi || !pushHikarinagiPlaytime;
+
+	useEffect(() => {
+		if (
+			gameStats === undefined ||
+			playtimeInitializedGameId === selectedGame.id
+		) {
+			return;
+		}
+
+		const totalMinutes = Math.max(0, Math.floor(gameStats?.totalMinutes ?? 0));
+		setHikarinagiHoursInput(String(Math.floor(totalMinutes / 60)));
+		setHikarinagiMinutesInput(String(totalMinutes % 60));
+		setPlaytimeInitializedGameId(selectedGame.id);
+	}, [gameStats, playtimeInitializedGameId, selectedGame.id]);
 
 	useEffect(() => {
 		if (pushDefaultsApplied || isPushCapabilityLoading) return;
@@ -159,10 +184,15 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 				? t("pages.Detail.Review.ratingInvalidError", "请输入有效评分")
 				: "";
 	const bgmRate = Math.round(parsedRating.value);
+	const hikarinagiRate = Math.round(parsedRating.value);
 	const showBgmRoundNotice =
 		effectivePushBgm &&
 		parsedRating.value > 0 &&
 		Math.abs(parsedRating.value - bgmRate) > Number.EPSILON;
+	const showHikarinagiRoundNotice =
+		effectivePushHikarinagi &&
+		parsedRating.value > 0 &&
+		Math.abs(parsedRating.value - hikarinagiRate) > Number.EPSILON;
 	const hasLocalChanges =
 		!ratingError &&
 		!isSameReviewState(selectedGame, parsedRating.value, reviewInput);
@@ -224,6 +254,21 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 			return;
 		}
 
+		const hikarinagiTimeToFinishMinutes =
+			effectivePushHikarinagi && pushHikarinagiPlaytime
+				? parsePlaytimeInput(hikarinagiHoursInput, hikarinagiMinutesInput)
+				: undefined;
+		if (
+			effectivePushHikarinagi &&
+			pushHikarinagiPlaytime &&
+			hikarinagiTimeToFinishMinutes === null
+		) {
+			snackbar.error(
+				t("pages.Detail.Review.playtimeInvalid", "请输入有效的小时和分钟"),
+			);
+			return;
+		}
+
 		setIsPushing(true);
 		setPushResults([]);
 		try {
@@ -235,6 +280,8 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 				pushHikarinagi: effectivePushHikarinagi,
 				bgmPrivate,
 				hikarinagiSpoiler,
+				hikarinagiTimeToFinishMinutes:
+					hikarinagiTimeToFinishMinutes ?? undefined,
 			});
 			setPushResults(results);
 
@@ -330,69 +377,168 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 						<Typography variant="body2" color="textSecondary" gutterBottom>
 							{t(
 								"pages.Detail.Review.cloudPushHelperText",
-								"推送会使用当前表单内容覆盖所选站点的评分和评价",
+								"推送会使用当前表单内容覆盖所选站点的评分、评价和游戏时长",
 							)}
 						</Typography>
-						<Stack
-							direction={{ xs: "column", sm: "row" }}
-							spacing={1}
-							alignItems={{ xs: "flex-start", sm: "center" }}
-						>
-							<FormControlLabel
-								control={
-									<Checkbox
-										checked={effectivePushBgm}
-										disabled={!canPushBgm}
-										onChange={(event) => setPushBgm(event.target.checked)}
-									/>
-								}
-								label="BGM"
-							/>
-							<FormControlLabel
-								control={
-									<Checkbox
-										checked={effectivePushVndb}
-										disabled={!canPushVndb}
-										onChange={(event) => setPushVndb(event.target.checked)}
-									/>
-								}
-								label="VNDB"
-							/>
-							<FormControlLabel
-								control={
-									<Checkbox
-										checked={effectivePushHikarinagi}
-										disabled={!canPushHikarinagi}
-										onChange={(event) =>
-											setPushHikarinagi(event.target.checked)
+						<Stack spacing={1.5}>
+							<Box
+								sx={{
+									border: 1,
+									borderColor: "divider",
+									borderRadius: 1,
+									p: 1,
+								}}
+							>
+								<Stack
+									direction={{ xs: "column", sm: "row" }}
+									spacing={1}
+									alignItems={{ xs: "flex-start", sm: "center" }}
+								>
+									<FormControlLabel
+										sx={{ m: 0 }}
+										control={
+											<Checkbox
+												checked={effectivePushBgm}
+												disabled={!canPushBgm}
+												onChange={(event) => setPushBgm(event.target.checked)}
+											/>
 										}
+										label="BGM"
 									/>
-								}
-								label="Hikarinagi"
-							/>
-							<FormControlLabel
-								control={
-									<Switch
-										checked={bgmPrivate}
-										disabled={!effectivePushBgm}
-										onChange={(event) => setBgmPrivate(event.target.checked)}
+									<FormControlLabel
+										sx={{ m: 0 }}
+										control={
+											<Switch
+												checked={bgmPrivate}
+												disabled={!effectivePushBgm}
+												onChange={(event) =>
+													setBgmPrivate(event.target.checked)
+												}
+											/>
+										}
+										label={t("pages.Detail.Review.bgmPrivate", "BGM 私密")}
 									/>
-								}
-								label={t("pages.Detail.Review.bgmPrivate", "BGM 私密")}
-							/>
-							{effectivePushHikarinagi && (
-								<FormControlLabel
-									control={
-										<Switch
-											checked={hikarinagiSpoiler}
-											onChange={(event) =>
-												setHikarinagiSpoiler(event.target.checked)
-											}
-										/>
-									}
-									label={t("pages.Detail.Review.hikarinagiSpoiler", "包含剧透")}
-								/>
-							)}
+								</Stack>
+							</Box>
+
+							<Box
+								sx={{
+									border: 1,
+									borderColor: "divider",
+									borderRadius: 1,
+									p: 1,
+								}}
+							>
+								<Stack
+									direction={{ xs: "column", sm: "row" }}
+									spacing={1}
+									alignItems={{ xs: "flex-start", sm: "center" }}
+								>
+									<FormControlLabel
+										sx={{ m: 0 }}
+										control={
+											<Checkbox
+												checked={effectivePushVndb}
+												disabled={!canPushVndb}
+												onChange={(event) => setPushVndb(event.target.checked)}
+											/>
+										}
+										label="VNDB"
+									/>
+								</Stack>
+							</Box>
+
+							<Box
+								sx={{
+									border: 1,
+									borderColor: "divider",
+									borderRadius: 1,
+									p: 1,
+								}}
+							>
+								<Stack
+									direction={{ xs: "column", sm: "row" }}
+									spacing={1}
+									alignItems={{ xs: "flex-start", sm: "center" }}
+								>
+									<FormControlLabel
+										sx={{ m: 0 }}
+										control={
+											<Checkbox
+												checked={effectivePushHikarinagi}
+												disabled={!canPushHikarinagi}
+												onChange={(event) =>
+													setPushHikarinagi(event.target.checked)
+												}
+											/>
+										}
+										label="Hikarinagi"
+									/>
+									<FormControlLabel
+										sx={{ m: 0 }}
+										control={
+											<Switch
+												checked={hikarinagiSpoiler}
+												disabled={!effectivePushHikarinagi}
+												onChange={(event) =>
+													setHikarinagiSpoiler(event.target.checked)
+												}
+											/>
+										}
+										label={t(
+											"pages.Detail.Review.hikarinagiSpoiler",
+											"包含剧透",
+										)}
+									/>
+									<FormControlLabel
+										sx={{ m: 0 }}
+										control={
+											<Switch
+												checked={pushHikarinagiPlaytime}
+												disabled={!effectivePushHikarinagi}
+												onChange={(event) =>
+													setPushHikarinagiPlaytime(event.target.checked)
+												}
+											/>
+										}
+										label={t(
+											"pages.Detail.Review.pushGameTime",
+											"推送游戏时长",
+										)}
+									/>
+								</Stack>
+								<Stack
+									direction={{ xs: "column", sm: "row" }}
+									spacing={1}
+									sx={{ mt: 1 }}
+								>
+									<TextField
+										label={t("pages.Detail.sessionDurationHours", "小时")}
+										type="number"
+										size="small"
+										value={hikarinagiHoursInput}
+										disabled={hikarinagiPlaytimeInputsDisabled}
+										onChange={(event) =>
+											setHikarinagiHoursInput(event.target.value)
+										}
+										inputProps={{ min: 0, step: 1 }}
+										sx={{ width: { xs: "100%", sm: 140 } }}
+									/>
+									<TextField
+										label={t("pages.Detail.sessionDurationMinutePart", "分钟")}
+										type="number"
+										size="small"
+										value={hikarinagiMinutesInput}
+										disabled={hikarinagiPlaytimeInputsDisabled}
+										onChange={(event) =>
+											setHikarinagiMinutesInput(event.target.value)
+										}
+										inputProps={{ min: 0, max: 59, step: 1 }}
+										sx={{ width: { xs: "100%", sm: 140 } }}
+									/>
+								</Stack>
+							</Box>
+
 							<Button
 								variant="contained"
 								startIcon={
@@ -420,6 +566,15 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 									"pages.Detail.Review.bgmRoundNotice",
 									"BGM 将按 {{rating}} 分推送",
 									{ rating: bgmRate },
+								)}
+							</Alert>
+						)}
+						{showHikarinagiRoundNotice && (
+							<Alert severity="info" sx={{ mt: 2 }}>
+								{t(
+									"pages.Detail.Review.hikarinagiRoundNotice",
+									"Hikarinagi 将按 {{rating}} 分推送",
+									{ rating: hikarinagiRate },
 								)}
 							</Alert>
 						)}

@@ -110,6 +110,30 @@ export function isRecentRelativeTime(time: string | number | Date): boolean {
 	return (diff >= 0 && diff < 7 * DAY_MS) || isLastWeek(target, now);
 }
 
+export function parsePlaytimeInput(
+	hoursInput: string,
+	minutesInput: string,
+): number | null {
+	if (!/^\d+$/.test(hoursInput) || !/^\d+$/.test(minutesInput)) {
+		return null;
+	}
+
+	const hours = Number(hoursInput);
+	const minutes = Number(minutesInput);
+	if (
+		!Number.isSafeInteger(hours) ||
+		!Number.isSafeInteger(minutes) ||
+		hours < 0 ||
+		minutes < 0 ||
+		minutes > 59
+	) {
+		return null;
+	}
+
+	const totalMinutes = hours * 60 + minutes;
+	return Number.isSafeInteger(totalMinutes) ? totalMinutes : null;
+}
+
 export function formatPlayTime(minutes: number): string {
 	if (!minutes)
 		return i18next.t("utils.formatPlayTime.minutes", "{{count}}分钟", {

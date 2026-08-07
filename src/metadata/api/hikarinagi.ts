@@ -105,6 +105,7 @@ export interface HikarinagiRateUpdatePayload {
 	is_spoiler?: boolean;
 	rate?: number | null;
 	rate_content?: string;
+	time_to_finish_minutes?: number;
 	status?: HikarinagiStatus;
 }
 
