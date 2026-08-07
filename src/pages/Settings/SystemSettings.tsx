@@ -30,28 +30,97 @@ import { useStore } from "@/store/appStore";
 import { getUserErrorMessage } from "@/utils/errors";
 import { SettingsGroup, SettingsItem } from "./SettingsLayout";
 
+const SETTINGS_STORE_PATH = "settings.json";
+const SILENT_STARTUP_STORE_KEY = "silent_startup";
+const LINUX_LAUNCH_COMMAND_STORE_KEY = "linux_launch_command";
+const loadSettingsStore = () =>
+	load(SETTINGS_STORE_PATH, {
+		autoSave: false,
+		defaults: {
+			[SILENT_STARTUP_STORE_KEY]: false,
+			[LINUX_LAUNCH_COMMAND_STORE_KEY]: "wine",
+		},
+	});
+
 export const AutoStartSettings = () => {
 	const { t } = useTranslation();
 	const [autoStart, setAutoStart] = useState(false);
+	const [silentStartup, setSilentStartup] = useState(false);
+	const [silentStartupLoading, setSilentStartupLoading] = useState(true);
 
 	useEffect(() => {
 		const checkAutoStart = async () => {
 			setAutoStart(await isEnabled());
 		};
-		checkAutoStart();
+		const loadSilentStartup = async () => {
+			try {
+				const store = await loadSettingsStore();
+				setSilentStartup(
+					(await store.get<boolean>(SILENT_STARTUP_STORE_KEY)) ?? false,
+				);
+			} catch (error) {
+				console.error("读取静默启动设置失败:", error);
+			} finally {
+				setSilentStartupLoading(false);
+			}
+		};
+
+		void checkAutoStart();
+		void loadSilentStartup();
 	}, []);
 
+	const handleSilentStartupChange = async (enabled: boolean) => {
+		setSilentStartup(enabled);
+		setSilentStartupLoading(true);
+
+		try {
+			const store = await loadSettingsStore();
+			await store.set(SILENT_STARTUP_STORE_KEY, enabled);
+			await store.save();
+		} catch (error) {
+			setSilentStartup(!enabled);
+			console.error("保存静默启动设置失败:", error);
+		} finally {
+			setSilentStartupLoading(false);
+		}
+	};
+
 	return (
-		<SettingsItem title={t("pages.Settings.autoStart", "开机自启")}>
-			<Switch
-				checked={autoStart}
-				onChange={() => {
-					setAutoStart(!autoStart);
-					toggleAutostart();
-				}}
-				color="primary"
-			/>
-		</SettingsItem>
+		<Stack spacing={2}>
+			<SettingsItem
+				title={t("pages.Settings.autoStart", "开机自启")}
+				description={t(
+					"pages.Settings.autoStartDescription",
+					"系统登录后自动启动应用。",
+				)}
+			>
+				<Switch
+					checked={autoStart}
+					onChange={() => {
+						const enabled = !autoStart;
+						setAutoStart(enabled);
+						toggleAutostart();
+					}}
+					color="primary"
+				/>
+			</SettingsItem>
+			<SettingsItem
+				title={t("pages.Settings.silentStartup", "静默启动")}
+				description={t(
+					"pages.Settings.silentStartupDescription",
+					"启动时不显示主窗口，应用将在系统托盘中运行。",
+				)}
+			>
+				<Switch
+					checked={silentStartup}
+					onChange={(event) =>
+						void handleSilentStartupChange(event.target.checked)
+					}
+					disabled={silentStartupLoading}
+					color="primary"
+				/>
+			</SettingsItem>
+		</Stack>
 	);
 };
 
@@ -304,22 +373,15 @@ export const LinuxLaunchCommandSettings = () => {
 	const [isLoading, setIsLoading] = useState(false);
 	const [originalCommand, setOriginalCommand] = useState("wine");
 
-	// 持久化 Linux 启动命令的存储键
-	const STORE_KEY = "linux_launch_command";
-	const STORE_PATH = "settings.json";
-
 	// 加载当前设置的启动命令
 	useEffect(() => {
 		const loadLaunchCommand = async () => {
 			setIsLoading(true);
 			try {
-				const store = await load(STORE_PATH, {
-					autoSave: false,
-					defaults: {
-						[STORE_KEY]: "wine",
-					},
-				});
-				const savedCommand = await store.get<string>(STORE_KEY);
+				const store = await loadSettingsStore();
+				const savedCommand = await store.get<string>(
+					LINUX_LAUNCH_COMMAND_STORE_KEY,
+				);
 				if (savedCommand) {
 					setLaunchCommand(savedCommand);
 					setOriginalCommand(savedCommand);
@@ -340,8 +402,8 @@ export const LinuxLaunchCommandSettings = () => {
 		setIsLoading(true);
 
 		try {
-			const store = await load(STORE_PATH, { autoSave: false, defaults: {} });
-			await store.set(STORE_KEY, nextCommand);
+			const store = await loadSettingsStore();
+			await store.set(LINUX_LAUNCH_COMMAND_STORE_KEY, nextCommand);
 			await store.save();
 			setLaunchCommand(nextCommand);
 			setOriginalCommand(nextCommand);

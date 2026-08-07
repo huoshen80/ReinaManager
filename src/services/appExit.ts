@@ -9,6 +9,12 @@ import { useGamePlayStore } from "@/store/gamePlayStore";
 import { toError } from "@/utils/errors";
 
 const HOUR_MS = 60 * 60 * 1000;
+const WINDOW_STATE_FLAGS =
+	StateFlags.SIZE |
+	StateFlags.POSITION |
+	StateFlags.MAXIMIZED |
+	StateFlags.DECORATIONS |
+	StateFlags.FULLSCREEN;
 let exitAutoBackupPromise: Promise<void> | null = null;
 
 const confirmTrayExitIfNeeded = async (): Promise<boolean> => {
@@ -102,8 +108,8 @@ export const destroyCurrentWindow = async (): Promise<void> => {
 	await runAutoBackupOnExitIfNeeded();
 
 	try {
-		// 统一在销毁前手动保存窗口状态，避免依赖 CloseRequested 的自动缓存刷新。
-		await saveWindowState(StateFlags.ALL);
+		// 只保存窗口几何和外观，启动显示状态由静默启动设置决定。
+		await saveWindowState(WINDOW_STATE_FLAGS);
 	} catch (error) {
 		console.error("Failed to save window state before exit:", error);
 	}

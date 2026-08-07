@@ -697,6 +697,7 @@
 				"version": "バージョン"
 			},
 			"autoStart": "自動起動",
+			"autoStartDescription": "システムへのログイン時にアプリを自動起動します。",
 			"batchUpdate": {
 				"description": "バッチ更新機能は、既存のゲームのBGM/VNDBデータを更新するために使用できます。ゲームのメタデータが変更されると、この機能を使用して最新の情報を同期できます。更新ボタンをクリックしたら、更新プロセスに時間がかかる可能性があるので、お待ちください。ゲームデータソースを更新する際の使用をお勧めします。",
 				"error": "VNDBデータの一括更新に失敗しました: {{message}}",
@@ -869,6 +870,8 @@
 				"system": "システム",
 				"systemDescription": "起動、ログ、終了動作、時間計測モードを管理します。"
 			},
+			"silentStartup": "サイレント起動",
+			"silentStartupDescription": "アプリを起動するたびにメインウィンドウを表示せず、システムトレイで実行します。",
 			"skipCloseRemind": "再度確認しない",
 			"skipCloseRemindDescription": "終了確認を表示せず、下で選択した既定動作をすぐに実行します。",
 			"spoilerLevel": {

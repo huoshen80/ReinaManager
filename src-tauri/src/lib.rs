@@ -38,6 +38,7 @@ use oauth::{
 };
 use tauri::Manager;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
+use tauri_plugin_store::StoreExt;
 use utils::{
     fs::{copy_file, delete_file, is_portable_mode, open_directory, resolve_dropped_local_path},
     http::update_proxy_config,
@@ -48,6 +49,8 @@ use utils::{
 
 const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
 const LOG_KEEP_FILE_COUNT: usize = 5;
+const SETTINGS_STORE_PATH: &str = "settings.json";
+const SILENT_STARTUP_STORE_KEY: &str = "silent_startup";
 
 #[tauri::command]
 fn restart_app(app: tauri::AppHandle) {
@@ -68,7 +71,14 @@ pub fn run() {
         .manage(InstallProtocolState::default())
         .manage(TaskRuntimeState::default())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        .difference(tauri_plugin_window_state::StateFlags::VISIBLE),
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_autostart::init(
@@ -168,15 +178,24 @@ pub fn run() {
             get_categories_with_count,
         ])
         .setup(|app| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-            }
+            let silent_startup = match app.store(SETTINGS_STORE_PATH) {
+                Ok(store) => store
+                    .get(SILENT_STARTUP_STORE_KEY)
+                    .and_then(|value| value.as_bool())
+                    .unwrap_or(false),
+                Err(error) => {
+                    eprintln!("读取静默启动设置失败: {error}");
+                    false
+                }
+            };
 
-            // 仅在调试模式下自动打开开发者工具
-            #[cfg(debug_assertions)]
-            {
-                // "main" 是他在 tauri.conf.json 中定义的窗口 label
-                let window = app.get_webview_window("main").unwrap();
+            if let Some(window) = app.get_webview_window("main") {
+                if !silent_startup {
+                    let _ = window.show();
+                }
+
+                // 仅在调试模式下自动打开开发者工具
+                #[cfg(debug_assertions)]
                 window.open_devtools();
             }
 

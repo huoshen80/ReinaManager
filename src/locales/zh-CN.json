@@ -697,6 +697,7 @@
 				"version": "版本"
 			},
 			"autoStart": "开机自启",
+			"autoStartDescription": "系统登录后自动启动应用。",
 			"batchUpdate": {
 				"description": "批量更新功能可用于更新已存在游戏的 BGM/VNDB 数据。当游戏的元数据发生变化时，您可以使用此功能来同步最新的信息。一旦点击更新按钮请耐心等待，更新过程可能需要一些时间。推荐软件更新数据源获取字段时使用。",
 				"error": "批量更新 VNDB 数据失败: {{message}}",
@@ -869,6 +870,8 @@
 				"system": "系统",
 				"systemDescription": "管理启动、日志、关闭行为和计时模式。"
 			},
+			"silentStartup": "静默启动",
+			"silentStartupDescription": "每次启动应用时不显示主窗口，应用将在系统托盘中运行。",
 			"skipCloseRemind": "不再提醒",
 			"skipCloseRemindDescription": "开启后不再显示关闭确认弹窗，直接执行下方选择的默认行为。",
 			"spoilerLevel": {
