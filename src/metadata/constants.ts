@@ -9,6 +9,7 @@ export const MIXED_SOURCE_KEYS = SOURCE_TYPES;
 export const DEFAULT_MIXED_SOURCE_KEYS = [
 	"bgm",
 	"vndb",
+	"hikarinagi",
 ] as const satisfies readonly SourceType[];
 
 export const MIXED_SOURCE_MIN_COUNT = 2;

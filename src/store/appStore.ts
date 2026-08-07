@@ -23,7 +23,6 @@ import {
 	MIXED_SOURCE_KEYS,
 	MIXED_SOURCE_MAX_COUNT,
 	MIXED_SOURCE_MIN_COUNT,
-	SEARCHABLE_SOURCE_KEYS,
 } from "@/metadata/constants";
 import { type ProxyConfig, settingsService } from "@/services/invoke";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
@@ -47,7 +46,7 @@ export type SelectedCategory =
 export type DataSourceUpdateMode = "search" | "manualId";
 export type StartupPage = "home" | "libraries" | "collection";
 
-const DEFAULT_API_SOURCE: SourceType = SEARCHABLE_SOURCE_KEYS[0] ?? "vndb";
+const DEFAULT_API_SOURCE: SourceType = "hikarinagi";
 
 /**
  * AppState 全局状态类型定义
