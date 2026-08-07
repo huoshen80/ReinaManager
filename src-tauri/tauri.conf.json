@@ -38,7 +38,7 @@
 		"active": true,
 		"targets": "all",
 		"resources": {
-			"target/7zip/": "resources/tools/7zip"
+			"target/7zip/": "tools/7zip"
 		},
 		"createUpdaterArtifacts": true,
 		"icon": [

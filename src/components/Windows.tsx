@@ -188,7 +188,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 						<Alert severity="warning">
 							{t(
 								"components.Window.UpdateModal.portableWarning",
-								"您正在使用便携版，自动更新可能无法正常工作。建议点击“手动更新”前往 GitHub 下载最新版本的压缩包进行替换。",
+								"您正在使用便携版，自动更新可能无法工作。建议点击“手动更新”下载最新版本的压缩包进行替换（需要完整覆盖）。",
 							)}
 						</Alert>
 					)}

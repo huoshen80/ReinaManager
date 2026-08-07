@@ -43,7 +43,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 ## Features
 
-- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from VNDB, Bangumi, YmGal, Kungal and other APIs
+- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from multiple source APIs
 - 🔍 **Powerful Search** - Quickly search games by titles, aliases, custom names, and other information
 - 🗂️ **Filter and Sort** - Filter and sort games across multiple dimensions, such as source, status, tags, and more
 - 📚 **Collection Management** - Organize your game library with groups and categories, with support for drag and drop sorting
@@ -52,7 +52,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 - 🔄 **Batch Operations** - Support bulk import, add and update game metadata from APIs
 - 🌍 **Multi-language Support** - Complete i18n support, including Simplified Chinese, Traditional Chinese, English, Japanese, and more
 - 🔒 **NSFW Filter** - Hide or cover NSFW content with a simple toggle
-- 💾 **Auto Savedata Backup** - Optional automatic backup to protect your game savedata
+- 💾 **Savedata Backup** - Support manual and automatic backup of game savedata
 - 🚀 **System Integration** - Auto-start on boot and minimize to system tray
 - 🛠️ **Tool Integration** - Launch games with Locale Emulator locale switching and Magpie upscaling integration
 
@@ -115,9 +115,9 @@ Thank you for all the contributions you have made to ReinaManager!
 
 ## Sponsor
 If you find this project helpful and would like to support its development, you can consider sponsoring. Your support is greatly appreciated!
-- [Sponsor link](https://cdn.huoshen80.top/233.html)
+- [Sponsor link](https://huoshen80.top/233.html)
 
-## Data Sources
+## Acknowledgements
 
 - **[Bangumi](https://bangumi.tv/)** - Bangumi 番组计划
 
@@ -127,7 +127,13 @@ If you find this project helpful and would like to support its development, you 
 
 - **[Kungal](https://www.kungal.com/)** - 鲲 Galgame
 
-Special thanks to these platforms for providing public APIs and data!
+- **[Hikarinagi](https://www.hikarinagi.org/)** - 你和同好的ACGN社区
+
+- **[Shionlib](https://shionlib.com/)** - A Visual Novel/Galgame Archive
+
+Special thanks to these platforms for providing public APIs, data, and resources!
+
+- **[7-zip](https://www.7-zip.org/)** - an open-source file archiver
 
 ## License
 

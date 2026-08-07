@@ -380,7 +380,7 @@
 				"downloading": "正在下载更新...",
 				"manualUpdate": "手动更新",
 				"newVersion": "新版本",
-				"portableWarning": "您正在使用便携版，自动更新可能无法正常工作。建议点击“手动更新”前往 GitHub 下载最新版本的压缩包进行替换。",
+				"portableWarning": "您正在使用便携版，自动更新可能无法工作。建议点击“手动更新”下载最新版本的压缩包进行替换（需要完整覆盖）。",
 				"releaseDate": "发布日期",
 				"skipVersion": "跳过此版本",
 				"title": "发现新版本",

@@ -119,19 +119,19 @@ fn resolve_seven_zip(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| format!("无法定位应用资源目录: {error}"))?;
 
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    let relative = Path::new("resources/tools/7zip/7z.exe");
+    let relative = Path::new("tools/7zip/7z.exe");
     #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    let relative = Path::new("resources/tools/7zip/7z.exe");
+    let relative = Path::new("tools/7zip/7z.exe");
     #[cfg(all(target_os = "windows", target_arch = "x86"))]
-    let relative = Path::new("resources/tools/7zip/7z.exe");
+    let relative = Path::new("tools/7zip/7z.exe");
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    let relative = Path::new("resources/tools/7zip/7zz");
+    let relative = Path::new("tools/7zip/7zz");
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    let relative = Path::new("resources/tools/7zip/7zz");
+    let relative = Path::new("tools/7zip/7zz");
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-    let relative = Path::new("resources/tools/7zip/7zz");
+    let relative = Path::new("tools/7zip/7zz");
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    let relative = Path::new("resources/tools/7zip/7zz");
+    let relative = Path::new("tools/7zip/7zz");
     #[cfg(not(any(
         all(target_os = "windows", target_arch = "x86_64"),
         all(target_os = "windows", target_arch = "aarch64"),

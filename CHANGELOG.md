@@ -1,3 +1,105 @@
+## [0.27.0](https://github.com/huoshen80/ReinaManager/compare/v0.26.3...v0.27.0) (2026-08-07)
+
+### 重要更新内容（Important Updates）
+
+ReinaManager 现已接入 [Hikarinagi](https://www.hikarinagi.org/) 和 [Shionlib](https://shionlib.com/)。Hikarinagi 支持游戏元数据获取、游戏状态同步；Shionlib 支持游戏一键下载安装入库。
+
+ReinaManager now integrates with [Hikarinagi](https://www.hikarinagi.org/) and [Shionlib](https://shionlib.com/). Hikarinagi supports game metadata retrieval and play status synchronization; Shionlib supports one-click game downloading, installation, and library import.
+
+### 详细更新日志（Detailed Updates Logs）
+
+<details>
+<summary>查看中文版本</summary>
+
+### 构建
+
+- *(deps)* 集成 7-Zip 工具构建脚本并更新 CI 工作流 ([59909b5](https://github.com/huoshen80/ReinaManager/commit/59909b551b5835cc2ac26b2be6d09bdda3dda350))
+
+### ⚙️ 杂类任务
+
+- *(tauri)* 修复打包依赖 ([342e5ca](https://github.com/huoshen80/ReinaManager/commit/342e5ca2e75a69db565cd5f2a29ca11b70ab0a4e))
+
+### ✨ 新功能
+
+- *(scan)* 降低 startup 可执行文件优先级 ([033bc39](https://github.com/huoshen80/ReinaManager/commit/033bc397e394a28329c88498a40f507dff568a89))
+- *(settings)* 新增游戏安装根目录设置 ([afb4f31](https://github.com/huoshen80/ReinaManager/commit/afb4f311a4d94375e936cf3267f243c7833c854d))
+- *(install)* 新增后台任务管理和游戏安装流程 ([6310e53](https://github.com/huoshen80/ReinaManager/commit/6310e5354962e52ae56797259d75452f8406d272))
+- *(backend)* 新增 Hikarinagi 数据库模式和 OAuth 命令 ([2945362](https://github.com/huoshen80/ReinaManager/commit/29453623dcd41dc91e0afba1822afc3445359f71))
+- *(metadata)* 新增 Hikarinagi API 客户端和源适配器 ([82d4c1f](https://github.com/huoshen80/ReinaManager/commit/82d4c1fbb98868a77cfc7dd0cfff46890d4da8a7))
+- *(sync)* 新增 Hikarinagi 游玩状态同步和评价推送 ([1b1af2f](https://github.com/huoshen80/ReinaManager/commit/1b1af2f7938a3ad48dab92cb5696d9461fb46c57))
+- *(settings)* 新增 Hikarinagi 认证设置界面和国际化支持 ([11f695e](https://github.com/huoshen80/ReinaManager/commit/11f695ed9596d8ef347d5bfe65d98a420cd53cc9))
+- *(settings)* 更新账户面板 ([4bdd0b5](https://github.com/huoshen80/ReinaManager/commit/4bdd0b56c0fb4c0c3a9b5735d88a6875fbd898bc))
+- *(settings)* 新增静默启动设置 ([25008fc](https://github.com/huoshen80/ReinaManager/commit/25008fcd3c49a0291029a335129b0572a1f465fe))
+- *(cloud)* 新增 Hikarinagi 游戏时长推送 ([f37fb47](https://github.com/huoshen80/ReinaManager/commit/f37fb470e30ab4ace911d0b17552012982085577))
+- *(source)* 启用 Hikarinagi 默认源设置 ([6747dd1](https://github.com/huoshen80/ReinaManager/commit/6747dd1f4cb12aec1afa652e1c00fb65544c6ea1))
+
+### 🐛 Bug 修复
+
+- *(game)* 稳定 Windows 游戏监控 ([53e8256](https://github.com/huoshen80/ReinaManager/commit/53e82569bff32a8a378e4532c850244fd62109cd))
+- *(game)* 同步已停止的游玩记录状态 ([69b2de7](https://github.com/huoshen80/ReinaManager/commit/69b2de7fb09b419262274e81f061a88cd758315b))
+- *(updater)* 为下载器更新增加超时和额外镜像 ([df4b94f](https://github.com/huoshen80/ReinaManager/commit/df4b94f354cc1f3ae1d54f2e80f893b764b32779))
+- *(import)* 要求 Hikarinagi 认证 ([2eb81cd](https://github.com/huoshen80/ReinaManager/commit/2eb81cd6b18e5fab822d8d85085fa368e6fdd0ad))
+- *(install)* 优化已推送元数据的匹配 ([38ff82c](https://github.com/huoshen80/ReinaManager/commit/38ff82c99da971c24fbddad04261dcedc567c329))
+- *(settings)* 未提供令牌时禁用同步 ([8f67541](https://github.com/huoshen80/ReinaManager/commit/8f67541c9d12d6fea29b0056e36be09ed597752))
+
+### 🚀 性能优化
+
+- *(download)* 降低下载进度上报频率 ([2304bc4](https://github.com/huoshen80/ReinaManager/commit/2304bc49cff581def6310e2a3208b3f12f6ca62d))
+
+### 🚜 重构
+
+- *(metadata)* 解耦运行时状态 ([39d2f0b](https://github.com/huoshen80/ReinaManager/commit/39d2f0b984b60e0ac8ebc09a21ca253872495ea5))
+- *(utils)* 提取 formatFileSize 辅助函数 ([86446e0](https://github.com/huoshen80/ReinaManager/commit/86446e05c0b001275ba2fcd00aa72224a98c22b3))
+- *(i18n)* 整合通用日期标签并更新语言资源 ([96d5379](https://github.com/huoshen80/ReinaManager/commit/96d5379097edf08780a0e7f194b6d7ab43ca2c59))
+- *(game)* 提取 magpie 模块并发送 WM_HOTKEY 触发缩放 ([a7f509e](https://github.com/huoshen80/ReinaManager/commit/a7f509e2e3b7a6a01d9df29bdc6e37863a0efbfca))
+- *(auth)* 为后端和前端提取共享 OAuth 模块 ([9a48ae1](https://github.com/huoshen80/ReinaManager/commit/9a48ae13e2b7a6a01d9df29bdc6e37863a0efbf2))
+
+</details>
+
+### Build
+
+- *(deps)* Integrate 7-zip tool build script and update ci workflows ([59909b5](https://github.com/huoshen80/ReinaManager/commit/59909b551b5835cc2ac26b2be6d09bdda3dda350))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(tauri)* Fix bundling dependencies ([342e5ca](https://github.com/huoshen80/ReinaManager/commit/342e5ca2e75a69db565cd5f2a29ca11b70ab0a4e))
+
+### ✨ Features
+
+- *(scan)* Deprioritize startup executables ([033bc39](https://github.com/huoshen80/ReinaManager/commit/033bc397e394a28329c88498a40f507dff568a89))
+- *(settings)* Add game installation root directory setting ([afb4f31](https://github.com/huoshen80/ReinaManager/commit/afb4f311a4d94375e936cf3267f243c7833c854d))
+- *(install)* Add background task management and game installation workflow ([6310e53](https://github.com/huoshen80/ReinaManager/commit/6310e5354962e52ae56797259d75452f8406d272))
+- *(backend)* Add Hikarinagi database schema and OAuth commands ([2945362](https://github.com/huoshen80/ReinaManager/commit/29453623dcd41dc91e0afba1822afc3445359f71))
+- *(metadata)* Add Hikarinagi API client and source adapter ([82d4c1f](https://github.com/huoshen80/ReinaManager/commit/82d4c1fbb98868a77cfc7dd0cfff46890d4da8a7))
+- *(sync)* Add Hikarinagi play status sync and review pushing ([1b1af2f](https://github.com/huoshen80/ReinaManager/commit/1b1af2f7938a3ad48dab92cb5696d9461fb46c57))
+- *(settings)* Add Hikarinagi auth settings UI and i18n support ([11f695e](https://github.com/huoshen80/ReinaManager/commit/11f695ed9596d8ef347d5bfe65d98a420cd53cc9))
+- *(settings)* Refresh account panels ([4bdd0b5](https://github.com/huoshen80/ReinaManager/commit/4bdd0b56c2fb4c0c3a9b5735d88a6875fbd898bc))
+- *(settings)* Add silent startup setting ([25008fc](https://github.com/huoshen80/ReinaManager/commit/25008fcd3c49a0291029a335129b0572a1f465fe))
+- *(cloud)* Add Hikarinagi play time sync ([f37fb47](https://github.com/huoshen80/ReinaManager/commit/f37fb470e30ab4ace911d0b17552012982085577))
+- *(source)* Enable Hikarinagi defaults ([6747dd1](https://github.com/huoshen80/ReinaManager/commit/6747dd1f4cb12aec1afa652e1c00fb65544c6ea1))
+
+### 🐛 Bug Fixes
+
+- *(game)* Stabilize Windows game monitoring ([53e8256](https://github.com/huoshen80/ReinaManager/commit/53e82569bff32a8a378e4532c850244fd62109cd))
+- *(game)* Sync stopped session state ([69b2de7](https://github.com/huoshen80/ReinaManager/commit/69b2de7fb09b419262274e81f061a88cd758315b))
+- *(updater)* Add timeout and extra download mirrors ([df4b94f](https://github.com/huoshen80/ReinaManager/commit/df4b94f354cc1f3ae1d54f2e80f893b764b32779))
+- *(import)* Require Hikarinagi auth ([2eb81cd](https://github.com/huoshen80/ReinaManager/commit/2eb81cd6b18e5fab822d8d85085fa368e6fdd0ad))
+- *(install)* Refine pushed metadata matching ([38ff82c](https://github.com/huoshen80/ReinaManager/commit/38ff82c99da971c24fbddad04261dcedc567c329))
+- *(settings)* Disable sync without tokens ([8f67541](https://github.com/huoshen80/ReinaManager/commit/8f67541c9d12d6fea29b0056e36be09ed597752c))
+
+### 🚀 Performance
+
+- *(download)* Reduce progress update frequency ([2304bc4](https://github.com/huoshen80/ReinaManager/commit/2304bc49cff581def6310e2a3208b3f12f6ca62d))
+
+### 🚜 Refactor
+
+- *(metadata)* Decouple runtime state ([39d2f0b](https://github.com/huoshen80/ReinaManager/commit/39d2f0b984b60e0ac8ebc09a21ca253872495ea5))
+- *(utils)* Extract formatFileSize helper ([86446e0](https://github.com/huoshen80/ReinaManager/commit/86446e05c0b001275ba2fcd00aa72224a98c22b3))
+- *(i18n)* Consolidate common date labels and update locale resources ([96d5379](https://github.com/huoshen80/ReinaManager/commit/96d5379097edf08780a0e7f194b6d7ab43ca2c59))
+- *(game)* Extract magpie module and send WM_HOTKEY to trigger scaling ([a7f509e](https://github.com/huoshen80/ReinaManager/commit/a7f509ed6cd4ff71820916284409cff98a51bfca))
+- *(auth)* Extract shared OAuth module for backend and frontend ([9a48ae1](https://github.com/huoshen80/ReinaManager/commit/9a48ae13e2b7a6a01d9df29bdc6e37863a0efbf2))
+
+
 ## [0.26.3](https://github.com/huoshen80/ReinaManager/compare/v0.26.2...v0.26.3) (2026-07-28)
 
 <details>

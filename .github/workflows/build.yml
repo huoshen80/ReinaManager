@@ -156,18 +156,18 @@ jobs:
           $short = "${{ steps.short.outputs.SHORT }}"
           $target = "${{ matrix.rust_target }}"
           $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager-$version-$short"
-          $bundledResources = "src-tauri/target/$target/release/resources"
-          $bundledSevenZip = Join-Path $bundledResources "tools/7zip"
+          $bundledRoot = "src-tauri/target/$target/release"
+          $bundledSevenZip = Join-Path $bundledRoot "tools/7zip"
           $portableResources = Join-Path $portableRoot "resources"
-          $portableSevenZip = Join-Path $portableResources "tools/7zip"
+          $portableSevenZip = Join-Path $portableRoot "tools/7zip"
           $resourcesDataDir = Join-Path $portableResources "data"
 
           if (Test-Path $portableRoot) {
             Remove-Item $portableRoot -Recurse -Force
           }
 
-          if (-not (Test-Path $bundledResources)) {
-            throw "Tauri 构建资源目录不存在: $bundledResources"
+          if (-not (Test-Path $bundledRoot)) {
+            throw "Tauri 构建目录不存在: $bundledRoot"
           }
           if (-not (Test-Path $bundledSevenZip)) {
             throw "Tauri 构建资源中缺少 7-Zip: $bundledSevenZip"
