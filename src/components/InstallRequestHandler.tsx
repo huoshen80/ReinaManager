@@ -290,8 +290,14 @@ export function InstallRequestHandler() {
 		updateTaskProgress,
 	]);
 
-	const startTask = async (currentRequest: InstallRequest) => {
-		const createdTask = await taskService.createGameInstallTask(currentRequest);
+	const startTask = async (
+		currentRequest: InstallRequest,
+		installRoot: string,
+	) => {
+		const createdTask = await taskService.createGameInstallTask(
+			currentRequest,
+			installRoot,
+		);
 		prependTask(createdTask);
 		void invalidateTasks();
 		resetDialog();
@@ -320,7 +326,7 @@ export function InstallRequestHandler() {
 					installRootPath: trimmedPath,
 				});
 			}
-			await startTask(request);
+			await startTask(request, trimmedPath);
 		} catch (error) {
 			setErrorMessage(getUserErrorMessage(error, t));
 			setStage("error");

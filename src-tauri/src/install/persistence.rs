@@ -2,12 +2,11 @@ use super::types::{
     ACTIVE_TASK_STATUSES, GAME_INSTALL_TASK_TYPE, GameInstallResultV1, GameInstallTaskPayloadV1,
     TaskControl, TaskFailure, TaskProgressEvent,
 };
-use crate::entity::{tasks, user};
+use crate::entity::tasks;
 use crate::install::archive::archive_wrapper_directory;
 use sea_orm::sea_query::Expr;
 use sea_orm::*;
 use serde_json::Value;
-use std::path::PathBuf;
 use tauri::Emitter;
 use tokio::sync::watch;
 
@@ -324,26 +323,6 @@ pub(crate) async fn set_task_cancelled(
             "任务正在写入最终结果，当前不能取消",
         ))
     }
-}
-
-pub(crate) async fn get_install_root(db: &DatabaseConnection) -> Result<PathBuf, TaskFailure> {
-    let settings = user::Entity::find_by_id(1)
-        .one(db)
-        .await
-        .map_err(|error| TaskFailure::new("settings_failed", error.to_string()))?
-        .ok_or_else(|| TaskFailure::new("settings_failed", "用户设置不存在"))?;
-    let path = settings
-        .install_root_path_value()
-        .filter(|path| !path.trim().is_empty())
-        .map(PathBuf::from)
-        .ok_or_else(|| TaskFailure::new("install_root_missing", "请先选择游戏安装目录"))?;
-    if !path.is_absolute() {
-        return Err(TaskFailure::new(
-            "install_root_invalid",
-            "游戏安装目录必须是绝对路径",
-        ));
-    }
-    Ok(path)
 }
 
 pub(crate) fn emit_progress(

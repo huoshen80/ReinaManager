@@ -1,7 +1,6 @@
 use super::{
     persistence::{
-        fail_task, find_active_task_by_dedupe, find_task, get_install_root, remove_task_artifacts,
-        set_task_cancelled,
+        fail_task, find_active_task_by_dedupe, find_task, remove_task_artifacts, set_task_cancelled,
     },
     runner::spawn_task,
     types::{
@@ -17,7 +16,7 @@ use crate::database::dto::InsertGameData;
 use crate::entity::tasks;
 use crate::install::protocol::InstallRequest;
 use sea_orm::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -25,11 +24,13 @@ pub async fn create_game_install_task(
     app: tauri::AppHandle,
     db: State<'_, DatabaseConnection>,
     request: InstallRequest,
+    install_root: String,
 ) -> Result<tasks::Model, String> {
     let request = request.validate()?;
-    let install_root = get_install_root(db.inner())
-        .await
-        .map_err(|failure| failure.message)?;
+    let install_root = PathBuf::from(install_root.trim());
+    if !install_root.is_absolute() {
+        return Err("游戏安装目录必须是绝对路径".to_string());
+    }
     let payload = GameInstallTaskPayloadV1::new(request.clone(), &install_root);
 
     let dedupe_key = game_install_dedupe_key(&request);

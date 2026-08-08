@@ -123,9 +123,13 @@ class TaskService extends BaseService {
 		);
 	}
 
-	createGameInstallTask(request: InstallRequest): Promise<GameInstallTask> {
+	createGameInstallTask(
+		request: InstallRequest,
+		installRoot: string,
+	): Promise<GameInstallTask> {
 		return this.invoke<GameInstallTask>("create_game_install_task", {
 			request,
+			installRoot,
 		});
 	}
 
