@@ -60,10 +60,6 @@ impl Model {
         self.db_backup_path.as_deref()
     }
 
-    pub fn install_root_path_value(&self) -> Option<&str> {
-        self.install_root_path.as_deref()
-    }
-
     #[cfg(target_os = "windows")]
     pub fn le_path_value(&self) -> Option<&str> {
         self.le_path.as_deref()
