@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use std::net::SocketAddr;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 use tauri_plugin_http::reqwest::{Client, NoProxy, Proxy};
@@ -29,7 +28,7 @@ static GLOBAL_HTTP_CLIENT: OnceLock<RwLock<HttpClientState>> = OnceLock::new();
 #[tauri::command]
 pub fn update_proxy_config(config: ProxyConfig) -> Result<(), String> {
     let proxy_url = config.url.trim();
-    let client = build_client(proxy_url, true, true, None)?;
+    let client = build_client(proxy_url, true, true)?;
     let mut guard = http_client()
         .write()
         .map_err(|_| "更新 HTTP 客户端失败".to_string())?;
@@ -44,7 +43,6 @@ fn build_client(
     proxy_url: &str,
     request_timeout: bool,
     follow_redirects: bool,
-    dns_override: Option<(&str, &[SocketAddr])>,
 ) -> Result<Client, String> {
     let mut builder = Client::builder()
         .connect_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS))
@@ -56,10 +54,6 @@ fn build_client(
     if !follow_redirects {
         builder = builder.redirect(tauri_plugin_http::reqwest::redirect::Policy::none());
     }
-    if let Some((host, addresses)) = dns_override {
-        builder = builder.resolve_to_addrs(host, addresses);
-    }
-
     if !proxy_url.is_empty() {
         let proxy = Proxy::all(proxy_url)
             .map_err(|e| format!("代理地址无效: {e}"))?
@@ -75,8 +69,7 @@ fn build_client(
 fn http_client() -> &'static RwLock<HttpClientState> {
     GLOBAL_HTTP_CLIENT.get_or_init(|| {
         RwLock::new(HttpClientState {
-            client: build_client("", true, true, None)
-                .expect("failed to build default http client"),
+            client: build_client("", true, true).expect("failed to build default http client"),
             proxy_url: String::new(),
         })
     })
@@ -90,16 +83,12 @@ pub fn get_client() -> Client {
         .clone()
 }
 
-/// 下载大型文件时不设置总请求超时，但继续沿用连接超时与用户代理设置。
-/// 同时把当前 DNS 校验得到的地址固定到连接层，避免发送请求时再次解析域名。
-pub fn get_download_client_with_dns_override(
-    host: &str,
-    addresses: &[SocketAddr],
-) -> Result<Client, String> {
+/// 下载大型文件时不设置总请求超时，并禁用自动重定向以便调用方逐跳校验地址。
+pub fn get_download_client() -> Result<Client, String> {
     let proxy_url = http_client()
         .read()
         .unwrap_or_else(|error| error.into_inner())
         .proxy_url
         .clone();
-    build_client(&proxy_url, false, false, Some((host, addresses)))
+    build_client(&proxy_url, false, false)
 }

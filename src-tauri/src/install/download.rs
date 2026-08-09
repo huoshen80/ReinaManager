@@ -4,16 +4,17 @@ use super::{
 };
 use crate::entity::tasks;
 use crate::install::protocol::InstallRequest;
-use crate::utils::http::get_download_client_with_dns_override;
+use crate::utils::http::get_download_client;
 use sea_orm::DatabaseConnection;
 use sha2::{Digest, Sha256};
 use std::fs::File as StdFile;
 use std::io::{BufReader, Read};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::watch;
+
+const TRUSTED_DOWNLOAD_HOST: &str = "dl.hikarifallback.uk";
 
 pub(crate) async fn download_file(
     app: &tauri::AppHandle,
@@ -203,9 +204,8 @@ async fn send_download_request(
     let mut url = url::Url::parse(initial_url)
         .map_err(|_| TaskFailure::new("invalid_url", "下载 URL 无效"))?;
     for redirect_count in 0..=5 {
-        let (host, addresses) = validate_public_download_url(&url).await?;
-        // 每一跳都固定本次校验得到的地址，避免请求发送时重新解析产生 DNS rebinding 窗口。
-        let client = get_download_client_with_dns_override(&host, &addresses)
+        validate_download_url(&url)?;
+        let client = get_download_client()
             .map_err(|message| TaskFailure::new("download_client_failed", message))?;
         let mut request = client.get(url.clone());
         if range_start > 0 {
@@ -292,72 +292,25 @@ fn validate_content_range(
     Ok(())
 }
 
-async fn validate_public_download_url(
-    url: &url::Url,
-) -> Result<(String, Vec<std::net::SocketAddr>), TaskFailure> {
-    if !matches!(url.scheme(), "http" | "https") {
-        return Err(TaskFailure::new("unsafe_url", "下载地址仅支持 HTTP/HTTPS"));
+fn validate_download_url(url: &url::Url) -> Result<(), TaskFailure> {
+    if url.scheme() != "https" {
+        return Err(TaskFailure::new("unsafe_url", "下载地址仅支持 HTTPS"));
     }
     let host = url
         .host_str()
         .ok_or_else(|| TaskFailure::new("unsafe_url", "下载地址缺少主机名"))?;
-    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
+    if !host.eq_ignore_ascii_case(TRUSTED_DOWNLOAD_HOST) {
         return Err(TaskFailure::new(
             "unsafe_url",
-            "下载地址不能指向本机或私有网络",
+            "下载地址不属于受信任的下载服务器",
         ));
     }
-    let port = url
-        .port_or_known_default()
-        .ok_or_else(|| TaskFailure::new("unsafe_url", "下载地址使用了未知网络端口"))?;
-    let addresses = tokio::net::lookup_host((host, port))
-        .await
-        .map_err(|_| TaskFailure::new("dns_failed", "无法解析下载服务器地址"))?
-        .collect::<Vec<_>>();
-    if addresses.is_empty() || addresses.iter().any(|address| !is_public_ip(address.ip())) {
-        return Err(TaskFailure::new(
-            "unsafe_url",
-            "下载地址不能指向本机或私有网络",
-        ));
+    if let Some(port) = url.port()
+        && port != 443
+    {
+        return Err(TaskFailure::new("unsafe_url", "下载地址使用了不允许的端口"));
     }
-    Ok((host.to_string(), addresses))
-}
-
-fn is_public_ip(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(ip) => is_public_ipv4(ip),
-        IpAddr::V6(ip) => is_public_ipv6(ip),
-    }
-}
-
-fn is_public_ipv4(ip: Ipv4Addr) -> bool {
-    let octets = ip.octets();
-    !(ip.is_private()
-        || ip.is_loopback()
-        || ip.is_link_local()
-        || ip.is_broadcast()
-        || ip.is_documentation()
-        || ip.is_unspecified()
-        || ip.is_multicast()
-        || octets[0] == 0
-        || octets[0] >= 240
-        || (octets[0] == 100 && (64..=127).contains(&octets[1]))
-        || (octets[0] == 192 && octets[1] == 0 && octets[2] == 0)
-        || (octets[0] == 192 && octets[1] == 88 && octets[2] == 99)
-        || (octets[0] == 198 && matches!(octets[1], 18 | 19)))
-}
-
-fn is_public_ipv6(ip: Ipv6Addr) -> bool {
-    if let Some(mapped) = ip.to_ipv4_mapped() {
-        return is_public_ipv4(mapped);
-    }
-    let segments = ip.segments();
-    !(ip.is_loopback()
-        || ip.is_unspecified()
-        || ip.is_multicast()
-        || ip.is_unique_local()
-        || ip.is_unicast_link_local()
-        || (segments[0] == 0x2001 && segments[1] == 0x0db8))
+    Ok(())
 }
 
 pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Result<(), TaskFailure> {
@@ -420,4 +373,35 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
     })
     .await
     .map_err(|error| TaskFailure::new("verify_task_failed", error.to_string()))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_download_url;
+
+    #[test]
+    fn download_url_only_allows_trusted_https_host_and_port() {
+        let allowed = [
+            "https://dl.hikarifallback.uk/file.zip",
+            "https://dl.hikarifallback.uk:443/file.zip",
+            "https://DL.HIKARIFALLBACK.UK/file.zip",
+        ];
+        for value in allowed {
+            let url = url::Url::parse(value).unwrap();
+            assert!(validate_download_url(&url).is_ok(), "应允许 {value}");
+        }
+
+        let rejected = [
+            "http://dl.hikarifallback.uk/file.zip",
+            "https://dl.hikarifallback.uk:8080/file.zip",
+            "https://evil.example.com/file.zip",
+            "https://127.0.0.1/file.zip",
+            "https://dl.hikarifallback.uk.evil.example.com/file.zip",
+        ];
+        for value in rejected {
+            let url = url::Url::parse(value).unwrap();
+            let failure = validate_download_url(&url).expect_err(value);
+            assert_eq!(failure.code, "unsafe_url", "应拒绝 {value}");
+        }
+    }
 }
