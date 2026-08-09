@@ -175,6 +175,7 @@
 			"close": "关闭",
 			"confirm": "确认安装",
 			"confirmNotice": "确认后 ReinaManager 才会下载并安装；取消不会产生安装任务。",
+			"defaultPathSaveFailed": "安装任务已创建，但默认路径保存失败：{{error}}",
 			"installPath": "安装路径",
 			"installPathPlaceholder": "选择用于安装游戏的目录",
 			"metadataLabel": "元数据：",

@@ -31,6 +31,19 @@ pub enum DroppedLocalPathKind {
 
 const LOCAL_EXECUTABLE_EXTENSIONS: &[&str] = &["exe", "bat", "cmd"];
 
+/// 清洗并校验游戏安装根目录，确保任务和默认设置使用相同规则。
+pub fn normalize_install_root_path(value: &str) -> Result<PathBuf, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("请先选择游戏安装目录".to_string());
+    }
+    let path: PathBuf = PathBuf::from(trimmed).components().collect();
+    if !path.is_absolute() {
+        return Err("游戏安装目录必须是绝对路径".to_string());
+    }
+    Ok(path)
+}
+
 /// 校验跨协议、压缩包和数据库共用的安全相对文件路径。
 pub fn validate_safe_relative_path(value: &str) -> Result<(), String> {
     if value.is_empty() || value.contains('\0') || value.starts_with(['/', '\\']) {
@@ -468,4 +481,29 @@ pub async fn delete_file(file_path: String) -> Result<(), String> {
 
     fs::remove_file(path).map_err(|e| format!("无法删除文件: {}", e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_install_root_path;
+    use std::path::PathBuf;
+
+    #[test]
+    fn install_root_path_must_be_absolute() {
+        assert!(normalize_install_root_path("games").is_err());
+        assert!(normalize_install_root_path("   ").is_err());
+    }
+
+    #[test]
+    fn install_root_path_is_trimmed_and_normalized() {
+        #[cfg(windows)]
+        let root = r"C:\Games";
+        #[cfg(not(windows))]
+        let root = "/games";
+
+        assert_eq!(
+            normalize_install_root_path(&format!("  {root}/.  ")),
+            Ok(PathBuf::from(root))
+        );
+    }
 }

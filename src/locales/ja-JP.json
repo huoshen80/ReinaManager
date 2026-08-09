@@ -175,6 +175,7 @@
 			"close": "閉じる",
 			"confirm": "インストールを確認",
 			"confirmNotice": "確認後にのみ ReinaManager がダウンロードとインストールを開始します。キャンセルした場合、タスクは作成されません。",
+			"defaultPathSaveFailed": "インストールタスクは作成されましたが、既定のパスを保存できませんでした：{{error}}",
 			"installPath": "インストールパス",
 			"installPathPlaceholder": "ゲームのインストールに使用するディレクトリを選択",
 			"metadataLabel": "メタデータ：",

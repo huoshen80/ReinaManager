@@ -190,22 +190,30 @@ export function useUpdateSettings() {
 	return useMutation({
 		mutationFn: (updates: UpdateSettingsParams) =>
 			settingsService.updateSettings(updates),
-		onSuccess: (_data, updates) => {
-			queryClient.invalidateQueries({
-				queryKey: settingsKeys.allSettings(),
-			});
+		onSuccess: async (_data, updates) => {
+			const invalidations = [
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.allSettings(),
+				}),
+			];
 
 			if (updates.bgmAuth !== undefined) {
-				queryClient.invalidateQueries({
-					queryKey: settingsKeys.bgmCurrentUserProfile(),
-				});
+				invalidations.push(
+					queryClient.invalidateQueries({
+						queryKey: settingsKeys.bgmCurrentUserProfile(),
+					}),
+				);
 			}
 
 			if (updates.vndbToken !== undefined) {
-				queryClient.invalidateQueries({
-					queryKey: settingsKeys.vndbCurrentUserProfile(),
-				});
+				invalidations.push(
+					queryClient.invalidateQueries({
+						queryKey: settingsKeys.vndbCurrentUserProfile(),
+					}),
+				);
 			}
+
+			await Promise.all(invalidations);
 		},
 	});
 }

@@ -15,8 +15,9 @@ use super::{
 use crate::database::dto::InsertGameData;
 use crate::entity::tasks;
 use crate::install::protocol::InstallRequest;
+use crate::utils::fs::normalize_install_root_path;
 use sea_orm::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -27,10 +28,7 @@ pub async fn create_game_install_task(
     install_root: String,
 ) -> Result<tasks::Model, String> {
     let request = request.validate()?;
-    let install_root = PathBuf::from(install_root.trim());
-    if !install_root.is_absolute() {
-        return Err("游戏安装目录必须是绝对路径".to_string());
-    }
+    let install_root = normalize_install_root_path(&install_root)?;
     let payload = GameInstallTaskPayloadV1::new(request.clone(), &install_root);
 
     let dedupe_key = game_install_dedupe_key(&request);
