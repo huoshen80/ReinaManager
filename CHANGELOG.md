@@ -1,3 +1,23 @@
+## [0.27.1](https://github.com/huoshen80/ReinaManager/compare/v0.27.0...v0.27.1) (2026-08-09)
+
+<details>
+<summary>查看中文版本</summary>
+
+### 🐛 Bug 修复
+
+- *(install)* 仅信任获准的下载主机 ([8839b07](https://github.com/huoshen80/ReinaManager/commit/8839b0781d9ffbcfe0aa9af3b96ec61d236cc3e6))
+- *(install)* 加固安装路径流程 ([1b343e7](https://github.com/huoshen80/ReinaManager/commit/1b343e739ce569890daeffee3b039a5fa5b27a0d))
+- *(install)* 缺少元数据时优雅降级 ([00947d9](https://github.com/huoshen80/ReinaManager/commit/00947d9ea1e008f6fb2faf1aa514dd98b8b383aa))
+
+</details>
+
+### 🐛 Bug Fixes
+
+- *(install)* Trust only approved download host ([8839b07](https://github.com/huoshen80/ReinaManager/commit/8839b0781d9ffbcfe0aa9af3b96ec61d236cc3e6))
+- *(install)* Harden install path workflow ([1b343e7](https://github.com/huoshen80/ReinaManager/commit/1b343e739ce569890daeffee3b039a5fa5b27a0d))
+- *(install)* Degrade missing metadata gracefully ([00947d9](https://github.com/huoshen80/ReinaManager/commit/00947d9ea1e008f6fb2faf1aa514dd98b8b383aa))
+
+
 ## [0.27.0](https://github.com/huoshen80/ReinaManager/compare/v0.26.3...v0.27.0) (2026-08-07)
 
 ### 重要更新内容（Important Updates）
