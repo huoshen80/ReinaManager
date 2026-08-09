@@ -40,7 +40,7 @@ import {
 import { withMetadataAuth } from "@/services/metadataAuth";
 import { createMetadataSession } from "@/services/requestContext";
 import type { SourceType } from "@/types";
-import { getUserErrorMessage } from "@/utils/errors";
+import { AppError, getUserErrorMessage, isHttpStatus } from "@/utils/errors";
 import { formatFileSize } from "@/utils/fileSize";
 
 type DialogStage = "confirm" | "preparing";
@@ -151,24 +151,43 @@ export function InstallRequestHandler() {
 							bgmToken,
 							hikarinagiToken,
 						});
-						if (enabledSources.length === 1) {
+						try {
+							if (enabledSources.length === 1) {
+								return {
+									data: await session.getGameById(
+										task.payload_json.bgm_id,
+										"bgm",
+									),
+									failedSources: [],
+								};
+							}
+
+							return await session.getGameByIds({
+								sourceIds: {
+									bgm: task.payload_json.bgm_id,
+									vndb: vndbId,
+									...(shouldFetchHikarinagi
+										? { hikarinagi: hikarinagiId }
+										: {}),
+								},
+								enabledSources,
+							});
+						} catch (error) {
+							const metadataNotFound =
+								isHttpStatus(error, 404) ||
+								(error instanceof AppError &&
+									error.code === "metadata_not_found");
+							if (!metadataNotFound) throw error;
+
 							return {
-								data: await session.getGameById(
-									task.payload_json.bgm_id,
-									"bgm",
-								),
-								failedSources: [],
+								data: {
+									id_type: "custom",
+									sources: [],
+									custom_data: { name: task.payload_json.title },
+								},
+								failedSources: enabledSources,
 							};
 						}
-
-						return session.getGameByIds({
-							sourceIds: {
-								bgm: task.payload_json.bgm_id,
-								vndb: vndbId,
-								...(shouldFetchHikarinagi ? { hikarinagi: hikarinagiId } : {}),
-							},
-							enabledSources,
-						});
 					},
 					{ requireHikarinagi: shouldFetchHikarinagi },
 				);

@@ -38,6 +38,7 @@ interface SafeFetchResult {
 	data: SourceCandidate[];
 	failed: boolean;
 	attempted: boolean;
+	error?: unknown;
 }
 
 export type MixedSourceCandidateResult = Partial<
@@ -69,7 +70,13 @@ async function fetchAdapterSafely(
 	} catch (error) {
 		if (isApiRateLimitError(error)) throw error;
 		if (adapter.key === "bgm" && isHttpStatus(error, 401)) throw error;
-		return { source: adapter.key, data: [], failed: true, attempted: true };
+		return {
+			source: adapter.key,
+			data: [],
+			failed: true,
+			attempted: true,
+			error,
+		};
 	}
 }
 
@@ -77,6 +84,13 @@ function createEmptyResult(
 	adapter: RuntimeBoundSourceAdapter,
 ): SafeFetchResult {
 	return { source: adapter.key, data: [], failed: false, attempted: false };
+}
+
+function isMetadataNotFound(error: unknown) {
+	return (
+		isHttpStatus(error, 404) ||
+		(error instanceof AppError && error.code === "metadata_not_found")
+	);
 }
 
 function assertNotAllAttemptedSourcesFailed(
@@ -89,6 +103,13 @@ function assertNotAllAttemptedSourcesFailed(
 		attemptedResults.length > 0 &&
 		attemptedResults.every((result) => result.failed)
 	) {
+		if (attemptedResults.every((result) => isMetadataNotFound(result.error))) {
+			throw new AppError({
+				code: "metadata_not_found",
+				message: "No metadata found from attempted mixed sources",
+				cause,
+			});
+		}
 		throw new AppError({
 			code: "mixed_sources_failed",
 			message,
@@ -217,7 +238,27 @@ export async function fetchMixedData(options: FetchMixedDataOptions) {
 		return toSourceResult(results);
 	}
 
-	// 场景2: 只有名称（用于搜索）- 同时搜索所有数据源候选列表
+	// 场景2: 提供多个来源 ID，各来源独立获取，单源失败不阻断其他来源。
+	if (providedIds > 1) {
+		const results = await Promise.all(
+			providedSourceIds.map(({ adapter, id }) =>
+				fetchAdapterSafely(adapter, async () => [
+					getSourceCandidateFromDraft(
+						adapter,
+						await adapter.fetchById(id, { enrichCrossSource: false }),
+					),
+				]),
+			),
+		);
+		assertNotAllAttemptedSourcesFailed(
+			results,
+			"All mixed source requests failed for multi-id lookup",
+		);
+
+		return toSourceResult(results);
+	}
+
+	// 场景3: 只有名称（用于搜索）- 同时搜索所有数据源候选列表
 	if (name?.trim()) {
 		const searchName = name.trim();
 		const results = await Promise.all(

@@ -20,6 +20,14 @@ use std::path::{Path, PathBuf};
 use tauri::Emitter;
 use tokio::sync::watch;
 
+fn resolve_installed_game_id_type(source_names: &[&str], fallback: &str) -> String {
+    match source_names {
+        [] => fallback.to_string(),
+        [source] => (*source).to_string(),
+        _ => "mixed".to_string(),
+    }
+}
+
 pub(crate) async fn prepare_game_import(
     app: &tauri::AppHandle,
     db: &DatabaseConnection,
@@ -105,15 +113,6 @@ pub(crate) async fn import_installed_game(
             "已整理的游戏目录不存在",
         ));
     }
-    if !metadata.sources.iter().any(|source| {
-        source.source == "bgm" && source.external_id.as_deref() == Some(request.bgm_id.as_str())
-    }) {
-        return Err(TaskFailure::new(
-            "invalid_metadata",
-            "Mixed 元数据没有包含协议指定的 BGM 来源记录",
-        ));
-    }
-
     let executable_name = resolve_installed_executable_name(&install_path, &partial)?;
     let task = claim_game_import(db, task_id).await?;
     emit_progress(
@@ -181,11 +180,10 @@ pub(crate) async fn import_installed_game(
         }
         // 只覆盖本次推送携带的来源，保留已有的其他来源；用户自定义覆盖也不清理。
         let updates = UpdateGameData {
-            id_type: Some(if source_names.len() >= 2 {
-                "mixed".to_string()
-            } else {
-                metadata.id_type.clone()
-            }),
+            id_type: Some(resolve_installed_game_id_type(
+                &source_names,
+                &metadata.id_type,
+            )),
             date: Some(metadata.date.clone()),
             localpath: Some(Some(partial.install_path.clone())),
             executable: Some(executable_name.clone()),
@@ -344,7 +342,9 @@ pub(crate) fn emit_game_install_failed(
 
 #[cfg(test)]
 mod tests {
-    use super::{GameInstallResultV1, resolve_installed_executable_name};
+    use super::{
+        GameInstallResultV1, resolve_installed_executable_name, resolve_installed_game_id_type,
+    };
     use std::path::Path;
 
     #[test]
@@ -362,5 +362,18 @@ mod tests {
             .expect_err("嵌套可执行文件路径应被拒绝");
 
         assert_eq!(error.code, "invalid_executable");
+    }
+
+    #[test]
+    fn keeps_existing_source_type_when_fallback_has_no_sources() {
+        assert_eq!(
+            resolve_installed_game_id_type(&["hikarinagi"], "custom"),
+            "hikarinagi"
+        );
+    }
+
+    #[test]
+    fn uses_custom_type_when_no_sources_exist() {
+        assert_eq!(resolve_installed_game_id_type(&[], "custom"), "custom");
     }
 }

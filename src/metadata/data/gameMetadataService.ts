@@ -18,9 +18,7 @@ import { resolveAutoSelectedGameDraft } from "../sourceAutoResolve";
 import {
 	getCandidateSourceData,
 	getCandidateSourceId,
-	getCandidateSourceRecord,
 	getSourceCandidateFromGame,
-	mergeCandidateSources,
 	type SourceCandidate,
 	sourceCandidateToDraft,
 } from "../sourceCandidate";
@@ -76,24 +74,6 @@ function getEnabledSourceIds(
 			return [source, id || undefined];
 		}),
 	) as SourceIdMap;
-}
-
-function mergeSourceFields(
-	target: GameMetadataDraft,
-	sourceGame: GameMetadataDraft,
-	source: SourceType,
-) {
-	const record = getCandidateSourceRecord(sourceGame, source);
-	if (!record) {
-		return;
-	}
-
-	target.sources = mergeCandidateSources([
-		target,
-		{
-			sources: [record],
-		},
-	]);
 }
 
 function createMetadataError(
@@ -480,59 +460,18 @@ export class GameMetadataSession {
 		}
 
 		try {
-			if (providedSources.length === 1) {
-				const result = await fetchMixedData({
-					sourceIds: enabledSourceIds,
-					adapters: this.getEnabledMixedAdapters(enabledSources),
-				});
-				const mergedResult = ensureMixedResult(
-					mergeMixedResult(pickFirstMixedResult(result.candidates)),
-				);
-				mergedResult.id_type = this.determineIdType(mergedResult);
-
-				return {
-					data: mergedResult,
-					failedSources: result.failedSources,
-				};
-			}
-
-			const results = await Promise.all(
-				REGISTERED_SOURCE_KEYS.map((source) => {
-					const sourceId = getSourceId(enabledSourceIds, source);
-					return sourceId
-						? this.getGameById(sourceId, source)
-						: Promise.resolve(null);
-				}),
-			);
-
-			const mergedGame: GameMetadataDraft = {
-				id_type: "mixed",
-				sources: [],
-			};
-
-			REGISTERED_SOURCE_KEYS.forEach((source, index) => {
-				const game = results[index];
-				if (!game) {
-					return;
-				}
-				mergeSourceFields(mergedGame, game, source);
+			const result = await fetchMixedData({
+				sourceIds: enabledSourceIds,
+				adapters: this.getEnabledMixedAdapters(enabledSources),
 			});
-
-			if (
-				!REGISTERED_SOURCE_KEYS.some((source) =>
-					hasSourceId(mergedGame, source),
-				)
-			) {
-				throw new AppError({
-					code: "metadata_not_found",
-					message: "No metadata result returned from requested sources",
-				});
-			}
-			mergedGame.id_type = this.determineIdType(mergedGame);
+			const mergedResult = ensureMixedResult(
+				mergeMixedResult(pickFirstMixedResult(result.candidates)),
+			);
+			mergedResult.id_type = this.determineIdType(mergedResult);
 
 			return {
-				data: mergedGame,
-				failedSources: [],
+				data: mergedResult,
+				failedSources: result.failedSources,
 			};
 		} catch (error) {
 			throw createMetadataError(
