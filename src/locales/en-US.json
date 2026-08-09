@@ -182,6 +182,7 @@
 			"close": "Close",
 			"confirm": "Confirm Installation",
 			"confirmNotice": "ReinaManager downloads and installs only after confirmation. Cancelling creates no installation task.",
+			"defaultPathSaveFailed": "The installation task was created, but the default path could not be saved: {{error}}",
 			"installPath": "Installation Path",
 			"installPathPlaceholder": "Select directory for game installation",
 			"metadataLabel": "Metadata: ",

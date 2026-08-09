@@ -43,17 +43,16 @@ import type { SourceType } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { formatFileSize } from "@/utils/fileSize";
 
-type DialogStage = "confirm" | "preparing" | "error";
+type DialogStage = "confirm" | "preparing";
 
 export function InstallRequestHandler() {
 	const { t } = useTranslation();
-	const { data: settings } = useAllSettings();
+	const { data: settings, isPending: settingsPending } = useAllSettings();
 	const hasHikarinagiToken = Boolean(settings?.hikarinagi_auth?.access_token);
 	const updateSettingsMutation = useUpdateSettings();
 	const [queue, setQueue] = useState<InstallRequest[]>([]);
 	const [request, setRequest] = useState<InstallRequest | null>(null);
 	const [stage, setStage] = useState<DialogStage>("confirm");
-	const [errorMessage, setErrorMessage] = useState("");
 	const [installPath, setInstallPath] = useState("");
 	const [saveAsDefault, setSaveAsDefault] = useState(true);
 	const { fetchTasks, invalidateTasks, prependTask, updateTaskProgress } =
@@ -69,26 +68,18 @@ export function InstallRequestHandler() {
 	const resetDialog = useCallback(() => {
 		setRequest(null);
 		setStage("confirm");
-		setErrorMessage("");
 	}, []);
 
 	useEffect(() => {
-		if (request || queue.length === 0) return;
+		if (request || queue.length === 0 || settingsPending) return;
 		const nextRequest = queue[0];
 		setRequest(nextRequest);
 		setQueue((current) => current.slice(1));
 		setStage("confirm");
-		setErrorMessage("");
 		const defaultRootPath = settings?.install_root_path ?? "";
 		setInstallPath(defaultRootPath);
 		setSaveAsDefault(defaultRootPath === "");
-	}, [queue, request, settings?.install_root_path]);
-
-	useEffect(() => {
-		if (request && settings?.install_root_path && !installPath) {
-			setInstallPath(settings.install_root_path);
-		}
-	}, [request, settings?.install_root_path, installPath]);
+	}, [queue, request, settings?.install_root_path, settingsPending]);
 
 	const handleBrowsePath = useCallback(async () => {
 		const selected = await handleFolder(installPath);
@@ -290,17 +281,16 @@ export function InstallRequestHandler() {
 		updateTaskProgress,
 	]);
 
-	const startTask = async (currentRequest: InstallRequest) => {
-		const createdTask = await taskService.createGameInstallTask(currentRequest);
+	const startTask = async (
+		currentRequest: InstallRequest,
+		installRoot: string,
+	) => {
+		const createdTask = await taskService.createGameInstallTask(
+			currentRequest,
+			installRoot,
+		);
 		prependTask(createdTask);
 		void invalidateTasks();
-		resetDialog();
-		snackbar.success(
-			t(
-				"components.InstallRequest.queued",
-				"已添加到下载任务，可在后台查看进度",
-			),
-		);
 	};
 
 	const prepareInstall = async () => {
@@ -313,18 +303,42 @@ export function InstallRequestHandler() {
 			return;
 		}
 		setStage("preparing");
-		setErrorMessage("");
 		try {
-			if (saveAsDefault && trimmedPath !== settings?.install_root_path) {
+			await startTask(request, trimmedPath);
+		} catch (error) {
+			setStage("confirm");
+			snackbar.error(getUserErrorMessage(error, t));
+			return;
+		}
+
+		let defaultPathSaveError: string | null = null;
+		if (saveAsDefault && trimmedPath !== settings?.install_root_path) {
+			try {
 				await updateSettingsMutation.mutateAsync({
 					installRootPath: trimmedPath,
 				});
+			} catch (error) {
+				defaultPathSaveError = getUserErrorMessage(error, t);
 			}
-			await startTask(request);
-		} catch (error) {
-			setErrorMessage(getUserErrorMessage(error, t));
-			setStage("error");
 		}
+
+		resetDialog();
+		if (defaultPathSaveError) {
+			snackbar.warning(
+				t(
+					"components.InstallRequest.defaultPathSaveFailed",
+					"安装任务已创建，但默认路径保存失败：{{error}}",
+					{ error: defaultPathSaveError },
+				),
+			);
+			return;
+		}
+		snackbar.success(
+			t(
+				"components.InstallRequest.queued",
+				"已添加到下载任务，可在后台查看进度",
+			),
+		);
 	};
 
 	const bgmId = request?.bgm_id;
@@ -340,12 +354,10 @@ export function InstallRequestHandler() {
 	return (
 		<Dialog
 			open={open}
-			onClose={
-				stage === "confirm" || stage === "error" ? resetDialog : undefined
-			}
+			onClose={stage === "confirm" ? resetDialog : undefined}
 			maxWidth="sm"
 			fullWidth
-			disableEscapeKeyDown={!matchesClosableStage(stage)}
+			disableEscapeKeyDown={stage === "preparing"}
 		>
 			<DialogTitle>
 				{t("components.InstallRequest.title", "安装游戏")}
@@ -497,8 +509,6 @@ export function InstallRequestHandler() {
 						</Typography>
 					</Stack>
 				)}
-
-				{stage === "error" && <Alert severity="error">{errorMessage}</Alert>}
 			</DialogContent>
 			<DialogActions>
 				{stage === "confirm" && (
@@ -513,16 +523,7 @@ export function InstallRequestHandler() {
 						</Button>
 					</>
 				)}
-				{stage === "error" && (
-					<Button onClick={resetDialog}>
-						{t("components.InstallRequest.close", "关闭")}
-					</Button>
-				)}
 			</DialogActions>
 		</Dialog>
 	);
-}
-
-function matchesClosableStage(stage: DialogStage) {
-	return stage === "confirm" || stage === "error";
 }

@@ -2,6 +2,7 @@ use crate::database::dto::UpdateSettingsData;
 use crate::entity::prelude::*;
 use crate::entity::user;
 use crate::entity::user::Model;
+use crate::utils::fs::normalize_install_root_path;
 use sea_orm::*;
 
 /// 用户设置仓库
@@ -91,6 +92,13 @@ impl SettingsRepository {
         }
 
         if let Some(path) = data.install_root_path {
+            let path = path
+                .map(|path| {
+                    normalize_install_root_path(&path)
+                        .map(|path| path.to_string_lossy().into_owned())
+                })
+                .transpose()
+                .map_err(DbErr::Custom)?;
             active.install_root_path = Set(path);
         }
 
