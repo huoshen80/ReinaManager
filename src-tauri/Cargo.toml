@@ -102,6 +102,10 @@ zbus = "5.18.0"
 zbus_systemd = { version = "0.26100.0", features = ["systemd1"] }
 
 
+[patch.crates-io]
+# TODO: remove once tauri-runtime-wry publishes a release that depends on tao 0.36+.
+tauri-runtime-wry = { path = "patches/tauri-runtime-wry-2.11.4" }
+
 [profile.dev]
 incremental = true # 以较小的步骤编译您的二进制文件。
 split-debuginfo = "unpacked"

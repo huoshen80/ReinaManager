@@ -4,6 +4,12 @@ dist
 target
 docs-local
 others
+.local-rpms
+.local-sysroot-webkit41
+src-tauri/patches/**/.cargo-ok
+src-tauri/patches/**/.cargo_vcs_info.json
+src-tauri/patches/**/Cargo.lock
+src-tauri/patches/**/Cargo.toml.orig
 
 # Editor directories
 .vscode
