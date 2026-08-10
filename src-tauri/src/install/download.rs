@@ -14,8 +14,6 @@ use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::watch;
 
-const TRUSTED_DOWNLOAD_HOST: &str = "dl.hikarifallback.uk";
-
 pub(crate) async fn download_file(
     app: &tauri::AppHandle,
     db: &DatabaseConnection,
@@ -49,7 +47,10 @@ pub(crate) async fn download_file(
         );
         return Ok(());
     }
-    if chrono::Utc::now().timestamp() >= request.expires_at {
+    if request
+        .expires_at
+        .is_some_and(|expires_at| chrono::Utc::now().timestamp() >= expires_at)
+    {
         return Err(TaskFailure::new(
             "url_expired",
             format!(
@@ -293,23 +294,11 @@ fn validate_content_range(
 }
 
 fn validate_download_url(url: &url::Url) -> Result<(), TaskFailure> {
-    if url.scheme() != "https" {
-        return Err(TaskFailure::new("unsafe_url", "下载地址仅支持 HTTPS"));
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(TaskFailure::new("invalid_url", "下载地址仅支持 HTTP/HTTPS"));
     }
-    let host = url
-        .host_str()
-        .ok_or_else(|| TaskFailure::new("unsafe_url", "下载地址缺少主机名"))?;
-    if !host.eq_ignore_ascii_case(TRUSTED_DOWNLOAD_HOST) {
-        return Err(TaskFailure::new(
-            "unsafe_url",
-            "下载地址不属于受信任的下载服务器",
-        ));
-    }
-    if let Some(port) = url.port()
-        && port != 443
-    {
-        return Err(TaskFailure::new("unsafe_url", "下载地址使用了不允许的端口"));
-    }
+    url.host_str()
+        .ok_or_else(|| TaskFailure::new("invalid_url", "下载地址缺少主机名"))?;
     Ok(())
 }
 
@@ -373,35 +362,4 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
     })
     .await
     .map_err(|error| TaskFailure::new("verify_task_failed", error.to_string()))?
-}
-
-#[cfg(test)]
-mod tests {
-    use super::validate_download_url;
-
-    #[test]
-    fn download_url_only_allows_trusted_https_host_and_port() {
-        let allowed = [
-            "https://dl.hikarifallback.uk/file.zip",
-            "https://dl.hikarifallback.uk:443/file.zip",
-            "https://DL.HIKARIFALLBACK.UK/file.zip",
-        ];
-        for value in allowed {
-            let url = url::Url::parse(value).unwrap();
-            assert!(validate_download_url(&url).is_ok(), "应允许 {value}");
-        }
-
-        let rejected = [
-            "http://dl.hikarifallback.uk/file.zip",
-            "https://dl.hikarifallback.uk:8080/file.zip",
-            "https://evil.example.com/file.zip",
-            "https://127.0.0.1/file.zip",
-            "https://dl.hikarifallback.uk.evil.example.com/file.zip",
-        ];
-        for value in rejected {
-            let url = url::Url::parse(value).unwrap();
-            let failure = validate_download_url(&url).expect_err(value);
-            assert_eq!(failure.code, "unsafe_url", "应拒绝 {value}");
-        }
-    }
 }

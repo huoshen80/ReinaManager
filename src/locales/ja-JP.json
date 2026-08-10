@@ -181,7 +181,6 @@
 		},
 		"InstallRequest": {
 			"confirm": "インストールを確認",
-			"confirmNotice": "確認後にのみ ReinaManager がダウンロードとインストールを開始します。キャンセルした場合、タスクは作成されません。",
 			"defaultPathSaveFailed": "インストールタスクは作成されましたが、既定のパスを保存できませんでした：{{error}}",
 			"installPath": "インストールパス",
 			"installPathPlaceholder": "ゲームのインストールに使用するディレクトリを選択",
@@ -191,6 +190,7 @@
 			"providerLabel": "提供元：",
 			"queued": "ダウンロードタスクに追加しました。バックグラウンドで進行状況を確認できます",
 			"saveAsDefaultPath": "既定のパスに設定",
+			"sourceRiskWarning": "このインストール要求は {{provider}}（{{origin}}）から送信されました。アプリはプライベートネットワーク上のサービスを含むカスタムダウンロード先へアクセスできます。提供元とダウンロード先を信頼できる場合のみ続行してください。",
 			"stage": {
 				"downloading": "ダウンロード中",
 				"extracting": "展開中",

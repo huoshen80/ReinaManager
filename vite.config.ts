@@ -11,10 +11,8 @@ export default defineConfig({
 		strictPort: true,
 		port: 5173,
 		watch: {
-      		ignored: [
-      		  "**/src-tauri/**"
-      		]
-    	}
+			ignored: ["**/src-tauri/**"],
+		},
 	},
 	clearScreen: false,
 	// 添加有关当前构建目标的额外前缀，使这些 CLI 设置的 Tauri 环境变量可以在客户端代码中访问

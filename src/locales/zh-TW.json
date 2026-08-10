@@ -181,7 +181,6 @@
 		},
 		"InstallRequest": {
 			"confirm": "確認安裝",
-			"confirmNotice": "確認後 ReinaManager 才會下載並安裝；取消不會產生安裝任務。",
 			"defaultPathSaveFailed": "安裝任務已建立，但預設路徑儲存失敗：{{error}}",
 			"installPath": "安裝路徑",
 			"installPathPlaceholder": "選擇用於安裝遊戲的目錄",
@@ -191,6 +190,7 @@
 			"providerLabel": "來源：",
 			"queued": "已添加到下載任務，可在背景查看進度",
 			"saveAsDefaultPath": "設為預設路徑",
+			"sourceRiskWarning": "此安裝請求來自 {{provider}}（{{origin}}）。應用程式允許存取自訂下載位址，包括內網服務；僅在你信任該來源和下載位址時繼續。",
 			"stage": {
 				"downloading": "正在下載",
 				"extracting": "正在解壓縮",

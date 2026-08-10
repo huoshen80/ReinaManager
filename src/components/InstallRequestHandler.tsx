@@ -137,60 +137,56 @@ export function InstallRequestHandler() {
 					return;
 				}
 
+				const bgmId = task.payload_json.bgm_id ?? undefined;
 				const hikarinagiId = task.payload_json.hikarinagi_id ?? undefined;
 				const vndbId = task.payload_json.vndb_id ?? undefined;
 				const shouldFetchHikarinagi =
 					Boolean(hikarinagiId) && hasHikarinagiToken;
-				const enabledSources: SourceType[] = ["bgm"];
+				const enabledSources: SourceType[] = [];
+				if (bgmId) enabledSources.push("bgm");
 				if (vndbId) enabledSources.push("vndb");
 				if (shouldFetchHikarinagi) enabledSources.push("hikarinagi");
-				const metadataResult = await withMetadataAuth(
-					enabledSources,
-					async ({ bgmToken, hikarinagiToken }) => {
-						const session = createMetadataSession({
-							bgmToken,
-							hikarinagiToken,
-						});
-						try {
-							if (enabledSources.length === 1) {
-								return {
-									data: await session.getGameById(
-										task.payload_json.bgm_id,
-										"bgm",
-									),
-									failedSources: [],
-								};
-							}
-
-							return await session.getGameByIds({
-								sourceIds: {
-									bgm: task.payload_json.bgm_id,
-									vndb: vndbId,
-									...(shouldFetchHikarinagi
-										? { hikarinagi: hikarinagiId }
-										: {}),
-								},
-								enabledSources,
-							});
-						} catch (error) {
-							const metadataNotFound =
-								isHttpStatus(error, 404) ||
-								(error instanceof AppError &&
-									error.code === "metadata_not_found");
-							if (!metadataNotFound) throw error;
-
-							return {
-								data: {
-									id_type: "custom",
-									sources: [],
-									custom_data: { name: task.payload_json.title },
-								},
-								failedSources: enabledSources,
-							};
-						}
+				const customMetadataResult = {
+					data: {
+						id_type: "custom",
+						sources: [],
+						custom_data: { name: task.payload_json.title },
 					},
-					{ requireHikarinagi: shouldFetchHikarinagi },
-				);
+					failedSources: enabledSources,
+				};
+				const metadataResult =
+					enabledSources.length === 0
+						? customMetadataResult
+						: await withMetadataAuth(
+								enabledSources,
+								async ({ bgmToken, hikarinagiToken }) => {
+									const session = createMetadataSession({
+										bgmToken,
+										hikarinagiToken,
+									});
+									try {
+										return await session.getGameByIds({
+											sourceIds: {
+												bgm: bgmId,
+												vndb: vndbId,
+												...(shouldFetchHikarinagi
+													? { hikarinagi: hikarinagiId }
+													: {}),
+											},
+											enabledSources,
+										});
+									} catch (error) {
+										const metadataNotFound =
+											isHttpStatus(error, 404) ||
+											(error instanceof AppError &&
+												error.code === "metadata_not_found");
+										if (!metadataNotFound) throw error;
+
+										return customMetadataResult;
+									}
+								},
+								{ requireHikarinagi: shouldFetchHikarinagi },
+							);
 				const insertData = await buildInsertGameData(metadataResult.data);
 				await taskService.completeGameInstall(taskId, insertData);
 			} catch (error) {
@@ -368,6 +364,7 @@ export function InstallRequestHandler() {
 			? vndbId
 			: `v${vndbId}`
 		: "";
+	const requestOrigin = request ? new URL(request.url).origin : "";
 
 	const open = Boolean(request);
 	return (
@@ -384,10 +381,14 @@ export function InstallRequestHandler() {
 			<DialogContent>
 				{stage === "confirm" && request && (
 					<Stack spacing={2}>
-						<Alert severity="info">
+						<Alert severity="warning">
 							{t(
-								"components.InstallRequest.confirmNotice",
-								"确认后 ReinaManager 才会下载并安装；取消不会产生安装任务。",
+								"components.InstallRequest.sourceRiskWarning",
+								"此安装请求来自 {{provider}}（{{origin}}）。应用允许访问自定义下载地址，包括内网服务；仅在你信任该来源和下载地址时继续。",
+								{
+									provider: request.provider,
+									origin: requestOrigin,
+								},
 							)}
 						</Alert>
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

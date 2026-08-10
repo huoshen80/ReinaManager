@@ -42,8 +42,8 @@ pub struct InstallRequest {
     pub size: u64,
     pub checksum_algo: String,
     pub checksum: String,
-    pub expires_at: i64,
-    pub bgm_id: String,
+    pub expires_at: Option<i64>,
+    pub bgm_id: Option<String>,
     pub vndb_id: Option<String>,
     pub hikarinagi_id: Option<String>,
     pub title: String,
@@ -81,10 +81,14 @@ impl InstallRequest {
         {
             return Err("校验值必须是 64 位十六进制字符串".to_string());
         }
-        if self.expires_at <= 0 {
+        if self.expires_at.is_some_and(|value| value <= 0) {
             return Err("expires_at 无效".to_string());
         }
-        if self.bgm_id.trim().is_empty() {
+        if self
+            .bgm_id
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+        {
             return Err("bgm_id 不能为空".to_string());
         }
         if self
@@ -266,8 +270,10 @@ pub fn parse_install_url(url: Url) -> Result<InstallRequest, String> {
         .trim()
         .to_ascii_lowercase();
     let resource_id = required_param(&params, "resource_id")?.trim().to_string();
-    let bgm_id = non_empty_owned(required_param(&params, "bgm_id")?)
-        .ok_or_else(|| "bgm_id 不能为空".to_string())?;
+    let bgm_id = match optional_param(&params, "bgm_id") {
+        Some(value) => Some(non_empty_owned(value).ok_or_else(|| "bgm_id 不能为空".to_string())?),
+        None => None,
+    };
     let vndb_id = match optional_param(&params, "vndb_id") {
         Some(value) => Some(non_empty_owned(value).ok_or_else(|| "vndb_id 不能为空".to_string())?),
         None => None,
@@ -294,9 +300,13 @@ pub fn parse_install_url(url: Url) -> Result<InstallRequest, String> {
             .trim()
             .to_ascii_lowercase(),
         checksum,
-        expires_at: required_param(&params, "expires_at")?
-            .parse::<i64>()
-            .map_err(|_| "expires_at 无效".to_string())?,
+        expires_at: optional_param(&params, "expires_at")
+            .map(|value| {
+                value
+                    .parse::<i64>()
+                    .map_err(|_| "expires_at 无效".to_string())
+            })
+            .transpose()?,
         bgm_id,
         vndb_id,
         hikarinagi_id,
@@ -397,15 +407,29 @@ mod tests {
     #[test]
     fn rejects_missing_required_parameters() {
         let url = Url::parse(
-            "reinamanager://install?v=1&provider=shionlib&resource_id=42&url=https%3A%2F%2Fexample.com%2Fgame.zip&file_name=game.zip&archive_format=zip&size=123&checksum_algo=blake3&checksum=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&expires_at=1999999999&title=Game",
+            "reinamanager://install?v=1&provider=shionlib&resource_id=42&url=https%3A%2F%2Fexample.com%2Fgame.zip&file_name=game.zip&archive_format=zip&size=123&checksum_algo=blake3&checksum=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         )
         .unwrap();
 
         assert!(
             parse_install_url(url)
                 .unwrap_err()
-                .contains("缺少参数: bgm_id")
+                .contains("缺少参数: title")
         );
+    }
+
+    #[test]
+    fn parses_request_without_metadata_ids_or_expiration() {
+        let url = Url::parse(
+            "reinamanager://install?v=1&provider=self-hosted&resource_id=42&url=http%3A%2F%2Flocalhost%3A8080%2Fgame.zip&file_name=game.zip&archive_format=zip&size=123&checksum_algo=blake3&checksum=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&title=Game",
+        )
+        .unwrap();
+
+        let request = parse_install_url(url).unwrap();
+        assert_eq!(request.expires_at, None);
+        assert_eq!(request.bgm_id, None);
+        assert_eq!(request.vndb_id, None);
+        assert_eq!(request.hikarinagi_id, None);
     }
 
     #[test]

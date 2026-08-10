@@ -28,8 +28,8 @@ export interface InstallRequest {
 	size: number;
 	checksum_algo: "sha256" | "blake3";
 	checksum: string;
-	expires_at: number;
-	bgm_id: string;
+	expires_at?: number | null;
+	bgm_id?: string | null;
 	vndb_id?: string | null;
 	hikarinagi_id?: string | null;
 	title: string;

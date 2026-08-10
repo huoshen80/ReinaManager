@@ -130,7 +130,7 @@ pub(crate) async fn import_installed_game(
         .await
         .map_err(|error| TaskFailure::new("game_import_failed", error.to_string()))?;
     let source_ids = [
-        ("bgm", Some(request.bgm_id.as_str())),
+        ("bgm", request.bgm_id.as_deref()),
         ("hikarinagi", request.hikarinagi_id.as_deref()),
     ];
     let mut matched_game = None;

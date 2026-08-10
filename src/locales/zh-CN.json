@@ -181,7 +181,6 @@
 		},
 		"InstallRequest": {
 			"confirm": "确认安装",
-			"confirmNotice": "确认后 ReinaManager 才会下载并安装；取消不会产生安装任务。",
 			"defaultPathSaveFailed": "安装任务已创建，但默认路径保存失败：{{error}}",
 			"installPath": "安装路径",
 			"installPathPlaceholder": "选择用于安装游戏的目录",
@@ -191,6 +190,7 @@
 			"providerLabel": "来源：",
 			"queued": "已添加到下载任务，可在后台查看进度",
 			"saveAsDefaultPath": "设为默认路径",
+			"sourceRiskWarning": "此安装请求来自 {{provider}}（{{origin}}）。应用允许访问自定义下载地址，包括内网服务；仅在你信任该来源和下载地址时继续。",
 			"stage": {
 				"downloading": "正在下载",
 				"extracting": "正在解压",

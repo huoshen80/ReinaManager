@@ -189,7 +189,6 @@
 		},
 		"InstallRequest": {
 			"confirm": "Confirm Installation",
-			"confirmNotice": "ReinaManager downloads and installs only after confirmation. Cancelling creates no installation task.",
 			"defaultPathSaveFailed": "The installation task was created, but the default path could not be saved: {{error}}",
 			"installPath": "Installation Path",
 			"installPathPlaceholder": "Select directory for game installation",
@@ -199,6 +198,7 @@
 			"providerLabel": "Source: ",
 			"queued": "Added to Download Tasks. Progress continues in the background.",
 			"saveAsDefaultPath": "Set as default path",
+			"sourceRiskWarning": "This installation request comes from {{provider}} ({{origin}}). The app can access custom download addresses, including private network services. Continue only if you trust the source and download address.",
 			"stage": {
 				"downloading": "Downloading",
 				"extracting": "Extracting",
