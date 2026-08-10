@@ -199,23 +199,35 @@ function LaunchModalContent({ selectedGame }: LaunchModalContentProps) {
 			);
 		}
 
-		if (hasLocalPath) {
-			return (
-				<Button startIcon={<PlayArrowIcon />} onClick={handleStartGame}>
-					{t("components.LaunchModal.launchGame", "启动游戏")}
-				</Button>
-			);
+		switch (selectedGame.launch_type ?? "local") {
+			case "steam":
+				return hasLocalPath ? (
+					<Button startIcon={<PlayArrowIcon />} onClick={handleStartGame}>
+						{t("components.LaunchModal.launchWithSteam", "通过 Steam 启动")}
+					</Button>
+				) : (
+					<Button startIcon={<PlayArrowIcon />} disabled>
+						{t(
+							"components.LaunchModal.steamMonitorPathMissing",
+							"Steam 游戏监控目录缺失，请重新关联",
+						)}
+					</Button>
+				);
+			case "local":
+				return hasLocalPath ? (
+					<Button startIcon={<PlayArrowIcon />} onClick={handleStartGame}>
+						{t("components.LaunchModal.launchGame", "启动游戏")}
+					</Button>
+				) : (
+					<Button
+						startIcon={<SyncIcon />}
+						onClick={handleSyncLocalPath}
+						variant="text"
+					>
+						{t("components.LaunchModal.syncLocalPath", "同步本地")}
+					</Button>
+				);
 		}
-
-		return (
-			<Button
-				startIcon={<SyncIcon />}
-				onClick={handleSyncLocalPath}
-				variant="text"
-			>
-				{t("components.LaunchModal.syncLocalPath", "同步本地")}
-			</Button>
-		);
 	})();
 
 	return content;

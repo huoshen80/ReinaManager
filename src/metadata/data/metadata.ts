@@ -6,6 +6,7 @@ import {
 import type {
 	CustomData,
 	GameData,
+	GameLaunchType,
 	GameMetadataDraft,
 	InsertGameParams,
 	SourceType,
@@ -19,6 +20,7 @@ import {
 	getNumberDiff,
 } from "@/utils/diff";
 import { getGameDisplayName, getGameNsfwStatus } from "@/utils/game";
+import { normalizeSteamLaunchId } from "@/utils/steam";
 import type { SourceIdMap } from "../sourceAdapter";
 import {
 	buildGameCandidateFromSourceSelection,
@@ -40,6 +42,8 @@ import type { GameMetadataSession } from "./gameMetadataService";
 export interface GameInfoUpdateDraft {
 	newLocalPath: string;
 	newExecutable?: string;
+	newLaunchType?: GameLaunchType;
+	newSteamLaunchId?: string;
 	newName: string;
 	newImageExt?: string | null;
 	newCoverSource?: SourceType | null;
@@ -59,6 +63,17 @@ export interface BatchImportGameCandidate {
 	selectedExe?: string;
 	matchedData?: GameMetadataDraft;
 }
+
+export interface GameRuntimeInsertOptions {
+	localpath?: string;
+	executable?: string;
+	launch_type?: GameLaunchType;
+	steam_launch_id?: string;
+}
+
+export type GameIdentityPayload = SourceIdentityPayload & {
+	steam_launch_id?: string | null;
+};
 
 interface SourceUpdateParams {
 	selectedGame: GameData | null;
@@ -211,18 +226,18 @@ function getGameCandidateDate(gameData: GameMetadataDraft): string | undefined {
 
 export async function buildInsertGameData(
 	gameData: GameMetadataDraft,
-	options: {
-		localpath?: string;
-		executable?: string;
+	options: GameRuntimeInsertOptions & {
 		cloudStatusContext?: CloudPlayStatusContext;
 	} = {},
 ): Promise<InsertGameParams> {
+	const launchFields = buildGameLaunchInsertFields(options);
 	const insertData: InsertGameParams = {
 		id_type: gameData.id_type || "mixed",
 		sources: candidateSourcesToGameSources(gameData.sources),
 		date: getGameCandidateDate(gameData),
 		localpath: options.localpath,
 		executable: options.executable,
+		...launchFields,
 		custom_data: gameData.custom_data ?? undefined,
 	};
 	const cloudStatus = await resolveCloudPlayStatus(
@@ -288,6 +303,21 @@ export function buildGameInfoUpdatePayload(
 		);
 		if (executableDiff !== undefined) {
 			payload.executable = executableDiff;
+		}
+	}
+	if (
+		draft.newLaunchType !== undefined &&
+		draft.newLaunchType !== (originalGame.launch_type ?? "local")
+	) {
+		payload.launch_type = draft.newLaunchType;
+	}
+	if (draft.newSteamLaunchId !== undefined) {
+		const steamLaunchIdDiff = getDiff(
+			draft.newSteamLaunchId,
+			originalGame.steam_launch_id,
+		);
+		if (steamLaunchIdDiff !== undefined) {
+			payload.steam_launch_id = steamLaunchIdDiff;
 		}
 	}
 
@@ -412,10 +442,44 @@ export async function buildBulkImportGameData(
 	};
 }
 
-export function getGameIdentityKeys(payload: SourceIdentityPayload): string[] {
+export function buildGameLaunchInsertFields(
+	options: Pick<GameRuntimeInsertOptions, "launch_type" | "steam_launch_id">,
+): Pick<InsertGameParams, "launch_type" | "steam_launch_id"> {
+	const rawSteamLaunchId = options.steam_launch_id?.trim();
+	const steamLaunchId = rawSteamLaunchId
+		? normalizeSteamLaunchId(rawSteamLaunchId)
+		: undefined;
+	if (rawSteamLaunchId && !steamLaunchId) {
+		throw new Error(`Invalid Steam launch id: ${options.steam_launch_id}`);
+	}
+
+	const launchType =
+		options.launch_type ?? (steamLaunchId ? "steam" : undefined);
+	if (launchType === "steam" && !steamLaunchId) {
+		throw new Error("Steam launch type requires a Steam launch id");
+	}
+	if (launchType === "local" && steamLaunchId) {
+		throw new Error("Local launch type cannot contain a Steam launch id");
+	}
+
+	return {
+		launch_type: launchType,
+		steam_launch_id: steamLaunchId,
+	};
+}
+
+export function getGameIdentityKeys(payload: GameIdentityPayload): string[] {
 	const sourceIds = getAnySourceIdMap(payload);
-	return REGISTERED_SOURCE_KEYS.map((source) => {
+	const keys = REGISTERED_SOURCE_KEYS.map((source) => {
 		const sourceId = sourceIds[source];
 		return sourceId ? `${source}:${sourceId}` : null;
 	}).filter((value): value is string => Boolean(value));
+	const steamLaunchId = payload.steam_launch_id
+		? normalizeSteamLaunchId(payload.steam_launch_id)
+		: undefined;
+	if (steamLaunchId) {
+		keys.push(`steam-launch:${steamLaunchId}`);
+	}
+
+	return keys;
 }

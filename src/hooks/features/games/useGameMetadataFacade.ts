@@ -9,15 +9,13 @@ import {
 	type BatchImportGameCandidate,
 	buildBulkImportGameData,
 	buildInsertGameData,
+	type GameIdentityPayload,
+	type GameRuntimeInsertOptions,
 	getGameIdentityKeys,
 } from "@/metadata/data/metadata";
-import {
-	getSourceIdFromRecords,
-	type SourceIdentityPayload,
-} from "@/metadata/sourceRecord";
+import { getSourceIdFromRecords } from "@/metadata/sourceRecord";
 import i18n from "@/providers/i18n";
 import { createCloudPlayStatusContext } from "@/services/cloudPlayStatus";
-import type { ExecutablePathParts } from "@/services/fs/fileDialog";
 import type {
 	BatchOperationResult,
 	GameMetadataDraft,
@@ -60,7 +58,7 @@ export function useGameDuplicateChecker() {
 	}, [allGames]);
 
 	const checkGameExists = useCallback(
-		(gameData: SourceIdentityPayload) => {
+		(gameData: GameIdentityPayload) => {
 			return getGameIdentityKeys(gameData).some((key) =>
 				existingGameKeys.has(key),
 			);
@@ -79,15 +77,12 @@ export function useSingleGameAddActions() {
 	const metadataAddActionMutation = useMutation({
 		mutationFn: async ({
 			gameData,
-			executablePathParts,
+			runtimeOptions,
 		}: {
 			gameData: GameMetadataDraft;
-			executablePathParts?: ExecutablePathParts;
+			runtimeOptions?: GameRuntimeInsertOptions;
 		}) => {
-			const insertData = await buildInsertGameData(
-				gameData,
-				executablePathParts,
-			);
+			const insertData = await buildInsertGameData(gameData, runtimeOptions);
 
 			if (checkGameExists(insertData)) {
 				throw new Error(i18n.t("components.AddModal.gameExists", "游戏已存在"));
@@ -100,11 +95,11 @@ export function useSingleGameAddActions() {
 	const addGameFromMetadata = useCallback(
 		async (
 			gameData: GameMetadataDraft,
-			executablePathParts?: ExecutablePathParts,
+			runtimeOptions?: GameRuntimeInsertOptions,
 		) => {
 			return metadataAddActionMutation.mutateAsync({
 				gameData,
-				executablePathParts,
+				runtimeOptions,
 			});
 		},
 		[metadataAddActionMutation],

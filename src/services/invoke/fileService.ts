@@ -43,7 +43,33 @@ export interface DroppedLocalPathResult {
 	directory: string | null;
 }
 
+export interface SteamLaunchTarget {
+	steam_launch_id: string;
+	name: string;
+	localpath?: string;
+	executable?: string;
+}
+
+export interface SteamLaunchTargetScanResult {
+	targets: SteamLaunchTarget[];
+	warnings: string[];
+}
+
 class FileService extends BaseService {
+	/** 扫描本机可用的 Steam 启动目标。 */
+	async scanSteamLaunchTargets(): Promise<SteamLaunchTargetScanResult> {
+		return this.invoke<SteamLaunchTargetScanResult>(
+			"scan_steam_launch_targets",
+		);
+	}
+
+	/** 解析单个 Steam `.url` 快捷方式并匹配本机 Steam 库。 */
+	async resolveSteamShortcutFile(path: string): Promise<SteamLaunchTarget> {
+		return this.invoke<SteamLaunchTarget>("resolve_steam_shortcut_file", {
+			path,
+		});
+	}
+
 	/**
 	 * 扫描目录下的游戏文件夹
 	 */
