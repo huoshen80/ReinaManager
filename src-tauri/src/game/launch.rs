@@ -1,3 +1,5 @@
+pub mod common;
+
 #[cfg(target_os = "windows")]
 mod magpie;
 
@@ -6,6 +8,8 @@ mod windows;
 
 #[cfg(target_os = "linux")]
 mod linux;
+
+pub use common::*;
 
 #[cfg(target_os = "windows")]
 pub use windows::*;

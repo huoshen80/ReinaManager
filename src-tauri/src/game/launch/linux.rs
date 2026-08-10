@@ -1,27 +1,10 @@
-use crate::database::repository::games_repository::GamesRepository;
+use super::{LaunchResult, StopResult, load_game, validate_and_open_steam, validate_local_launch};
 use crate::game::monitor::{TimeTrackingMode, monitor_game, stop_game_session};
 use log::{debug, info};
 use sea_orm::DatabaseConnection;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Manager, Runtime, State, command};
 use tauri_plugin_store::StoreExt;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LaunchResult {
-    success: bool,
-    message: String,
-    process_id: Option<u32>,
-    systemd_scope: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StopResult {
-    success: bool,
-    message: String,
-    terminated_count: u32,
-}
 
 #[command]
 pub async fn launch_game<R: Runtime>(
@@ -31,20 +14,41 @@ pub async fn launch_game<R: Runtime>(
     args: Option<Vec<String>>,
     time_tracking_mode: TimeTrackingMode,
 ) -> Result<LaunchResult, String> {
-    let game = GamesRepository::find_by_id(db.inner(), game_id as i32)
-        .await
-        .map_err(|e| format!("查询游戏失败: {}", e))?
-        .ok_or_else(|| format!("游戏不存在: {}", game_id))?;
-    let game_dir = PathBuf::from(
-        game.localpath
-            .as_deref()
-            .ok_or_else(|| "游戏目录未设置".to_string())?,
-    );
-    let executable_path = game_dir.join(
-        game.executable
-            .as_deref()
-            .ok_or_else(|| "游戏启动文件未设置".to_string())?,
-    );
+    Ok(
+        match launch_game_inner(app_handle, db, game_id, args, time_tracking_mode).await {
+            Ok(result) => result,
+            Err(message) => LaunchResult::failed(message),
+        },
+    )
+}
+
+async fn launch_game_inner<R: Runtime>(
+    app_handle: AppHandle<R>,
+    db: State<'_, DatabaseConnection>,
+    game_id: u32,
+    args: Option<Vec<String>>,
+    time_tracking_mode: TimeTrackingMode,
+) -> Result<LaunchResult, String> {
+    let game = load_game(db.inner(), game_id).await?;
+
+    if game.launch_type == "steam" {
+        let steam_launch = validate_and_open_steam(
+            &app_handle,
+            game_id,
+            game.steam_launch_id.as_deref(),
+            game.localpath.as_deref(),
+            args.as_deref(),
+        )?;
+
+        return Ok(LaunchResult::delegated(format!(
+            "已交由 Steam 启动游戏 ({})",
+            steam_launch.steam_launch_id
+        )));
+    }
+
+    let local_launch = validate_local_launch(&game)?;
+    let game_dir = local_launch.game_dir;
+    let executable_path = local_launch.executable_path;
     let game_path = executable_path.to_string_lossy().to_string();
 
     let exe_name = match executable_path.file_name() {
@@ -117,16 +121,14 @@ pub async fn launch_game<R: Runtime>(
             )
             .await;
 
-            Ok(LaunchResult {
-                success: true,
-                message: format!(
+            Ok(LaunchResult::tracking(
+                format!(
                     "成功启动游戏: {}，工作目录: {:?}",
                     exe_name.to_string_lossy(),
                     game_dir
                 ),
-                process_id: Some(process_id),
-                systemd_scope: Some(systemd_unit_name),
-            })
+                Some(process_id),
+            ))
         }
         Err(e) => Err(format!("启动游戏失败: {}，目录: {:?}", e, game_dir)),
     }
@@ -135,11 +137,10 @@ pub async fn launch_game<R: Runtime>(
 #[command]
 pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
     match stop_game_session(game_id).await {
-        Ok(terminated_count) => Ok(StopResult {
-            success: true,
-            message: format!("成功停止游戏 {}，终止进程数: {}", game_id, terminated_count),
+        Ok(terminated_count) => Ok(StopResult::success(
+            format!("成功停止游戏 {}，终止进程数: {}", game_id, terminated_count),
             terminated_count,
-        }),
+        )),
         Err(e) => Err(format!("停止游戏 {} 失败: {}", game_id, e)),
     }
 }

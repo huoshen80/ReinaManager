@@ -549,6 +549,7 @@ async fn run_game_monitor<R: Runtime>(
 
     // 清理会话注册
     unregister_session(game_id);
+    let confirmed_started = monitor_state.read().has_started;
 
     finalize_monitored_session(
         &app_handle,
@@ -560,6 +561,7 @@ async fn run_game_monitor<R: Runtime>(
             start_time,
             end_time: get_timestamp(),
             accumulated_seconds,
+            confirmed_started,
         },
     )
     .await;

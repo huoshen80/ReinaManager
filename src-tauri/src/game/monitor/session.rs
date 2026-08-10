@@ -31,6 +31,7 @@ pub(crate) struct MonitoredSession {
     pub start_time: u64,
     pub end_time: u64,
     pub accumulated_seconds: u64,
+    pub confirmed_started: bool,
 }
 
 fn calculate_session_duration(
@@ -38,7 +39,12 @@ fn calculate_session_duration(
     start_time: u64,
     end_time: u64,
     accumulated_seconds: u64,
+    confirmed_started: bool,
 ) -> Result<Option<SessionDuration>, String> {
+    if !confirmed_started {
+        return Ok(None);
+    }
+
     let effective_seconds = match mode {
         TimeTrackingMode::Playtime => accumulated_seconds,
         TimeTrackingMode::Elapsed => end_time
@@ -67,6 +73,7 @@ pub(crate) async fn finalize_monitored_session<R: Runtime>(
         session.start_time,
         session.end_time,
         session.accumulated_seconds,
+        session.confirmed_started,
     );
     let mut recorded = false;
     let mut session_id = None;
@@ -153,7 +160,7 @@ mod tests {
 
     #[test]
     fn playtime_mode_uses_accumulated_foreground_time() {
-        let duration = calculate_session_duration(TimeTrackingMode::Playtime, 100, 1000, 95)
+        let duration = calculate_session_duration(TimeTrackingMode::Playtime, 100, 1000, 95, true)
             .expect("计算应成功")
             .expect("应达到记录阈值");
 
@@ -168,7 +175,7 @@ mod tests {
 
     #[test]
     fn elapsed_mode_uses_wall_clock_time() {
-        let duration = calculate_session_duration(TimeTrackingMode::Elapsed, 100, 195, 10)
+        let duration = calculate_session_duration(TimeTrackingMode::Elapsed, 100, 195, 10, true)
             .expect("计算应成功")
             .expect("应达到记录阈值");
 
@@ -184,7 +191,16 @@ mod tests {
     #[test]
     fn duration_below_threshold_is_not_recorded() {
         assert_eq!(
-            calculate_session_duration(TimeTrackingMode::Playtime, 100, 159, 59)
+            calculate_session_duration(TimeTrackingMode::Playtime, 100, 159, 59, true)
+                .expect("计算应成功"),
+            None
+        );
+    }
+
+    #[test]
+    fn unconfirmed_launch_is_not_recorded_in_elapsed_mode() {
+        assert_eq!(
+            calculate_session_duration(TimeTrackingMode::Elapsed, 100, 200, 0, false)
                 .expect("计算应成功"),
             None
         );
