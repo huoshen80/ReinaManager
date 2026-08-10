@@ -1,6 +1,7 @@
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import SearchIcon from "@mui/icons-material/Search";
 import SettingsIcon from "@mui/icons-material/Settings";
+import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import {
 	Alert,
 	Box,
@@ -41,7 +42,12 @@ import {
 } from "@/services/oauth/hikarinagiAuthSession";
 import { createMetadataSession } from "@/services/requestContext";
 import { useStore } from "@/store/appStore";
-import type { GameMetadataDraft, GameScanMode, SourceType } from "@/types";
+import type {
+	GameDirectoryScanMode,
+	GameMetadataDraft,
+	GameScanMode,
+	SourceType,
+} from "@/types";
 import { createAbortableRunner, isAbortError } from "@/utils/async";
 import { getUserErrorMessage, isApiRateLimitError } from "@/utils/errors";
 import BulkImportResultTable, {
@@ -106,11 +112,12 @@ const BulkImportTab = ({
 	);
 	const { addGamesFromBulkImport, isAddingGames } = useBulkGameAddActions();
 
-	const [isScanningDirectories, setIsScanningDirectories] = useState(false);
+	const [isScanningGames, setIsScanningGames] = useState(false);
 	const [isMatchingMetadata, setIsMatchingMetadata] = useState(false);
 	const [rootPath, setRootPath] = useState("");
+	const [hasScanned, setHasScanned] = useState(false);
 	const [items, setItems] = useState<BulkImportItem[]>([]);
-	const [editItemPath, setEditItemPath] = useState<string | null>(null);
+	const [editItemKey, setEditItemKey] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editApiSource, setEditApiSource] = useState<SourceType>(bulkApiSource);
 	const [customImportConfirmOpen, setCustomImportConfirmOpen] = useState(false);
@@ -119,7 +126,7 @@ const BulkImportTab = ({
 	);
 	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
 	const matchAbortControllerRef = useRef<AbortController | null>(null);
-	const loading = isMatchingMetadata || isScanningDirectories || isAddingGames;
+	const loading = isMatchingMetadata || isScanningGames || isAddingGames;
 	const matchedImportCount = items.filter(
 		(item) => item.status === "matched",
 	).length;
@@ -138,12 +145,12 @@ const BulkImportTab = ({
 
 	const handleResolvedEditMetadata = useCallback(
 		async (resolvedData: GameMetadataDraft) => {
-			if (!editItemPath) return;
+			if (!editItemKey) return;
 
 			setItems((prevItems) => {
 				const nextItems = [...prevItems];
 				const itemIndex = nextItems.findIndex(
-					(item) => item.path === editItemPath,
+					(item) => item.key === editItemKey,
 				);
 				if (itemIndex !== -1) {
 					nextItems[itemIndex].name = editName;
@@ -152,9 +159,9 @@ const BulkImportTab = ({
 				}
 				return nextItems;
 			});
-			setEditItemPath(null);
+			setEditItemKey(null);
 		},
-		[editItemPath, editName],
+		[editItemKey, editName],
 	);
 
 	const metadataSearchFlow = useMetadataSearchFlow({
@@ -176,8 +183,9 @@ const BulkImportTab = ({
 		}
 		setIsMatchingMetadata(false);
 		setRootPath("");
+		setHasScanned(false);
 		setItems([]);
-		setEditItemPath(null);
+		setEditItemKey(null);
 		setEditName("");
 		setCustomImportConfirmOpen(false);
 		metadataSearchFlow.reset();
@@ -190,7 +198,7 @@ const BulkImportTab = ({
 		}
 
 		metadataSearchFlow.reset();
-		setEditItemPath(null);
+		setEditItemKey(null);
 	}, [metadataSearchFlow]);
 
 	const handleCancel = useCallback(() => {
@@ -206,8 +214,12 @@ const BulkImportTab = ({
 	}, [isMatchingMetadata, onClose, t]);
 
 	const scanSelectedFolder = useCallback(
-		async (selectedRootPath: string, maxDepth: number, mode: GameScanMode) => {
-			setIsScanningDirectories(true);
+		async (
+			selectedRootPath: string,
+			maxDepth: number,
+			mode: GameDirectoryScanMode,
+		) => {
+			setIsScanningGames(true);
 			try {
 				const subdirs = await fileService.scanDirectoryForGames(
 					selectedRootPath,
@@ -217,25 +229,69 @@ const BulkImportTab = ({
 				setItems(
 					subdirs.map((dir) => ({
 						...dir,
+						key: `local:${dir.path}`,
 						status: "pending",
 						selectedExe:
 							dir.executables.length > 0 ? dir.executables[0] : undefined,
 					})),
 				);
+				setHasScanned(true);
 			} catch (error) {
 				snackbar.error(getUserErrorMessage(error, t));
 			} finally {
-				setIsScanningDirectories(false);
+				setIsScanningGames(false);
 			}
 		},
 		[t],
 	);
 
+	const scanSteamLibrary = useCallback(async () => {
+		setIsScanningGames(true);
+		try {
+			const result = await fileService.scanSteamLaunchTargets({
+				excludeExisting: true,
+			});
+			setItems(
+				result.targets.map((target) => ({
+					key: `steam:${target.steam_launch_id}`,
+					name: target.name,
+					path: target.localpath,
+					executables: target.executable ? [target.executable] : [],
+					selectedExe: target.executable,
+					launch_type: "steam",
+					steam_launch_id: target.steam_launch_id,
+					status: "pending",
+				})),
+			);
+			setHasScanned(true);
+
+			if (result.warnings.length > 0) {
+				snackbar.warning(
+					t(
+						"components.BulkImportModal.steamScanWarnings",
+						"Steam 扫描完成，但有 {{count}} 条警告：{{warning}}",
+						{
+							count: result.warnings.length,
+							warning: result.warnings[0],
+						},
+					),
+				);
+			}
+		} catch (error) {
+			snackbar.error(getUserErrorMessage(error, t));
+		} finally {
+			setIsScanningGames(false);
+		}
+	}, [t]);
+
 	const scanFolder = async () => {
+		if (scanMode === "steam") return;
+
 		const result = await handleFolder();
 		if (!result) return;
 
 		setRootPath(result);
+		setHasScanned(false);
 		await scanSelectedFolder(result, scanMaxDepth, scanMode);
 	};
 
@@ -248,7 +304,10 @@ const BulkImportTab = ({
 
 	const handleScanModeChange = (nextMode: GameScanMode) => {
 		onScanModeChange(nextMode);
-		if (rootPath) {
+		setSettingsAnchorEl(null);
+		setHasScanned(false);
+		setItems([]);
+		if (nextMode !== "steam" && rootPath) {
 			void scanSelectedFolder(rootPath, scanMaxDepth, nextMode);
 		}
 	};
@@ -476,15 +535,15 @@ const BulkImportTab = ({
 		}
 	};
 
-	const handleDeleteItem = useCallback((path: string) => {
-		setItems((prev) => prev.filter((item) => item.path !== path));
+	const handleDeleteItem = useCallback((key: string) => {
+		setItems((prev) => prev.filter((item) => item.key !== key));
 	}, []);
 
 	const handleExecutableChange = useCallback(
-		(path: string, selectedExe: string) => {
+		(key: string, selectedExe: string) => {
 			setItems((prev) =>
 				prev.map((item) =>
-					item.path === path ? { ...item, selectedExe } : item,
+					item.key === key ? { ...item, selectedExe } : item,
 				),
 			);
 		},
@@ -492,15 +551,15 @@ const BulkImportTab = ({
 	);
 
 	const handleEditItem = useCallback((item: VisibleBulkImportItem) => {
-		setEditItemPath(item.path);
+		setEditItemKey(item.key);
 		setEditName(item.name);
 	}, []);
 
 	const handleEditRowSaveNameOnly = () => {
-		if (!editItemPath) return;
+		if (!editItemKey) return;
 
 		const nextItems = [...items];
-		const itemIndex = nextItems.findIndex((item) => item.path === editItemPath);
+		const itemIndex = nextItems.findIndex((item) => item.key === editItemKey);
 		if (itemIndex !== -1) {
 			nextItems[itemIndex].name = editName;
 			if (nextItems[itemIndex].status === "not found") {
@@ -509,8 +568,32 @@ const BulkImportTab = ({
 			setItems(nextItems);
 		}
 
-		setEditItemPath(null);
+		setEditItemKey(null);
 	};
+
+	const emptyMessage = isScanningGames
+		? scanMode === "steam"
+			? t(
+					"components.BulkImportModal.scanningSteamLibrary",
+					"正在扫描 Steam 库...",
+				)
+			: t("components.BulkImportModal.scanningFolders", "正在扫描游戏目录...")
+		: scanMode === "steam"
+			? hasScanned
+				? t(
+						"components.BulkImportModal.noSteamGamesFound",
+						"Steam 库中未找到可导入的游戏",
+					)
+				: t(
+						"components.BulkImportModal.scanSteamHint",
+						"点击“扫描 Steam 库”查找已安装游戏",
+					)
+			: rootPath
+				? t("components.BulkImportModal.noGamesFound", "未找到可导入的游戏")
+				: t(
+						"components.BulkImportModal.selectFolderHint",
+						"选择根文件夹后开始扫描",
+					);
 
 	return (
 		<>
@@ -530,27 +613,60 @@ const BulkImportTab = ({
 						flexWrap="wrap"
 						useFlexGap
 					>
-						<Button
-							variant="contained"
-							startIcon={<FolderOpenIcon />}
-							onClick={scanFolder}
-							disabled={loading}
-							className="shrink-0"
-						>
-							{t("components.BulkImportModal.selectRootFolder", "选择根文件夹")}
-						</Button>
-						<Typography
-							variant="body2"
-							className="flex-[1_1_160px] min-w-0"
-							color={rootPath ? "text.primary" : "text.secondary"}
-							noWrap
-						>
-							{rootPath ||
-								t(
-									"components.BulkImportModal.noFolderSelected",
-									"未选择文件夹",
-								)}
-						</Typography>
+						{scanMode === "steam" ? (
+							<Box className="flex-[1_1_280px] min-w-0">
+								<Button
+									variant="contained"
+									startIcon={
+										isScanningGames ? (
+											<CircularProgress size={20} color="inherit" />
+										) : (
+											<SportsEsportsIcon />
+										)
+									}
+									onClick={() => void scanSteamLibrary()}
+									disabled={loading}
+								>
+									{t(
+										"components.BulkImportModal.scanSteamLibrary",
+										"扫描 Steam 库",
+									)}
+								</Button>
+							</Box>
+						) : (
+							<>
+								<Button
+									variant="contained"
+									startIcon={
+										isScanningGames ? (
+											<CircularProgress size={20} color="inherit" />
+										) : (
+											<FolderOpenIcon />
+										)
+									}
+									onClick={scanFolder}
+									disabled={loading}
+									className="shrink-0"
+								>
+									{t(
+										"components.BulkImportModal.selectRootFolder",
+										"选择根文件夹",
+									)}
+								</Button>
+								<Typography
+									variant="body2"
+									className="flex-[1_1_160px] min-w-0"
+									color={rootPath ? "text.primary" : "text.secondary"}
+									noWrap
+								>
+									{rootPath ||
+										t(
+											"components.BulkImportModal.noFolderSelected",
+											"未选择文件夹",
+										)}
+								</Typography>
+							</>
+						)}
 
 						<FormControl
 							size="small"
@@ -648,41 +764,49 @@ const BulkImportTab = ({
 											"一级目录导入",
 										)}
 									</MenuItem>
+									<MenuItem value="steam">
+										{t(
+											"components.BulkImportModal.scanModeSteam",
+											"Steam 导入",
+										)}
+									</MenuItem>
 								</Select>
 							</FormControl>
-							<FormControl
-								size="small"
-								disabled={loading || scanMode !== "executable"}
-								fullWidth
-							>
-								<InputLabel id="bulk-import-scan-depth-label">
-									{t("components.BulkImportModal.scanDepth", "扫描深度")}
-								</InputLabel>
-								<Select
-									labelId="bulk-import-scan-depth-label"
-									value={scanMaxDepth}
-									label={t("components.BulkImportModal.scanDepth", "扫描深度")}
-									onChange={(event) =>
-										handleScanDepthChange(Number(event.target.value))
-									}
-								>
-									{SCAN_DEPTH_OPTIONS.map((depth) => (
-										<MenuItem key={depth} value={depth}>
-											{t(
-												"components.BulkImportModal.scanDepthValue",
-												"{{depth}} 层",
-												{ depth },
-											)}
-										</MenuItem>
-									))}
-								</Select>
-							</FormControl>
+							{scanMode === "executable" && (
+								<FormControl size="small" disabled={loading} fullWidth>
+									<InputLabel id="bulk-import-scan-depth-label">
+										{t("components.BulkImportModal.scanDepth", "扫描深度")}
+									</InputLabel>
+									<Select
+										labelId="bulk-import-scan-depth-label"
+										value={scanMaxDepth}
+										label={t(
+											"components.BulkImportModal.scanDepth",
+											"扫描深度",
+										)}
+										onChange={(event) =>
+											handleScanDepthChange(Number(event.target.value))
+										}
+									>
+										{SCAN_DEPTH_OPTIONS.map((depth) => (
+											<MenuItem key={depth} value={depth}>
+												{t(
+													"components.BulkImportModal.scanDepthValue",
+													"{{depth}} 层",
+													{ depth },
+												)}
+											</MenuItem>
+										))}
+									</Select>
+								</FormControl>
+							)}
 						</Stack>
 					</Popover>
 
 					<BulkImportResultTable
 						items={items.filter(isVisibleBulkImportItem)}
 						loading={loading}
+						emptyMessage={emptyMessage}
 						onDeleteItem={handleDeleteItem}
 						onEditItem={handleEditItem}
 						onExecutableChange={handleExecutableChange}
@@ -754,7 +878,7 @@ const BulkImportTab = ({
 			</DialogActions>
 
 			<Dialog
-				open={!!editItemPath}
+				open={!!editItemKey}
 				onClose={handleCloseEditDialog}
 				maxWidth="sm"
 				fullWidth

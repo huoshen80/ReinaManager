@@ -1,14 +1,38 @@
 //! 本机 Steam 启动目标扫描。
 
+use crate::database::repository::games_repository::GamesRepository;
+use crate::game::scan::ImportPathIndex;
+use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
 use steamlocate::{Library, SteamDir};
-use tauri::command;
+use tauri::{State, command};
 
+const STEAMWORKS_COMMON_REDISTRIBUTABLES: u32 = 228_980;
 const STEAM_SHORTCUT_MARKER: u64 = 0x0200_0000;
 const MAX_BINARY_VDF_DEPTH: usize = 64;
+
+#[derive(Default)]
+struct SteamImportFilter {
+    paths: ImportPathIndex,
+    launch_ids: HashSet<String>,
+}
+
+impl SteamImportFilter {
+    fn contains(&self, candidate: &SteamLaunchTarget) -> bool {
+        if self.launch_ids.contains(&candidate.steam_launch_id) {
+            return true;
+        }
+
+        // SteamRoot 来自 manifest 的明确安装边界；已有路径位于其内部时属于同一安装。
+        candidate
+            .localpath
+            .as_deref()
+            .is_some_and(|localpath| self.paths.has_imported_path_within(Path::new(localpath)))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SteamLaunchTarget {
@@ -413,7 +437,10 @@ fn has_monitor_directory(
     true
 }
 
-fn scan_steam_dirs(steam_dirs: &[SteamDir]) -> SteamLaunchTargetScanResult {
+fn scan_steam_dirs(
+    steam_dirs: &[SteamDir],
+    existing_games: &SteamImportFilter,
+) -> SteamLaunchTargetScanResult {
     let mut warnings = Vec::new();
     let mut candidates = BTreeMap::new();
     let mut conflicted_launch_ids = HashSet::new();
@@ -423,6 +450,9 @@ fn scan_steam_dirs(steam_dirs: &[SteamDir]) -> SteamLaunchTargetScanResult {
             for app in library.apps() {
                 match app {
                     Ok(app) => {
+                        if app.app_id == STEAMWORKS_COMMON_REDISTRIBUTABLES {
+                            continue;
+                        }
                         let manifest = library
                             .path()
                             .join("steamapps")
@@ -430,6 +460,9 @@ fn scan_steam_dirs(steam_dirs: &[SteamDir]) -> SteamLaunchTargetScanResult {
                         match app_target(&app, &library) {
                             Ok(candidate) => {
                                 if !has_monitor_directory(&candidate, &manifest, &mut warnings) {
+                                    continue;
+                                }
+                                if existing_games.contains(&candidate) {
                                     continue;
                                 }
                                 insert_candidate(
@@ -469,6 +502,9 @@ fn scan_steam_dirs(steam_dirs: &[SteamDir]) -> SteamLaunchTargetScanResult {
                             warnings.extend(file_warnings);
                             for game in games {
                                 if !has_monitor_directory(&game, &shortcut_file, &mut warnings) {
+                                    continue;
+                                }
+                                if existing_games.contains(&game) {
                                     continue;
                                 }
                                 insert_candidate(
@@ -574,7 +610,7 @@ fn resolve_steam_shortcut_file_blocking(path: &Path) -> Result<SteamLaunchTarget
     let bytes = fs::read(path).map_err(|error| format!("读取 {} 失败: {error}", path.display()))?;
     let launch_id = parse_url_launch_id(&decode_shortcut_text(&bytes)?)?;
     let steam_dirs = locate_steam_dirs()?;
-    scan_steam_dirs(&steam_dirs)
+    scan_steam_dirs(&steam_dirs, &SteamImportFilter::default())
         .targets
         .into_iter()
         .find(|candidate| candidate.steam_launch_id == launch_id)
@@ -582,10 +618,30 @@ fn resolve_steam_shortcut_file_blocking(path: &Path) -> Result<SteamLaunchTarget
 }
 
 #[command]
-pub async fn scan_steam_launch_targets() -> Result<SteamLaunchTargetScanResult, String> {
-    tokio::task::spawn_blocking(|| locate_steam_dirs().map(|dirs| scan_steam_dirs(&dirs)))
-        .await
-        .map_err(|error| format!("Steam 扫描任务异常: {error}"))?
+pub async fn scan_steam_launch_targets(
+    db: State<'_, DatabaseConnection>,
+    exclude_existing: bool,
+) -> Result<SteamLaunchTargetScanResult, String> {
+    let existing_games = if exclude_existing {
+        let existing_game_directories = GamesRepository::get_all_game_directories(&db)
+            .await
+            .map_err(|error| format!("查询已有路径失败: {error}"))?;
+        let existing_steam_launch_ids = GamesRepository::get_all_steam_launch_ids(&db)
+            .await
+            .map_err(|error| format!("查询已有 Steam 启动 ID 失败: {error}"))?;
+        SteamImportFilter {
+            paths: ImportPathIndex::from_paths(existing_game_directories),
+            launch_ids: existing_steam_launch_ids,
+        }
+    } else {
+        SteamImportFilter::default()
+    };
+
+    tokio::task::spawn_blocking(move || {
+        locate_steam_dirs().map(|dirs| scan_steam_dirs(&dirs, &existing_games))
+    })
+    .await
+    .map_err(|error| format!("Steam 扫描任务异常: {error}"))?
 }
 
 #[command]
@@ -685,6 +741,13 @@ mod tests {
                 .join("Test Game"),
         )
         .unwrap();
+        fs::create_dir_all(
+            valid_library
+                .join("steamapps")
+                .join("common")
+                .join("Steamworks Shared"),
+        )
+        .unwrap();
 
         let vdf_path = root.join("steamapps").join("libraryfolders.vdf");
         let valid_path = valid_library.to_string_lossy().replace('\\', "/");
@@ -714,9 +777,21 @@ mod tests {
             }"#,
         )
         .unwrap();
+        fs::write(
+            valid_library
+                .join("steamapps")
+                .join("appmanifest_228980.acf"),
+            r#""AppState"
+            {
+                "appid" "228980"
+                "name" "Steamworks Common Redistributables"
+                "installdir" "Steamworks Shared"
+            }"#,
+        )
+        .unwrap();
 
         let steam_dir = SteamDir::from_dir(&root).unwrap();
-        let result = scan_steam_dirs(&[steam_dir]);
+        let result = scan_steam_dirs(&[steam_dir], &SteamImportFilter::default());
         assert_eq!(result.targets.len(), 1);
         assert_eq!(result.targets[0].steam_launch_id, "730");
         assert_eq!(result.targets[0].name, "Test Game");
@@ -728,6 +803,38 @@ mod tests {
         );
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn import_filter_matches_existing_steam_id_and_path() {
+        let steam_root = std::env::temp_dir().join("reina-existing-steam-game");
+        let existing_path = steam_root.join("Build").join("Game");
+        let filter = SteamImportFilter {
+            paths: ImportPathIndex::from_paths([existing_path.to_string_lossy().into_owned()]),
+            launch_ids: HashSet::from(["730".to_string()]),
+        };
+        let same_id = SteamLaunchTarget {
+            steam_launch_id: "730".to_string(),
+            name: "Same ID".to_string(),
+            localpath: Some("different-path".to_string()),
+            executable: Some("game.exe".to_string()),
+        };
+        let same_path = SteamLaunchTarget {
+            steam_launch_id: "440".to_string(),
+            name: "Same Path".to_string(),
+            localpath: Some(steam_root.to_string_lossy().into_owned()),
+            executable: None,
+        };
+        let new_game = SteamLaunchTarget {
+            steam_launch_id: "570".to_string(),
+            name: "New Game".to_string(),
+            localpath: Some("new-path".to_string()),
+            executable: None,
+        };
+
+        assert!(filter.contains(&same_id));
+        assert!(filter.contains(&same_path));
+        assert!(!filter.contains(&new_game));
     }
 
     #[test]

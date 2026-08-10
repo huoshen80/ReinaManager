@@ -59,8 +59,10 @@ export interface GameInfoUpdateDraft {
 
 export interface BatchImportGameCandidate {
 	name: string;
-	path: string;
+	path?: string;
 	selectedExe?: string;
+	launch_type?: GameLaunchType;
+	steam_launch_id?: string;
 	matchedData?: GameMetadataDraft;
 }
 
@@ -427,9 +429,12 @@ export async function buildBulkImportGameData(
 		return buildInsertGameData(item.matchedData, {
 			localpath: item.path,
 			executable: item.selectedExe,
+			launch_type: item.launch_type,
+			steam_launch_id: item.steam_launch_id,
 			cloudStatusContext,
 		});
 	}
+	const launchFields = buildGameLaunchInsertFields(item);
 
 	return {
 		id_type: "custom",
@@ -439,6 +444,7 @@ export async function buildBulkImportGameData(
 		},
 		localpath: item.path,
 		executable: item.selectedExe,
+		...launchFields,
 	};
 }
 

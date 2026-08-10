@@ -55,7 +55,8 @@ export interface ScanResult {
 	executables: string[];
 }
 
-export type GameScanMode = "executable" | "first_level_directory";
+export type GameScanMode = "executable" | "first_level_directory" | "steam";
+export type GameDirectoryScanMode = Exclude<GameScanMode, "steam">;
 export type GameLaunchType = "local" | "steam";
 
 export interface OAuthAuth {

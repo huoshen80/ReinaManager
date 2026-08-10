@@ -797,6 +797,20 @@ impl GamesRepository {
             .map(|paths| paths.into_iter().collect())
     }
 
+    /// 获取所有非空 Steam 启动 ID，用于扫库去重。
+    pub async fn get_all_steam_launch_ids(
+        db: &DatabaseConnection,
+    ) -> Result<HashSet<String>, DbErr> {
+        Games::find()
+            .select_only()
+            .column(games::Column::SteamLaunchId)
+            .filter(games::Column::SteamLaunchId.is_not_null())
+            .into_tuple::<String>()
+            .all(db)
+            .await
+            .map(|launch_ids| launch_ids.into_iter().collect())
+    }
+
     fn build_base_query(game_type: GameType) -> Select<Games> {
         let query = Games::find();
         match game_type {

@@ -3,7 +3,7 @@
  * @description 封装文件系统、目录打开与数据库备份/导入相关后端调用
  */
 
-import type { GameScanMode, ScanResult } from "@/types";
+import type { GameDirectoryScanMode, ScanResult } from "@/types";
 import { BaseService } from "./base";
 
 export interface BackupResult {
@@ -55,11 +55,19 @@ export interface SteamLaunchTargetScanResult {
 	warnings: string[];
 }
 
+export interface SteamLaunchTargetScanOptions {
+	excludeExisting?: boolean;
+}
+
 class FileService extends BaseService {
 	/** 扫描本机可用的 Steam 启动目标。 */
-	async scanSteamLaunchTargets(): Promise<SteamLaunchTargetScanResult> {
+	async scanSteamLaunchTargets(
+		options: SteamLaunchTargetScanOptions = {},
+	): Promise<SteamLaunchTargetScanResult> {
+		const { excludeExisting = false } = options;
 		return this.invoke<SteamLaunchTargetScanResult>(
 			"scan_steam_launch_targets",
+			{ excludeExisting },
 		);
 	}
 
@@ -76,7 +84,7 @@ class FileService extends BaseService {
 	async scanDirectoryForGames(
 		path: string,
 		maxDepth: number,
-		scanMode: GameScanMode,
+		scanMode: GameDirectoryScanMode,
 	): Promise<ScanResult[]> {
 		return this.invoke<ScanResult[]>("scan_directory_for_games", {
 			path,
