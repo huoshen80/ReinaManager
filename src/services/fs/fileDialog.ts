@@ -75,6 +75,33 @@ export function normalizeDirectoryPath(
 	return normalizedPath.replace(/\/+$/, "");
 }
 
+/** 仅接收 normalizeDirectoryPath 的结果，Windows 路径已统一为小写。 */
+function splitNormalizedDirectoryPath(path: string): string[] {
+	const components = path.split("/").filter(Boolean);
+	if (path.startsWith("//")) return ["//", ...components];
+	if (path.startsWith("/")) return ["/", ...components];
+	return components;
+}
+
+/** 判断路径是否等于根目录，或位于根目录内部。 */
+export function isSameOrDescendantDirectoryPath(
+	path?: string | null,
+	root?: string | null,
+): boolean {
+	const normalizedPath = normalizeDirectoryPath(path);
+	const normalizedRoot = normalizeDirectoryPath(root);
+	if (!normalizedPath || !normalizedRoot) return false;
+
+	const pathComponents = splitNormalizedDirectoryPath(normalizedPath);
+	const rootComponents = splitNormalizedDirectoryPath(normalizedRoot);
+	return (
+		pathComponents.length >= rootComponents.length &&
+		rootComponents.every(
+			(component, index) => pathComponents[index] === component,
+		)
+	);
+}
+
 /** 生成可用于精确匹配的完整启动路径。Windows 路径按大小写不敏感处理。 */
 export function normalizeFullExecutablePath(
 	localpath?: string | null,

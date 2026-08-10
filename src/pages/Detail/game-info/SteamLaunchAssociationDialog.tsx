@@ -19,17 +19,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { snackbar } from "@/providers/snackBar";
-import { normalizeDirectoryPath } from "@/services/fs/fileDialog";
+import { isSameOrDescendantDirectoryPath } from "@/services/fs/fileDialog";
 import { fileService } from "@/services/invoke";
 import type {
 	SteamLaunchTarget,
 	SteamLaunchTargetScanResult,
 } from "@/services/invoke/fileService";
 import { getUserErrorMessage } from "@/utils/errors";
-import {
-	formatSteamAppIdWithPath,
-	getSteamInstallDirectoryName,
-} from "@/utils/steam";
+import { formatSteamAppIdWithPath } from "@/utils/steam";
 
 interface SteamLaunchAssociationDialogProps {
 	open: boolean;
@@ -58,17 +55,7 @@ export function isSteamTargetPathMatch(
 	target: SteamLaunchTarget,
 	currentLocalPath: string,
 ): boolean {
-	const currentDirectory = normalizeDirectoryPath(currentLocalPath);
-	const targetDirectory = normalizeDirectoryPath(target.localpath);
-	const targetInstallDirectory = getSteamInstallDirectoryName(targetDirectory);
-	const currentInstallDirectory =
-		getSteamInstallDirectoryName(currentDirectory);
-	const sameDirectory =
-		Boolean(targetDirectory) && targetDirectory === currentDirectory;
-	const sameSteamInstallDirectory =
-		Boolean(targetInstallDirectory) &&
-		targetInstallDirectory === currentInstallDirectory;
-	return sameDirectory || sameSteamInstallDirectory;
+	return isSameOrDescendantDirectoryPath(currentLocalPath, target.localpath);
 }
 
 export function SteamLaunchAssociationDialog({
