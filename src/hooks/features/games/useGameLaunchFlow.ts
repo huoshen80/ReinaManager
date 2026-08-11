@@ -59,6 +59,40 @@ export function useGameLaunchFlow() {
 	const runLaunch = useCallback(
 		async (game: GameData) => {
 			try {
+				if (game.launch_type === "steam") {
+					if (!game.steam_launch_id) {
+						snackbar.error(
+							t(
+								"components.LaunchModal.steamLaunchTargetMissing",
+								"Steam 启动项无效，请重新关联",
+							),
+						);
+						return;
+					}
+					if (!game.localpath) {
+						snackbar.error(
+							t(
+								"components.LaunchModal.steamMonitorPathMissing",
+								"Steam 游戏监控目录缺失，请重新关联",
+							),
+						);
+						return;
+					}
+
+					const result = await launchGame(game.id);
+					if (result.status === "failed") {
+						snackbar.error(result.message);
+					} else if (result.status === "delegated") {
+						snackbar.info(
+							t(
+								"components.LaunchModal.steamTrackingUnavailable",
+								"已交由 Steam 启动；当前平台暂不支持跟踪该次游玩",
+							),
+						);
+					}
+					return;
+				}
+
 				if (!game.localpath) {
 					await syncLocalPath(game);
 					return;
@@ -70,9 +104,7 @@ export function useGameLaunchFlow() {
 				}
 
 				const result = await launchGame(game.id);
-				if (result.success) return;
-
-				snackbar.error(result.message);
+				if (result.status === "failed") snackbar.error(result.message);
 			} catch (error) {
 				snackbar.error(
 					`${t("components.LaunchModal.launchFailed", "游戏启动失败:")}: ${getUserErrorMessage(error, t)}`,

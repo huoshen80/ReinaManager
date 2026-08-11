@@ -60,6 +60,8 @@ impl GamesRepository {
             g.date,
             g.localpath,
             g.executable,
+            g.launch_type,
+            g.steam_launch_id,
             g.savepath,
             g.autosave,
             g.maxbackups,
@@ -157,6 +159,48 @@ impl GamesRepository {
             validate_executable_name(executable).map_err(DbErr::Custom)?;
         }
         Ok(())
+    }
+
+    fn normalize_steam_launch_id(value: &str) -> Result<String, DbErr> {
+        let value = value.trim();
+        let id = value.parse::<u64>().map_err(|_| {
+            DbErr::Custom("steam_launch_id 必须是 u64 范围内的十进制字符串".to_string())
+        })?;
+        if id == 0 {
+            return Err(DbErr::Custom("steam_launch_id 必须大于 0".to_string()));
+        }
+        Ok(id.to_string())
+    }
+
+    fn validate_launch_state(
+        launch_type: &str,
+        steam_launch_id: Option<&str>,
+    ) -> Result<(), DbErr> {
+        if !matches!(launch_type, "local" | "steam") {
+            return Err(DbErr::Custom(
+                "launch_type 只能是 local 或 steam".to_string(),
+            ));
+        }
+        if launch_type == "steam" && steam_launch_id.is_none() {
+            return Err(DbErr::Custom(
+                "Steam 启动必须提供 steam_launch_id".to_string(),
+            ));
+        }
+        if launch_type == "local" && steam_launch_id.is_some() {
+            return Err(DbErr::Custom(
+                "本地启动不能保留 steam_launch_id".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn normalize_insert_launch_state(game: &mut InsertGameData) -> Result<(), DbErr> {
+        game.steam_launch_id = game
+            .steam_launch_id
+            .as_deref()
+            .map(Self::normalize_steam_launch_id)
+            .transpose()?;
+        Self::validate_launch_state(&game.launch_type, game.steam_launch_id.as_deref())
     }
 
     fn normalize_insert_date(game: &mut InsertGameData) {
@@ -283,6 +327,41 @@ impl GamesRepository {
         Ok(updates)
     }
 
+    async fn normalize_update_launch_state<C>(
+        db: &C,
+        game_id: i32,
+        mut updates: UpdateGameData,
+    ) -> Result<UpdateGameData, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if updates.launch_type.is_none() && updates.steam_launch_id.is_none() {
+            return Ok(updates);
+        }
+
+        if updates.launch_type.as_deref() == Some("local") {
+            updates.steam_launch_id = Some(None);
+        } else if let Some(Some(steam_launch_id)) = updates.steam_launch_id.as_mut() {
+            *steam_launch_id = Self::normalize_steam_launch_id(steam_launch_id)?;
+        }
+
+        let current = Games::find_by_id(game_id)
+            .one(db)
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound(format!("game {game_id} not found")))?;
+        let final_launch_type = updates
+            .launch_type
+            .as_deref()
+            .unwrap_or(&current.launch_type);
+        let final_steam_launch_id = updates
+            .steam_launch_id
+            .as_ref()
+            .map(|value| value.as_deref())
+            .unwrap_or(current.steam_launch_id.as_deref());
+        Self::validate_launch_state(final_launch_type, final_steam_launch_id)?;
+        Ok(updates)
+    }
+
     fn build_insert_active_model(game: &InsertGameData, now: i32) -> games::ActiveModel {
         games::ActiveModel {
             id: NotSet,
@@ -290,6 +369,8 @@ impl GamesRepository {
             date: Set(game.date.clone()),
             localpath: Set(game.localpath.clone()),
             executable: Set(game.executable.clone()),
+            launch_type: Set(game.launch_type.clone()),
+            steam_launch_id: Set(game.steam_launch_id.clone()),
             savepath: Set(game.savepath.clone()),
             autosave: NotSet,
             maxbackups: NotSet,
@@ -314,6 +395,8 @@ impl GamesRepository {
             date: updates.date.clone().map_or(NotSet, Set),
             localpath: updates.localpath.clone().map_or(NotSet, Set),
             executable: updates.executable.clone().map_or(NotSet, Set),
+            launch_type: updates.launch_type.clone().map_or(NotSet, Set),
+            steam_launch_id: updates.steam_launch_id.clone().map_or(NotSet, Set),
             savepath: updates.savepath.clone().map_or(NotSet, Set),
             autosave: updates.autosave.map_or(NotSet, Set),
             maxbackups: updates.maxbackups.map_or(NotSet, Set),
@@ -391,6 +474,7 @@ impl GamesRepository {
     {
         Self::validate_source_changes(&game.sources, &[])?;
         Self::validate_path_state(game.localpath.as_deref(), game.executable.as_deref())?;
+        Self::normalize_insert_launch_state(&mut game)?;
         Self::normalize_insert_date(&mut game);
 
         let model = Self::build_insert_active_model(&game, now)
@@ -497,6 +581,7 @@ impl GamesRepository {
         )?;
         let updates = Self::normalize_update_date(db, game_id, updates).await?;
         let updates = Self::normalize_update_path_state(db, game_id, updates).await?;
+        let updates = Self::normalize_update_launch_state(db, game_id, updates).await?;
 
         Self::build_update_active_model(game_id, &updates, now)
             .update(db)
@@ -647,6 +732,8 @@ impl GamesRepository {
             date: row.try_get("", "date")?,
             localpath: row.try_get("", "localpath")?,
             executable: row.try_get("", "executable")?,
+            launch_type: row.try_get("", "launch_type")?,
+            steam_launch_id: row.try_get("", "steam_launch_id")?,
             savepath: row.try_get("", "savepath")?,
             autosave: row.try_get("", "autosave")?,
             maxbackups: row.try_get("", "maxbackups")?,
@@ -708,6 +795,20 @@ impl GamesRepository {
             .all(db)
             .await
             .map(|paths| paths.into_iter().collect())
+    }
+
+    /// 获取所有非空 Steam 启动 ID，用于扫库去重。
+    pub async fn get_all_steam_launch_ids(
+        db: &DatabaseConnection,
+    ) -> Result<HashSet<String>, DbErr> {
+        Games::find()
+            .select_only()
+            .column(games::Column::SteamLaunchId)
+            .filter(games::Column::SteamLaunchId.is_not_null())
+            .into_tuple::<String>()
+            .all(db)
+            .await
+            .map(|launch_ids| launch_ids.into_iter().collect())
     }
 
     fn build_base_query(game_type: GameType) -> Select<Games> {
@@ -1029,6 +1130,13 @@ mod tests {
                     date TEXT,
                     localpath TEXT,
                     executable TEXT,
+                    launch_type TEXT NOT NULL DEFAULT 'local'
+                        CHECK (launch_type IN ('local', 'steam')),
+                    steam_launch_id TEXT
+                        CHECK (
+                            (launch_type = 'local' AND steam_launch_id IS NULL)
+                            OR (launch_type = 'steam' AND steam_launch_id IS NOT NULL)
+                        ),
                     savepath TEXT,
                     autosave INTEGER DEFAULT 0,
                     maxbackups INTEGER DEFAULT 20,
@@ -1091,6 +1199,8 @@ mod tests {
             date: None,
             localpath: None,
             executable: None,
+            launch_type: "local".to_string(),
+            steam_launch_id: None,
             savepath: None,
             autosave: None,
             maxbackups: None,
@@ -1121,6 +1231,8 @@ mod tests {
         assert_eq!(defaulted.maxbackups, Some(20));
         assert_eq!(defaulted.le_launch, Some(0));
         assert_eq!(defaulted.magpie, Some(0));
+        assert_eq!(defaulted.launch_type, "local");
+        assert_eq!(defaulted.steam_launch_id, None);
 
         let batch =
             GamesRepository::insert_batch(&database, vec![insert_data("custom", None, Vec::new())])
@@ -1131,6 +1243,104 @@ mod tests {
         assert_eq!(batch.games[0].maxbackups, Some(20));
         assert_eq!(batch.games[0].le_launch, Some(0));
         assert_eq!(batch.games[0].magpie, Some(0));
+        assert_eq!(batch.games[0].launch_type, "local");
+    }
+
+    #[tokio::test]
+    async fn validates_normalizes_allows_shared_and_clears_steam_launch_state() {
+        let database = setup_database().await;
+        let mut steam = insert_data("custom", None, Vec::new());
+        steam.launch_type = "steam".to_string();
+        steam.steam_launch_id = Some(" 000730 ".to_string());
+
+        let inserted = GamesRepository::insert(&database, steam).await.unwrap();
+        assert_eq!(inserted.launch_type, "steam");
+        assert_eq!(inserted.steam_launch_id.as_deref(), Some("730"));
+        let mut duplicate = insert_data("custom", None, Vec::new());
+        duplicate.launch_type = "steam".to_string();
+        duplicate.steam_launch_id = Some("730".to_string());
+        let duplicate = GamesRepository::insert(&database, duplicate).await.unwrap();
+        assert_eq!(duplicate.steam_launch_id.as_deref(), Some("730"));
+
+        let switched = GamesRepository::update(
+            &database,
+            inserted.id,
+            UpdateGameData {
+                launch_type: Some("local".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(switched.launch_type, "local");
+        assert_eq!(switched.steam_launch_id, None);
+    }
+
+    #[tokio::test]
+    async fn rejects_invalid_or_incomplete_steam_launch_state() {
+        let database = setup_database().await;
+
+        for invalid_id in ["0", "not-a-number", "18446744073709551616"] {
+            let mut game = insert_data("custom", None, Vec::new());
+            game.launch_type = "steam".to_string();
+            game.steam_launch_id = Some(invalid_id.to_string());
+            assert!(
+                GamesRepository::insert(&database, game).await.is_err(),
+                "{invalid_id}"
+            );
+        }
+
+        let mut missing_id = insert_data("custom", None, Vec::new());
+        missing_id.launch_type = "steam".to_string();
+        assert!(
+            GamesRepository::insert(&database, missing_id)
+                .await
+                .is_err()
+        );
+
+        let mut stale_id = insert_data("custom", None, Vec::new());
+        stale_id.steam_launch_id = Some("730".to_string());
+        assert!(GamesRepository::insert(&database, stale_id).await.is_err());
+
+        let local = GamesRepository::insert(&database, insert_data("custom", None, Vec::new()))
+            .await
+            .unwrap();
+        assert!(
+            GamesRepository::update(
+                &database,
+                local.id,
+                UpdateGameData {
+                    launch_type: Some("steam".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            GamesRepository::update(
+                &database,
+                local.id,
+                UpdateGameData {
+                    steam_launch_id: Some(Some("730".to_string())),
+                    ..Default::default()
+                },
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            GamesRepository::update(
+                &database,
+                local.id,
+                UpdateGameData {
+                    launch_type: Some("remote".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[tokio::test]

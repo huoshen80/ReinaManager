@@ -3,7 +3,7 @@
  * @description 封装文件系统、目录打开与数据库备份/导入相关后端调用
  */
 
-import type { GameScanMode, ScanResult } from "@/types";
+import type { GameDirectoryScanMode, ScanResult } from "@/types";
 import { BaseService } from "./base";
 
 export interface BackupResult {
@@ -43,14 +43,48 @@ export interface DroppedLocalPathResult {
 	directory: string | null;
 }
 
+export interface SteamLaunchTarget {
+	steam_launch_id: string;
+	name: string;
+	localpath?: string;
+	executable?: string;
+}
+
+export interface SteamLaunchTargetScanResult {
+	targets: SteamLaunchTarget[];
+	warnings: string[];
+}
+
+export interface SteamLaunchTargetScanOptions {
+	excludeExisting?: boolean;
+}
+
 class FileService extends BaseService {
+	/** 扫描本机可用的 Steam 启动目标。 */
+	async scanSteamLaunchTargets(
+		options: SteamLaunchTargetScanOptions = {},
+	): Promise<SteamLaunchTargetScanResult> {
+		const { excludeExisting = false } = options;
+		return this.invoke<SteamLaunchTargetScanResult>(
+			"scan_steam_launch_targets",
+			{ excludeExisting },
+		);
+	}
+
+	/** 解析单个 Steam `.url` 快捷方式并匹配本机 Steam 库。 */
+	async resolveSteamShortcutFile(path: string): Promise<SteamLaunchTarget> {
+		return this.invoke<SteamLaunchTarget>("resolve_steam_shortcut_file", {
+			path,
+		});
+	}
+
 	/**
 	 * 扫描目录下的游戏文件夹
 	 */
 	async scanDirectoryForGames(
 		path: string,
 		maxDepth: number,
-		scanMode: GameScanMode,
+		scanMode: GameDirectoryScanMode,
 	): Promise<ScanResult[]> {
 		return this.invoke<ScanResult[]>("scan_directory_for_games", {
 			path,

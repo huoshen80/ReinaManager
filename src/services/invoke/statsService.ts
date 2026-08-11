@@ -6,11 +6,10 @@
 import type { GameLastPlayed, GameSession, GameStatistics } from "@/types";
 import { BaseService } from "./base";
 
-export interface LaunchGameResult {
-	success: boolean;
-	message: string;
-	process_id?: number;
-}
+export type LaunchGameResult =
+	| { status: "tracking"; message: string; process_id?: number }
+	| { status: "delegated"; message: string }
+	| { status: "failed"; message: string };
 
 export interface StopGameResult {
 	success: boolean;

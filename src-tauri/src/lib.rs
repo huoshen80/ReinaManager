@@ -16,6 +16,7 @@ use game::cover::custom::{delete_game_covers, import_clipboard_image_to_temp};
 use game::cover::{delete_cloud_cache, register_game_cover_protocol};
 use game::launch::{launch_game, stop_game};
 use game::scan::scan_directory_for_games;
+use game::steam::{resolve_steam_shortcut_file, scan_steam_launch_targets};
 use install::protocol::{
     InstallProtocolState, setup_install_protocol, take_pending_install_rejections,
     take_pending_install_requests,
@@ -85,6 +86,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--flag1", "--flag2"]), /* arbitrary number of args to pass to your app */
         ))
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
@@ -96,6 +98,8 @@ pub fn run() {
             resolve_dropped_local_path,
             is_portable_mode,
             scan_directory_for_games,
+            scan_steam_launch_targets,
+            resolve_steam_shortcut_file,
             take_pending_install_requests,
             take_pending_install_rejections,
             create_game_install_task,

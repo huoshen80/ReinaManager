@@ -1,4 +1,5 @@
 import { statsService } from "@/services/invoke";
+import type { LaunchGameResult } from "@/services/invoke/statsService";
 import type { StopGameResult, TimeTrackingMode } from "@/types";
 import { toError } from "@/utils/errors";
 
@@ -6,7 +7,7 @@ export async function launchGameWithTracking(
 	gameId: number,
 	timeTrackingMode: TimeTrackingMode,
 	args?: string[],
-): Promise<{ success: boolean; message: string; process_id?: number }> {
+): Promise<LaunchGameResult> {
 	try {
 		return await statsService.launchGame(gameId, args || [], timeTrackingMode);
 	} catch (error) {

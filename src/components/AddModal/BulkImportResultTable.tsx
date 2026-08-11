@@ -2,6 +2,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import {
 	Box,
+	CircularProgress,
 	FormControl,
 	IconButton,
 	MenuItem,
@@ -17,12 +18,18 @@ import {
 	getRuntimeSourceAdapter,
 	SEARCHABLE_SOURCE_KEYS,
 } from "@/metadata";
-import type { GameMetadataDraft, ScanResult } from "@/types";
+import type { GameLaunchType, GameMetadataDraft } from "@/types";
 
-export interface BulkImportItem extends ScanResult {
+export interface BulkImportItem {
+	key: string;
+	name: string;
+	path?: string;
+	executables: string[];
 	status: "pending" | "matched" | "imported" | "error" | "not found";
 	matchedData?: GameMetadataDraft;
 	selectedExe?: string;
+	launch_type?: GameLaunchType;
+	steam_launch_id?: string;
 }
 
 export type VisibleBulkImportItem = BulkImportItem & {
@@ -32,9 +39,10 @@ export type VisibleBulkImportItem = BulkImportItem & {
 interface BulkImportResultTableProps {
 	items: VisibleBulkImportItem[];
 	loading: boolean;
-	onDeleteItem: (path: string) => void;
+	emptyMessage: string;
+	onDeleteItem: (key: string) => void;
 	onEditItem: (item: VisibleBulkImportItem) => void;
-	onExecutableChange: (path: string, executable: string) => void;
+	onExecutableChange: (key: string, executable: string) => void;
 }
 
 const gridTemplateColumns =
@@ -98,6 +106,7 @@ function getStatusLabel(
 export default function BulkImportResultTable({
 	items,
 	loading,
+	emptyMessage,
 	onDeleteItem,
 	onEditItem,
 	onExecutableChange,
@@ -153,16 +162,21 @@ export default function BulkImportResultTable({
 						minHeight: 120,
 					}}
 				>
-					<Typography color="text.secondary">
-						{t("components.BulkImportModal.noGamesFound", "未找到可导入的游戏")}
-					</Typography>
+					{loading ? (
+						<Stack spacing={1.5} alignItems="center">
+							<CircularProgress size={28} />
+							<Typography color="text.secondary">{emptyMessage}</Typography>
+						</Stack>
+					) : (
+						<Typography color="text.secondary">{emptyMessage}</Typography>
+					)}
 				</Box>
 			) : (
 				<Box sx={{ flex: "1 1 auto", minHeight: 0, width: "100%" }}>
 					<Virtuoso
 						style={{ height: "100%", width: "100%" }}
 						data={items}
-						computeItemKey={(_, item) => item.path}
+						computeItemKey={(_, item) => item.key}
 						overscan={300}
 						itemContent={(_, item) => {
 							const matchedName = getMatchedGameName(
@@ -188,7 +202,12 @@ export default function BulkImportResultTable({
 										{getStatusLabel(item.status, t)}
 									</Typography>
 									<Box sx={{ minWidth: 0 }}>
-										{item.executables.length === 0 ? (
+										{item.launch_type === "steam" ? (
+											<Typography variant="body2" noWrap title={item.path}>
+												Steam · {item.steam_launch_id}
+												{item.selectedExe ? ` · ${item.selectedExe}` : ""}
+											</Typography>
+										) : item.executables.length === 0 ? (
 											<Typography variant="body2" color="text.secondary">
 												{t(
 													"components.BulkImportModal.gameDirectory",
@@ -209,7 +228,7 @@ export default function BulkImportResultTable({
 													value={item.selectedExe || ""}
 													size="small"
 													onChange={(event) =>
-														onExecutableChange(item.path, event.target.value)
+														onExecutableChange(item.key, event.target.value)
 													}
 													displayEmpty
 													disabled={loading}
@@ -257,7 +276,7 @@ export default function BulkImportResultTable({
 										</IconButton>
 										<IconButton
 											size="small"
-											onClick={() => onDeleteItem(item.path)}
+											onClick={() => onDeleteItem(item.key)}
 											disabled={loading}
 										>
 											<DeleteIcon fontSize="small" />

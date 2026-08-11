@@ -69,6 +69,7 @@ pub async fn monitor_game<R: Runtime>(
                     start_time: timestamp,
                     end_time: timestamp,
                     accumulated_seconds: 0,
+                    confirmed_started: false,
                 },
             )
             .await;
@@ -547,6 +548,7 @@ async fn run_game_monitor(
             start_time,
             end_time: get_timestamp(),
             accumulated_seconds,
+            confirmed_started: true,
         },
     )
     .await;

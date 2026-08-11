@@ -1,28 +1,26 @@
-name: "Bug 报告 🐛"
-description: "提交 ReinaManager 的 Bug"
+name: "Bug Report 🐛"
+description: "Report a bug in ReinaManager"
 title: "🐛[Bug] "
 labels:
   - bug
+
 
 body:
 
   - type: markdown
     attributes:
       value: |
-        ## 🐛 Bug 报告
+        ## 🐛 Bug Report
 
-        请确保：
-        - 问题确实存在
-        - 可以提供复现步骤
-        - 提供足够信息帮助定位
+        Please provide real and reproducible information.
 
 
   - type: textarea
     id: description
     attributes:
-      label: 问题描述
+      label: Description
       description: |
-        请详细描述遇到的问题。
+        Describe the problem in detail.
     validations:
       required: true
 
@@ -30,9 +28,7 @@ body:
   - type: textarea
     id: reproduce
     attributes:
-      label: 复现步骤
-      description: |
-        请提供可以复现问题的步骤。
+      label: Steps to Reproduce
       value: |
         1.
         2.
@@ -44,18 +40,14 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: 日志信息
-      description: |
-        如果有错误日志，请粘贴。
+      label: Logs
       render: shell
 
 
   - type: input
     id: version
     attributes:
-      label: 程序版本
-      description: |
-        请填写版本号或 Commit Hash。
+      label: Version
     validations:
       required: true
 
@@ -63,7 +55,7 @@ body:
   - type: dropdown
     id: os
     attributes:
-      label: 系统环境
+      label: Operating System
       multiple: true
       options:
         - Windows
@@ -77,19 +69,21 @@ body:
   - type: textarea
     id: screenshot
     attributes:
-      label: 截图
+      label: Screenshots
 
 
   - type: checkboxes
     id: confirmation
     attributes:
-      label: 提交确认
+      label: Confirmation
       options:
 
         - label: |
             <sub>
-            我确认已经阅读模板，并提供真实有效的信息。
-            如果该 Issue 无意义、重复、无法复现或无法帮助定位问题，
-            我接受维护者直接关闭该 Issue。
+            I confirm that I have read this template
+            and provided valid information.
+            If this issue is meaningless, duplicated,
+            or impossible to investigate,
+            I accept that maintainers may close it directly.
             </sub>
           required: true

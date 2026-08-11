@@ -19,7 +19,7 @@ import http, {
 	type TauriHttpOptions,
 } from "./http";
 
-const HIKARINAGI_API_BASE_URL = "https://www.hikarinagi.org/api/v3/open";
+const HIKARINAGI_API_BASE_URL = "https://api.hikarinagi.org/v3";
 
 const HIKARINAGI_JSON_HEADERS = {
 	Accept: "application/json",

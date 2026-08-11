@@ -1,24 +1,80 @@
----
-name: "Feature request 👑"
-description: 对ReinaManager的需求或建议 / Suggest an idea for ReinaManager
-title: "👑[Enhancement] "
-labels: enhancement
+name: "功能建议 👑"
+description: "提交 ReinaManager 的功能需求"
+title: "👑[Feature] "
+labels:
+  - enhancement
+
+
 body:
-  - type: textarea
+
+
+  - type: markdown
     attributes:
-      label: 🥰 需求描述(Description)
-      placeholder: 详细地描述需求，让大家都能理解/escribe the requirements in detail so that everyone can understand them
+      value: |
+        ## 👑 功能建议
+
+        请不要提交：
+        - 没有实际使用场景的建议
+        - 无法说明原因的需求
+        - 完全由 AI 自动生成的内容
+
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 当前问题
+      description: |
+        你目前遇到了什么问题？
+        请描述真实情况，而不是只描述想增加什么功能。
+      placeholder: |
+        示例：
+        我管理多个游戏时，需要频繁进入游戏详细中才能更改分类。
     validations:
       required: true
+
+
   - type: textarea
+    id: solution
     attributes:
-      label: 🧐 解决方案(Solution)
-      placeholder: 如果你有解决方案，在这里清晰地阐述/If you have a solution, explain it clearly here
+      label: 期望方案
+      description: |
+        你希望如何解决这个问题？
     validations:
       required: true
+
+
   - type: textarea
+    id: scenario
     attributes:
-      label: Additional context/其他信息
-      placeholder: 如截图等其他信息可以贴在这里/Other information such as screenshots can be posted here
+      label: 使用场景
+      description: |
+        请说明：
+        - 谁会使用
+        - 什么情况下使用
+        - 为什么现有功能无法满足
     validations:
-      required: false
+      required: true
+
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: |
+        可以添加截图、参考项目等。
+
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: 提交确认
+      options:
+
+        - label: |
+            <sub>
+            我确认该 Issue 不是完全由 AI 自动生成。
+            我理解并说明了真实需求和使用场景。
+            如果维护者判断该 Issue 完全由 AI 生成，
+            且没有实际需求背景，我接受维护者直接关闭该 Issue。
+            </sub>
+          required: true

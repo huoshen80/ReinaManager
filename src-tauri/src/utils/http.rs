@@ -1,6 +1,9 @@
 use serde::Deserialize;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
+use takanawa_reqwest::{
+    Client as TransferClient, NoProxy as TransferNoProxy, Proxy as TransferProxy,
+};
 use tauri_plugin_http::reqwest::{Client, NoProxy, Proxy};
 
 const GLOBAL_USER_AGENT: &str = concat!(
@@ -20,7 +23,7 @@ pub struct ProxyConfig {
 
 struct HttpClientState {
     client: Client,
-    proxy_url: String,
+    transfer_client: TransferClient,
 }
 
 static GLOBAL_HTTP_CLIENT: OnceLock<RwLock<HttpClientState>> = OnceLock::new();
@@ -29,14 +32,33 @@ static GLOBAL_HTTP_CLIENT: OnceLock<RwLock<HttpClientState>> = OnceLock::new();
 pub fn update_proxy_config(config: ProxyConfig) -> Result<(), String> {
     let proxy_url = config.url.trim();
     let client = build_client(proxy_url, true, true)?;
+    let transfer_client = build_transfer_client(proxy_url)?;
     let mut guard = http_client()
         .write()
         .map_err(|_| "更新 HTTP 客户端失败".to_string())?;
     *guard = HttpClientState {
         client,
-        proxy_url: proxy_url.to_string(),
+        transfer_client,
     };
     Ok(())
+}
+
+fn build_transfer_client(proxy_url: &str) -> Result<TransferClient, String> {
+    let mut builder = TransferClient::builder()
+        .connect_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS))
+        .read_timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
+        .user_agent(GLOBAL_USER_AGENT);
+
+    if !proxy_url.is_empty() {
+        let proxy = TransferProxy::all(proxy_url)
+            .map_err(|error| format!("代理地址无效: {error}"))?
+            .no_proxy(TransferNoProxy::from_string(LOCAL_PROXY_BYPASS));
+        builder = builder.proxy(proxy);
+    }
+
+    builder
+        .build()
+        .map_err(|error| format!("创建下载客户端失败: {error}"))
 }
 
 fn build_client(
@@ -70,7 +92,8 @@ fn http_client() -> &'static RwLock<HttpClientState> {
     GLOBAL_HTTP_CLIENT.get_or_init(|| {
         RwLock::new(HttpClientState {
             client: build_client("", true, true).expect("failed to build default http client"),
-            proxy_url: String::new(),
+            transfer_client: build_transfer_client("")
+                .expect("failed to build default transfer client"),
         })
     })
 }
@@ -83,12 +106,10 @@ pub fn get_client() -> Client {
         .clone()
 }
 
-/// 下载大型文件时不设置总请求超时，并禁用自动重定向以便调用方逐跳校验地址。
-pub fn get_download_client() -> Result<Client, String> {
-    let proxy_url = http_client()
+pub fn get_transfer_client() -> TransferClient {
+    http_client()
         .read()
         .unwrap_or_else(|error| error.into_inner())
-        .proxy_url
-        .clone();
-    build_client(&proxy_url, false, false)
+        .transfer_client
+        .clone()
 }

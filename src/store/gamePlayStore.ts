@@ -27,18 +27,10 @@ import {
 	stopGameWithTracking,
 } from "@/services/game/gameRuntime";
 import { initGameTimeTracking } from "@/services/game/gameStats";
+import type { LaunchGameResult } from "@/services/invoke/statsService";
 import { useStore } from "@/store/appStore";
 import type { StopGameResult, TimeTrackingMode } from "@/types";
 import { toError } from "@/utils/errors";
-
-/**
- * 游戏启动结果类型
- */
-interface LaunchGameResult {
-	success: boolean;
-	message: string;
-	process_id?: number;
-}
 
 /**
  * 游戏实时状态接口
@@ -120,7 +112,10 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 	): Promise<LaunchGameResult> => {
 		try {
 			if (get().isGameRunning(gameId)) {
-				return { success: false, message: "该游戏已在运行中" };
+				return {
+					status: "failed",
+					message: "该游戏已在运行中",
+				};
 			}
 
 			const timeTrackingMode = useStore.getState().timeTrackingMode;
@@ -159,21 +154,26 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				args,
 			);
 
-			if (!result.success) {
-				// 启动失败，恢复状态
-				set((state) => removeGameRuntimeState(state, gameId));
-			} else {
-				// 启动成功，更新进程 ID
-				set((state) => {
-					const newRealTimeStates = {
-						...state.gameRealTimeStates,
-						[gameId]: {
-							...state.gameRealTimeStates[gameId],
-							processId: result.process_id,
-						},
-					};
-					return { gameRealTimeStates: newRealTimeStates };
-				});
+			switch (result.status) {
+				case "tracking":
+					set((state) => {
+						const currentState = state.gameRealTimeStates[gameId];
+						if (!currentState) return state;
+						return {
+							gameRealTimeStates: {
+								...state.gameRealTimeStates,
+								[gameId]: {
+									...currentState,
+									processId: result.process_id,
+								},
+							},
+						};
+					});
+					break;
+				case "delegated":
+				case "failed":
+					set((state) => removeGameRuntimeState(state, gameId));
+					break;
 			}
 
 			return result;
@@ -186,7 +186,10 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 			set((state) => removeGameRuntimeState(state, gameId));
 
 			const errorMessage = toError(error, "Failed to launch game").message;
-			return { success: false, message: errorMessage };
+			return {
+				status: "failed",
+				message: errorMessage,
+			};
 		}
 	},
 

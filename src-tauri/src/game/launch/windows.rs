@@ -1,27 +1,20 @@
-use super::magpie;
+use super::{
+    LaunchResult, StopResult, load_game, magpie, validate_and_open_steam, validate_local_launch,
+};
 use crate::database::dto::UpdateSettingsData;
-use crate::database::repository::games_repository::GamesRepository;
 use crate::database::repository::settings_repository::{DbSettingsExt, SettingsRepository};
 use crate::game::monitor::{
     TimeTrackingMode, is_game_foreground, monitor_game, stop_game_session, wait_for_game_foreground,
 };
 use crate::utils::command_ext::CommandGuiExt;
 use sea_orm::DatabaseConnection;
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use tauri::{AppHandle, Runtime, State, command};
 use {
     log::{debug, info, warn},
     tokio::time,
 };
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LaunchResult {
-    success: bool,
-    message: String,
-    process_id: Option<u32>, // 添加进程ID字段
-}
 
 #[derive(Clone, Copy)]
 enum ToolPathKind {
@@ -49,14 +42,6 @@ impl ToolPathKind {
             },
         }
     }
-}
-
-/// 停止游戏结果
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StopResult {
-    success: bool,
-    message: String,
-    terminated_count: u32,
 }
 
 // ================= Windows 提权启动（ShellExecuteExW with "runas"）支持 =================
@@ -186,7 +171,7 @@ async fn resolve_tool_path(
 ///
 /// # Returns
 ///
-/// 启动结果，包含成功标志、消息和进程ID
+/// 启动结果，区分已监控、已委托和失败三种状态
 #[command]
 pub async fn launch_game<R: Runtime>(
     app_handle: AppHandle<R>,
@@ -195,20 +180,88 @@ pub async fn launch_game<R: Runtime>(
     args: Option<Vec<String>>,
     time_tracking_mode: TimeTrackingMode,
 ) -> Result<LaunchResult, String> {
-    let game = GamesRepository::find_by_id(db.inner(), game_id as i32)
-        .await
-        .map_err(|e| format!("查询游戏失败: {}", e))?
-        .ok_or_else(|| format!("游戏不存在: {}", game_id))?;
-    let game_dir = PathBuf::from(
-        game.localpath
-            .as_deref()
-            .ok_or_else(|| "游戏目录未设置".to_string())?,
-    );
-    let executable_path = game_dir.join(
-        game.executable
-            .as_deref()
-            .ok_or_else(|| "游戏启动文件未设置".to_string())?,
-    );
+    Ok(
+        match launch_game_inner(app_handle, db, game_id, args, time_tracking_mode).await {
+            Ok(result) => result,
+            Err(message) => LaunchResult::failed(message),
+        },
+    )
+}
+
+async fn launch_game_inner<R: Runtime>(
+    app_handle: AppHandle<R>,
+    db: State<'_, DatabaseConnection>,
+    game_id: u32,
+    args: Option<Vec<String>>,
+    time_tracking_mode: TimeTrackingMode,
+) -> Result<LaunchResult, String> {
+    let game = load_game(db.inner(), game_id).await?;
+
+    if game.launch_type == "steam" {
+        let steam_launch = validate_and_open_steam(
+            &app_handle,
+            game_id,
+            game.steam_launch_id.as_deref(),
+            game.localpath.as_deref(),
+            args.as_deref(),
+        )?;
+        let magpie_path = if game.magpie.unwrap_or(0) == 1 {
+            match db.inner().get_settings().await {
+                Ok(settings) => match resolve_tool_path(
+                    db.inner(),
+                    settings.magpie_path_value(),
+                    ToolPathKind::Magpie,
+                )
+                .await
+                {
+                    Ok(path) => Some(path),
+                    Err(error) => {
+                        warn!(
+                            "Steam 已启动，但 Magpie 配置不可用 game_id={}: {}",
+                            game_id, error
+                        );
+                        None
+                    }
+                },
+                Err(error) => {
+                    warn!(
+                        "Steam 已启动，但读取 Magpie 配置失败 game_id={}: {}",
+                        game_id, error
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        monitor_game(
+            app_handle.clone(),
+            db.inner().clone(),
+            time_tracking_mode,
+            game_id,
+            0,
+            steam_launch.game_dir,
+        )
+        .await;
+
+        if let Some(magpie_path) = magpie_path {
+            tokio::spawn(async move {
+                if let Err(error) = start_magpie_for_game(game_id, &magpie_path).await {
+                    warn!("启动 Magpie 全屏缩放失败 game_id={}: {}", game_id, error);
+                }
+            });
+        }
+
+        return Ok(LaunchResult::tracking(
+            format!("已交由 Steam 启动游戏 ({})", steam_launch.steam_launch_id),
+            None,
+        ));
+    }
+
+    let local_launch = validate_local_launch(&game)?;
+    let game_dir = local_launch.game_dir;
+    let executable_path = local_launch.executable_path;
     let game_path = executable_path.to_string_lossy().to_string();
 
     let use_le = game.le_launch.unwrap_or(0) == 1;
@@ -314,16 +367,15 @@ pub async fn launch_game<R: Runtime>(
                 });
             }
 
-            Ok(LaunchResult {
-                success: true,
-                message: format!(
+            Ok(LaunchResult::tracking(
+                format!(
                     "成功启动游戏: {}，工作目录: {:?}{}",
                     exe_name.to_string_lossy(),
                     game_dir,
                     if use_le { " (LE转区)" } else { "" }
                 ),
-                process_id: Some(process_id),
-            })
+                Some(process_id),
+            ))
         }
         Err(e) => {
             // 如果为 Windows 的 740 错误（需要提升权限），尝试使用 ShellExecuteExW("runas") 再启动
@@ -383,16 +435,15 @@ pub async fn launch_game<R: Runtime>(
                             });
                         }
 
-                        Ok(LaunchResult {
-                            success: true,
-                            message: format!(
+                        Ok(LaunchResult::tracking(
+                            format!(
                                 "已使用管理员权限启动游戏: {}{}，工作目录: {:?}",
                                 exe_name.to_string_lossy(),
                                 if use_le { " (LE转区)" } else { "" },
                                 game_dir
                             ),
-                            process_id: Some(pid),
-                        })
+                            Some(pid),
+                        ))
                     }
                     Err(err2) => Err(format!("普通启动失败且提权启动失败: {} | {}", e, err2)),
                 }
@@ -415,14 +466,13 @@ pub async fn launch_game<R: Runtime>(
 #[command]
 pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
     match stop_game_session(game_id).await {
-        Ok(terminated_count) => Ok(StopResult {
-            success: true,
-            message: format!(
+        Ok(terminated_count) => Ok(StopResult::success(
+            format!(
                 "已成功停止游戏 {}, 终止了 {} 个进程",
                 game_id, terminated_count
             ),
             terminated_count,
-        }),
+        )),
         Err(e) => Err(format!("停止游戏失败: {}", e)),
     }
 }

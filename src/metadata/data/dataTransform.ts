@@ -52,6 +52,8 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 		date: fullData.date,
 		localpath: nullToUndefined(fullData.localpath),
 		executable: nullToUndefined(fullData.executable),
+		launch_type: fullData.launch_type,
+		steam_launch_id: nullToUndefined(fullData.steam_launch_id),
 		savepath: nullToUndefined(fullData.savepath),
 		autosave: nullToUndefined(fullData.autosave),
 		maxbackups: nullToUndefined(fullData.maxbackups),

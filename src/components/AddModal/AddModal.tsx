@@ -33,12 +33,15 @@ import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataF
 import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
+import type { GameRuntimeInsertOptions } from "@/metadata/data/metadata";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import {
-	handleExeFile,
+	handleLaunchFile,
+	type LaunchFileSelection,
 	splitExecutablePath,
 	trimDirnameToSearchName,
 } from "@/services/fs/fileDialog";
+import type { SteamLaunchTarget } from "@/services/invoke/fileService";
 import { useStore } from "@/store/appStore";
 import type {
 	GameMetadataDraft,
@@ -48,6 +51,7 @@ import type {
 } from "@/types";
 import { createAbortableRunner } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
+import { formatSteamAppIdWithPath } from "@/utils/steam";
 import BulkImportTab from "./BulkImportTab";
 import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
@@ -68,6 +72,11 @@ const DEFAULT_SCAN_MODE: GameScanMode = "executable";
 
 type AddModalTab = "single" | "bulk";
 
+type SingleLaunchSelection =
+	| { kind: "none" }
+	| { kind: "local"; path: string }
+	| { kind: "steam"; target: SteamLaunchTarget };
+
 /**
  * 从文件路径中提取文件夹名称并清洗（纯函数，置于组件外以保证稳定引用）
  * @param path 文件路径
@@ -77,6 +86,24 @@ function extractFolderName(path: string): string {
 	// 使用 pathe 的 dirname 获取父目录，然后获取文件夹名
 	const parentDir = dirname(path);
 	return trimDirnameToSearchName(basename(parentDir));
+}
+
+async function buildRuntimeOptions(
+	selection: SingleLaunchSelection,
+): Promise<GameRuntimeInsertOptions | undefined> {
+	switch (selection.kind) {
+		case "none":
+			return undefined;
+		case "local":
+			return splitExecutablePath(selection.path);
+		case "steam":
+			return {
+				localpath: selection.target.localpath,
+				executable: selection.target.executable,
+				launch_type: "steam",
+				steam_launch_id: selection.target.steam_launch_id,
+			};
+	}
 }
 
 /**
@@ -128,6 +155,9 @@ const AddModal: React.FC = () => {
 	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
 	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
+	const [launchSelection, setLaunchSelection] = useState<SingleLaunchSelection>(
+		{ kind: "none" },
+	);
 	const previousFocus = useRef<HTMLElement | null>(null);
 	const resolvedBulkApiSource = bulkApiSource ?? (hasBgmAuth ? "bgm" : "vndb");
 
@@ -144,6 +174,7 @@ const AddModal: React.FC = () => {
 	 */
 	useEffect(() => {
 		if (addModalPath) {
+			setLaunchSelection({ kind: "local", path: addModalPath });
 			setFormText(extractFolderName(addModalPath));
 		}
 	}, [addModalPath]);
@@ -161,14 +192,12 @@ const AddModal: React.FC = () => {
 
 	const handleAddGame = useCallback(
 		async (gameData: GameMetadataDraft) => {
-			const executablePathParts = addModalPath
-				? await splitExecutablePath(addModalPath)
-				: undefined;
-			const game = await addGameFromMetadata(gameData, executablePathParts);
+			const runtimeOptions = await buildRuntimeOptions(launchSelection);
+			const game = await addGameFromMetadata(gameData, runtimeOptions);
 			closeAddModal();
 			showGameAddedSuccess({ gameId: game.id, navigate, t });
 		},
-		[addGameFromMetadata, addModalPath, closeAddModal, navigate, t],
+		[addGameFromMetadata, closeAddModal, launchSelection, navigate, t],
 	);
 
 	const metadataSearchFlow = useMetadataSearchFlow({
@@ -180,12 +209,44 @@ const AddModal: React.FC = () => {
 	const isBusy =
 		customLoading || metadataSearchFlow.isSearching || isAddingGame;
 
+	const applyLaunchSelection = useCallback(
+		(selection: LaunchFileSelection) => {
+			setActiveTab("single");
+			if (selection.launchType === "local") {
+				setLaunchSelection({ kind: "local", path: selection.path });
+				openAddModal(selection.path);
+				return;
+			}
+
+			setLaunchSelection({ kind: "steam", target: selection.target });
+			setAddModalPath("");
+			setFormText(selection.target.name);
+			openAddModal("");
+		},
+		[openAddModal, setAddModalPath],
+	);
+
 	const { isDragging } = useTauriDragDrop({
-		onValidPath: (selectedPath) => {
+		onValidPath: (selection) => {
 			if (isBusy) return;
-			openAddModal(selectedPath);
+			applyLaunchSelection(selection);
 		},
 	});
+
+	const handleSelectLaunchFile = async () => {
+		try {
+			const defaultPath =
+				launchSelection.kind === "steam"
+					? launchSelection.target.localpath
+					: launchSelection.kind === "local"
+						? launchSelection.path
+						: undefined;
+			const selection = await handleLaunchFile(defaultPath);
+			if (selection) applyLaunchSelection(selection);
+		} catch (error) {
+			showError(getUserErrorMessage(error, t));
+		}
+	};
 
 	/**
 	 * 重置所有状态
@@ -194,6 +255,7 @@ const AddModal: React.FC = () => {
 		metadataSearchFlow.reset();
 		setFormText("");
 		setActiveTab("single");
+		setLaunchSelection({ kind: "none" });
 		setAddModalPath("");
 		setError("");
 	}, [metadataSearchFlow, setAddModalPath]);
@@ -231,16 +293,16 @@ const AddModal: React.FC = () => {
 		try {
 			// 手动模式只写入本地路径和自定义名称，不请求元数据源。
 			if (addMode === "custom") {
-				if (!addModalPath) {
+				if (launchSelection.kind === "none") {
 					showError(
-						t("components.AddModal.noExecutableSelected", "未选择可执行程序"),
+						t("components.AddModal.noLauncherSelected", "未选择启动文件"),
 					);
 					return;
 				}
 				setCustomLoading(true);
-				const executablePathParts = await splitExecutablePath(addModalPath);
+				const runtimeOptions = await buildRuntimeOptions(launchSelection);
 				const customGameData: InsertGameParams = {
-					...executablePathParts,
+					...runtimeOptions,
 					id_type: "custom", // 标记为自定义
 					sources: [],
 					custom_data: {
@@ -341,22 +403,25 @@ const AddModal: React.FC = () => {
 						<Button
 							fullWidth
 							variant="contained"
-							onClick={async () => {
-								const result = await handleExeFile();
-								if (result) setAddModalPath(result);
-							}}
+							onClick={() => void handleSelectLaunchFile()}
 							startIcon={<FileOpenIcon />}
 							disabled={isBusy}
 						>
-							{t("components.AddModal.selectLauncher", "选择启动程序")}
+							{t("components.AddModal.selectLauncher", "选择启动文件")}
 						</Button>
 						<TextField
 							fullWidth
 							size="small"
-							value={addModalPath}
+							value={
+								launchSelection.kind === "steam"
+									? `Steam · ${launchSelection.target.name} · ${formatSteamAppIdWithPath(launchSelection.target.steam_launch_id, launchSelection.target.localpath)}`
+									: launchSelection.kind === "local"
+										? launchSelection.path
+										: ""
+							}
 							placeholder={t(
 								"components.AddModal.dragHint",
-								"请选择或拖拽可执行文件或文件夹",
+								"请选择或拖拽启动文件或文件夹",
 							)}
 							InputProps={{ readOnly: true }}
 						/>

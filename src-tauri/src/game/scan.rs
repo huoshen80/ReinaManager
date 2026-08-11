@@ -37,11 +37,19 @@ enum ImportPathComponent {
 }
 
 #[derive(Default)]
-struct ImportPathIndex {
+pub(crate) struct ImportPathIndex {
     paths: HashSet<Vec<ImportPathComponent>>,
 }
 
 impl ImportPathIndex {
+    pub(crate) fn from_paths(paths: impl IntoIterator<Item = String>) -> Self {
+        let mut index = Self::default();
+        for path in paths {
+            index.insert(Path::new(&path));
+        }
+        index
+    }
+
     fn insert(&mut self, path: &Path) {
         let Some(components) = normalize_import_path(path) else {
             return;
@@ -51,12 +59,23 @@ impl ImportPathIndex {
     }
 
     /// 已导入游戏目录本身及其后代都属于同一个游戏，不再作为扫描候选。
-    fn is_imported_or_descendant(&self, path: &Path) -> bool {
+    pub(crate) fn is_imported_or_descendant(&self, path: &Path) -> bool {
         let Some(components) = normalize_import_path(path) else {
             return false;
         };
 
         (1..=components.len()).any(|length| self.paths.contains(&components[..length]))
+    }
+
+    /// Steam 清单给出的根目录是明确安装边界；已有路径位于其内部时也视为已导入。
+    pub(crate) fn has_imported_path_within(&self, root: &Path) -> bool {
+        let Some(root_components) = normalize_import_path(root) else {
+            return false;
+        };
+
+        self.paths
+            .iter()
+            .any(|existing| existing.starts_with(&root_components))
     }
 
     fn len(&self) -> usize {
@@ -313,10 +332,7 @@ pub async fn scan_directory_for_games(
     // WalkDir 大量文件系统 I/O 属于阻塞操作，
     // 放入 Tokio 革层阻塞线程池，避免占用异步运行时线程。
     let results = tokio::task::spawn_blocking(move || {
-        let mut existing_paths = ImportPathIndex::default();
-        for game_directory in existing_game_directories {
-            existing_paths.insert(Path::new(&game_directory));
-        }
+        let existing_paths = ImportPathIndex::from_paths(existing_game_directories);
         log::debug!(
             "开始扫描游戏目录 path={} mode={:?} max_depth={} existing_paths={}",
             path,
@@ -644,6 +660,22 @@ mod tests {
         assert!(index.is_imported_or_descendant(&game_dir.join("Sub")));
         assert!(!index.is_imported_or_descendant(game_dir.parent().unwrap()));
         assert!(!index.is_imported_or_descendant(&sibling));
+    }
+
+    #[test]
+    fn steam_root_matches_exact_and_nested_imported_paths() {
+        let exact_root = test_path(&["scan-root", "Steam", "Exact"]);
+        let nested_root = test_path(&["scan-root", "Steam", "Nested"]);
+        let sibling_root = test_path(&["scan-root", "Steam", "Game"]);
+        let mut index = ImportPathIndex::default();
+        index.insert(&exact_root);
+        index.insert(&nested_root.join("Build").join("Game"));
+        index.insert(&test_path(&["scan-root", "Steam", "GameABC"]));
+
+        assert!(index.has_imported_path_within(&exact_root));
+        assert!(index.has_imported_path_within(&nested_root));
+        assert!(!index.has_imported_path_within(&sibling_root));
+        assert!(!index.has_imported_path_within(&exact_root.join("Child")));
     }
 
     #[test]

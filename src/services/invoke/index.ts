@@ -9,6 +9,8 @@ export type {
 	BackupResult,
 	ImportResult,
 	MoveBackupFolderResult,
+	SteamLaunchTarget,
+	SteamLaunchTargetScanResult,
 } from "./fileService";
 export { fileService } from "./fileService";
 // 导出所有服务
