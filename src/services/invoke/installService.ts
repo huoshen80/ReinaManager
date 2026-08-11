@@ -59,6 +59,7 @@ export interface Task {
 	progress_current: number;
 	progress_total?: number | null;
 	progress_unit?: string | null;
+	bytes_per_second?: number | null;
 	dedupe_key?: string | null;
 	error_code?: string | null;
 	error_message?: string | null;
@@ -91,6 +92,7 @@ export interface TaskProgressEvent {
 	progress_current: number;
 	progress_total?: number | null;
 	progress_unit?: string | null;
+	bytes_per_second?: number | null;
 }
 
 export interface GameInstallMetadataRequestedEvent {

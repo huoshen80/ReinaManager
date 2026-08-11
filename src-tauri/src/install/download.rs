@@ -1,18 +1,34 @@
 use super::{
-    persistence::{check_task_control, emit_progress, update_task_progress},
-    types::{DOWNLOAD_IDLE_TIMEOUT, TaskControl, TaskFailure},
+    persistence::{
+        check_task_control, emit_download_progress, emit_progress, update_task_progress,
+    },
+    types::{TaskControl, TaskFailure},
 };
 use crate::entity::tasks;
 use crate::install::protocol::InstallRequest;
-use crate::utils::http::get_download_client;
+use crate::utils::http::get_transfer_client;
 use sea_orm::DatabaseConnection;
 use sha2::{Digest, Sha256};
 use std::fs::File as StdFile;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
-use tokio::io::AsyncWriteExt;
+use std::sync::OnceLock;
+use std::time::Duration;
+use takanawa_core::HashConfig;
+use takanawa_http::{
+    DownloadConfig, DownloadEngine, DownloadHandle, DownloadPhase, DownloadSnapshot, RetryConfig,
+    TimeoutConfig,
+};
+use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use tokio::sync::watch;
+
+const TAKANAWA_CHUNK_SIZE: u64 = 64 * 1024 * 1024;
+const TAKANAWA_PARALLELISM: usize = 8;
+const TAKANAWA_MAX_IO: usize = 24;
+const PROGRESS_REPORT_INTERVAL: Duration = Duration::from_millis(500);
+const CONTROL_POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+static TAKANAWA_RUNTIME: OnceLock<Result<Runtime, String>> = OnceLock::new();
 
 pub(crate) async fn download_file(
     app: &tauri::AppHandle,
@@ -23,30 +39,117 @@ pub(crate) async fn download_file(
     control: &mut watch::Receiver<TaskControl>,
 ) -> Result<(), TaskFailure> {
     check_task_control(control)?;
-    let mut downloaded = match tokio::fs::metadata(partial_path).await {
-        Ok(metadata) => metadata.len(),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
-        Err(error) => return Err(TaskFailure::new("task_file_failed", error.to_string())),
-    };
-    if downloaded > request.size {
-        tokio::fs::remove_file(partial_path)
-            .await
-            .map_err(|error| TaskFailure::new("task_file_failed", error.to_string()))?;
-        downloaded = 0;
+    validate_request(request)?;
+
+    if let Some(existing_size) = existing_file_size(partial_path).await? {
+        if existing_size == request.size {
+            report_progress(app, db, task.id, existing_size, request.size).await?;
+            return Ok(());
+        }
+        return Err(TaskFailure::new(
+            "takanawa_target_conflict",
+            "检测到旧下载器生成的不完整临时文件；请取消并重新创建任务后测试 Takanawa 下载器",
+        ));
     }
-    if downloaded == request.size {
-        update_task_progress(db, task.id, downloaded as i64, Some(request.size as i64)).await?;
-        emit_progress(
-            app,
-            task.id,
-            "running",
-            Some("downloading"),
-            downloaded as i64,
-            Some(request.size as i64),
-            Some("bytes"),
-        );
-        return Ok(());
+
+    let runtime = takanawa_runtime()?;
+    let engine = DownloadEngine::with_client(get_transfer_client(), TAKANAWA_MAX_IO);
+    let handle = DownloadHandle::new(
+        engine,
+        DownloadConfig {
+            url: request.url.clone(),
+            target_path: partial_path.to_path_buf(),
+            chunk_size: TAKANAWA_CHUNK_SIZE,
+            parallelism: TAKANAWA_PARALLELISM,
+            max_parallel_chunks: 0,
+            retry: RetryConfig::default(),
+            timeout: TimeoutConfig {
+                connect: Duration::from_secs(10),
+                read: Duration::from_secs(60),
+                total: Duration::ZERO,
+            },
+            bytes_per_second_limit: 0,
+            hash: HashConfig::None,
+        },
+    );
+    handle
+        .start_on(runtime)
+        .map_err(|error| TaskFailure::new("takanawa_start_failed", error.to_string()))?;
+
+    let mut interval = tokio::time::interval(PROGRESS_REPORT_INTERVAL);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let mut committed = u64::try_from(task.progress_current)
+        .unwrap_or(0)
+        .min(request.size);
+    let mut last_persisted = committed;
+    loop {
+        tokio::select! {
+            changed = control.changed() => {
+                if changed.is_err() {
+                    handle.cancel().map_err(takanawa_control_failure)?;
+                    return wait_for_control_completion(app, db, task.id, request, committed, &handle, TaskControl::Cancel).await;
+                }
+                let requested = *control.borrow();
+                match requested {
+                    TaskControl::Running => {}
+                    TaskControl::Pause => {
+                        handle.pause().map_err(takanawa_control_failure)?;
+                        return wait_for_control_completion(app, db, task.id, request, committed, &handle, TaskControl::Pause).await;
+                    }
+                    TaskControl::Cancel => {
+                        handle.cancel().map_err(takanawa_control_failure)?;
+                        return wait_for_control_completion(app, db, task.id, request, committed, &handle, TaskControl::Cancel).await;
+                    }
+                }
+            }
+            _ = interval.tick() => {
+                let snapshot = handle.snapshot();
+                committed = committed.max(snapshot.downloaded_bytes.min(request.size));
+                let speed = handle.speed_snapshot().bytes_per_second;
+                let persist = committed != last_persisted;
+                if persist {
+                    update_task_progress(
+                        db,
+                        task.id,
+                        committed as i64,
+                        Some(request.size as i64),
+                    )
+                    .await?;
+                }
+                report_snapshot(app, task.id, request.size, &snapshot, committed, speed)?;
+                last_persisted = committed;
+                match snapshot.phase {
+                    DownloadPhase::Completed => return finish_download(app, db, task.id, request.size, partial_path).await,
+                    DownloadPhase::Failed => return Err(takanawa_snapshot_failure(&snapshot, handle.last_http_status(), &request.provider)),
+                    DownloadPhase::Paused => return Err(TaskFailure::new("paused", "任务已暂停")),
+                    DownloadPhase::Cancelled => return Err(TaskFailure::new("cancelled", "任务已取消")),
+                    DownloadPhase::Created
+                    | DownloadPhase::Running
+                    | DownloadPhase::Pausing
+                    | DownloadPhase::Cancelling
+                    | DownloadPhase::Starting
+                    | DownloadPhase::Allocating
+                    | DownloadPhase::Verifying => {}
+                }
+            }
+        }
     }
+}
+
+fn takanawa_runtime() -> Result<&'static Runtime, TaskFailure> {
+    match TAKANAWA_RUNTIME.get_or_init(|| {
+        RuntimeBuilder::new_multi_thread()
+            .enable_all()
+            .thread_name("reina-takanawa")
+            .build()
+            .map_err(|error| format!("创建 Takanawa runtime 失败: {error}"))
+    }) {
+        Ok(runtime) => Ok(runtime),
+        Err(message) => Err(TaskFailure::new("takanawa_init_failed", message.clone())),
+    }
+}
+
+fn validate_request(request: &InstallRequest) -> Result<(), TaskFailure> {
     if request
         .expires_at
         .is_some_and(|expires_at| chrono::Utc::now().timestamp() >= expires_at)
@@ -54,252 +157,173 @@ pub(crate) async fn download_file(
         return Err(TaskFailure::new(
             "url_expired",
             format!(
-                "下载直链已过期，请重新从资源提供方（{}）获取直链；已下载的临时文件会保留",
+                "下载直链已过期，请重新从资源提供方（{}）推送任务",
                 request.provider
             ),
         ));
     }
-
-    let mut response = send_download_request(&request.url, downloaded).await?;
-    let status = response.status();
-    if matches!(status.as_u16(), 401 | 403) {
-        return Err(TaskFailure::new(
-            "url_expired",
-            format!(
-                "下载直链已失效，请重新从资源提供方（{}）获取直链；已下载的临时文件会保留",
-                request.provider
-            ),
-        ));
-    }
-    let is_partial = status == tauri_plugin_http::reqwest::StatusCode::PARTIAL_CONTENT;
-    if downloaded > 0 && status == tauri_plugin_http::reqwest::StatusCode::OK {
-        // 服务端忽略 Range 时从头下载，避免把完整响应追加到已有临时文件。
-        downloaded = 0;
-    } else if is_partial {
-        let content_range = response
-            .headers()
-            .get(tauri_plugin_http::reqwest::header::CONTENT_RANGE)
-            .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| {
-                TaskFailure::new("invalid_content_range", "下载服务器缺少 Content-Range")
-            })?;
-        validate_content_range(content_range, downloaded, request.size)?;
-    } else if status != tauri_plugin_http::reqwest::StatusCode::OK {
-        return Err(TaskFailure::new(
-            "http_status",
-            format!("下载服务器返回 HTTP {}", status.as_u16()),
-        ));
-    }
-    let expected_response_size = request.size.saturating_sub(downloaded);
-    if let Some(content_length) = response.content_length()
-        && content_length != expected_response_size
-    {
-        return Err(TaskFailure::new(
-            "size_mismatch",
-            format!(
-                "服务器文件大小与请求不一致：期望 {}，实际 {}",
-                expected_response_size, content_length
-            ),
-        ));
-    }
-
-    let mut file = if downloaded > 0 && is_partial {
-        tokio::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(partial_path)
-            .await
-    } else {
-        tokio::fs::File::create(partial_path).await
-    }
-    .map_err(|error| TaskFailure::new("task_file_failed", error.to_string()))?;
-    update_task_progress(db, task.id, downloaded as i64, Some(request.size as i64)).await?;
-    emit_progress(
-        app,
-        task.id,
-        "running",
-        Some("downloading"),
-        downloaded as i64,
-        Some(request.size as i64),
-        Some("bytes"),
-    );
-    let mut last_report = Instant::now();
-    let mut last_reported_bytes = downloaded;
-    loop {
-        check_task_control(control)?;
-        let chunk = tokio::select! {
-            changed = control.changed() => {
-                if changed.is_err() {
-                    return Err(TaskFailure::new("cancelled", "任务运行控制已关闭"));
-                }
-                check_task_control(control)?;
-                continue;
-            }
-            result = tokio::time::timeout(DOWNLOAD_IDLE_TIMEOUT, response.chunk()) => {
-                result
-                    .map_err(|_| TaskFailure::new("download_timeout", "下载连接长时间未返回数据"))?
-                    .map_err(|_| TaskFailure::new("download_failed", "下载连接中断"))?
-            }
-        };
-        let Some(chunk) = chunk else {
-            break;
-        };
-        check_task_control(control)?;
-        downloaded = downloaded.saturating_add(chunk.len() as u64);
-        if downloaded > request.size {
-            return Err(TaskFailure::new(
-                "size_mismatch",
-                "下载数据超过协议声明的文件大小",
-            ));
-        }
-        file.write_all(&chunk)
-            .await
-            .map_err(|error| TaskFailure::new("task_file_failed", error.to_string()))?;
-
-        if last_report.elapsed() >= Duration::from_millis(500)
-            || downloaded.saturating_sub(last_reported_bytes) >= 4 * 1024 * 1024
-        {
-            update_task_progress(db, task.id, downloaded as i64, Some(request.size as i64)).await?;
-            emit_progress(
-                app,
-                task.id,
-                "running",
-                Some("downloading"),
-                downloaded as i64,
-                Some(request.size as i64),
-                Some("bytes"),
-            );
-            last_report = Instant::now();
-            last_reported_bytes = downloaded;
-        }
-    }
-    file.flush()
-        .await
-        .map_err(|error| TaskFailure::new("task_file_failed", error.to_string()))?;
-    if downloaded != request.size {
-        return Err(TaskFailure::new(
-            "size_mismatch",
-            format!(
-                "下载文件大小不一致：期望 {}，实际 {}",
-                request.size, downloaded
-            ),
-        ));
-    }
-    update_task_progress(db, task.id, downloaded as i64, Some(request.size as i64)).await?;
-    emit_progress(
-        app,
-        task.id,
-        "running",
-        Some("downloading"),
-        downloaded as i64,
-        Some(request.size as i64),
-        Some("bytes"),
-    );
-    Ok(())
-}
-
-async fn send_download_request(
-    initial_url: &str,
-    range_start: u64,
-) -> Result<tauri_plugin_http::reqwest::Response, TaskFailure> {
-    let mut url = url::Url::parse(initial_url)
+    let url = url::Url::parse(&request.url)
         .map_err(|_| TaskFailure::new("invalid_url", "下载 URL 无效"))?;
-    for redirect_count in 0..=5 {
-        validate_download_url(&url)?;
-        let client = get_download_client()
-            .map_err(|message| TaskFailure::new("download_client_failed", message))?;
-        let mut request = client.get(url.clone());
-        if range_start > 0 {
-            request = request.header(
-                tauri_plugin_http::reqwest::header::RANGE,
-                format!("bytes={range_start}-"),
-            );
-        }
-        let response = tokio::time::timeout(DOWNLOAD_IDLE_TIMEOUT, request.send())
-            .await
-            .map_err(|_| TaskFailure::new("download_timeout", "下载服务器响应超时"))?
-            .map_err(|_| TaskFailure::new("download_failed", "无法连接下载服务器"))?;
-        if !response.status().is_redirection() {
-            return Ok(response);
-        }
-        if redirect_count == 5 {
-            return Err(TaskFailure::new(
-                "too_many_redirects",
-                "下载地址重定向次数过多",
-            ));
-        }
-        let location = response
-            .headers()
-            .get(tauri_plugin_http::reqwest::header::LOCATION)
-            .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| TaskFailure::new("invalid_redirect", "下载服务器返回了无效重定向"))?;
-        url = url
-            .join(location)
-            .map_err(|_| TaskFailure::new("invalid_redirect", "下载服务器返回了无效重定向"))?;
-    }
-    Err(TaskFailure::new(
-        "too_many_redirects",
-        "下载地址重定向次数过多",
-    ))
-}
-
-fn validate_content_range(
-    value: &str,
-    expected_start: u64,
-    expected_total: u64,
-) -> Result<(), TaskFailure> {
-    let value = value.strip_prefix("bytes ").ok_or_else(|| {
-        TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回了无效 Content-Range",
-        )
-    })?;
-    let (range, total) = value.split_once('/').ok_or_else(|| {
-        TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回了无效 Content-Range",
-        )
-    })?;
-    let (start, end) = range.split_once('-').ok_or_else(|| {
-        TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回了无效 Content-Range",
-        )
-    })?;
-    let start = start.parse::<u64>().map_err(|_| {
-        TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回了无效 Content-Range",
-        )
-    })?;
-    let end = end.parse::<u64>().map_err(|_| {
-        TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回了无效 Content-Range",
-        )
-    })?;
-    let total = total.parse::<u64>().map_err(|_| {
-        TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回了无效 Content-Range",
-        )
-    })?;
-    if start != expected_start || total != expected_total || end < start || end >= total {
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
         return Err(TaskFailure::new(
-            "invalid_content_range",
-            "下载服务器返回的续传范围与本地临时文件不一致",
+            "invalid_url",
+            "下载地址仅支持具有主机名的 HTTP/HTTPS URL",
         ));
     }
     Ok(())
 }
 
-fn validate_download_url(url: &url::Url) -> Result<(), TaskFailure> {
-    if !matches!(url.scheme(), "http" | "https") {
-        return Err(TaskFailure::new("invalid_url", "下载地址仅支持 HTTP/HTTPS"));
+async fn existing_file_size(path: &Path) -> Result<Option<u64>, TaskFailure> {
+    match tokio::fs::metadata(path).await {
+        Ok(metadata) => Ok(Some(metadata.len())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(TaskFailure::new("task_file_failed", error.to_string())),
     }
-    url.host_str()
-        .ok_or_else(|| TaskFailure::new("invalid_url", "下载地址缺少主机名"))?;
+}
+
+async fn wait_for_control_completion(
+    app: &tauri::AppHandle,
+    db: &DatabaseConnection,
+    task_id: i64,
+    request: &InstallRequest,
+    minimum_committed: u64,
+    handle: &DownloadHandle,
+    requested: TaskControl,
+) -> Result<(), TaskFailure> {
+    loop {
+        let snapshot = handle.snapshot();
+        let committed = minimum_committed.max(snapshot.downloaded_bytes.min(request.size));
+        match snapshot.phase {
+            DownloadPhase::Completed => {
+                report_progress(app, db, task_id, request.size, request.size).await?;
+                return Ok(());
+            }
+            DownloadPhase::Paused => {
+                update_task_progress(db, task_id, committed as i64, Some(request.size as i64))
+                    .await?;
+                report_snapshot(app, task_id, request.size, &snapshot, committed, 0.0)?;
+                return Err(TaskFailure::new("paused", "任务已暂停"));
+            }
+            DownloadPhase::Cancelled => {
+                return Err(TaskFailure::new("cancelled", "任务已取消"));
+            }
+            DownloadPhase::Failed => {
+                return Err(takanawa_snapshot_failure(
+                    &snapshot,
+                    handle.last_http_status(),
+                    &request.provider,
+                ));
+            }
+            DownloadPhase::Created
+            | DownloadPhase::Running
+            | DownloadPhase::Pausing
+            | DownloadPhase::Cancelling
+            | DownloadPhase::Starting
+            | DownloadPhase::Allocating
+            | DownloadPhase::Verifying => {}
+        }
+        if matches!(requested, TaskControl::Cancel)
+            && !matches!(snapshot.phase, DownloadPhase::Cancelling)
+        {
+            handle.cancel().map_err(takanawa_control_failure)?;
+        }
+        tokio::time::sleep(CONTROL_POLL_INTERVAL).await;
+    }
+}
+
+fn report_snapshot(
+    app: &tauri::AppHandle,
+    task_id: i64,
+    expected_size: u64,
+    snapshot: &DownloadSnapshot,
+    committed: u64,
+    bytes_per_second: f64,
+) -> Result<(), TaskFailure> {
+    if snapshot.content_len != 0 && snapshot.content_len != expected_size {
+        return Err(TaskFailure::new(
+            "size_mismatch",
+            format!(
+                "服务器文件大小与请求不一致：期望 {expected_size}，实际 {}",
+                snapshot.content_len
+            ),
+        ));
+    }
+    let committed = committed.min(expected_size);
+    emit_download_progress(
+        app,
+        task_id,
+        committed as i64,
+        expected_size as i64,
+        bytes_per_second,
+    );
     Ok(())
+}
+
+async fn finish_download(
+    app: &tauri::AppHandle,
+    db: &DatabaseConnection,
+    task_id: i64,
+    expected_size: u64,
+    path: &Path,
+) -> Result<(), TaskFailure> {
+    let actual_size = existing_file_size(path)
+        .await?
+        .ok_or_else(|| TaskFailure::new("task_file_failed", "Takanawa 未生成下载文件"))?;
+    if actual_size != expected_size {
+        return Err(TaskFailure::new(
+            "size_mismatch",
+            format!("下载文件大小不一致：期望 {expected_size}，实际 {actual_size}"),
+        ));
+    }
+    report_progress(app, db, task_id, actual_size, expected_size).await
+}
+
+async fn report_progress(
+    app: &tauri::AppHandle,
+    db: &DatabaseConnection,
+    task_id: i64,
+    current: u64,
+    total: u64,
+) -> Result<(), TaskFailure> {
+    update_task_progress(db, task_id, current as i64, Some(total as i64)).await?;
+    emit_progress(
+        app,
+        task_id,
+        "running",
+        Some("downloading"),
+        current as i64,
+        Some(total as i64),
+        Some("bytes"),
+    );
+    Ok(())
+}
+
+fn takanawa_control_failure(error: takanawa_core::TakanawaError) -> TaskFailure {
+    TaskFailure::new("takanawa_control_failed", error.to_string())
+}
+
+fn takanawa_snapshot_failure(
+    snapshot: &DownloadSnapshot,
+    http_status: Option<u16>,
+    provider: &str,
+) -> TaskFailure {
+    if is_expired_http_status(http_status) {
+        return TaskFailure::new(
+            "url_expired",
+            format!("下载直链已过期，请重新从资源提供方（{provider}）推送任务"),
+        );
+    }
+    TaskFailure::new(
+        "takanawa_download_failed",
+        snapshot
+            .last_error
+            .clone()
+            .unwrap_or_else(|| "Takanawa 下载失败".to_string()),
+    )
+}
+
+fn is_expired_http_status(status: Option<u16>) -> bool {
+    matches!(status, Some(401 | 403))
 }
 
 pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Result<(), TaskFailure> {
@@ -362,4 +386,17 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
     })
     .await
     .map_err(|error| TaskFailure::new("verify_task_failed", error.to_string()))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_expired_download_responses() {
+        assert!(is_expired_http_status(Some(401)));
+        assert!(is_expired_http_status(Some(403)));
+        assert!(!is_expired_http_status(Some(200)));
+        assert!(!is_expired_http_status(None));
+    }
 }

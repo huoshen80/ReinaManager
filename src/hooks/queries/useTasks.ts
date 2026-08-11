@@ -26,6 +26,29 @@ function tasksQueryOptions() {
 	return queryOptions({
 		queryKey: taskKeys.all,
 		queryFn: () => taskService.listTasks(),
+		structuralSharing: (previous, next) => {
+			const previousTasks = previous as Task[] | undefined;
+			const nextTasks = next as Task[];
+			if (!previousTasks) return nextTasks;
+			const previousById = new Map(
+				previousTasks.map((task) => [task.id, task]),
+			);
+			return nextTasks.map((task) => {
+				const cached = previousById.get(task.id);
+				const bytesPerSecond =
+					task.bytes_per_second ?? cached?.bytes_per_second;
+				if (
+					task.status !== "running" ||
+					task.stage !== "downloading" ||
+					cached?.status !== "running" ||
+					cached.stage !== "downloading" ||
+					bytesPerSecond == null
+				) {
+					return task;
+				}
+				return { ...task, bytes_per_second: bytesPerSecond };
+			});
+		},
 	});
 }
 
@@ -99,6 +122,7 @@ export function useTaskCache() {
 								progress_current: event.progress_current,
 								progress_total: event.progress_total,
 								progress_unit: event.progress_unit,
+								bytes_per_second: event.bytes_per_second,
 							}
 						: task,
 				),

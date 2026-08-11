@@ -2,8 +2,9 @@ use super::{
     download::{download_file, verify_file},
     persistence::check_task_control,
     persistence::{
-        cleanup_task_artifacts, emit_progress, fail_task, find_task, save_game_install_result,
-        set_task_cancelled, set_task_paused, set_task_stage,
+        cleanup_task_artifacts, emit_progress, fail_task, fail_task_and_reset_progress, find_task,
+        remove_download_artifacts, save_game_install_result, set_task_cancelled, set_task_paused,
+        set_task_stage,
     },
     types::{
         GAME_INSTALL_TASK_TYPE, GameInstallResultV1, TaskControl, TaskFailure, TaskRuntimeState,
@@ -17,8 +18,15 @@ use crate::entity::tasks;
 use crate::install::archive::{collapse_single_directory_layers, extract_archive, move_game_root};
 use sea_orm::DatabaseConnection;
 use std::path::Path;
+use std::sync::OnceLock;
 use tauri::Manager;
-use tokio::sync::watch;
+use tokio::sync::{Semaphore, SemaphorePermit, watch};
+
+const MAX_CONCURRENT_DOWNLOADS: usize = 3;
+const MAX_CONCURRENT_EXTRACTS: usize = 1;
+
+static DOWNLOAD_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
+static EXTRACT_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
 
 pub fn resume_pending_tasks(app: &tauri::AppHandle, db: &DatabaseConnection, task_ids: Vec<i64>) {
     for task_id in task_ids {
@@ -60,8 +68,33 @@ pub(crate) fn spawn_task(
                         failure.code,
                         failure.message
                     );
-                    let failed =
-                        fail_task(&db, task_id, &failure.code, &failure.message, None).await;
+                    let url_expired = failure.code == "url_expired";
+                    let failed = if url_expired {
+                        fail_task_and_reset_progress(&db, task_id, &failure.code, &failure.message)
+                            .await
+                    } else {
+                        fail_task(&db, task_id, &failure.code, &failure.message, None).await
+                    };
+                    if let Ok(task) = &failed {
+                        if url_expired
+                            && let Err(cleanup_failure) = clear_expired_download(task).await
+                        {
+                            log::warn!(
+                                "清理过期下载失败 task_id={task_id} code={}: {}",
+                                cleanup_failure.code,
+                                cleanup_failure.message
+                            );
+                        }
+                        emit_progress(
+                            &app,
+                            task_id,
+                            &task.status,
+                            task.stage.as_deref(),
+                            task.progress_current,
+                            task.progress_total,
+                            task.progress_unit.as_deref(),
+                        );
+                    }
                     emit_game_install_failed(&app, task_id, failed.as_ref().ok(), &failure);
                 }
             }
@@ -69,6 +102,41 @@ pub(crate) fn spawn_task(
         app.state::<TaskRuntimeState>().finish(task_id);
     });
     Ok(())
+}
+
+async fn clear_expired_download(task: &tasks::Model) -> Result<(), TaskFailure> {
+    let payload = parse_game_install_payload(task)?;
+    let download_path = payload.download_path(task.id)?;
+    remove_download_artifacts(&download_path).await
+}
+
+fn download_semaphore() -> &'static Semaphore {
+    DOWNLOAD_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_CONCURRENT_DOWNLOADS))
+}
+
+fn extract_semaphore() -> &'static Semaphore {
+    EXTRACT_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_CONCURRENT_EXTRACTS))
+}
+
+async fn acquire_stage_permit(
+    semaphore: &'static Semaphore,
+    control: &mut watch::Receiver<TaskControl>,
+) -> Result<SemaphorePermit<'static>, TaskFailure> {
+    loop {
+        tokio::select! {
+            permit = semaphore.acquire() => {
+                return permit.map_err(|_| {
+                    TaskFailure::new("task_scheduler_closed", "任务调度器已关闭")
+                });
+            }
+            changed = control.changed() => {
+                if changed.is_err() {
+                    return Err(TaskFailure::new("cancelled", "任务已取消"));
+                }
+                check_task_control(control)?;
+            }
+        }
+    }
 }
 
 async fn run_task(
@@ -113,17 +181,20 @@ async fn run_game_install_task(
         .map_err(|error| TaskFailure::new("install_root_failed", error.to_string()))?;
     let download_path = payload.download_path(task.id)?;
 
-    set_task_stage(db, task.id, "downloading").await?;
-    emit_progress(
-        app,
-        task.id,
-        "running",
-        Some("downloading"),
-        task.progress_current,
-        Some(request.size as i64),
-        Some("bytes"),
-    );
-    download_file(app, db, &task, request, &download_path, control).await?;
+    {
+        let _download_permit = acquire_stage_permit(download_semaphore(), control).await?;
+        set_task_stage(db, task.id, "downloading").await?;
+        emit_progress(
+            app,
+            task.id,
+            "running",
+            Some("downloading"),
+            task.progress_current,
+            Some(request.size as i64),
+            Some("bytes"),
+        );
+        download_file(app, db, &task, request, &download_path, control).await?;
+    }
     check_task_control(control)?;
     set_task_stage(db, task.id, "verifying").await?;
     emit_progress(
@@ -137,28 +208,31 @@ async fn run_game_install_task(
     );
     verify_file(download_path.clone(), request.clone()).await?;
 
-    check_task_control(control)?;
-    set_task_stage(db, task.id, "extracting").await?;
-    emit_progress(
-        app,
-        task.id,
-        "running",
-        Some("extracting"),
-        request.size as i64,
-        Some(request.size as i64),
-        Some("bytes"),
-    );
     let staging = payload.staging_directory(task.id)?;
-    tokio::task::spawn_blocking({
-        let app = app.clone();
-        let download_path = download_path.clone();
-        let archive_format = request.archive_format.clone();
-        let staging = staging.clone();
-        move || extract_archive(&app, &download_path, &archive_format, &staging)
-    })
-    .await
-    .map_err(|error| TaskFailure::new("extract_task_failed", error.to_string()))?
-    .map_err(|message| TaskFailure::new("extract_failed", message))?;
+    {
+        let _extract_permit = acquire_stage_permit(extract_semaphore(), control).await?;
+        check_task_control(control)?;
+        set_task_stage(db, task.id, "extracting").await?;
+        emit_progress(
+            app,
+            task.id,
+            "running",
+            Some("extracting"),
+            request.size as i64,
+            Some(request.size as i64),
+            Some("bytes"),
+        );
+        tokio::task::spawn_blocking({
+            let app = app.clone();
+            let download_path = download_path.clone();
+            let archive_format = request.archive_format.clone();
+            let staging = staging.clone();
+            move || extract_archive(&app, &download_path, &archive_format, &staging)
+        })
+        .await
+        .map_err(|error| TaskFailure::new("extract_task_failed", error.to_string()))?
+        .map_err(|message| TaskFailure::new("extract_failed", message))?;
+    }
 
     check_task_control(control)?;
     set_task_stage(db, task.id, "organizing").await?;

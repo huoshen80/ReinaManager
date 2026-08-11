@@ -158,6 +158,12 @@ function TaskProgress({ task }: { task: Task }) {
 	const progress = total
 		? Math.min(100, Math.max(0, (task.progress_current / total) * 100))
 		: 0;
+	const speed =
+		task.status === "running" &&
+		task.stage === "downloading" &&
+		task.bytes_per_second
+			? ` · ${formatFileSize(task.bytes_per_second)}/s`
+			: "";
 	const color =
 		task.status === "failed"
 			? "error"
@@ -171,12 +177,18 @@ function TaskProgress({ task }: { task: Task }) {
 				variant={total ? "determinate" : "indeterminate"}
 				value={progress}
 				color={color}
-				sx={{ height: 6, borderRadius: 999 }}
+				sx={{
+					height: 6,
+					borderRadius: 999,
+					"& .MuiLinearProgress-bar": {
+						transition: "transform 500ms ease",
+					},
+				}}
 			/>
 			<Stack direction="row" justifyContent="space-between" className="mt-1">
 				<Typography variant="caption" color="text.secondary">
 					{task.progress_unit === "bytes" && total
-						? `${formatFileSize(task.progress_current)} / ${formatFileSize(total)}`
+						? `${formatFileSize(task.progress_current)} / ${formatFileSize(total)}${speed}`
 						: `${task.progress_current}${total ? ` / ${total}` : ""}${
 								task.progress_unit ? ` ${task.progress_unit}` : ""
 							}`}
