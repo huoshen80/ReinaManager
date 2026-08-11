@@ -1,3 +1,55 @@
+## [0.28.0](https://github.com/huoshen80/ReinaManager/compare/v0.27.1...v0.28.0) (2026-08-11)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ✨ 新功能
+
+- *(backend)* 新增 Steam 启动支持与游戏库扫描 ([d10f856](https://github.com/huoshen80/ReinaManager/commit/d10f856c835d00945732f84ba21ca275ea7b1fa0))
+- *(frontend)* 集成 Steam 启动配置与关联界面 ([5322efc](https://github.com/huoshen80/ReinaManager/commit/5322efc0e578141cabcfe07e6b838cba8317df41))
+- *(import)* 新增 Steam 游戏库批量导入 ([6f5ecce](https://github.com/huoshen80/ReinaManager/commit/6f5ecce24a2ecd84fc1502e9d72bd99f82c26b59))
+- *(install)* 支持自定义下载源 ([d36fcc8](https://github.com/huoshen80/ReinaManager/commit/d36fcc8f25043370d73eeb80dd02c6dfc04473bd))
+
+### 🐛 Bug 修复
+
+- *(metadata)* 更新 Hikarinagi API 基础 URL ([f5733f1](https://github.com/huoshen80/ReinaManager/commit/f5733f17400d181b46dd935620bd763e3a0a022a))
+- *(dev)* 防止 Vite 监视 src-tauri ([31fe5ca](https://github.com/huoshen80/ReinaManager/commit/31fe5ca0be26f766853a0e30dc789fe3316c330a))
+- *(steam)* 按路径边界精确匹配游戏关联 ([5a9888e](https://github.com/huoshen80/ReinaManager/commit/5a9888e24d37b48e5880c1da4e7d431c7a269606))
+- *(tauri)* 更新权限配置中的 Hikarinagi URL ([f9cbf9f](https://github.com/huoshen80/ReinaManager/commit/f9cbf9faa0f881e5c338f98ab587d002d577c7a6))
+
+### 📚 文档
+
+- 添加带确认复选框的 Issue 模版 [skip ci] ([9bb5f23](https://github.com/huoshen80/ReinaManager/commit/9bb5f23e2b4129635944c06beed447dae9da42d7))
+
+### 🚀 性能优化
+
+- *(install)* 使用 Takanawa 引擎增强下载功能，稳定性修复 (#81) ([4bb2d45](https://github.com/huoshen80/ReinaManager/commit/4bb2d45693571f896ee3d3facd7cc909364844a6))
+
+</details>
+
+### ✨ Features
+
+- *(backend)* Add Steam launch support and library scanning ([d10f856](https://github.com/huoshen80/ReinaManager/commit/d10f856c835d00945732f84ba21ca275ea7b1fa0))
+- *(frontend)* Integrate Steam launch configuration and association UI ([5322efc](https://github.com/huoshen80/ReinaManager/commit/5322efc0e578141cabcfe07e6b838cba8317df41))
+- *(import)* Add Steam library bulk import ([6f5ecce](https://github.com/huoshen80/ReinaManager/commit/6f5ecce24a2ecd84fc1502e9d72bd99f82c26b59))
+- *(install)* Support custom download sources ([d36fcc8](https://github.com/huoshen80/ReinaManager/commit/d36fcc8f25043370d73eeb80dd02c6dfc04473bd))
+
+### 🐛 Bug Fixes
+
+- *(metadata)* Update Hikarinagi API base URL ([f5733f1](https://github.com/huoshen80/ReinaManager/commit/f5733f17400d181b46dd935620bd763e3a0a022a))
+- *(dev)* Prevent Vite from watching src-tauri ([31fe5ca](https://github.com/huoshen80/ReinaManager/commit/31fe5ca0be26f766853a0e30dc789fe3316c330a))
+- *(steam)* Match associations by path boundary ([5a9888e](https://github.com/huoshen80/ReinaManager/commit/5a9888e24d37b48e5880c1da4e7d431c7a269606))
+- *(tauri)* Update hikarinagi URL in capabilities ([f9cbf9f](https://github.com/huoshen80/ReinaManager/commit/f9cbf9faa0f881e5c338f98ab587d002d577c7a6))
+
+### 📚 Documentation
+
+- Add issue templates with confirmation checkboxes [skip ci] ([9bb5f23](https://github.com/huoshen80/ReinaManager/commit/9bb5f23e2b4129635944c06beed447dae9da42d7))
+
+### 🚀 Performance
+
+- *(install)* Enhance download functionality with Takanawa engine and stability fixes (#81) ([4bb2d45](https://github.com/huoshen80/ReinaManager/commit/4bb2d45693571f896ee3d3facd7cc909364844a6))
+
+
 ## [0.27.1](https://github.com/huoshen80/ReinaManager/compare/v0.27.0...v0.27.1) (2026-08-09)
 
 <details>
