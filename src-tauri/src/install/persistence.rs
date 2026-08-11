@@ -7,6 +7,7 @@ use crate::install::archive::archive_wrapper_directory;
 use sea_orm::sea_query::Expr;
 use sea_orm::*;
 use serde_json::Value;
+use std::path::Path;
 use tauri::Emitter;
 use tokio::sync::watch;
 
@@ -142,11 +143,7 @@ pub(crate) async fn remove_task_artifacts(
     task_id: i64,
 ) -> Result<(), TaskFailure> {
     let download_path = payload.download_path(task_id)?;
-    if download_path.exists() {
-        tokio::fs::remove_file(&download_path)
-            .await
-            .map_err(|error| TaskFailure::new("task_cleanup_failed", error.to_string()))?;
-    }
+    remove_download_artifacts(&download_path).await?;
 
     let staging = payload.staging_directory(task_id)?;
     for directory in [&staging, &archive_wrapper_directory(&staging)] {
@@ -154,6 +151,21 @@ pub(crate) async fn remove_task_artifacts(
             tokio::fs::remove_dir_all(directory)
                 .await
                 .map_err(|error| TaskFailure::new("task_cleanup_failed", error.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) async fn remove_download_artifacts(download_path: &Path) -> Result<(), TaskFailure> {
+    let part_path = takanawa_core::part_path_for(download_path);
+    let lock_path = takanawa_core::part_lock_path_for(download_path);
+    for path in [download_path, part_path.as_path(), lock_path.as_path()] {
+        match tokio::fs::remove_file(path).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(TaskFailure::new("task_cleanup_failed", error.to_string()));
+            }
         }
     }
     Ok(())
@@ -334,6 +346,48 @@ pub(crate) fn emit_progress(
     progress_total: Option<i64>,
     progress_unit: Option<&str>,
 ) {
+    emit_task_progress(
+        app,
+        task_id,
+        status,
+        stage,
+        progress_current,
+        progress_total,
+        progress_unit,
+        None,
+    );
+}
+
+pub(crate) fn emit_download_progress(
+    app: &tauri::AppHandle,
+    task_id: i64,
+    progress_current: i64,
+    progress_total: i64,
+    bytes_per_second: f64,
+) {
+    emit_task_progress(
+        app,
+        task_id,
+        "running",
+        Some("downloading"),
+        progress_current,
+        Some(progress_total),
+        Some("bytes"),
+        Some(bytes_per_second),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_task_progress(
+    app: &tauri::AppHandle,
+    task_id: i64,
+    status: &str,
+    stage: Option<&str>,
+    progress_current: i64,
+    progress_total: Option<i64>,
+    progress_unit: Option<&str>,
+    bytes_per_second: Option<f64>,
+) {
     let _ = app.emit(
         "task-progress",
         TaskProgressEvent {
@@ -343,6 +397,7 @@ pub(crate) fn emit_progress(
             progress_current,
             progress_total,
             progress_unit: progress_unit.map(str::to_string),
+            bytes_per_second,
         },
     );
 }

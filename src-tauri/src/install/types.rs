@@ -3,12 +3,10 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use tokio::sync::watch;
 
 pub(crate) const GAME_INSTALL_TASK_TYPE: &str = "game_install";
 pub(crate) const ACTIVE_TASK_STATUSES: &[&str] = &["pending", "running", "paused"];
-pub(crate) const DOWNLOAD_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Default)]
 pub struct TaskRuntimeState {
@@ -110,6 +108,7 @@ pub(crate) struct TaskProgressEvent {
     pub(crate) progress_current: i64,
     pub(crate) progress_total: Option<i64>,
     pub(crate) progress_unit: Option<String>,
+    pub(crate) bytes_per_second: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize)]

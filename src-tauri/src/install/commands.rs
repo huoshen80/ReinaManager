@@ -1,6 +1,7 @@
 use super::{
     persistence::{
-        fail_task, find_active_task_by_dedupe, find_task, remove_task_artifacts, set_task_cancelled,
+        fail_task, find_active_task_by_dedupe, find_task, remove_download_artifacts,
+        remove_task_artifacts, set_task_cancelled,
     },
     runner::spawn_task,
     types::{
@@ -130,11 +131,9 @@ pub async fn retry_task(
         let partial_path = stored_payload
             .download_path(task_id)
             .map_err(|failure| failure.message)?;
-        if partial_path.exists() {
-            tokio::fs::remove_file(&partial_path)
-                .await
-                .map_err(|error| format!("清理无效下载文件失败: {error}"))?;
-        }
+        remove_download_artifacts(&partial_path)
+            .await
+            .map_err(|failure| failure.message)?;
     }
     let updated_payload = GameInstallTaskPayloadV1 {
         request: request.clone(),

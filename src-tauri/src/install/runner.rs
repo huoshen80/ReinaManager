@@ -2,8 +2,9 @@ use super::{
     download::{download_file, verify_file},
     persistence::check_task_control,
     persistence::{
-        cleanup_task_artifacts, emit_progress, fail_task, find_task, save_game_install_result,
-        set_task_cancelled, set_task_paused, set_task_stage,
+        cleanup_task_artifacts, emit_progress, fail_task, find_task, remove_download_artifacts,
+        save_game_install_result, set_task_cancelled, set_task_paused, set_task_stage,
+        update_task_progress,
     },
     types::{
         GAME_INSTALL_TASK_TYPE, GameInstallResultV1, TaskControl, TaskFailure, TaskRuntimeState,
@@ -60,8 +61,28 @@ pub(crate) fn spawn_task(
                         failure.code,
                         failure.message
                     );
+                    if failure.code == "url_expired"
+                        && let Err(cleanup_failure) = clear_expired_download(&db, task_id).await
+                    {
+                        log::warn!(
+                            "清理过期下载失败 task_id={task_id} code={}: {}",
+                            cleanup_failure.code,
+                            cleanup_failure.message
+                        );
+                    }
                     let failed =
                         fail_task(&db, task_id, &failure.code, &failure.message, None).await;
+                    if let Ok(task) = &failed {
+                        emit_progress(
+                            &app,
+                            task_id,
+                            &task.status,
+                            task.stage.as_deref(),
+                            task.progress_current,
+                            task.progress_total,
+                            task.progress_unit.as_deref(),
+                        );
+                    }
                     emit_game_install_failed(&app, task_id, failed.as_ref().ok(), &failure);
                 }
             }
@@ -69,6 +90,18 @@ pub(crate) fn spawn_task(
         app.state::<TaskRuntimeState>().finish(task_id);
     });
     Ok(())
+}
+
+async fn clear_expired_download(db: &DatabaseConnection, task_id: i64) -> Result<(), TaskFailure> {
+    let task = find_task(db, task_id)
+        .await
+        .map_err(|message| TaskFailure::new("task_not_found", message))?;
+    let payload = parse_game_install_payload(&task)?;
+    let download_path = payload.download_path(task_id)?;
+    let cleanup = remove_download_artifacts(&download_path).await;
+    let progress = update_task_progress(db, task_id, 0, task.progress_total).await;
+    cleanup?;
+    progress
 }
 
 async fn run_task(
