@@ -61,7 +61,7 @@ pub(crate) async fn download_file(
             target_path: partial_path.to_path_buf(),
             chunk_size: TAKANAWA_CHUNK_SIZE,
             parallelism: TAKANAWA_PARALLELISM,
-            max_parallel_chunks: TAKANAWA_PARALLELISM,
+            max_parallel_chunks: 0,
             retry: RetryConfig::default(),
             timeout: TimeoutConfig {
                 connect: Duration::from_secs(10),
@@ -120,7 +120,7 @@ pub(crate) async fn download_file(
                 last_persisted = committed;
                 match snapshot.phase {
                     DownloadPhase::Completed => return finish_download(app, db, task.id, request.size, partial_path).await,
-                    DownloadPhase::Failed => return Err(takanawa_snapshot_failure(&snapshot, &request.provider)),
+                    DownloadPhase::Failed => return Err(takanawa_snapshot_failure(&snapshot, handle.last_http_status(), &request.provider)),
                     DownloadPhase::Paused => return Err(TaskFailure::new("paused", "任务已暂停")),
                     DownloadPhase::Cancelled => return Err(TaskFailure::new("cancelled", "任务已取消")),
                     DownloadPhase::Created
@@ -208,7 +208,11 @@ async fn wait_for_control_completion(
                 return Err(TaskFailure::new("cancelled", "任务已取消"));
             }
             DownloadPhase::Failed => {
-                return Err(takanawa_snapshot_failure(&snapshot, &request.provider));
+                return Err(takanawa_snapshot_failure(
+                    &snapshot,
+                    handle.last_http_status(),
+                    &request.provider,
+                ));
             }
             DownloadPhase::Created
             | DownloadPhase::Running
@@ -298,12 +302,12 @@ fn takanawa_control_failure(error: takanawa_core::TakanawaError) -> TaskFailure 
     TaskFailure::new("takanawa_control_failed", error.to_string())
 }
 
-fn takanawa_snapshot_failure(snapshot: &DownloadSnapshot, provider: &str) -> TaskFailure {
-    if snapshot
-        .last_error
-        .as_deref()
-        .is_some_and(is_expired_http_error)
-    {
+fn takanawa_snapshot_failure(
+    snapshot: &DownloadSnapshot,
+    http_status: Option<u16>,
+    provider: &str,
+) -> TaskFailure {
+    if is_expired_http_status(http_status) {
         return TaskFailure::new(
             "url_expired",
             format!("下载直链已过期，请重新从资源提供方（{provider}）推送任务"),
@@ -318,8 +322,8 @@ fn takanawa_snapshot_failure(snapshot: &DownloadSnapshot, provider: &str) -> Tas
     )
 }
 
-fn is_expired_http_error(message: &str) -> bool {
-    message.contains("got 401 Unauthorized") || message.contains("got 403 Forbidden")
+fn is_expired_http_status(status: Option<u16>) -> bool {
+    matches!(status, Some(401 | 403))
 }
 
 pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Result<(), TaskFailure> {
@@ -390,11 +394,9 @@ mod tests {
 
     #[test]
     fn recognizes_expired_download_responses() {
-        assert!(is_expired_http_error(
-            "HTTP protocol violation: expected 206 Partial Content, got 403 Forbidden"
-        ));
-        assert!(!is_expired_http_error(
-            "HTTP protocol violation: expected 206 Partial Content, got 200 OK"
-        ));
+        assert!(is_expired_http_status(Some(401)));
+        assert!(is_expired_http_status(Some(403)));
+        assert!(!is_expired_http_status(Some(200)));
+        assert!(!is_expired_http_status(None));
     }
 }

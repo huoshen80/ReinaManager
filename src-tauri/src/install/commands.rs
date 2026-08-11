@@ -125,7 +125,7 @@ pub async fn retry_task(
         .is_some_and(|result| Path::new(&result.install_path).is_dir());
     let reset_partial_download = matches!(
         task.error_code.as_deref(),
-        Some("checksum_mismatch" | "size_mismatch")
+        Some("checksum_mismatch" | "size_mismatch" | "url_expired")
     );
     if reset_partial_download {
         let partial_path = stored_payload

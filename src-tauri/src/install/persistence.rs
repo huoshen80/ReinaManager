@@ -159,16 +159,20 @@ pub(crate) async fn remove_task_artifacts(
 pub(crate) async fn remove_download_artifacts(download_path: &Path) -> Result<(), TaskFailure> {
     let part_path = takanawa_core::part_path_for(download_path);
     let lock_path = takanawa_core::part_lock_path_for(download_path);
+    let mut first_error = None;
     for path in [download_path, part_path.as_path(), lock_path.as_path()] {
         match tokio::fs::remove_file(path).await {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => {
-                return Err(TaskFailure::new("task_cleanup_failed", error.to_string()));
+            Err(error) if first_error.is_none() => {
+                first_error = Some(format!("{}: {error}", path.display()));
             }
+            Err(_) => {}
         }
     }
-    Ok(())
+    first_error.map_or(Ok(()), |message| {
+        Err(TaskFailure::new("task_cleanup_failed", message))
+    })
 }
 
 pub(crate) async fn cleanup_task_artifacts(payload: &GameInstallTaskPayloadV1, task_id: i64) {
@@ -254,6 +258,26 @@ pub(crate) async fn fail_task(
     error_message: &str,
     result: Option<Value>,
 ) -> Result<tasks::Model, TaskFailure> {
+    fail_task_with_progress(db, task_id, error_code, error_message, result, None).await
+}
+
+pub(crate) async fn fail_task_and_reset_progress(
+    db: &DatabaseConnection,
+    task_id: i64,
+    error_code: &str,
+    error_message: &str,
+) -> Result<tasks::Model, TaskFailure> {
+    fail_task_with_progress(db, task_id, error_code, error_message, None, Some(0)).await
+}
+
+async fn fail_task_with_progress(
+    db: &DatabaseConnection,
+    task_id: i64,
+    error_code: &str,
+    error_message: &str,
+    result: Option<Value>,
+    progress_current: Option<i64>,
+) -> Result<tasks::Model, TaskFailure> {
     let task = find_task(db, task_id)
         .await
         .map_err(|message| TaskFailure::new("task_not_found", message))?;
@@ -262,6 +286,9 @@ pub(crate) async fn fail_task(
     active.status = Set("failed".to_string());
     if let Some(result) = result {
         active.result_json = Set(Some(result));
+    }
+    if let Some(progress_current) = progress_current {
+        active.progress_current = Set(progress_current);
     }
     active.error_code = Set(Some(error_code.to_string()));
     active.error_message = Set(Some(error_message.to_string()));
@@ -348,13 +375,15 @@ pub(crate) fn emit_progress(
 ) {
     emit_task_progress(
         app,
-        task_id,
-        status,
-        stage,
-        progress_current,
-        progress_total,
-        progress_unit,
-        None,
+        TaskProgressEvent {
+            task_id,
+            status: status.to_string(),
+            stage: stage.map(str::to_string),
+            progress_current,
+            progress_total,
+            progress_unit: progress_unit.map(str::to_string),
+            bytes_per_second: None,
+        },
     );
 }
 
@@ -367,39 +396,20 @@ pub(crate) fn emit_download_progress(
 ) {
     emit_task_progress(
         app,
-        task_id,
-        "running",
-        Some("downloading"),
-        progress_current,
-        Some(progress_total),
-        Some("bytes"),
-        Some(bytes_per_second),
+        TaskProgressEvent {
+            task_id,
+            status: "running".to_string(),
+            stage: Some("downloading".to_string()),
+            progress_current,
+            progress_total: Some(progress_total),
+            progress_unit: Some("bytes".to_string()),
+            bytes_per_second: Some(bytes_per_second),
+        },
     );
 }
 
-#[allow(clippy::too_many_arguments)]
-fn emit_task_progress(
-    app: &tauri::AppHandle,
-    task_id: i64,
-    status: &str,
-    stage: Option<&str>,
-    progress_current: i64,
-    progress_total: Option<i64>,
-    progress_unit: Option<&str>,
-    bytes_per_second: Option<f64>,
-) {
-    let _ = app.emit(
-        "task-progress",
-        TaskProgressEvent {
-            task_id,
-            status: status.to_string(),
-            stage: stage.map(str::to_string),
-            progress_current,
-            progress_total,
-            progress_unit: progress_unit.map(str::to_string),
-            bytes_per_second,
-        },
-    );
+fn emit_task_progress(app: &tauri::AppHandle, event: TaskProgressEvent) {
+    let _ = app.emit("task-progress", event);
 }
 
 pub(crate) fn check_task_control(
