@@ -30,7 +30,7 @@ import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchF
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { getRuntimeSourceAdapter, SEARCHABLE_SOURCE_KEYS } from "@/metadata";
 import { snackbar } from "@/providers/snackBar";
-import { handleFolder } from "@/services/fs/fileDialog";
+import { handleFolder, normalizeDirectoryPath } from "@/services/fs/fileDialog";
 import { fileService } from "@/services/invoke";
 import {
 	isBgmAuthExpiredError,
@@ -63,6 +63,11 @@ import {
 	SingleSourceSelect,
 } from "./SourceMatchControls";
 
+export interface BulkDropBatch {
+	id: number;
+	paths: string[];
+}
+
 interface BulkImportTabProps {
 	// 控制此 tab 是否隐藏（通过 CSS display:none 而非卸载）
 	hidden: boolean;
@@ -75,6 +80,8 @@ interface BulkImportTabProps {
 	onScanModeChange: (mode: GameScanMode) => void;
 	scanMaxDepth: number;
 	onScanMaxDepthChange: (depth: number) => void;
+	dropBatch?: BulkDropBatch;
+	onDropBatchHandled: (batchId: number) => void;
 }
 
 const SCAN_DEPTH_OPTIONS = [2, 3, 4, 5] as const;
@@ -89,6 +96,18 @@ function isVisibleBulkImportItem(
 	return item.status !== "imported";
 }
 
+function getBulkItemIdentities(item: BulkImportItem): string[] {
+	const identities: string[] = [];
+	if (item.steam_launch_id) {
+		identities.push(`steam:${item.steam_launch_id}`);
+	}
+	const normalizedPath = normalizeDirectoryPath(item.path);
+	if (normalizedPath) {
+		identities.push(`local:${normalizedPath}`);
+	}
+	return identities;
+}
+
 const BulkImportTab = ({
 	hidden,
 	onClose,
@@ -100,6 +119,8 @@ const BulkImportTab = ({
 	onScanModeChange,
 	scanMaxDepth,
 	onScanMaxDepthChange,
+	dropBatch,
+	onDropBatchHandled,
 }: BulkImportTabProps) => {
 	const { t } = useTranslation();
 	const { data: settings } = useAllSettings();
@@ -126,6 +147,8 @@ const BulkImportTab = ({
 	);
 	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
 	const matchAbortControllerRef = useRef<AbortController | null>(null);
+	const itemsRef = useRef(items);
+	const processingDropBatchIdRef = useRef<number | null>(null);
 	const loading = isMatchingMetadata || isScanningGames || isAddingGames;
 	const matchedImportCount = items.filter(
 		(item) => item.status === "matched",
@@ -135,6 +158,10 @@ const BulkImportTab = ({
 	).length;
 	const editMatchMode: MetadataMatchMode =
 		addMode === "single" ? "single" : "mixed";
+
+	useEffect(() => {
+		itemsRef.current = items;
+	}, [items]);
 
 	useEffect(() => {
 		return () => {
@@ -184,6 +211,7 @@ const BulkImportTab = ({
 		setIsMatchingMetadata(false);
 		setRootPath("");
 		setHasScanned(false);
+		itemsRef.current = [];
 		setItems([]);
 		setEditItemKey(null);
 		setEditName("");
@@ -244,6 +272,104 @@ const BulkImportTab = ({
 		},
 		[t],
 	);
+
+	const processDroppedPaths = useCallback(
+		async (paths: string[]) => {
+			setIsScanningGames(true);
+			try {
+				const result = await fileService.resolveBulkImportPaths(paths);
+				const currentItems = itemsRef.current;
+				const existingIdentities = new Set(
+					currentItems.flatMap(getBulkItemIdentities),
+				);
+				let duplicateCount = 0;
+				const addedItems: BulkImportItem[] = [];
+
+				for (const candidate of result.candidates) {
+					const item: BulkImportItem = {
+						key: candidate.steam_launch_id
+							? `steam:${candidate.steam_launch_id}`
+							: `local:${candidate.path}`,
+						name: candidate.name,
+						path: candidate.path,
+						executables: candidate.executables,
+						selectedExe: candidate.selected_exe,
+						launch_type: candidate.launch_type,
+						steam_launch_id: candidate.steam_launch_id,
+						status: "pending",
+					};
+					const identities = getBulkItemIdentities(item);
+					if (identities.some((identity) => existingIdentities.has(identity))) {
+						duplicateCount++;
+						continue;
+					}
+					for (const identity of identities) {
+						existingIdentities.add(identity);
+					}
+					addedItems.push(item);
+				}
+
+				if (addedItems.length > 0) {
+					const nextItems = [...currentItems, ...addedItems];
+					itemsRef.current = nextItems;
+					setItems(nextItems);
+					setHasScanned(true);
+				}
+
+				const skippedCount = result.issues.length + duplicateCount;
+				const firstReason =
+					result.issues[0]?.message ??
+					t(
+						"components.BulkImportModal.duplicateInCurrentList",
+						"该游戏已在当前批量列表中",
+					);
+				if (skippedCount > 0) {
+					snackbar.warning(
+						addedItems.length > 0
+							? t(
+									"components.BulkImportModal.dropPartialSummary",
+									"已添加 {{added}} 个候选，跳过 {{skipped}} 项：{{reason}}",
+									{
+										added: addedItems.length,
+										skipped: skippedCount,
+										reason: firstReason,
+									},
+								)
+							: t(
+									"components.BulkImportModal.dropSkippedSummary",
+									"未添加候选，跳过 {{skipped}} 项：{{reason}}",
+									{ skipped: skippedCount, reason: firstReason },
+								),
+					);
+				} else if (addedItems.length > 0) {
+					snackbar.success(
+						t(
+							"components.BulkImportModal.dropAddedSummary",
+							"已添加 {{added}} 个批量导入候选",
+							{ added: addedItems.length },
+						),
+					);
+				}
+			} catch (error) {
+				snackbar.error(getUserErrorMessage(error, t));
+			} finally {
+				setIsScanningGames(false);
+			}
+		},
+		[t],
+	);
+
+	useEffect(() => {
+		if (!dropBatch || loading || processingDropBatchIdRef.current !== null) {
+			return;
+		}
+
+		processingDropBatchIdRef.current = dropBatch.id;
+		void processDroppedPaths(dropBatch.paths).finally(() => {
+			onDropBatchHandled(dropBatch.id);
+			processingDropBatchIdRef.current = null;
+		});
+	}, [dropBatch, loading, onDropBatchHandled, processDroppedPaths]);
 
 	const scanSteamLibrary = useCallback(async () => {
 		setIsScanningGames(true);

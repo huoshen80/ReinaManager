@@ -617,6 +617,57 @@ fn resolve_steam_shortcut_file_blocking(path: &Path) -> Result<SteamLaunchTarget
         .ok_or_else(|| format!("本机 Steam 库中未找到启动项 {launch_id}"))
 }
 
+/// 批量解析 Steam `.url`，只扫描一次本机 Steam 库。
+pub(crate) fn resolve_steam_shortcut_files_blocking(
+    paths: &[&Path],
+) -> Vec<Result<SteamLaunchTarget, String>> {
+    let launch_ids = paths
+        .iter()
+        .map(|path| {
+            if !path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("url"))
+            {
+                return Err("仅支持 .url Steam 快捷方式".to_string());
+            }
+            let bytes =
+                fs::read(path).map_err(|error| format!("读取 {} 失败: {error}", path.display()))?;
+            parse_url_launch_id(&decode_shortcut_text(&bytes)?)
+        })
+        .collect::<Vec<_>>();
+
+    if !launch_ids.iter().any(Result::is_ok) {
+        return launch_ids
+            .into_iter()
+            .map(|result| match result {
+                Err(error) => Err(error),
+                Ok(_) => unreachable!("前置检查已确认没有成功解析的启动 ID"),
+            })
+            .collect();
+    }
+
+    let targets = locate_steam_dirs()
+        .map(|dirs| scan_steam_dirs(&dirs, &SteamImportFilter::default()).targets)
+        .map(|targets| {
+            targets
+                .into_iter()
+                .map(|target| (target.steam_launch_id.clone(), target))
+                .collect::<BTreeMap<_, _>>()
+        });
+
+    launch_ids
+        .into_iter()
+        .map(|launch_id| {
+            let launch_id = launch_id?;
+            let targets = targets.as_ref().map_err(Clone::clone)?;
+            targets
+                .get(&launch_id)
+                .cloned()
+                .ok_or_else(|| format!("本机 Steam 库中未找到启动项 {launch_id}"))
+        })
+        .collect()
+}
+
 #[command]
 pub async fn scan_steam_launch_targets(
     db: State<'_, DatabaseConnection>,

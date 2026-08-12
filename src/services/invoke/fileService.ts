@@ -59,6 +59,34 @@ export interface SteamLaunchTargetScanOptions {
 	excludeExisting?: boolean;
 }
 
+export interface BulkImportPathCandidate {
+	name: string;
+	path?: string;
+	executables: string[];
+	selected_exe?: string;
+	launch_type?: "steam";
+	steam_launch_id?: string;
+}
+
+export type BulkImportPathIssueCode =
+	| "unsupported_path"
+	| "read_failed"
+	| "invalid_steam_shortcut"
+	| "steam_target_not_found"
+	| "already_in_library"
+	| "duplicate_in_batch";
+
+export interface BulkImportPathIssue {
+	path: string;
+	code: BulkImportPathIssueCode;
+	message: string;
+}
+
+export interface BulkImportPathResult {
+	candidates: BulkImportPathCandidate[];
+	issues: BulkImportPathIssue[];
+}
+
 class FileService extends BaseService {
 	/** 扫描本机可用的 Steam 启动目标。 */
 	async scanSteamLaunchTargets(
@@ -75,6 +103,13 @@ class FileService extends BaseService {
 	async resolveSteamShortcutFile(path: string): Promise<SteamLaunchTarget> {
 		return this.invoke<SteamLaunchTarget>("resolve_steam_shortcut_file", {
 			path,
+		});
+	}
+
+	/** 将混合拖拽路径解析为批量导入候选，并逐项返回跳过原因。 */
+	async resolveBulkImportPaths(paths: string[]): Promise<BulkImportPathResult> {
+		return this.invoke<BulkImportPathResult>("resolve_bulk_import_paths", {
+			paths,
 		});
 	}
 

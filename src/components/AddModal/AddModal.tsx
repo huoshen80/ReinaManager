@@ -36,6 +36,7 @@ import { useAllSettings } from "@/hooks/queries/useSettings";
 import type { GameRuntimeInsertOptions } from "@/metadata/data/metadata";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import {
+	handleDroppedPath,
 	handleLaunchFile,
 	type LaunchFileSelection,
 	splitExecutablePath,
@@ -52,7 +53,7 @@ import type {
 import { createAbortableRunner } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
 import { formatSteamAppIdWithPath } from "@/utils/steam";
-import BulkImportTab from "./BulkImportTab";
+import BulkImportTab, { type BulkDropBatch } from "./BulkImportTab";
 import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 import {
@@ -155,10 +156,14 @@ const AddModal: React.FC = () => {
 	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
 	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
+	const [bulkDropQueue, setBulkDropQueue] = useState<BulkDropBatch[]>([]);
 	const [launchSelection, setLaunchSelection] = useState<SingleLaunchSelection>(
 		{ kind: "none" },
 	);
 	const previousFocus = useRef<HTMLElement | null>(null);
+	const nextDropBatchIdRef = useRef(1);
+	const singleDropGenerationRef = useRef(0);
+	const pendingSingleDropPathRef = useRef<string | null>(null);
 	const resolvedBulkApiSource = bulkApiSource ?? (hasBgmAuth ? "bgm" : "vndb");
 
 	// 请求取消控制器
@@ -226,11 +231,72 @@ const AddModal: React.FC = () => {
 		[openAddModal, setAddModalPath],
 	);
 
-	const { isDragging } = useTauriDragDrop({
-		onValidPath: (selection) => {
-			if (isBusy) return;
-			applyLaunchSelection(selection);
+	const invalidateSingleDrop = useCallback(() => {
+		singleDropGenerationRef.current++;
+		pendingSingleDropPathRef.current = null;
+	}, []);
+
+	const enqueueBulkDrop = useCallback(
+		(paths: string[]) => {
+			const batch: BulkDropBatch = {
+				id: nextDropBatchIdRef.current++,
+				paths,
+			};
+			setBulkDropQueue((current) => [...current, batch]);
+			setActiveTab("bulk");
+			openAddModal("");
 		},
+		[openAddModal],
+	);
+
+	const handleDroppedPaths = useCallback(
+		(paths: string[]) => {
+			const pendingSinglePath = pendingSingleDropPathRef.current;
+			if (pendingSinglePath) {
+				invalidateSingleDrop();
+				enqueueBulkDrop([pendingSinglePath, ...paths]);
+				return;
+			}
+
+			if (paths.length === 1 && activeTab === "single") {
+				if (isBusy) return;
+				const generation = ++singleDropGenerationRef.current;
+				pendingSingleDropPathRef.current = paths[0];
+				void handleDroppedPath(paths[0])
+					.then((selection) => {
+						if (selection && singleDropGenerationRef.current === generation) {
+							applyLaunchSelection(selection);
+						}
+					})
+					.finally(() => {
+						if (singleDropGenerationRef.current === generation) {
+							pendingSingleDropPathRef.current = null;
+						}
+					});
+				return;
+			}
+
+			enqueueBulkDrop(paths);
+		},
+		[
+			activeTab,
+			applyLaunchSelection,
+			enqueueBulkDrop,
+			invalidateSingleDrop,
+			isBusy,
+		],
+	);
+
+	const handleBulkDropBatchHandled = useCallback((batchId: number) => {
+		setBulkDropQueue((current) =>
+			current[0]?.id === batchId
+				? current.slice(1)
+				: current.filter((batch) => batch.id !== batchId),
+		);
+	}, []);
+
+	const { isDragging } = useTauriDragDrop({
+		onPathsDropped: handleDroppedPaths,
 	});
 
 	const handleSelectLaunchFile = async () => {
@@ -252,26 +318,30 @@ const AddModal: React.FC = () => {
 	 * 重置所有状态
 	 */
 	const resetState = useCallback(() => {
+		invalidateSingleDrop();
 		metadataSearchFlow.reset();
 		setFormText("");
 		setActiveTab("single");
 		setLaunchSelection({ kind: "none" });
+		setBulkDropQueue([]);
 		setAddModalPath("");
 		setError("");
-	}, [metadataSearchFlow, setAddModalPath]);
+	}, [invalidateSingleDrop, metadataSearchFlow, setAddModalPath]);
 
 	const handleCloseModal = useCallback(() => {
 		if (isBusy) return;
+		invalidateSingleDrop();
 		closeAddModal();
-	}, [closeAddModal, isBusy]);
+	}, [closeAddModal, invalidateSingleDrop, isBusy]);
 
 	const cancelOngoingRequest = useCallback(() => {
 		if (abortControllerRef.current) {
 			abortControllerRef.current.abort();
 		}
 		abortControllerRef.current = null;
+		invalidateSingleDrop();
 		closeAddModal();
-	}, [closeAddModal]);
+	}, [closeAddModal, invalidateSingleDrop]);
 
 	/**
 	 * 提交表单，处理添加游戏的逻辑。
@@ -500,6 +570,8 @@ const AddModal: React.FC = () => {
 					onScanModeChange={setScanMode}
 					scanMaxDepth={scanMaxDepth}
 					onScanMaxDepthChange={setScanMaxDepth}
+					dropBatch={bulkDropQueue[0]}
+					onDropBatchHandled={handleBulkDropBatchHandled}
 				/>
 				{activeTab === "single" && (
 					<DialogActions>

@@ -165,7 +165,7 @@ const EXCLUDED_EXE_PATTERNS: &[&str] = &[
     "unitycrashandler",
 ];
 
-fn trim_dirname_to_search_name(dir_name: &str) -> String {
+pub(crate) fn trim_dirname_to_search_name(dir_name: &str) -> String {
     let mut result = String::with_capacity(dir_name.len());
     let mut square_depth = 0_u32;
     let mut round_depth = 0_u32;
