@@ -1,0 +1,4 @@
+interface:
+  display_name: "项目国际化检查"
+  short_description: "执行 i18next-cli 翻译同步、完整性检查与格式化流程"
+  default_prompt: "使用 $i18n 检查并修复本项目的国际化翻译完整性。"
