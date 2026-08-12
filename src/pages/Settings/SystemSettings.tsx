@@ -26,29 +26,18 @@ import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
 import { toggleAutostart } from "@/services/plugins/autoStartService";
 import {
-	APP_WINDOW_CONTROLS_STORE_KEY,
-	applyAppWindowControlsSetting,
-	isAppWindowControlsSupported,
 	LINUX_LAUNCH_COMMAND_STORE_KEY,
 	loadSettingsStore,
-	saveAppWindowControlsSetting,
 	SILENT_STARTUP_STORE_KEY,
 } from "@/services/plugins/windowControlSettings";
-import { useStore } from "@/store/appStore";
 import { getUserErrorMessage } from "@/utils/errors";
 import { SettingsGroup, SettingsItem } from "./SettingsLayout";
 
 export const AutoStartSettings = () => {
 	const { t } = useTranslation();
-	const appWindowControlsSupported = isAppWindowControlsSupported();
-	const setStoreAppWindowControls = useStore((s) => s.setAppWindowControls);
 	const [autoStart, setAutoStart] = useState(false);
 	const [silentStartup, setSilentStartup] = useState(false);
 	const [silentStartupLoading, setSilentStartupLoading] = useState(true);
-	const [appWindowControls, setAppWindowControls] = useState(false);
-	const [appWindowControlsLoading, setAppWindowControlsLoading] = useState(
-		appWindowControlsSupported,
-	);
 
 	useEffect(() => {
 		const checkAutoStart = async () => {
@@ -60,23 +49,16 @@ export const AutoStartSettings = () => {
 				setSilentStartup(
 					(await store.get<boolean>(SILENT_STARTUP_STORE_KEY)) ?? false,
 				);
-				if (appWindowControlsSupported) {
-					const enabled =
-						(await store.get<boolean>(APP_WINDOW_CONTROLS_STORE_KEY)) ?? false;
-					setAppWindowControls(enabled);
-					setStoreAppWindowControls(enabled);
-				}
 			} catch (error) {
 				console.error("读取启动设置失败:", error);
 			} finally {
 				setSilentStartupLoading(false);
-				setAppWindowControlsLoading(false);
 			}
 		};
 
 		void checkAutoStart();
 		void loadStartupSettings();
-	}, [appWindowControlsSupported, setStoreAppWindowControls]);
+	}, []);
 
 	const handleSilentStartupChange = async (enabled: boolean) => {
 		setSilentStartup(enabled);
@@ -91,43 +73,6 @@ export const AutoStartSettings = () => {
 			console.error("保存静默启动设置失败:", error);
 		} finally {
 			setSilentStartupLoading(false);
-		}
-	};
-
-	const handleAppWindowControlsChange = async (enabled: boolean) => {
-		const previous = appWindowControls;
-		setAppWindowControls(enabled);
-		setStoreAppWindowControls(enabled);
-		setAppWindowControlsLoading(true);
-
-		try {
-			await saveAppWindowControlsSetting(enabled);
-			const controlsActive = await applyAppWindowControlsSetting(enabled);
-			setStoreAppWindowControls(controlsActive);
-			if (enabled && !controlsActive) {
-				snackbar.warning(
-					t(
-						"pages.Settings.appWindowControlsNotApplied",
-						"系统标题栏未能隐藏，已避免显示重复的应用级窗口按钮。",
-					),
-				);
-			}
-		} catch (error) {
-			setAppWindowControls(previous);
-			setStoreAppWindowControls(previous);
-			console.error("保存应用级窗口按钮设置失败:", error);
-			snackbar.error(
-				getUserErrorMessage(
-					error,
-					t,
-					t(
-						"pages.Settings.appWindowControlsSaveFailed",
-						"保存应用级窗口按钮设置失败",
-					),
-				),
-			);
-		} finally {
-			setAppWindowControlsLoading(false);
 		}
 	};
 
@@ -166,24 +111,6 @@ export const AutoStartSettings = () => {
 					color="primary"
 				/>
 			</SettingsItem>
-			{appWindowControlsSupported && (
-				<SettingsItem
-					title={t("pages.Settings.appWindowControls", "应用级窗口按钮")}
-					description={t(
-						"pages.Settings.appWindowControlsDescription",
-						"开启后使用应用自建的最小化、最大化/还原、关闭按钮；关闭后沿用系统窗口模式。",
-					)}
-				>
-					<Switch
-						checked={appWindowControls}
-						onChange={(event) =>
-							void handleAppWindowControlsChange(event.target.checked)
-						}
-						disabled={appWindowControlsLoading}
-						color="primary"
-					/>
-				</SettingsItem>
-			)}
 		</Stack>
 	);
 };

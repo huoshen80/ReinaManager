@@ -52,7 +52,6 @@ const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
 const LOG_KEEP_FILE_COUNT: usize = 5;
 const SETTINGS_STORE_PATH: &str = "settings.json";
 const SILENT_STARTUP_STORE_KEY: &str = "silent_startup";
-const APP_WINDOW_CONTROLS_STORE_KEY: &str = "app_window_controls";
 
 #[tauri::command]
 fn restart_app(app: tauri::AppHandle) {
@@ -184,27 +183,21 @@ pub fn run() {
             get_categories_with_count,
         ])
         .setup(|app| {
-            let (silent_startup, app_window_controls) = match app.store(SETTINGS_STORE_PATH) {
-                Ok(store) => (
-                    store
-                        .get(SILENT_STARTUP_STORE_KEY)
-                        .and_then(|value| value.as_bool())
-                        .unwrap_or(false),
-                    store
-                        .get(APP_WINDOW_CONTROLS_STORE_KEY)
-                        .and_then(|value| value.as_bool())
-                        .unwrap_or(false),
-                ),
+            let silent_startup = match app.store(SETTINGS_STORE_PATH) {
+                Ok(store) => store
+                    .get(SILENT_STARTUP_STORE_KEY)
+                    .and_then(|value| value.as_bool())
+                    .unwrap_or(false),
                 Err(error) => {
                     eprintln!("读取启动窗口设置失败: {error}");
-                    (false, false)
+                    false
                 }
             };
 
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "linux")]
                 {
-                    let _ = window.set_decorations(!app_window_controls);
+                    let _ = window.set_decorations(true);
                 }
 
                 if !silent_startup {

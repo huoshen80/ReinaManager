@@ -8,9 +8,12 @@ export const APP_WINDOW_CONTROLS_STORE_KEY = "app_window_controls";
 export const LINUX_LAUNCH_COMMAND_STORE_KEY = "linux_launch_command";
 
 const DEFAULT_LINUX_LAUNCH_COMMAND = "wine";
+const APP_WINDOW_CONTROLS_ENABLED = false;
 
 export const isAppWindowControlsSupported = () =>
-	isTauri() && import.meta.env.TAURI_ENV_PLATFORM === "linux";
+	APP_WINDOW_CONTROLS_ENABLED &&
+	isTauri() &&
+	import.meta.env.TAURI_ENV_PLATFORM === "linux";
 
 export const loadSettingsStore = () =>
 	load(SETTINGS_STORE_PATH, {
@@ -23,40 +26,30 @@ export const loadSettingsStore = () =>
 	});
 
 export const loadAppWindowControlsSetting = async (): Promise<boolean> => {
-	if (!isAppWindowControlsSupported()) {
+	if (!isTauri()) {
 		return false;
 	}
 
 	const store = await loadSettingsStore();
-	return (await store.get<boolean>(APP_WINDOW_CONTROLS_STORE_KEY)) ?? false;
-};
+	const storedValue =
+		(await store.get<boolean>(APP_WINDOW_CONTROLS_STORE_KEY)) ?? false;
 
-export const saveAppWindowControlsSetting = async (
-	enabled: boolean,
-): Promise<void> => {
-	const store = await loadSettingsStore();
-	await store.set(APP_WINDOW_CONTROLS_STORE_KEY, enabled);
-	await store.save();
-};
+	if (storedValue) {
+		await store.set(APP_WINDOW_CONTROLS_STORE_KEY, false);
+		await store.save();
+	}
 
-const waitForDecorationState = async () => {
-	await new Promise((resolve) => setTimeout(resolve, 50));
+	return false;
 };
 
 export const applyAppWindowControlsSetting = async (
-	enabled: boolean,
+	_enabled: boolean,
 ): Promise<boolean> => {
-	if (!isAppWindowControlsSupported()) {
+	if (!isTauri()) {
 		return false;
 	}
 
 	const currentWindow = getCurrentWindow();
-	await currentWindow.setDecorations(!enabled);
-
-	if (!enabled) {
-		return false;
-	}
-
-	await waitForDecorationState();
-	return !(await currentWindow.isDecorated());
+	await currentWindow.setDecorations(true);
+	return false;
 };
