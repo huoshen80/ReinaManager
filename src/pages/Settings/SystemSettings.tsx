@@ -162,7 +162,7 @@ export const AutoStartSettings = () => {
 					title={t("pages.Settings.appWindowControls", "应用级窗口按钮")}
 					description={t(
 						"pages.Settings.appWindowControlsDescription",
-						"开启后隐藏系统标题栏，并在应用顶部显示最小化、最大化/还原、关闭按钮。",
+						"开启后使用应用自建的最小化、最大化/还原、关闭按钮；关闭后沿用系统窗口模式。",
 					)}
 				>
 					<Switch

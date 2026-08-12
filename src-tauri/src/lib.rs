@@ -77,7 +77,8 @@ pub fn run() {
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(
                     tauri_plugin_window_state::StateFlags::all()
-                        .difference(tauri_plugin_window_state::StateFlags::VISIBLE),
+                        .difference(tauri_plugin_window_state::StateFlags::VISIBLE)
+                        .difference(tauri_plugin_window_state::StateFlags::DECORATIONS),
                 )
                 .build(),
         )
@@ -195,7 +196,7 @@ pub fn run() {
                         .unwrap_or(false),
                 ),
                 Err(error) => {
-                    eprintln!("读取静默启动设置失败: {error}");
+                    eprintln!("读取启动窗口设置失败: {error}");
                     (false, false)
                 }
             };

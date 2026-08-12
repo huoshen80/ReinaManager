@@ -33,6 +33,7 @@ import {
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import { useActiveTaskCount } from "@/hooks/queries/useTasks";
 import {
+	applyAppWindowControlsSetting,
 	isAppWindowControlsSupported,
 	loadAppWindowControlsSetting,
 } from "@/services/plugins/windowControlSettings";
@@ -513,13 +514,14 @@ export const Layout: React.FC = () => {
 	useEffect(() => {
 		let active = true;
 		loadAppWindowControlsSetting()
-			.then((enabled) => {
+			.then(async (enabled) => {
 				if (active) {
 					setAppWindowControls(enabled);
 				}
+				await applyAppWindowControlsSetting(enabled);
 			})
 			.catch((error) => {
-				console.error("读取应用级窗口按钮设置失败:", error);
+				console.error("同步应用级窗口按钮设置失败:", error);
 			});
 
 		return () => {

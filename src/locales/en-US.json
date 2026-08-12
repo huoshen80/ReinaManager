@@ -753,7 +753,7 @@
 		"autoStart": "Auto Start",
 		"autoStartDescription": "Start the app automatically when you sign in to the system.",
 		"appWindowControls": "App-level window controls",
-		"appWindowControlsDescription": "Hide the system title bar and show minimize, maximize/restore, and close buttons in the app header.",
+		"appWindowControlsDescription": "Use built-in minimize, maximize/restore, and close buttons; when disabled, keep the system window frame.",
 		"appWindowControlsSaveFailed": "Failed to save app-level window controls setting",
 		"batchUpdate": {
 				"description": "The batch update feature can be used to update BGM/VNDB data for existing games. When game metadata changes, you can use this feature to sync the latest information. Once you click the update button, please wait patiently as the update process may take some time. It is recommended to use when updating game data sources.",
