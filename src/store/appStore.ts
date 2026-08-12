@@ -140,6 +140,8 @@ export interface AppState {
 	// 启动默认页面
 	startupPage: StartupPage;
 	setStartupPage: (page: StartupPage) => void;
+	appWindowControls: boolean;
+	setAppWindowControls: (enabled: boolean) => void;
 
 	// TAG翻译功能
 	tagTranslation: boolean;
@@ -326,6 +328,9 @@ export const useStore = create<AppState>()(
 			// 启动默认页面
 			startupPage: "home",
 			setStartupPage: (page: StartupPage) => set({ startupPage: page }),
+			appWindowControls: false,
+			setAppWindowControls: (enabled: boolean) =>
+				set({ appWindowControls: enabled }),
 
 			// TAG翻译功能（默认关闭）
 			tagTranslation: false,

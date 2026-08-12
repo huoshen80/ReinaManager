@@ -22,3 +22,12 @@ html[data-toolpad-color-scheme="dark"],
 html[data-mui-color-scheme="dark"] {
 	scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
+
+[data-tauri-drag-region] {
+	-webkit-app-region: drag;
+}
+
+[data-tauri-no-drag],
+[data-tauri-drag-region] .no-drag {
+	-webkit-app-region: no-drag;
+}

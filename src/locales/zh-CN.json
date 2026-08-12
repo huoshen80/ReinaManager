@@ -73,7 +73,13 @@
 		},
 		"AppLayout": {
 			"back": "返回",
-			"backToTop": "返回顶部"
+			"backToTop": "返回顶部",
+			"windowControls": {
+				"close": "关闭",
+				"maximize": "最大化",
+				"minimize": "最小化",
+				"restore": "还原"
+			}
 		},
 		"BulkImportModal": {
 			"actions": "操作",
@@ -727,9 +733,12 @@
 				"updateFound": "发现新版本：{{version}}",
 				"version": "版本"
 			},
-			"autoStart": "开机自启",
-			"autoStartDescription": "系统登录后自动启动应用。",
-			"batchUpdate": {
+		"autoStart": "开机自启",
+		"autoStartDescription": "系统登录后自动启动应用。",
+		"appWindowControls": "应用级窗口按钮",
+		"appWindowControlsDescription": "开启后隐藏系统标题栏，并在应用顶部显示最小化、最大化/还原、关闭按钮。",
+		"appWindowControlsSaveFailed": "保存应用级窗口按钮设置失败",
+		"batchUpdate": {
 				"description": "批量更新功能可用于更新已存在游戏的 BGM/VNDB 数据。当游戏的元数据发生变化时，您可以使用此功能来同步最新的信息。一旦点击更新按钮请耐心等待，更新过程可能需要一些时间。推荐软件更新数据源获取字段时使用。",
 				"error": "批量更新 VNDB 数据失败: {{message}}",
 				"errorBgm": "批量更新 BGM 数据失败: {{message}}",

@@ -73,7 +73,13 @@
 		},
 		"AppLayout": {
 			"back": "Back",
-			"backToTop": "Back to top"
+			"backToTop": "Back to top",
+			"windowControls": {
+				"close": "Close",
+				"maximize": "Maximize",
+				"minimize": "Minimize",
+				"restore": "Restore"
+			}
 		},
 		"BulkImportModal": {
 			"actions": "Actions",
@@ -744,9 +750,12 @@
 				"updateFound": "New version found: {{version}}",
 				"version": "Version"
 			},
-			"autoStart": "Auto Start",
-			"autoStartDescription": "Start the app automatically when you sign in to the system.",
-			"batchUpdate": {
+		"autoStart": "Auto Start",
+		"autoStartDescription": "Start the app automatically when you sign in to the system.",
+		"appWindowControls": "App-level window controls",
+		"appWindowControlsDescription": "Hide the system title bar and show minimize, maximize/restore, and close buttons in the app header.",
+		"appWindowControlsSaveFailed": "Failed to save app-level window controls setting",
+		"batchUpdate": {
 				"description": "The batch update feature can be used to update BGM/VNDB data for existing games. When game metadata changes, you can use this feature to sync the latest information. Once you click the update button, please wait patiently as the update process may take some time. It is recommended to use when updating game data sources.",
 				"error": "Failed to batch update VNDB data: {{message}}",
 				"errorBgm": "Failed to batch update BGM data: {{message}}",

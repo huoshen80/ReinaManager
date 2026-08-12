@@ -17,7 +17,6 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import { path } from "@tauri-apps/api";
 import { isEnabled } from "@tauri-apps/plugin-autostart";
-import { load } from "@tauri-apps/plugin-store";
 import { join } from "pathe";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,48 +25,58 @@ import { useLogLevel, useSetLogLevel } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { fileService } from "@/services/invoke";
 import { toggleAutostart } from "@/services/plugins/autoStartService";
+import {
+	APP_WINDOW_CONTROLS_STORE_KEY,
+	applyAppWindowControlsSetting,
+	isAppWindowControlsSupported,
+	LINUX_LAUNCH_COMMAND_STORE_KEY,
+	loadSettingsStore,
+	saveAppWindowControlsSetting,
+	SILENT_STARTUP_STORE_KEY,
+} from "@/services/plugins/windowControlSettings";
 import { useStore } from "@/store/appStore";
 import { getUserErrorMessage } from "@/utils/errors";
 import { SettingsGroup, SettingsItem } from "./SettingsLayout";
 
-const SETTINGS_STORE_PATH = "settings.json";
-const SILENT_STARTUP_STORE_KEY = "silent_startup";
-const LINUX_LAUNCH_COMMAND_STORE_KEY = "linux_launch_command";
-const loadSettingsStore = () =>
-	load(SETTINGS_STORE_PATH, {
-		autoSave: false,
-		defaults: {
-			[SILENT_STARTUP_STORE_KEY]: false,
-			[LINUX_LAUNCH_COMMAND_STORE_KEY]: "wine",
-		},
-	});
-
 export const AutoStartSettings = () => {
 	const { t } = useTranslation();
+	const appWindowControlsSupported = isAppWindowControlsSupported();
+	const setStoreAppWindowControls = useStore((s) => s.setAppWindowControls);
 	const [autoStart, setAutoStart] = useState(false);
 	const [silentStartup, setSilentStartup] = useState(false);
 	const [silentStartupLoading, setSilentStartupLoading] = useState(true);
+	const [appWindowControls, setAppWindowControls] = useState(false);
+	const [appWindowControlsLoading, setAppWindowControlsLoading] = useState(
+		appWindowControlsSupported,
+	);
 
 	useEffect(() => {
 		const checkAutoStart = async () => {
 			setAutoStart(await isEnabled());
 		};
-		const loadSilentStartup = async () => {
+		const loadStartupSettings = async () => {
 			try {
 				const store = await loadSettingsStore();
 				setSilentStartup(
 					(await store.get<boolean>(SILENT_STARTUP_STORE_KEY)) ?? false,
 				);
+				if (appWindowControlsSupported) {
+					const enabled =
+						(await store.get<boolean>(APP_WINDOW_CONTROLS_STORE_KEY)) ?? false;
+					setAppWindowControls(enabled);
+					setStoreAppWindowControls(enabled);
+				}
 			} catch (error) {
-				console.error("读取静默启动设置失败:", error);
+				console.error("读取启动设置失败:", error);
 			} finally {
 				setSilentStartupLoading(false);
+				setAppWindowControlsLoading(false);
 			}
 		};
 
 		void checkAutoStart();
-		void loadSilentStartup();
-	}, []);
+		void loadStartupSettings();
+	}, [appWindowControlsSupported, setStoreAppWindowControls]);
 
 	const handleSilentStartupChange = async (enabled: boolean) => {
 		setSilentStartup(enabled);
@@ -82,6 +91,34 @@ export const AutoStartSettings = () => {
 			console.error("保存静默启动设置失败:", error);
 		} finally {
 			setSilentStartupLoading(false);
+		}
+	};
+
+	const handleAppWindowControlsChange = async (enabled: boolean) => {
+		const previous = appWindowControls;
+		setAppWindowControls(enabled);
+		setStoreAppWindowControls(enabled);
+		setAppWindowControlsLoading(true);
+
+		try {
+			await saveAppWindowControlsSetting(enabled);
+			await applyAppWindowControlsSetting(enabled);
+		} catch (error) {
+			setAppWindowControls(previous);
+			setStoreAppWindowControls(previous);
+			console.error("保存应用级窗口按钮设置失败:", error);
+			snackbar.error(
+				getUserErrorMessage(
+					error,
+					t,
+					t(
+						"pages.Settings.appWindowControlsSaveFailed",
+						"保存应用级窗口按钮设置失败",
+					),
+				),
+			);
+		} finally {
+			setAppWindowControlsLoading(false);
 		}
 	};
 
@@ -120,6 +157,24 @@ export const AutoStartSettings = () => {
 					color="primary"
 				/>
 			</SettingsItem>
+			{appWindowControlsSupported && (
+				<SettingsItem
+					title={t("pages.Settings.appWindowControls", "应用级窗口按钮")}
+					description={t(
+						"pages.Settings.appWindowControlsDescription",
+						"开启后隐藏系统标题栏，并在应用顶部显示最小化、最大化/还原、关闭按钮。",
+					)}
+				>
+					<Switch
+						checked={appWindowControls}
+						onChange={(event) =>
+							void handleAppWindowControlsChange(event.target.checked)
+						}
+						disabled={appWindowControlsLoading}
+						color="primary"
+					/>
+				</SettingsItem>
+			)}
 		</Stack>
 	);
 };

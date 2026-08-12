@@ -1,6 +1,10 @@
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import CropSquareRoundedIcon from "@mui/icons-material/CropSquareRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
+import FilterNoneRoundedIcon from "@mui/icons-material/FilterNoneRounded";
 import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRounded";
+import MinimizeRoundedIcon from "@mui/icons-material/MinimizeRounded";
 import { Avatar, Box, Fab, Fade, Link } from "@mui/material";
 import AppBar from "@mui/material/AppBar";
 import Badge from "@mui/material/Badge";
@@ -10,9 +14,11 @@ import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { DashboardLayout } from "@toolpad/core/DashboardLayout";
 import { PageContainer } from "@toolpad/core/PageContainer";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AddModal from "@/components/AddModal";
@@ -26,9 +32,18 @@ import {
 } from "@/hooks/common/useScrollRestore";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import { useActiveTaskCount } from "@/hooks/queries/useTasks";
+import {
+	isAppWindowControlsSupported,
+	loadAppWindowControlsSetting,
+} from "@/services/plugins/windowControlSettings";
 import { type SelectedCategory, useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
 import { getDeveloperCategoryGameIds } from "@/utils/game/gameIndex";
+
+const WINDOW_CONTROL_BUTTON_SX = {
+	width: 32,
+	height: 32,
+};
 
 /**
  * 侧边栏底部信息组件
@@ -219,7 +234,7 @@ const CustomAppTitle = () => {
 			direction="row"
 			alignItems="center"
 			spacing={2}
-			className="select-none"
+			className="select-none no-drag"
 		>
 			<Tooltip title={t("components.AppLayout.back", "返回")} enterDelay={1000}>
 				<span>
@@ -253,44 +268,187 @@ const CustomAppTitle = () => {
 	);
 };
 
-const Header = () => (
-	<AppBar
-		color="inherit"
-		position="absolute"
-		className="print:hidden border-0 border-b border-solid shadow-none"
-		sx={{
-			borderColor: "divider",
-			zIndex: (theme) => theme.zIndex.drawer + 1,
-		}}
-	>
-		<Toolbar
-			className="bg-inherit"
+function AppWindowControls() {
+	const { t } = useTranslation();
+	const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+
+	useEffect(() => {
+		if (!isTauri()) return;
+
+		let active = true;
+		let unlistenResize: (() => void) | undefined;
+		const currentWindow = getCurrentWindow();
+		const syncWindowState = async () => {
+			try {
+				const maximized = await currentWindow.isMaximized();
+				if (active) {
+					setIsWindowMaximized(maximized);
+				}
+			} catch (error) {
+				console.error("同步窗口状态失败:", error);
+			}
+		};
+
+		void syncWindowState();
+		currentWindow
+			.onResized(() => {
+				void syncWindowState();
+			})
+			.then((unlisten) => {
+				if (active) {
+					unlistenResize = unlisten;
+				} else {
+					unlisten();
+				}
+			})
+			.catch((error) => {
+				console.error("监听窗口尺寸变化失败:", error);
+			});
+
+		return () => {
+			active = false;
+			unlistenResize?.();
+		};
+	}, []);
+
+	const handleMinimize = useCallback(async () => {
+		try {
+			await getCurrentWindow().minimize();
+		} catch (error) {
+			console.error("最小化窗口失败:", error);
+		}
+	}, []);
+
+	const handleToggleMaximize = useCallback(async () => {
+		try {
+			const currentWindow = getCurrentWindow();
+			await currentWindow.toggleMaximize();
+			setIsWindowMaximized(await currentWindow.isMaximized());
+		} catch (error) {
+			console.error("切换窗口最大化失败:", error);
+		}
+	}, []);
+
+	const handleClose = useCallback(async () => {
+		try {
+			await getCurrentWindow().close();
+		} catch (error) {
+			console.error("关闭窗口失败:", error);
+		}
+	}, []);
+
+	return (
+		<Stack direction="row" alignItems="center" spacing={0.25} className="no-drag">
+			<Tooltip
+				title={t("components.AppLayout.windowControls.minimize", "最小化")}
+				enterDelay={1000}
+			>
+				<IconButton
+					aria-label={t(
+						"components.AppLayout.windowControls.minimize",
+						"最小化",
+					)}
+					size="small"
+					onClick={handleMinimize}
+					sx={WINDOW_CONTROL_BUTTON_SX}
+				>
+					<MinimizeRoundedIcon fontSize="small" />
+				</IconButton>
+			</Tooltip>
+			<Tooltip
+				title={
+					isWindowMaximized
+						? t("components.AppLayout.windowControls.restore", "还原")
+						: t("components.AppLayout.windowControls.maximize", "最大化")
+				}
+				enterDelay={1000}
+			>
+				<IconButton
+					aria-label={
+						isWindowMaximized
+							? t("components.AppLayout.windowControls.restore", "还原")
+							: t("components.AppLayout.windowControls.maximize", "最大化")
+					}
+					size="small"
+					onClick={handleToggleMaximize}
+					sx={WINDOW_CONTROL_BUTTON_SX}
+				>
+					{isWindowMaximized ? (
+						<FilterNoneRoundedIcon fontSize="small" />
+					) : (
+						<CropSquareRoundedIcon fontSize="small" />
+					)}
+				</IconButton>
+			</Tooltip>
+			<Tooltip
+				title={t("components.AppLayout.windowControls.close", "关闭")}
+				enterDelay={1000}
+			>
+				<IconButton
+					aria-label={t("components.AppLayout.windowControls.close", "关闭")}
+					size="small"
+					onClick={handleClose}
+					sx={{
+						...WINDOW_CONTROL_BUTTON_SX,
+						"&:hover": {
+							bgcolor: "error.main",
+							color: "error.contrastText",
+						},
+					}}
+				>
+					<CloseRoundedIcon fontSize="small" />
+				</IconButton>
+			</Tooltip>
+		</Stack>
+	);
+}
+
+const Header = () => {
+	const appWindowControls = useStore((s) => s.appWindowControls);
+	const appWindowControlsEnabled =
+		isAppWindowControlsSupported() && appWindowControls;
+
+	return (
+		<AppBar
+			color="inherit"
+			position="absolute"
+			className="print:hidden border-0 border-b border-solid shadow-none"
+			data-tauri-drag-region={appWindowControlsEnabled ? true : undefined}
 			sx={{
-				mx: {
-					xs: -0.75,
-					sm: -1,
-				},
+				borderColor: "divider",
+				zIndex: (theme) => theme.zIndex.drawer + 1,
 			}}
 		>
-			<Stack
-				direction="row"
-				justifyContent="space-between"
-				alignItems="center"
-				className="w-full flex-wrap"
+			<Toolbar
+				className="bg-inherit"
+				sx={{
+					mx: {
+						xs: -0.75,
+						sm: -1,
+					},
+				}}
 			>
-				<CustomAppTitle />
 				<Stack
 					direction="row"
+					justifyContent="space-between"
 					alignItems="center"
-					spacing={1}
-					className="ml-auto"
+					className="w-full flex-wrap"
 				>
-					<Toolbars />
+					<CustomAppTitle />
+					<Stack
+						direction="row"
+						alignItems="center"
+						spacing={1}
+						className="ml-auto no-drag"
+					>
+						<Toolbars />
+						{appWindowControlsEnabled && <AppWindowControls />}
+					</Stack>
 				</Stack>
-			</Stack>
-		</Toolbar>
-	</AppBar>
-);
+			</Toolbar>
+		</AppBar>
+	);
+};
 
 const BackToTopButton = () => {
 	const { t } = useTranslation();
@@ -350,6 +508,24 @@ export const Layout: React.FC = () => {
 	const isLibraries = location.pathname === "/libraries";
 	const taskManagerOpen = useStore((s) => s.taskManagerOpen);
 	const closeTaskManager = useStore((s) => s.closeTaskManager);
+	const setAppWindowControls = useStore((s) => s.setAppWindowControls);
+
+	useEffect(() => {
+		let active = true;
+		loadAppWindowControlsSetting()
+			.then((enabled) => {
+				if (active) {
+					setAppWindowControls(enabled);
+				}
+			})
+			.catch((error) => {
+				console.error("读取应用级窗口按钮设置失败:", error);
+			});
+
+		return () => {
+			active = false;
+		};
+	}, [setAppWindowControls]);
 
 	return (
 		<>

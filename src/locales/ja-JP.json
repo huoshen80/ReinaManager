@@ -73,7 +73,13 @@
 		},
 		"AppLayout": {
 			"back": "戻る",
-			"backToTop": "トップへ戻る"
+			"backToTop": "トップへ戻る",
+			"windowControls": {
+				"close": "閉じる",
+				"maximize": "最大化",
+				"minimize": "最小化",
+				"restore": "元に戻す"
+			}
 		},
 		"BulkImportModal": {
 			"actions": "操作",
@@ -727,9 +733,12 @@
 				"updateFound": "新しいバージョンを検出しました: {{version}}",
 				"version": "バージョン"
 			},
-			"autoStart": "自動起動",
-			"autoStartDescription": "システムへのログイン時にアプリを自動起動します。",
-			"batchUpdate": {
+		"autoStart": "自動起動",
+		"autoStartDescription": "システムへのログイン時にアプリを自動起動します。",
+		"appWindowControls": "アプリ内ウィンドウボタン",
+		"appWindowControlsDescription": "システムのタイトルバーを非表示にし、アプリ上部に最小化、最大化/復元、閉じるボタンを表示します。",
+		"appWindowControlsSaveFailed": "アプリ内ウィンドウボタン設定の保存に失敗しました",
+		"batchUpdate": {
 				"description": "バッチ更新機能は、既存のゲームのBGM/VNDBデータを更新するために使用できます。ゲームのメタデータが変更されると、この機能を使用して最新の情報を同期できます。更新ボタンをクリックしたら、更新プロセスに時間がかかる可能性があるので、お待ちください。ゲームデータソースを更新する際の使用をお勧めします。",
 				"error": "VNDBデータの一括更新に失敗しました: {{message}}",
 				"errorBgm": "BGMデータの一括更新に失敗しました: {{message}}",
