@@ -1,0 +1,7 @@
+interface:
+  display_name: "AI CDP 前端调试"
+  short_description: "连接 WebView2，操作、截图并诊断 ReinaManager 前端"
+  default_prompt: "使用 $cdp 连接 ReinaManager，复现、分析并验证前端问题。"
+
+policy:
+  allow_implicit_invocation: false

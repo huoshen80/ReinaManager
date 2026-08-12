@@ -19,6 +19,7 @@
 | 修改游戏列表、`GameIndex` 或 Query 缓存 | [`architecture/game-library.md`](architecture/game-library.md) |
 | 修改外部元数据源、搜索或展示合并 | [`architecture/metadata.md`](architecture/metadata.md) |
 | 新增或修改国际化字符串 | [i18n Skill](../.agents/skills/i18n/SKILL.md) |
+| 由 AI 操作 WebView2、截图并诊断前端 | [cdp Skill](../.agents/skills/cdp/SKILL.md)，或调用 `/cdp` |
 
 ## 维护原则
 
