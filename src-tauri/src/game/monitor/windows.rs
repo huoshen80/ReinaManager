@@ -54,7 +54,10 @@ const TIME_UPDATE_INTERVAL_SECS: u64 = 1;
 const MONITOR_CHECK_INTERVAL_SECS: u64 = 1;
 
 /// 等待游戏正式获得前台窗口的最长时间（秒）
-const STARTUP_TIMEOUT_SECS: u64 = 60;
+const FOREGROUND_WAIT_TIMEOUT_SECS: u64 = 60;
+
+/// 游戏尚未确认启动时，允许游戏目录连续无活动进程的最长时间（秒）
+const EMPTY_PROCESS_TIMEOUT_SECS: u64 = 60;
 
 /// 等待监控会话注册的最长时间（秒）
 const SESSION_REGISTRATION_TIMEOUT_SECS: u64 = 10;
@@ -246,11 +249,11 @@ pub async fn wait_for_game_foreground(game_id: u32) -> bool {
         }
 
         if foreground_wait_started_at.is_some_and(|started_at: Instant| {
-            started_at.elapsed() >= Duration::from_secs(STARTUP_TIMEOUT_SECS)
+            started_at.elapsed() >= Duration::from_secs(FOREGROUND_WAIT_TIMEOUT_SECS)
         }) {
             debug!(
                 "等待游戏 {} 前台窗口超过 {} 秒，取消Magpie放大",
-                game_id, STARTUP_TIMEOUT_SECS
+                game_id, FOREGROUND_WAIT_TIMEOUT_SECS
             );
             return false;
         }
@@ -354,7 +357,6 @@ async fn run_game_monitor<R: Runtime>(
 ) -> Result<(), String> {
     let mut accumulated_seconds = 0u64;
     let start_time = get_timestamp();
-    let startup_started_at = Instant::now();
 
     // 先用初始进程创建会话；目录扫描仍在原有 3 秒等待后执行。
     let mut candidate_pids_set = HashSet::new();
@@ -431,6 +433,7 @@ async fn run_game_monitor<R: Runtime>(
 
     let mut consecutive_failures = 0u32;
     let mut last_best_pid = best_pid;
+    let mut empty_since = None;
 
     // 创建精确的 1 秒间隔定时器
     let mut tick_interval = interval(Duration::from_secs(MONITOR_CHECK_INTERVAL_SECS));
@@ -452,12 +455,6 @@ async fn run_game_monitor<R: Runtime>(
             (state.is_foreground, state.best_pid, state.has_started)
         };
 
-        if !has_started && startup_started_at.elapsed() >= Duration::from_secs(STARTUP_TIMEOUT_SECS)
-        {
-            info!("游戏启动等待超过 {} 秒，结束监控", STARTUP_TIMEOUT_SECS);
-            break;
-        }
-
         // 检查当前最佳 PID 是否还在运行
         let best_pid_running = is_process_running(current_best_pid);
 
@@ -475,17 +472,31 @@ async fn run_game_monitor<R: Runtime>(
                 let new_candidate_pids_vec = get_all_candidate_pids(&detection_dir);
 
                 if new_candidate_pids_vec.is_empty() {
-                    if !has_started
-                        && startup_started_at.elapsed() < Duration::from_secs(STARTUP_TIMEOUT_SECS)
-                    {
-                        debug!("游戏尚未确认启动，目录暂时无活动进程，继续等待");
-                        consecutive_failures = 0;
-                        continue;
+                    shared_candidate_pids.write().clear();
+                    monitor_state.write().is_foreground = false;
+
+                    if !has_started {
+                        let empty_started_at = empty_since.get_or_insert_with(Instant::now);
+                        if empty_started_at.elapsed()
+                            < Duration::from_secs(EMPTY_PROCESS_TIMEOUT_SECS)
+                        {
+                            debug!("游戏尚未确认启动，目录持续无活动进程，继续等待");
+                            consecutive_failures = 0;
+                            continue;
+                        }
+
+                        info!(
+                            "游戏目录连续 {} 秒无活动进程，结束监控",
+                            EMPTY_PROCESS_TIMEOUT_SECS
+                        );
+                        break;
                     }
 
                     info!("未找到可切换的活动进程，结束监控会话");
                     break;
                 }
+
+                empty_since = None;
 
                 // 更新共享的候选列表
                 let new_candidate_pids_set: HashSet<u32> =
@@ -511,6 +522,9 @@ async fn run_game_monitor<R: Runtime>(
                 continue;
             }
         } else {
+            // 最佳 PID 仍在运行，连续空窗已被打断
+            empty_since = None;
+
             // 最佳 PID 仍在运行，重置失败计数
             consecutive_failures = 0;
 
