@@ -116,26 +116,31 @@ jobs:
           RELEASE_TAG: ${{ steps.resolve_tag.outputs.TAG }}
           RELEASE_BODY: ${{ steps.changelog_entry.outputs.content }}
         run: |
-          if RELEASE_DATA=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" 2>/dev/null); then
-            RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r '.id')
-            RELEASE_DRAFT=$(echo "$RELEASE_DATA" | jq -r '.draft')
-            echo "已找到 Release：$RELEASE_TAG（$RELEASE_ID）"
+          RELEASE_DATA=$(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+              jq -sc --arg tag "$RELEASE_TAG" \
+                '[.[][] | select(.tag_name == $tag)] | first // empty'
+          )
+
+          if [ -n "$RELEASE_DATA" ]; then
+            echo "已找到现有 Release：$RELEASE_TAG"
           else
-            NOTES_FILE=$(mktemp)
-            printf '%s\n' "$RELEASE_BODY" > "$NOTES_FILE"
+            RELEASE_DATA=$(
+              gh api \
+                --method POST \
+                "repos/$GITHUB_REPOSITORY/releases" \
+                -f tag_name="$RELEASE_TAG" \
+                -f name="$RELEASE_TAG" \
+                -f body="$RELEASE_BODY" \
+                -F draft=true \
+                -F prerelease=false
+            )
 
-            gh release create "$RELEASE_TAG" \
-              --draft \
-              --title "$RELEASE_TAG" \
-              --notes-file "$NOTES_FILE"
-
-            rm -f "$NOTES_FILE"
-
-            RELEASE_DATA=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
-            RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r '.id')
-            RELEASE_DRAFT=$(echo "$RELEASE_DATA" | jq -r '.draft')
-            echo "已创建 Draft Release：$RELEASE_TAG（$RELEASE_ID）"
+            echo "已创建 Draft Release：$RELEASE_TAG"
           fi
+
+          RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r '.id')
+          RELEASE_DRAFT=$(echo "$RELEASE_DATA" | jq -r '.draft')
 
           if ! [[ "$RELEASE_ID" =~ ^[0-9]+$ ]]; then
             echo "错误：无效的 Release ID：$RELEASE_ID"
@@ -145,6 +150,9 @@ jobs:
             echo "错误：无效的 Release draft 状态：$RELEASE_DRAFT"
             exit 1
           fi
+
+          echo "Release ID: $RELEASE_ID"
+          echo "Draft: $RELEASE_DRAFT"
 
           echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "RELEASE_DRAFT=$RELEASE_DRAFT" >> "$GITHUB_OUTPUT"
