@@ -102,7 +102,16 @@ export const AutoStartSettings = () => {
 
 		try {
 			await saveAppWindowControlsSetting(enabled);
-			await applyAppWindowControlsSetting(enabled);
+			const controlsActive = await applyAppWindowControlsSetting(enabled);
+			setStoreAppWindowControls(controlsActive);
+			if (enabled && !controlsActive) {
+				snackbar.warning(
+					t(
+						"pages.Settings.appWindowControlsNotApplied",
+						"系统标题栏未能隐藏，已避免显示重复的应用级窗口按钮。",
+					),
+				);
+			}
 		} catch (error) {
 			setAppWindowControls(previous);
 			setStoreAppWindowControls(previous);

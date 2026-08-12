@@ -737,6 +737,7 @@
 		"autoStartDescription": "系统登录后自动启动应用。",
 		"appWindowControls": "应用级窗口按钮",
 		"appWindowControlsDescription": "开启后使用应用自建的最小化、最大化/还原、关闭按钮；关闭后沿用系统窗口模式。",
+		"appWindowControlsNotApplied": "系统标题栏未能隐藏，已避免显示重复的应用级窗口按钮。",
 		"appWindowControlsSaveFailed": "保存应用级窗口按钮设置失败",
 		"batchUpdate": {
 				"description": "批量更新功能可用于更新已存在游戏的 BGM/VNDB 数据。当游戏的元数据发生变化时，您可以使用此功能来同步最新的信息。一旦点击更新按钮请耐心等待，更新过程可能需要一些时间。推荐软件更新数据源获取字段时使用。",

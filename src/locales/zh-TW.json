@@ -737,6 +737,7 @@
 		"autoStartDescription": "系統登入後自動啟動應用程式。",
 		"appWindowControls": "應用程式等級視窗按鈕",
 		"appWindowControlsDescription": "開啟後使用應用程式自建的最小化、最大化/還原、關閉按鈕；關閉後沿用系統視窗模式。",
+		"appWindowControlsNotApplied": "系統標題列未能隱藏，已避免顯示重複的應用程式等級視窗按鈕。",
 		"appWindowControlsSaveFailed": "儲存應用程式等級視窗按鈕設定失敗",
 		"batchUpdate": {
 				"description": "批量更新功能可用於更新已存在遊戲的 BGM/VNDB 數據。當遊戲的元數據發生變化時，您可以使用此功能來同步最新的信息。一旦點擊更新按鈕請耐心等待，更新過程可能需要一些時間。推薦軟件更新數據源獲取字段時使用。",

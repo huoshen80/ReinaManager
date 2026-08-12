@@ -39,12 +39,24 @@ export const saveAppWindowControlsSetting = async (
 	await store.save();
 };
 
+const waitForDecorationState = async () => {
+	await new Promise((resolve) => setTimeout(resolve, 50));
+};
+
 export const applyAppWindowControlsSetting = async (
 	enabled: boolean,
-): Promise<void> => {
+): Promise<boolean> => {
 	if (!isAppWindowControlsSupported()) {
-		return;
+		return false;
 	}
 
-	await getCurrentWindow().setDecorations(!enabled);
+	const currentWindow = getCurrentWindow();
+	await currentWindow.setDecorations(!enabled);
+
+	if (!enabled) {
+		return false;
+	}
+
+	await waitForDecorationState();
+	return !(await currentWindow.isDecorated());
 };

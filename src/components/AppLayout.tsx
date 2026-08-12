@@ -515,10 +515,10 @@ export const Layout: React.FC = () => {
 		let active = true;
 		loadAppWindowControlsSetting()
 			.then(async (enabled) => {
+				const controlsActive = await applyAppWindowControlsSetting(enabled);
 				if (active) {
-					setAppWindowControls(enabled);
+					setAppWindowControls(controlsActive);
 				}
-				await applyAppWindowControlsSetting(enabled);
 			})
 			.catch((error) => {
 				console.error("同步应用级窗口按钮设置失败:", error);
