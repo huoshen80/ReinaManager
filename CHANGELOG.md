@@ -1,3 +1,29 @@
+## [0.28.1](https://github.com/huoshen80/ReinaManager/compare/v0.28.0...v0.28.1) (2026-08-12)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- *(release)* 跨构建共享单个 release ([3703321](https://github.com/huoshen80/ReinaManager/commit/370332165af3dec5e076be0f209af61de7e49637))
+
+### 🐛 Bug 修复
+
+- *(install)* 允许压缩包链接字段为空 ([b1167a4](https://github.com/huoshen80/ReinaManager/commit/b1167a42bd6d2641113145460daf8d45bfa85afe))
+- *(settings)* 滚动到底部时激活最后一个设置分区 ([f51116b](https://github.com/huoshen80/ReinaManager/commit/f51116bf07d1cc8519413463c95b76bab4075860))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Share one release across builds ([3703321](https://github.com/huoshen80/ReinaManager/commit/370332165af3dec5e076be0f209af61de7e49637))
+
+### 🐛 Bug Fixes
+
+- *(install)* Allow empty archive link fields ([b1167a4](https://github.com/huoshen80/ReinaManager/commit/b1167a42bd6d2641113145460daf8d45bfa85afe))
+- *(settings)* Activate final section at bottom ([f51116b](https://github.com/huoshen80/ReinaManager/commit/f51116bf07d1cc8519413463c95b76bab4075860))
+
+
 ## [0.28.0](https://github.com/huoshen80/ReinaManager/compare/v0.27.1...v0.28.0) (2026-08-11)
 
 <details>
