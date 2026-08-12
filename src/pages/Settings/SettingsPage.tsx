@@ -213,12 +213,30 @@ export const Settings: React.FC = () => {
 	);
 
 	useEffect(() => {
+		const scrollContainer = document.querySelector<HTMLElement>("main");
+		const lastSectionId = sections.at(-1)?.id;
 		const sectionElements = sections
 			.map((section) => document.getElementById(section.id))
 			.filter((element): element is HTMLElement => Boolean(element));
+		const isScrolledToBottom = () =>
+			scrollContainer !== null &&
+			scrollContainer.scrollHeight -
+				scrollContainer.scrollTop -
+				scrollContainer.clientHeight <=
+				1;
+		const activateLastSectionAtBottom = () => {
+			if (lastSectionId && isScrolledToBottom()) {
+				setActiveSectionId(lastSectionId);
+			}
+		};
 
 		const observer = new IntersectionObserver(
 			(entries) => {
+				if (isScrolledToBottom()) {
+					activateLastSectionAtBottom();
+					return;
+				}
+
 				const visibleEntry = entries
 					.filter((entry) => entry.isIntersecting)
 					.toSorted((a, b) => b.intersectionRatio - a.intersectionRatio)
@@ -229,7 +247,7 @@ export const Settings: React.FC = () => {
 				}
 			},
 			{
-				root: document.querySelector("main"),
+				root: scrollContainer,
 				rootMargin: "-16px 0px -70% 0px",
 				threshold: [0.1, 0.3, 0.6],
 			},
@@ -238,8 +256,18 @@ export const Settings: React.FC = () => {
 		for (const element of sectionElements) {
 			observer.observe(element);
 		}
+		scrollContainer?.addEventListener("scroll", activateLastSectionAtBottom, {
+			passive: true,
+		});
+		activateLastSectionAtBottom();
 
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			scrollContainer?.removeEventListener(
+				"scroll",
+				activateLastSectionAtBottom,
+			);
+		};
 	}, [sections]);
 
 	const handleSectionClick = (sectionId: string) => {

@@ -190,9 +190,18 @@ fn preflight_archive(seven_zip: &Path, archive_path: &Path) -> Result<(), String
             }
             entry_count += 1;
         }
-        if line.starts_with("Symbolic Link = ") || line.starts_with("Hard Link = ") {
-            return Err("压缩包包含链接项，已拒绝解压".to_string());
+        if let Some(target) = line.strip_prefix("Symbolic Link =")
+            && !target.trim().is_empty()
+        {
+            return Err("压缩包包含符号链接，已拒绝解压".to_string());
         }
+
+        if let Some(target) = line.strip_prefix("Hard Link =")
+            && !target.trim().is_empty()
+        {
+            return Err("压缩包包含硬链接，已拒绝解压".to_string());
+        }
+
         if let Some(attributes) = line.strip_prefix("Attributes = ") {
             let attributes = attributes.trim_start();
             if attributes.starts_with('l') || attributes.contains(" Reparse ") {

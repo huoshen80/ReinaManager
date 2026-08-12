@@ -19,14 +19,22 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: release-${{ github.repository }}-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.resolve_tag.outputs.TAG }}
+      release_id: ${{ steps.release.outputs.RELEASE_ID }}
+      release_draft: ${{ steps.release.outputs.RELEASE_DRAFT }}
       pure_changelog: ${{ steps.changelog_entry.outputs.content }}
       release_body: ${{ steps.combine.outputs.content }}
+    permissions:
+      contents: write
     steps:
       - name: Resolve release tag
         id: resolve_tag
@@ -100,6 +108,55 @@ jobs:
             echo "$EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Create or find Draft Release
+        id: release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.resolve_tag.outputs.TAG }}
+          RELEASE_BODY: ${{ steps.changelog_entry.outputs.content }}
+        run: |
+          RELEASE_DATA=$(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+              jq -sc --arg tag "$RELEASE_TAG" \
+                '[.[][] | select(.tag_name == $tag)] | first // empty'
+          )
+
+          if [ -n "$RELEASE_DATA" ]; then
+            echo "已找到现有 Release：$RELEASE_TAG"
+          else
+            RELEASE_DATA=$(
+              gh api \
+                --method POST \
+                "repos/$GITHUB_REPOSITORY/releases" \
+                -f tag_name="$RELEASE_TAG" \
+                -f name="$RELEASE_TAG" \
+                -f body="$RELEASE_BODY" \
+                -F draft=true \
+                -F prerelease=false
+            )
+
+            echo "已创建 Draft Release：$RELEASE_TAG"
+          fi
+
+          RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r '.id')
+          RELEASE_DRAFT=$(echo "$RELEASE_DATA" | jq -r '.draft')
+
+          if ! [[ "$RELEASE_ID" =~ ^[0-9]+$ ]]; then
+            echo "错误：无效的 Release ID：$RELEASE_ID"
+            exit 1
+          fi
+          if [ "$RELEASE_DRAFT" != "true" ] && [ "$RELEASE_DRAFT" != "false" ]; then
+            echo "错误：无效的 Release draft 状态：$RELEASE_DRAFT"
+            exit 1
+          fi
+
+          echo "Release ID: $RELEASE_ID"
+          echo "Draft: $RELEASE_DRAFT"
+
+          echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_DRAFT=$RELEASE_DRAFT" >> "$GITHUB_OUTPUT"
+
   build-linux:
     name: Build Linux
     runs-on: ${{ matrix.os }}
@@ -171,10 +228,11 @@ jobs:
           TAURI_UPDATER_ACTIVE: true
           CARGO_INCREMENTAL: 0
         with:
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: ${{ needs.prepare.outputs.release_tag }}
           releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
-          releaseDraft: true
+          releaseDraft: ${{ needs.prepare.outputs.release_draft }}
           prerelease: false
           includeUpdaterJson: true
           includeRelease: true
@@ -260,10 +318,11 @@ jobs:
           TAURI_UPDATER_ACTIVE: true
           CARGO_INCREMENTAL: 0
         with:
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: ${{ needs.prepare.outputs.release_tag }}
           releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
-          releaseDraft: true
+          releaseDraft: ${{ needs.prepare.outputs.release_draft }}
           prerelease: false
           includeUpdaterJson: true
           includeRelease: true
