@@ -30,6 +30,7 @@ import {
 	loadSettingsStore,
 	SILENT_STARTUP_STORE_KEY,
 } from "@/services/plugins/windowControlSettings";
+import { useStore } from "@/store/appStore";
 import { getUserErrorMessage } from "@/utils/errors";
 import { SettingsGroup, SettingsItem } from "./SettingsLayout";
 
