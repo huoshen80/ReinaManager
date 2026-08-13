@@ -9,7 +9,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen) ![Stage](https://img.shields.io/badge/stage-beta-blue) ![Build Status](https://github.com/huoshen80/ReinaManager/actions/workflows/build.yml/badge.svg) ![Release](https://img.shields.io/github/v/release/huoshen80/ReinaManager) ![Downloads](https://img.shields.io/github/downloads/huoshen80/ReinaManager/total)
 
-[![wakatime](https://wakatime.com/badge/user/36a51c62-bf3b-4b81-9993-0e5b0e7ed309/project/efb3bd00-20c2-40de-98b6-e2f4a24bc120.svg)](https://wakatime.com/badge/user/36a51c62-bf3b-4b81-9993-0e5b0e7ed309/project/efb3bd00-20c2-40de-98b6-e2f4a24bc120)
+[![QQ群](https://img.shields.io/badge/QQ群-556984160-12B7F5?logo=tencentqq&logoColor=white)](https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=KHB4Pm2fmtyWv3OklLNxDxkjIKtiwMBj&authKey=2KeSnTCv%2By6ORWuEOYEZx9q63pRrCKkQRK8VqpaOiGZUS1zZ%2BNVmCbRkN3F2lpc7&noverify=0&group_code=556984160) [![wakatime](https://wakatime.com/badge/user/36a51c62-bf3b-4b81-9993-0e5b0e7ed309/project/efb3bd00-20c2-40de-98b6-e2f4a24bc120.svg)](https://wakatime.com/badge/user/36a51c62-bf3b-4b81-9993-0e5b0e7ed309/project/efb3bd00-20c2-40de-98b6-e2f4a24bc120)
 
 开发时间统计自 v0.9.0 版本起
 
