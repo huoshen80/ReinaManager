@@ -7,7 +7,7 @@ name = "ReinaManager"
 version = "0.28.1"
 dependencies = [
  "arboard",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chrono",
  "dotenvy",
@@ -23,7 +23,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sevenz-rust2",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "steamlocate",
  "takanawa-core",
  "takanawa-http",

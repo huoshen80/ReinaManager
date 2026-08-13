@@ -357,7 +357,11 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
                     }
                     hasher.update(&buffer[..read]);
                 }
-                format!("{:x}", hasher.finalize())
+                hasher
+                    .finalize()
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>()
             }
             "blake3" => {
                 let mut hasher = blake3::Hasher::new();
