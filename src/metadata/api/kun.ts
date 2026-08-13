@@ -49,6 +49,7 @@ export interface GalgameDetailResponse {
 	id: number;
 	vndb_id: string;
 	name: KunLanguage;
+	original_language?: string;
 	effective_banner_url?: string;
 	content_limit: "sfw" | "nsfw";
 	markdown: KunLanguage;
@@ -85,6 +86,18 @@ interface KunFetchOptions extends MetadataRequestContext {
 
 const KUN_LOCALE_ORDER: KunLocaleKey[] = ["zh-cn", "ja-jp", "en-us", "zh-tw"];
 
+function normalizeKunText(value?: string): string | undefined {
+	if (typeof value !== "string" || !value.trim()) {
+		return undefined;
+	}
+
+	return value.replace(/\\\r?\n/g, "\n").trim();
+}
+
+function isKunLocaleKey(language: string): language is KunLocaleKey {
+	return KUN_LOCALE_ORDER.includes(language as KunLocaleKey);
+}
+
 function toKunLocale(language: string): KunLocaleKey {
 	if (language === "zh-CN") {
 		return "zh-cn";
@@ -116,13 +129,29 @@ function pickLocalizedText(
 	];
 
 	for (const key of order) {
-		const value = localized[key];
-		if (typeof value === "string" && value.trim()) {
-			return value.replace(/\\\r?\n/g, "\n").trim();
+		const value = normalizeKunText(localized[key]);
+		if (value) {
+			return value;
 		}
 	}
 
 	return undefined;
+}
+
+function pickOriginalName(
+	localized: Partial<KunLanguage>,
+	originalLanguage?: string,
+): string | undefined {
+	const locale = originalLanguage?.trim().toLowerCase().replace("_", "-");
+	if (locale && isKunLocaleKey(locale)) {
+		const originalName = normalizeKunText(localized[locale]);
+		if (originalName) {
+			return originalName;
+		}
+	}
+
+	// 原语言缺失或对应标题为空时，保留原有的界面语言回退行为。
+	return pickLocalizedText(localized);
 }
 
 function extractAllTitles(localized?: Partial<KunLanguage>): string[] {
@@ -209,11 +238,8 @@ const transformKunData = (
 
 	const sourceData: KunData = {
 		image: kunData.effective_banner_url,
-		name: pickLocalizedText(kunData.name),
-		name_cn:
-			typeof kunData.name?.["zh-cn"] === "string"
-				? kunData.name["zh-cn"].trim()
-				: undefined,
+		name: pickOriginalName(kunData.name, kunData.original_language),
+		name_cn: normalizeKunText(kunData.name?.["zh-cn"]),
 		all_titles: extractAllTitles(kunData.name),
 		aliases: Array.from(
 			new Set((kunData.alias || []).map((alias) => alias.trim())),
