@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tauri::Manager;
@@ -20,9 +20,16 @@ use reina_path::get_base_data_dir;
 const DEFAULT_COVER_EXTENSION: &str = "jpg";
 const DEFAULT_CLOUD_COVER_FILE_NAME: &str = "cloud_cover";
 const MAX_CONCURRENT_COVER_DOWNLOADS: usize = 100;
-/// 最多重试次数（不含首次），退避延迟为 500ms * 2^attempt
-const COVER_MAX_RETRIES: u32 = 2;
-const COVER_RETRY_BASE_DELAY_MS: u64 = 500;
+const BANGUMI_IMAGE_HOST: &str = "lain.bgm.tv";
+const VNDB_IMAGE_HOST: &str = "t.vndb.org";
+const BANGUMI_IMAGE_PROXY_PREFIX: &str = "https://imagesp.yurari.moe/bangumi/";
+const VNDB_IMAGE_PROXY_PREFIX: &str = "https://imagesp.yurari.moe/vndb/";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CoverDownloadCandidate {
+    label: &'static str,
+    url: String,
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct DownloadKey {
@@ -181,10 +188,44 @@ async fn remove_file_if_exists(path: &Path) {
 
 #[derive(Debug)]
 enum CoverDownloadError {
-    Retryable(String),
+    Remote(String),
     GameDeleted(String),
     Stale(String),
-    NonRetryable(String),
+    Local(String),
+}
+
+fn build_cover_download_candidates(original_url: &str) -> Vec<CoverDownloadCandidate> {
+    let proxy = url::Url::parse(original_url).ok().and_then(|parsed| {
+        if !matches!(parsed.scheme(), "http" | "https") {
+            return None;
+        }
+
+        match parsed.host_str() {
+            Some(BANGUMI_IMAGE_HOST) => Some(("Bangumi 代理", BANGUMI_IMAGE_PROXY_PREFIX, true)),
+            Some(VNDB_IMAGE_HOST) => Some(("VNDB 代理", VNDB_IMAGE_PROXY_PREFIX, false)),
+            _ => None,
+        }
+    });
+
+    let original = CoverDownloadCandidate {
+        label: "原始地址",
+        url: original_url.to_string(),
+    };
+
+    if let Some((label, prefix, proxy_first)) = proxy {
+        let proxy = CoverDownloadCandidate {
+            label,
+            url: format!("{prefix}{original_url}"),
+        };
+        let (first, second) = if proxy_first {
+            (proxy, original)
+        } else {
+            (original, proxy)
+        };
+        return vec![first.clone(), second.clone(), first, second];
+    }
+
+    vec![original.clone(), original]
 }
 
 async fn game_exists_in_db(
@@ -192,13 +233,13 @@ async fn game_exists_in_db(
     game_id: u32,
 ) -> Result<bool, CoverDownloadError> {
     let game_id = i32::try_from(game_id)
-        .map_err(|_| CoverDownloadError::NonRetryable(format!("game_id 超出范围: {}", game_id)))?;
+        .map_err(|_| CoverDownloadError::Local(format!("game_id 超出范围: {}", game_id)))?;
 
     Games::find_by_id(game_id)
         .one(db)
         .await
         .map(|game| game.is_some())
-        .map_err(|e| CoverDownloadError::NonRetryable(format!("检查游戏状态失败: {}", e)))
+        .map_err(|e| CoverDownloadError::Local(format!("检查游戏状态失败: {}", e)))
 }
 
 async fn ensure_game_cover_writable(
@@ -268,28 +309,29 @@ pub async fn delete_cloud_cache(
     Ok(())
 }
 
-/// 单次下载尝试：发起请求 → 写 .part 临时文件 → rename 为正式缓存
+/// 单次下载尝试：发起请求 → 写 .part 临时文件 → rename 为正式缓存。
 /// 成功时返回图片字节（内存中已有，无需再次读盘）
 async fn try_download_once(
-    url: &str,
+    request_url: &str,
+    original_url: &str,
     game_cover_dir: &Path,
     game_id: u32,
     generation: u64,
     db: &DatabaseConnection,
     state: &DownloadState,
 ) -> Result<Vec<u8>, CoverDownloadError> {
-    let extension = infer_cache_extension(url);
+    let extension = infer_cache_extension(original_url);
     let cache_path = build_cache_path(game_cover_dir, game_id, &extension);
     let temp_path = build_temp_cache_path(game_cover_dir, game_id, &extension);
 
     let response = crate::utils::http::get_client()
-        .get(url)
+        .get(request_url)
         .send()
         .await
-        .map_err(|e| CoverDownloadError::Retryable(format!("发起请求失败: {}", e)))?;
+        .map_err(|e| CoverDownloadError::Remote(format!("发起请求失败: {}", e)))?;
 
     if !response.status().is_success() {
-        return Err(CoverDownloadError::NonRetryable(format!(
+        return Err(CoverDownloadError::Remote(format!(
             "HTTP 状态码异常: {}",
             response.status()
         )));
@@ -298,7 +340,7 @@ async fn try_download_once(
     let bytes = response
         .bytes()
         .await
-        .map_err(|e| CoverDownloadError::Retryable(format!("读取响应体失败: {}", e)))?
+        .map_err(|e| CoverDownloadError::Remote(format!("读取响应体失败: {}", e)))?
         .to_vec();
 
     ensure_game_cover_writable(state, db, game_id).await?;
@@ -311,7 +353,7 @@ async fn try_download_once(
 
     if let Err(e) = tokio::fs::write(&temp_path, &bytes).await {
         remove_file_if_exists(&temp_path).await;
-        return Err(CoverDownloadError::NonRetryable(format!(
+        return Err(CoverDownloadError::Local(format!(
             "写入临时文件失败: {}",
             e
         )));
@@ -346,7 +388,7 @@ async fn try_download_once(
     Ok(bytes)
 }
 
-/// 带指数退避重试的封面下载（总尝试次数 = 1 + COVER_MAX_RETRIES）
+/// 按数据源指定的代理/原地址交替顺序下载。
 /// 成功时返回图片字节，并已写入磁盘缓存
 async fn fetch_and_cache_cover(
     game_id: u32,
@@ -356,15 +398,16 @@ async fn fetch_and_cache_cover(
     db: &DatabaseConnection,
     state: &DownloadState,
 ) -> Result<Vec<u8>, CoverDownloadError> {
-    let mut last_retryable_err = String::new();
+    let candidates = build_cover_download_candidates(url);
+    let mut last_remote_error = String::new();
 
-    // 目录只在进入下载流程时创建一次，避免重试阶段重复创建
+    // 目录只在进入下载流程时创建一次，避免候选切换和重试阶段重复创建。
     ensure_game_cover_writable(state, db, game_id).await?;
     tokio::fs::create_dir_all(game_cover_dir)
         .await
-        .map_err(|e| CoverDownloadError::NonRetryable(format!("创建缓存目录失败: {}", e)))?;
+        .map_err(|e| CoverDownloadError::Local(format!("创建缓存目录失败: {}", e)))?;
 
-    for attempt in 0..=COVER_MAX_RETRIES {
+    for (request_index, candidate) in candidates.iter().enumerate() {
         if !state.is_cache_generation_current(game_id, generation).await {
             return Err(CoverDownloadError::Stale(format!(
                 "封面下载重试前已过期 game_id={} generation={}",
@@ -372,19 +415,17 @@ async fn fetch_and_cache_cover(
             )));
         }
 
-        if attempt > 0 {
-            let delay_ms = COVER_RETRY_BASE_DELAY_MS * (1u64 << (attempt - 1));
-            log::debug!(
-                "封面下载重试 game_id={} attempt={}/{} delay={}ms",
-                game_id,
-                attempt,
-                COVER_MAX_RETRIES,
-                delay_ms
-            );
-            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-        }
-
-        match try_download_once(url, game_cover_dir, game_id, generation, db, state).await {
+        match try_download_once(
+            &candidate.url,
+            url,
+            game_cover_dir,
+            game_id,
+            generation,
+            db,
+            state,
+        )
+        .await
+        {
             Ok(bytes) => {
                 if !state.is_cache_generation_current(game_id, generation).await {
                     return Err(CoverDownloadError::Stale(format!(
@@ -393,59 +434,40 @@ async fn fetch_and_cache_cover(
                     )));
                 }
                 log::debug!(
-                    "封面缓存完成 game_id={} generation={} attempt={}",
+                    "封面缓存完成 game_id={} generation={} candidate={} request={}/{}",
                     game_id,
                     generation,
-                    attempt
+                    candidate.label,
+                    request_index + 1,
+                    candidates.len()
                 );
                 return Ok(bytes);
             }
-            Err(CoverDownloadError::Retryable(e)) => {
+            Err(CoverDownloadError::Remote(message)) => {
                 log::debug!(
-                    "封面下载失败 game_id={} attempt={}/{}: {}",
+                    "封面远程请求失败 game_id={} candidate={} request={}/{}: {}",
                     game_id,
-                    attempt,
-                    COVER_MAX_RETRIES,
-                    e
+                    candidate.label,
+                    request_index + 1,
+                    candidates.len(),
+                    message
                 );
-                last_retryable_err = e;
+                last_remote_error = format!("{}: {}", candidate.label, message);
             }
             Err(CoverDownloadError::GameDeleted(e)) => {
-                log::debug!(
-                    "封面下载终止（游戏已删除） game_id={} attempt={}/{}: {}",
-                    game_id,
-                    attempt,
-                    COVER_MAX_RETRIES,
-                    e
-                );
                 return Err(CoverDownloadError::GameDeleted(e));
             }
             Err(CoverDownloadError::Stale(e)) => {
-                log::debug!(
-                    "封面下载终止（已过期） game_id={} attempt={}/{}: {}",
-                    game_id,
-                    attempt,
-                    COVER_MAX_RETRIES,
-                    e
-                );
                 return Err(CoverDownloadError::Stale(e));
             }
-            Err(CoverDownloadError::NonRetryable(e)) => {
-                log::warn!(
-                    "封面下载终止（不可重试） game_id={} attempt={}/{}: {}",
-                    game_id,
-                    attempt,
-                    COVER_MAX_RETRIES,
-                    e
-                );
-                return Err(CoverDownloadError::NonRetryable(e));
+            Err(CoverDownloadError::Local(e)) => {
+                return Err(CoverDownloadError::Local(e));
             }
         }
     }
 
-    Err(CoverDownloadError::Retryable(format!(
-        "下载最终失败（已重试 {} 次）: {}",
-        COVER_MAX_RETRIES, last_retryable_err
+    Err(CoverDownloadError::Remote(format!(
+        "所有候选地址均下载失败: {last_remote_error}"
     )))
 }
 
@@ -505,13 +527,13 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                             responder.respond(make_status_response(StatusCode::NOT_FOUND));
                             return;
                         }
-                        Err(CoverDownloadError::NonRetryable(e)) => {
+                        Err(CoverDownloadError::Local(e)) => {
                             log::warn!("检查游戏状态失败 game_id={}: {}", game_id, e);
                             responder
                                 .respond(make_status_response(StatusCode::INTERNAL_SERVER_ERROR));
                             return;
                         }
-                        Err(CoverDownloadError::Retryable(_)) => unreachable!(),
+                        Err(CoverDownloadError::Remote(_)) => unreachable!(),
                         Err(CoverDownloadError::Stale(_)) => unreachable!(),
                     }
                 }
@@ -644,15 +666,16 @@ pub fn register_game_cover_protocol<R: tauri::Runtime>(
                         log::debug!("封面下载终止 game_id={}: {}", game_id, e);
                         responder.respond(make_status_response(StatusCode::NOT_FOUND));
                     }
-                    Err(CoverDownloadError::Stale(_)) => {
+                    Err(CoverDownloadError::Stale(e)) => {
+                        log::debug!("封面下载终止（缓存已过期） game_id={}: {}", game_id, e);
                         responder.respond(make_status_response(StatusCode::CONFLICT));
                     }
-                    Err(CoverDownloadError::NonRetryable(e)) => {
+                    Err(CoverDownloadError::Local(e)) => {
                         log::warn!("封面下载终止 game_id={}: {}", game_id, e);
                         responder.respond(make_status_response(StatusCode::INTERNAL_SERVER_ERROR));
                     }
-                    Err(CoverDownloadError::Retryable(e)) => {
-                        log::warn!("封面下载最终失败 game_id={}: {}", game_id, e);
+                    Err(CoverDownloadError::Remote(message)) => {
+                        log::warn!("封面下载最终失败 game_id={}: {}", game_id, message);
                         responder.respond(make_status_response(StatusCode::BAD_GATEWAY));
                     }
                 }
@@ -675,4 +698,86 @@ pub async fn delete_game_cover_dir(game_id: i32) -> Result<(), String> {
         .map_err(|e| format!("无法删除游戏封面目录 {}: {}", game_cover_dir.display(), e))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bangumi_cover_uses_proxy_before_original_url() {
+        let original = "https://lain.bgm.tv/pic/cover/l/9b/e7/59392_05W7s.jpg";
+
+        assert_eq!(
+            build_cover_download_candidates(original),
+            vec![
+                CoverDownloadCandidate {
+                    label: "Bangumi 代理",
+                    url: format!("{BANGUMI_IMAGE_PROXY_PREFIX}{original}"),
+                },
+                CoverDownloadCandidate {
+                    label: "原始地址",
+                    url: original.to_string(),
+                },
+                CoverDownloadCandidate {
+                    label: "Bangumi 代理",
+                    url: format!("{BANGUMI_IMAGE_PROXY_PREFIX}{original}"),
+                },
+                CoverDownloadCandidate {
+                    label: "原始地址",
+                    url: original.to_string(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn vndb_cover_uses_proxy_before_original_url() {
+        let original = "https://t.vndb.org/cv/12/79412.jpg";
+
+        assert_eq!(
+            build_cover_download_candidates(original),
+            vec![
+                CoverDownloadCandidate {
+                    label: "原始地址",
+                    url: original.to_string(),
+                },
+                CoverDownloadCandidate {
+                    label: "VNDB 代理",
+                    url: format!("{VNDB_IMAGE_PROXY_PREFIX}{original}"),
+                },
+                CoverDownloadCandidate {
+                    label: "原始地址",
+                    url: original.to_string(),
+                },
+                CoverDownloadCandidate {
+                    label: "VNDB 代理",
+                    url: format!("{VNDB_IMAGE_PROXY_PREFIX}{original}"),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn unrelated_or_invalid_urls_only_use_original_url() {
+        for original in [
+            "https://example.com/cover.jpg",
+            "ftp://lain.bgm.tv/pic/cover/l/cover.jpg",
+            "not-a-url",
+        ] {
+            assert_eq!(
+                build_cover_download_candidates(original),
+                vec![
+                    CoverDownloadCandidate {
+                        label: "原始地址",
+                        url: original.to_string(),
+                    },
+                    CoverDownloadCandidate {
+                        label: "原始地址",
+                        url: original.to_string(),
+                    },
+                ]
+            );
+        }
+    }
 }
