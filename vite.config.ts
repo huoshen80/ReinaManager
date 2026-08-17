@@ -28,11 +28,11 @@ export default defineConfig({
 		alias: [
 			{
 				find: "@",
-				replacement: resolve(__dirname, "./src"),
+				replacement: resolve(import.meta.dirname, "./src"),
 			},
 			{
 				find: "@pkg",
-				replacement: resolve(__dirname, "./package.json"),
+				replacement: resolve(import.meta.dirname, "./package.json"),
 			},
 		],
 	},
