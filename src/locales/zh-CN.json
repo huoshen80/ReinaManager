@@ -366,6 +366,7 @@
 			"magpieZoom": "Magpie放大",
 			"protonLaunch": "Proton 启动",
 			"protonOff": "不使用 Proton",
+			"protonAuto": "跟随游戏配置 (推荐)",
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
 			"sourceLink": "查看{{source}}页面",

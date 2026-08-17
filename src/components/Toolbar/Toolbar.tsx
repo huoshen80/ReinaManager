@@ -526,6 +526,13 @@ const MoreButton = ({ selectedGame }: { selectedGame: GameData }) => {
 								>
 									{t("components.Toolbar.protonOff", "不使用 Proton")}
 								</MenuItem>
+								<MenuItem
+									selected={selectedGame.proton_profile === "auto"}
+									onClick={() => void handleSelectProtonProfile("auto")}
+									sx={{ pl: 4 }}
+								>
+									{t("components.Toolbar.protonAuto", "跟随游戏配置 (推荐)")}
+								</MenuItem>
 								{protonProfiles.map((profile) => (
 									<MenuItem
 										key={profile}

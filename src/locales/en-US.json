@@ -379,6 +379,7 @@
 			"magpieZoom": "Magpie Zoom",
 			"protonLaunch": "Proton Launch",
 			"protonOff": "Disable Proton",
+			"protonAuto": "Follow game config (recommended)",
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
 			"sourceLink": "View {{source}} Page",

@@ -60,17 +60,22 @@ async fn launch_game_inner<R: Runtime>(
     let _ = check_scope_or_reset_failed(&systemd_unit_name).await;
 
     let mut command = {
-        // proton-autogen 集成：游戏配置了 profile 时，以 proton-autogen 启动，
-        // prefix/Proton 版本/MangoHud 等由 proton-autogen 的 profile 管理
-        let linux_launch_command = if let Some(profile) = game.proton_profile.as_deref() {
-            format!("proton-autogen --profile {profile}")
-        } else {
-            app_handle
+        // proton-autogen 集成。proton_profile 语义:
+        //   None      = 不使用 proton-autogen,走 settings 里的 Linux 启动命令
+        //   "auto"    = 裸 proton-autogen <exe> —— 一切由 proton-autogen 的
+        //               游戏级配置(games/*.json)决定:prefix、Proton 版本、env。
+        //               与 proton-autogen 自己生成的 .desktop 行为完全一致
+        //   其他值    = proton-autogen --profile <name>,显式环境预设覆盖
+        //               (会强制覆盖游戏的 exe_type,仅在需要时使用)
+        let linux_launch_command = match game.proton_profile.as_deref() {
+            Some("auto") => "proton-autogen".to_string(),
+            Some(profile) => format!("proton-autogen --profile {profile}"),
+            None => app_handle
                 .store("settings.json")
                 .ok()
                 .and_then(|store| store.get("linux_launch_command"))
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .unwrap_or_else(|| "wine".to_string())
+                .unwrap_or_else(|| "wine".to_string()),
         };
         let linux_launch_command = expand_path(&app_handle, &linux_launch_command);
         debug!("使用的 Linux 启动命令: {:?}", linux_launch_command);
