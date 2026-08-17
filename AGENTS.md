@@ -28,6 +28,7 @@
 
 - 禁止在 service 层外的地方直接调用 `invoke`
 - 禁止在组件中直接使用 `useQuery、useQueryClient`
+- 优先使用 `UnoCSS` 编写样式，少用 Mui 的 `sx`
 
 ### 2.4 src-tauri 后端部分
 
