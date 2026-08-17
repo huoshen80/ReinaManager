@@ -274,6 +274,56 @@ fn check_any_has_window(_candidate_pids: &[u32]) -> Option<u32> {
     check_any_has_window_x11(_candidate_pids)
 }
 
+/// 前台检测能力探测结果缓存
+static FOREGROUND_DETECTION_UNAVAILABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// 判断 X11/EWMH 前台检测是否可用。
+///
+/// 两种情况视为不可用（此时计时回退为 scope 存活即计时）：
+/// 1. 无法连接 X Server（如无 Xwayland 的纯 Wayland 环境）
+/// 2. 根窗口的 _NET_SUPPORTED 未声明 _NET_ACTIVE_WINDOW（合成器不维护 EWMH 前台状态）
+///
+/// 注意：niri 等合成器会声明 _NET_ACTIVE_WINDOW 并在有 X11 窗口聚焦时更新它，
+/// 此时 0x0 值表示"当前聚焦的是原生 Wayland 窗口"，属于正常的"未在前台"，不回退。
+fn foreground_detection_unavailable() -> bool {
+    *FOREGROUND_DETECTION_UNAVAILABLE.get_or_init(|| {
+        let Ok((conn, screen_num)) = xcb::Connection::connect(None) else {
+            return true;
+        };
+        let Some(screen) = conn.get_setup().roots().nth(screen_num as usize) else {
+            return true;
+        };
+        let intern = |name: &[u8]| -> Option<xcb::x::Atom> {
+            let cookie = conn.send_request(&xcb::x::InternAtom {
+                only_if_exists: true,
+                name,
+            });
+            conn.wait_for_reply(cookie).ok().map(|r| r.atom())
+        };
+        let (Some(atom_supported), Some(atom_active)) =
+            (intern(b"_NET_SUPPORTED"), intern(b"_NET_ACTIVE_WINDOW"))
+        else {
+            return true;
+        };
+        if atom_supported == xcb::x::ATOM_NONE || atom_active == xcb::x::ATOM_NONE {
+            return true;
+        }
+        // 读取 _NET_SUPPORTED 列表，检查是否声明了 _NET_ACTIVE_WINDOW
+        let cookie = conn.send_request(&xcb::x::GetProperty {
+            delete: false,
+            window: screen.root(),
+            property: atom_supported,
+            long_offset: 0,
+            long_length: 1024,
+            r#type: xcb::x::ATOM_ATOM,
+        });
+        match conn.wait_for_reply(cookie) {
+            Ok(reply) => !reply.value::<xcb::x::Atom>().contains(&atom_active),
+            Err(_) => true,
+        }
+    })
+}
+
 fn check_any_foreground_x11(candidate_pids: &[u32]) -> Option<u32> {
     // 1. 连接到 X Server
     let (conn, screen_num) = xcb::Connection::connect(None).ok()?;
@@ -497,7 +547,24 @@ async fn run_game_monitor(
 
             // 3. 前台判定：检查候选列表中是否有任何进程在前台
             //    这是关键优化点 - 即使最佳 PID 不在前台，其他候选 PID 在前台也算数
-            if let Some(foreground_pid) = check_any_foreground(&candidate_pids) {
+            //
+            //    计时规则：
+            //    - Elapsed 模式：scope 存活即计时（运行即计时）
+            //    - Playtime 模式：优先前台判定；若前台检测不可用（无 X11 / 无 EWMH 的
+            //      Wayland 合成器环境），回退为 scope 存活即计时，避免时长永远为 0
+            let foreground_pid = if time_tracking_mode == TimeTrackingMode::Elapsed {
+                Some(best_pid)
+            } else {
+                check_any_foreground(&candidate_pids).or_else(|| {
+                    if foreground_detection_unavailable() {
+                        debug!("前台检测不可用，回退为 scope 存活计时");
+                        Some(best_pid)
+                    } else {
+                        None
+                    }
+                })
+            };
+            if let Some(foreground_pid) = foreground_pid {
                 accumulated_seconds += 1;
 
                 // 如果前台进程不是当前的最佳 PID，考虑切换

@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 
 const MIN_SESSION_SECONDS: u64 = 60;
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TimeTrackingMode {
     Playtime,
