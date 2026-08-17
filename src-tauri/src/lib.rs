@@ -66,6 +66,13 @@ fn restart_app(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // NVIDIA 专有驱动上 WebKitGTK 的 DMABUF 渲染器会导致界面卡死(点击无响应),
+    // 检测到 nvidia 内核模块时禁用之。必须在 WebKit 初始化前设置。
+    #[cfg(target_os = "linux")]
+    if std::path::Path::new("/sys/module/nvidia").exists() {
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
+
     register_image_proxy_protocol(register_game_cover_protocol(tauri::Builder::default()))
         // 单实例插件必须最先注册，第二实例传入的深链接才能稳定转交给主实例。
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
