@@ -49,6 +49,9 @@ use utils::{
     logs::{get_reina_log_level, set_reina_log_level},
 };
 
+#[cfg(target_os = "windows")]
+use utils::http::{SystemProxyMonitor, start_system_proxy_monitor};
+
 const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
 const LOG_KEEP_FILE_COUNT: usize = 5;
 const SETTINGS_STORE_PATH: &str = "settings.json";
@@ -246,6 +249,15 @@ pub fn run() {
             // 日志插件初始化后再注册协议，确保注册失败信息能够写入日志。
             setup_install_protocol(app);
 
+            #[cfg(target_os = "windows")]
+            match start_system_proxy_monitor() {
+                Ok(monitor) => {
+                    app.manage(monitor);
+                    log::debug!("Windows 系统代理监听已启动");
+                }
+                Err(error) => log::warn!("Windows 系统代理监听启动失败: {error}"),
+            }
+
             match run_startup_migrations() {
                 Ok(result) if result.executed == 0 => {
                     log::debug!("启动迁移检查完成，无需执行");
@@ -303,6 +315,11 @@ pub fn run() {
         .run(|app_handle, event| {
             // 监听应用退出事件
             if let tauri::RunEvent::Exit = event {
+                #[cfg(target_os = "windows")]
+                if let Some(monitor) = app_handle.try_state::<SystemProxyMonitor>() {
+                    monitor.shutdown();
+                }
+
                 // 同步获取并关闭数据库连接
                 if let Some(conn_state) = app_handle.try_state::<sea_orm::DatabaseConnection>() {
                     let conn = conn_state.inner().clone();

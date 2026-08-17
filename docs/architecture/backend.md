@@ -62,6 +62,12 @@ Tauri command
 | `oauth` | Bangumi/Hikarinagi OAuth、localhost 回调、token 交换与刷新 |
 | `utils` | 文件、HTTP、图片协议、日志和历史文件迁移 |
 
+## HTTP 与代理生命周期
+
+后端封面、OAuth 和安装下载复用 `utils/http/client.rs` 中的共享客户端。应用内代理非空时显式代理优先；留空时由底层 HTTP 库读取系统代理。
+
+Windows 会监听当前用户的 Internet Settings。固定系统代理变化后，后端原子替换共享客户端；已有请求和正在运行的安装任务继续持有旧客户端，后续请求及新启动或恢复的安装任务使用新客户端。
+
 ## 错误边界
 
 - 多数 command 返回 `Result<T, String>`，并附加中文操作上下文。
