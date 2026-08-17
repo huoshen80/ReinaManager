@@ -284,6 +284,7 @@ pub struct FullGameData {
     pub clear: Option<i32>,
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
+    pub proton_profile: Option<String>,
     pub custom_data: Option<CustomData>,
     pub sources: Vec<GameSourceData>,
     pub created_at: Option<i32>,
@@ -308,6 +309,7 @@ pub struct InsertGameData {
     pub clear: Option<i32>,
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
+    pub proton_profile: Option<String>,
 
     pub custom_data: Option<CustomData>,
     #[serde(default)]
@@ -360,6 +362,8 @@ pub struct UpdateGameData {
     pub le_launch: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub proton_profile: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub custom_data: Option<Option<CustomData>>,
     pub upsert_sources: Option<Vec<UpsertGameSourceData>>,

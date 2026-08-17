@@ -364,6 +364,8 @@
 			"lePathNotSet": "LE地域切り替えソフトウェアのパスが設定されていません、まずパスを設定してください",
 			"magpiePathNotSet": "Magpieソフトウェアのパスが設定されていません、まずパスを設定してください",
 			"magpieZoom": "Magpieズーム",
+			"protonLaunch": "Proton起動",
+			"protonOff": "Protonを使用しない",
 			"more": "その他",
 			"openGameFolder": "ゲームフォルダを開く",
 			"sourceLink": "{{source}}ページを見る",

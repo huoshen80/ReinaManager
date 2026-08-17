@@ -364,6 +364,8 @@
 			"lePathNotSet": "未设置LE转区软件路径，请先配置路径",
 			"magpiePathNotSet": "未设置Magpie软件路径，请先配置路径",
 			"magpieZoom": "Magpie放大",
+			"protonLaunch": "Proton 启动",
+			"protonOff": "不使用 Proton",
 			"more": "更多",
 			"openGameFolder": "打开游戏目录",
 			"sourceLink": "查看{{source}}页面",

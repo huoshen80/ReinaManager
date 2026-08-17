@@ -257,6 +257,7 @@ interface GameRuntimePayload {
 	clear?: number;
 	le_launch?: number;
 	magpie?: number;
+	proton_profile?: string;
 }
 
 interface GameCustomPayload {
@@ -350,6 +351,7 @@ export interface UpdateGameParams {
 	clear?: Nullable<number>;
 	le_launch?: Nullable<number>;
 	magpie?: Nullable<number>;
+	proton_profile?: Nullable<string>;
 
 	// --- 元数据 Payload（支持三态） ---
 	custom_data?: Nullable<CustomData>;

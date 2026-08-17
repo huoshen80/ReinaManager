@@ -38,6 +38,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import TurnRightIcon from "@mui/icons-material/TurnRight";
+import VideogameAssetIcon from "@mui/icons-material/VideogameAsset";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
@@ -49,7 +50,7 @@ import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import { useColorScheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openurl } from "@tauri-apps/plugin-shell";
 import type { MouseEvent } from "react";
@@ -426,6 +427,31 @@ const MoreButton = ({ selectedGame }: { selectedGame: GameData }) => {
 		}
 	};
 
+	// === proton-autogen 集成（仅 Linux） ===
+	const [protonProfiles, setProtonProfiles] = useState<string[]>([]);
+	const [protonMenuOpen, setProtonMenuOpen] = useState(false);
+	const isLinux = import.meta.env.TAURI_ENV_PLATFORM === "linux";
+
+	// TAURI_ENV_PLATFORM 是构建期常量，无需作为依赖
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 构建期常量
+	useEffect(() => {
+		if (!isTauri() || !isLinux) return;
+		invoke<string[]>("list_proton_profiles")
+			.then(setProtonProfiles)
+			.catch((error) => console.debug("proton-autogen 不可用:", error));
+	}, [isLinux]);
+
+	const handleSelectProtonProfile = async (profile: string | null) => {
+		try {
+			await updateGameMutation.mutateAsync({
+				gameId,
+				updates: { proton_profile: profile },
+			});
+		} catch (error) {
+			console.error("更新Proton启动配置失败:", error);
+		}
+	};
+
 	return (
 		<>
 			<Button
@@ -479,6 +505,41 @@ const MoreButton = ({ selectedGame }: { selectedGame: GameData }) => {
 					</ListItemText>
 					<Switch checked={selectedGame.magpie === 1} size="small" />
 				</MenuItem>
+
+				{isLinux && protonProfiles.length > 0 && (
+					<>
+						<MenuItem onClick={() => setProtonMenuOpen(!protonMenuOpen)}>
+							<ListItemIcon>
+								<VideogameAssetIcon fontSize="small" />
+							</ListItemIcon>
+							<ListItemText>
+								{t("components.Toolbar.protonLaunch", "Proton 启动")}
+							</ListItemText>
+							{selectedGame.proton_profile ?? t("common.off", "关闭")}
+						</MenuItem>
+						{protonMenuOpen && (
+							<>
+								<MenuItem
+									selected={!selectedGame.proton_profile}
+									onClick={() => void handleSelectProtonProfile(null)}
+									sx={{ pl: 4 }}
+								>
+									{t("components.Toolbar.protonOff", "不使用 Proton")}
+								</MenuItem>
+								{protonProfiles.map((profile) => (
+									<MenuItem
+										key={profile}
+										selected={selectedGame.proton_profile === profile}
+										onClick={() => void handleSelectProtonProfile(profile)}
+										sx={{ pl: 4 }}
+									>
+										{profile}
+									</MenuItem>
+								))}
+							</>
+						)}
+					</>
+				)}
 
 				{/* 游戏状态切换 - 二级菜单 */}
 				<PlayStatusSubmenu

@@ -68,6 +68,7 @@ impl GamesRepository {
             g.clear,
             g.le_launch,
             g.magpie,
+            g.proton_profile,
             g.custom_data,
             g.created_at,
             g.updated_at,
@@ -377,6 +378,7 @@ impl GamesRepository {
             clear: Set(Some(game.clear.unwrap_or(Self::DEFAULT_PLAY_STATUS))),
             le_launch: NotSet,
             magpie: NotSet,
+            proton_profile: Set(game.proton_profile.clone()),
             custom_data: Set(game.custom_data.clone()),
             user_rating: NotSet,
             created_at: Set(Some(now)),
@@ -403,6 +405,7 @@ impl GamesRepository {
             clear: updates.clear.map_or(NotSet, Set),
             le_launch: updates.le_launch.map_or(NotSet, Set),
             magpie: updates.magpie.map_or(NotSet, Set),
+            proton_profile: updates.proton_profile.clone().map_or(NotSet, Set),
             custom_data: updates.custom_data.clone().map_or(NotSet, Set),
             user_rating: NotSet,
             updated_at: Set(Some(now)),
@@ -740,6 +743,7 @@ impl GamesRepository {
             clear: row.try_get("", "clear")?,
             le_launch: row.try_get("", "le_launch")?,
             magpie: row.try_get("", "magpie")?,
+            proton_profile: row.try_get("", "proton_profile")?,
             custom_data,
             sources,
             created_at: row.try_get("", "created_at")?,
@@ -1143,6 +1147,7 @@ mod tests {
                     clear INTEGER,
                     le_launch INTEGER DEFAULT 0,
                     magpie INTEGER DEFAULT 0,
+                    proton_profile TEXT,
                     custom_data TEXT,
                     user_rating REAL GENERATED ALWAYS AS (
                         CAST(json_extract(custom_data, '$.user_rating') AS REAL)
@@ -1207,6 +1212,7 @@ mod tests {
             clear: None,
             le_launch: None,
             magpie: None,
+            proton_profile: None,
             custom_data,
             sources,
         }

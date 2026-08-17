@@ -60,6 +60,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 		clear: nullToUndefined(fullData.clear),
 		le_launch: nullToUndefined(fullData.le_launch),
 		magpie: nullToUndefined(fullData.magpie),
+		proton_profile: nullToUndefined(fullData.proton_profile),
 		custom_data: displayCustomData,
 		created_at: fullData.created_at,
 		updated_at: fullData.updated_at,

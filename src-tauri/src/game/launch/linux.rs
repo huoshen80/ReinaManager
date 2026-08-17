@@ -60,12 +60,18 @@ async fn launch_game_inner<R: Runtime>(
     let _ = check_scope_or_reset_failed(&systemd_unit_name).await;
 
     let mut command = {
-        let linux_launch_command = app_handle
-            .store("settings.json")
-            .ok()
-            .and_then(|store| store.get("linux_launch_command"))
-            .and_then(|v| v.as_str().map(|s| s.to_string()))
-            .unwrap_or_else(|| "wine".to_string());
+        // proton-autogen 集成：游戏配置了 profile 时，以 proton-autogen 启动，
+        // prefix/Proton 版本/MangoHud 等由 proton-autogen 的 profile 管理
+        let linux_launch_command = if let Some(profile) = game.proton_profile.as_deref() {
+            format!("proton-autogen --profile {profile}")
+        } else {
+            app_handle
+                .store("settings.json")
+                .ok()
+                .and_then(|store| store.get("linux_launch_command"))
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| "wine".to_string())
+        };
         let linux_launch_command = expand_path(&app_handle, &linux_launch_command);
         debug!("使用的 Linux 启动命令: {:?}", linux_launch_command);
 
@@ -78,7 +84,11 @@ async fn launch_game_inner<R: Runtime>(
         cmd.arg(&systemd_unit_name);
 
         if exe_name.to_string_lossy().ends_with(".exe") {
-            cmd.arg(&linux_launch_command);
+            // 按空白拆分为多个参数，支持 "proton-autogen --profile dx11" 这类多词命令
+            // ponytail: 不处理带空格的 profile 名，proton-autogen 的 profile 是文件名，不含空格
+            for part in linux_launch_command.split_whitespace() {
+                cmd.arg(part);
+            }
         }
         cmd.arg(&game_path);
         cmd.current_dir(&game_dir);
@@ -143,6 +153,28 @@ pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
         )),
         Err(e) => Err(format!("停止游戏 {} 失败: {}", game_id, e)),
     }
+}
+
+/// 列出 proton-autogen 的可用 profile（~/.config/proton-autogen/profiles/*.json 的文件名）
+#[command]
+pub fn list_proton_profiles<R: Runtime>(app_handle: AppHandle<R>) -> Result<Vec<String>, String> {
+    let profiles_dir = app_handle
+        .path()
+        .home_dir()
+        .map_err(|e| format!("无法获取用户主目录: {e}"))?
+        .join(".config/proton-autogen/profiles");
+    let entries = std::fs::read_dir(&profiles_dir)
+        .map_err(|e| format!("无法读取 proton-autogen profiles 目录: {e}"))?;
+    let mut profiles: Vec<String> = entries
+        .flatten()
+        .filter_map(|e| {
+            let path = e.path();
+            let name = path.file_stem()?.to_string_lossy().to_string();
+            (path.extension()?.to_string_lossy() == "json").then_some(name)
+        })
+        .collect();
+    profiles.sort();
+    Ok(profiles)
 }
 
 fn expand_path<R: Runtime>(app_handle: &AppHandle<R>, path: &str) -> String {

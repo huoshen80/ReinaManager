@@ -377,6 +377,8 @@
 			"lePathNotSet": "LE region switching software path not set, please configure the path first",
 			"magpiePathNotSet": "Magpie software path not set, please configure the path first",
 			"magpieZoom": "Magpie Zoom",
+			"protonLaunch": "Proton Launch",
+			"protonOff": "Disable Proton",
 			"more": "More",
 			"openGameFolder": "Open Game Folder",
 			"sourceLink": "View {{source}} Page",

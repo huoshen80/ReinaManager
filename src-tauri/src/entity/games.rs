@@ -35,6 +35,11 @@ pub struct Model {
     pub le_launch: Option<i32>,
     pub magpie: Option<i32>,
 
+    /// proton-autogen profile 名称（Linux）。
+    /// None = 不使用 proton-autogen；Some(name) = 以 `proton-autogen --profile name` 启动 .exe
+    #[sea_orm(column_type = "Text", nullable)]
+    pub proton_profile: Option<String>,
+
     // === 用户覆盖元数据 ===
     #[sea_orm(column_type = "Text", nullable)]
     pub custom_data: Option<CustomData>,

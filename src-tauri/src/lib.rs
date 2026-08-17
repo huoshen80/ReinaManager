@@ -16,6 +16,8 @@ use game::cover::custom::{delete_game_covers, import_clipboard_image_to_temp};
 use game::cover::{delete_cloud_cache, register_game_cover_protocol};
 use game::drop_import::resolve_bulk_import_paths;
 use game::launch::{launch_game, stop_game};
+#[cfg(target_os = "linux")]
+use game::launch::list_proton_profiles;
 use game::scan::scan_directory_for_games;
 use game::steam::{resolve_steam_shortcut_file, scan_steam_launch_targets};
 use install::protocol::{
@@ -98,6 +100,8 @@ pub fn run() {
             // 工具类 commands
             launch_game,
             stop_game,
+            #[cfg(target_os = "linux")]
+            list_proton_profiles,
             open_directory,
             resolve_dropped_local_path,
             resolve_bulk_import_paths,
