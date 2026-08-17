@@ -114,6 +114,11 @@ zbus = "5.19.0"
 zbus_systemd = { version = "0.26100.0", features = ["systemd1"] }
 
 
+[features]
+# 启用后前端资源嵌入二进制；裸 cargo build --release 必须显式 --features custom-protocol，
+# 否则生成 dev 构建，运行时回退加载 devUrl (http://localhost:5173)
+custom-protocol = ["tauri/custom-protocol"]
+
 [profile.dev]
 incremental = true # 以较小的步骤编译您的二进制文件。
 split-debuginfo = "unpacked"
