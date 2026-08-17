@@ -31,8 +31,6 @@ pub async fn establish_connection() -> Result<DatabaseConnection, DbErr> {
             })?;
         }
         log::info!("首次启动，创建{}模式数据库: {}", mode(), db_path.display());
-    } else {
-        log::debug!("使用{}模式数据库: {}", mode(), db_path.display());
     }
 
     // 3. 使用 `url` crate 安全地构建连接字符串
