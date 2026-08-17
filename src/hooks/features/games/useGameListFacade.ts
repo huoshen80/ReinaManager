@@ -189,9 +189,13 @@ export function useGameListFacade(options: GameListScopeOptions = {}) {
 		if (!trimmedSearchKeyword || !searchIndex) {
 			return filteredGames;
 		}
-		return searchWithIndex(searchIndex, trimmedSearchKeyword, {
-			limit: filteredGames.length,
-		}).map((result) => result.item);
+		const matchedGameIds = new Set(
+			searchWithIndex(searchIndex, trimmedSearchKeyword, {
+				limit: filteredGames.length,
+			}).map((result) => result.item.id),
+		);
+
+		return filteredGames.filter((game) => matchedGameIds.has(game.id));
 	}, [searchIndex, trimmedSearchKeyword, filteredGames]);
 
 	// 4. 返回 ID 数组
