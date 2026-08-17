@@ -681,6 +681,15 @@ const BulkImportTab = ({
 		setEditName(item.name);
 	}, []);
 
+	const handleOpenDirectory = useCallback(
+		(path: string) => {
+			void fileService.openDirectory(path).catch((error) => {
+				snackbar.error(getUserErrorMessage(error, t));
+			});
+		},
+		[t],
+	);
+
 	const handleEditRowSaveNameOnly = () => {
 		if (!editItemKey) return;
 
@@ -936,6 +945,7 @@ const BulkImportTab = ({
 						onDeleteItem={handleDeleteItem}
 						onEditItem={handleEditItem}
 						onExecutableChange={handleExecutableChange}
+						onOpenDirectory={handleOpenDirectory}
 					/>
 				</Stack>
 			</DialogContent>

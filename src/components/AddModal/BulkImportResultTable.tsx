@@ -1,7 +1,9 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import FolderOpenRoundedIcon from "@mui/icons-material/FolderOpenRounded";
 import {
 	Box,
+	ButtonBase,
 	CircularProgress,
 	FormControl,
 	IconButton,
@@ -43,6 +45,7 @@ interface BulkImportResultTableProps {
 	onDeleteItem: (key: string) => void;
 	onEditItem: (item: VisibleBulkImportItem) => void;
 	onExecutableChange: (key: string, executable: string) => void;
+	onOpenDirectory: (path: string) => void;
 }
 
 const gridTemplateColumns =
@@ -67,24 +70,31 @@ const cellSx = {
 function getMatchedGameName(
 	gameData: GameMetadataDraft | undefined,
 	language: string,
-): string {
+): string | undefined {
 	if (!gameData) {
-		return "";
+		return undefined;
 	}
 
 	const useChineseName = language === "zh-CN";
-	const displays = SEARCHABLE_SOURCE_KEYS.map((source) => {
+	let fallbackName: string | undefined;
+
+	for (const source of SEARCHABLE_SOURCE_KEYS) {
 		const adapter = getRuntimeSourceAdapter(source);
 		const data = getCandidateSourceData(gameData, source);
-		return data ? adapter.toDisplayFields(data) : null;
-	});
+		if (!data) continue;
 
-	if (useChineseName) {
-		const chineseName = displays.find((display) => display?.name_cn)?.name_cn;
-		if (chineseName) return chineseName;
+		const display = adapter.toDisplayFields(data);
+		if (useChineseName && display.name_cn) {
+			return display.name_cn;
+		}
+
+		if (display.name) {
+			if (!useChineseName) return display.name;
+			fallbackName ??= display.name;
+		}
 	}
 
-	return displays.find((display) => display?.name)?.name ?? "";
+	return fallbackName;
 }
 
 function getStatusLabel(
@@ -110,6 +120,7 @@ export default function BulkImportResultTable({
 	onDeleteItem,
 	onEditItem,
 	onExecutableChange,
+	onOpenDirectory,
 }: BulkImportResultTableProps) {
 	const { t, i18n } = useTranslation();
 
@@ -183,6 +194,7 @@ export default function BulkImportResultTable({
 								item.matchedData,
 								i18n.language,
 							);
+							const directoryPath = item.path;
 							return (
 								<Box
 									sx={{
@@ -192,11 +204,47 @@ export default function BulkImportResultTable({
 									}}
 									className="min-h-11 px-4 py-0.5"
 								>
-									<Typography variant="body2" sx={cellSx} title={item.name}>
-										{item.name}
-									</Typography>
+									{directoryPath ? (
+										<ButtonBase
+											type="button"
+											disableRipple
+											onClick={() => onOpenDirectory(directoryPath)}
+											aria-label={`${t(
+												"components.Toolbar.openGameFolder",
+												"打开游戏目录",
+											)}: ${item.name}`}
+											className="inline-flex w-fit max-w-full min-w-0 justify-self-start items-center justify-start text-left transition-colors duration-200"
+											sx={{
+												color: "text.primary",
+												"&:hover, &.Mui-focusVisible": {
+													color: "primary.dark",
+												},
+												"&:hover .bulk-import-folder-icon, &.Mui-focusVisible .bulk-import-folder-icon":
+													{
+														opacity: 1,
+													},
+											}}
+										>
+											<Typography
+												component="span"
+												variant="body2"
+												className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+												title={item.name}
+											>
+												{item.name}
+											</Typography>
+											<FolderOpenRoundedIcon
+												className="bulk-import-folder-icon ml-1 shrink-0 opacity-0 transition-opacity duration-200"
+												fontSize="small"
+											/>
+										</ButtonBase>
+									) : (
+										<Typography variant="body2" sx={cellSx} title={item.name}>
+											{item.name}
+										</Typography>
+									)}
 									<Typography variant="body2" sx={cellSx} title={matchedName}>
-										{matchedName || "-"}
+										{matchedName ?? "-"}
 									</Typography>
 									<Typography variant="body2" sx={cellSx}>
 										{getStatusLabel(item.status, t)}
