@@ -10,7 +10,16 @@ use std::path::Path;
 use steamlocate::{Library, SteamDir};
 use tauri::{State, command};
 
-const STEAMWORKS_COMMON_REDISTRIBUTABLES: u32 = 228_980;
+const IGNORED_STEAM_APP_IDS: &[u32] = &[
+    228_980,   // Steamworks Common Redistributables
+    1_070_560, // Steam Linux Runtime 1.0 (scout)
+    1_391_110, // Steam Linux Runtime 2.0 (soldier)
+    1_628_350, // Steam Linux Runtime 3.0 (sniper)
+    4_183_110, // Steam Linux Runtime 4.0
+    1_493_710, // Proton Experimental
+    3_658_110, // Proton 10.0
+    4_628_710, // Proton 11.0
+];
 const STEAM_SHORTCUT_MARKER: u64 = 0x0200_0000;
 const MAX_BINARY_VDF_DEPTH: usize = 64;
 
@@ -450,7 +459,7 @@ fn scan_steam_dirs(
             for app in library.apps() {
                 match app {
                     Ok(app) => {
-                        if app.app_id == STEAMWORKS_COMMON_REDISTRIBUTABLES {
+                        if IGNORED_STEAM_APP_IDS.contains(&app.app_id) {
                             continue;
                         }
                         let manifest = library
@@ -799,6 +808,20 @@ mod tests {
                 .join("Steamworks Shared"),
         )
         .unwrap();
+        fs::create_dir_all(
+            valid_library
+                .join("steamapps")
+                .join("common")
+                .join("Proton 10.0"),
+        )
+        .unwrap();
+        fs::create_dir_all(
+            valid_library
+                .join("steamapps")
+                .join("common")
+                .join("SteamLinuxRuntime_sniper"),
+        )
+        .unwrap();
 
         let vdf_path = root.join("steamapps").join("libraryfolders.vdf");
         let valid_path = valid_library.to_string_lossy().replace('\\', "/");
@@ -837,6 +860,30 @@ mod tests {
                 "appid" "228980"
                 "name" "Steamworks Common Redistributables"
                 "installdir" "Steamworks Shared"
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            valid_library
+                .join("steamapps")
+                .join("appmanifest_3658110.acf"),
+            r#""AppState"
+            {
+                "appid" "3658110"
+                "name" "Proton 10.0"
+                "installdir" "Proton 10.0"
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            valid_library
+                .join("steamapps")
+                .join("appmanifest_1628350.acf"),
+            r#""AppState"
+            {
+                "appid" "1628350"
+                "name" "Steam Linux Runtime 3.0 (sniper)"
+                "installdir" "SteamLinuxRuntime_sniper"
             }"#,
         )
         .unwrap();
