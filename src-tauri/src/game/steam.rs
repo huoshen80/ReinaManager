@@ -16,9 +16,25 @@ const IGNORED_STEAM_APP_IDS: &[u32] = &[
     1_391_110, // Steam Linux Runtime 2.0 (soldier)
     1_628_350, // Steam Linux Runtime 3.0 (sniper)
     4_183_110, // Steam Linux Runtime 4.0
+    4_185_400, // Steam Linux Runtime 4.0 - Arm64
+    4_690_330, // Legacy Steam Runtime
+    858_280,   // Proton 3.7
+    961_940,   // Proton 3.16
+    1_054_830, // Proton 4.2
+    1_113_280, // Proton 4.11
+    1_245_040, // Proton 5.0
+    1_420_170, // Proton 5.13
     1_493_710, // Proton Experimental
+    1_580_130, // Proton 6.3
+    1_887_720, // Proton 7.0
+    2_188_100, // Proton Hotfix
+    2_348_590, // Proton 8.0
+    2_805_730, // Proton 9.0
     3_658_110, // Proton 10.0
     4_628_710, // Proton 11.0
+    4_628_740, // Proton 11.0 (ARM64)
+    1_161_040, // Proton BattlEye Runtime
+    1_826_330, // Proton EasyAntiCheat Runtime
 ];
 const STEAM_SHORTCUT_MARKER: u64 = 0x0200_0000;
 const MAX_BINARY_VDF_DEPTH: usize = 64;
@@ -801,27 +817,65 @@ mod tests {
                 .join("Test Game"),
         )
         .unwrap();
-        fs::create_dir_all(
-            valid_library
-                .join("steamapps")
-                .join("common")
-                .join("Steamworks Shared"),
-        )
-        .unwrap();
-        fs::create_dir_all(
-            valid_library
-                .join("steamapps")
-                .join("common")
-                .join("Proton 10.0"),
-        )
-        .unwrap();
-        fs::create_dir_all(
-            valid_library
-                .join("steamapps")
-                .join("common")
-                .join("SteamLinuxRuntime_sniper"),
-        )
-        .unwrap();
+        let ignored_apps = [
+            (
+                228_980,
+                "Steamworks Common Redistributables",
+                "Steamworks Shared",
+            ),
+            (1_070_560, "Steam Linux Runtime 1.0 (scout)", "SteamLinuxRuntime"),
+            (
+                1_391_110,
+                "Steam Linux Runtime 2.0 (soldier)",
+                "SteamLinuxRuntime_soldier",
+            ),
+            (
+                1_628_350,
+                "Steam Linux Runtime 3.0 (sniper)",
+                "SteamLinuxRuntime_sniper",
+            ),
+            (4_183_110, "Steam Linux Runtime 4.0", "SteamLinuxRuntime_4"),
+            (
+                4_185_400,
+                "Steam Linux Runtime 4.0 - Arm64",
+                "SteamLinuxRuntime_4_arm64",
+            ),
+            (4_690_330, "Legacy Steam Runtime", "LegacySteamRuntime"),
+            (858_280, "Proton 3.7", "Proton 3.7"),
+            (961_940, "Proton 3.16", "Proton 3.16"),
+            (1_054_830, "Proton 4.2", "Proton 4.2"),
+            (1_113_280, "Proton 4.11", "Proton 4.11"),
+            (1_245_040, "Proton 5.0", "Proton 5.0"),
+            (1_420_170, "Proton 5.13", "Proton 5.13"),
+            (1_493_710, "Proton Experimental", "Proton - Experimental"),
+            (1_580_130, "Proton 6.3", "Proton 6.3"),
+            (1_887_720, "Proton 7.0", "Proton 7.0"),
+            (2_188_100, "Proton Hotfix", "Proton Hotfix"),
+            (2_348_590, "Proton 8.0", "Proton 8.0"),
+            (2_805_730, "Proton 9.0", "Proton 9.0"),
+            (3_658_110, "Proton 10.0", "Proton 10.0"),
+            (4_628_710, "Proton 11.0", "Proton 11.0"),
+            (4_628_740, "Proton 11.0 (ARM64)", "Proton 11.0 (ARM64)"),
+            (
+                1_161_040,
+                "Proton BattlEye Runtime",
+                "Proton BattlEye Runtime",
+            ),
+            (
+                1_826_330,
+                "Proton EasyAntiCheat Runtime",
+                "Proton EasyAntiCheat Runtime",
+            ),
+        ];
+        for (_, _, install_dir) in ignored_apps {
+            fs::create_dir_all(
+                valid_library
+                    .join("steamapps")
+                    .join("common")
+                    .join(install_dir),
+            )
+            .unwrap();
+        }
 
         let vdf_path = root.join("steamapps").join("libraryfolders.vdf");
         let valid_path = valid_library.to_string_lossy().replace('\\', "/");
@@ -851,42 +905,22 @@ mod tests {
             }"#,
         )
         .unwrap();
-        fs::write(
-            valid_library
-                .join("steamapps")
-                .join("appmanifest_228980.acf"),
-            r#""AppState"
-            {
-                "appid" "228980"
-                "name" "Steamworks Common Redistributables"
-                "installdir" "Steamworks Shared"
-            }"#,
-        )
-        .unwrap();
-        fs::write(
-            valid_library
-                .join("steamapps")
-                .join("appmanifest_3658110.acf"),
-            r#""AppState"
-            {
-                "appid" "3658110"
-                "name" "Proton 10.0"
-                "installdir" "Proton 10.0"
-            }"#,
-        )
-        .unwrap();
-        fs::write(
-            valid_library
-                .join("steamapps")
-                .join("appmanifest_1628350.acf"),
-            r#""AppState"
-            {
-                "appid" "1628350"
-                "name" "Steam Linux Runtime 3.0 (sniper)"
-                "installdir" "SteamLinuxRuntime_sniper"
-            }"#,
-        )
-        .unwrap();
+        for (app_id, name, install_dir) in ignored_apps {
+            fs::write(
+                valid_library
+                    .join("steamapps")
+                    .join(format!("appmanifest_{app_id}.acf")),
+                format!(
+                    r#""AppState"
+            {{
+                "appid" "{app_id}"
+                "name" "{name}"
+                "installdir" "{install_dir}"
+            }}"#
+                ),
+            )
+            .unwrap();
+        }
 
         let steam_dir = SteamDir::from_dir(&root).unwrap();
         let result = scan_steam_dirs(&[steam_dir], &SteamImportFilter::default());
