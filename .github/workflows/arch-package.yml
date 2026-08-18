@@ -6,7 +6,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: arch-pkg
+  cancel-in-progress: true
 
 jobs:
   pkg:
@@ -16,7 +20,7 @@ jobs:
     steps:
       - name: Install build deps
         run: |
-          pacman -Syu --noconfirm git rust nodejs pnpm \
+          pacman -Syu --noconfirm git rust nodejs pnpm github-cli \
             webkit2gtk-4.1 gtk3 libayatana-appindicator openssl hicolor-icon-theme
 
       - name: Write PKGBUILD
@@ -85,6 +89,21 @@ jobs:
           echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
           chown -R builder: .
           sudo -u builder makepkg -f --noconfirm
+
+      - name: Publish to rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          VER=$(git -C src/ReinaManager describe --abbrev=0 | sed 's/^v//')
+          SHA=$(git -C src/ReinaManager rev-parse HEAD)
+          # 滚动 Release:同名 tag 重建,资产按上游格式 ReinaManager_<ver>_<arch>.<ext> 命名
+          gh release delete "v$VER-arch" --yes --cleanup-tag 2>/dev/null || true
+          mv reinamanager-git-*-x86_64.pkg.tar.zst "ReinaManager_${VER}_x86_64.pkg.tar.zst"
+          gh release create "v$VER-arch" --target "$SHA" --prerelease \
+            --title "ReinaManager $VER (Arch, fork build)" \
+            --notes "Fork main 自动构建,含 proton-autogen 集成等补丁。安装: pacman -U ReinaManager_${VER}_x86_64.pkg.tar.zst" \
+            "ReinaManager_${VER}_x86_64.pkg.tar.zst"
 
       - name: Upload package
         uses: actions/upload-artifact@v4
