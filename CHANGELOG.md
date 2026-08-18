@@ -1,3 +1,69 @@
+## [0.28.2](https://github.com/huoshen80/ReinaManager/compare/v0.28.1...v0.28.2) (2026-08-18)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- *(db)* [**破坏性变更**] 升级至 SeaORM 2 ([d394734](https://github.com/huoshen80/ReinaManager/commit/d394734136b480823ff02e9583c68b5512973ae9))
+- *(database)* 删除冗余启动日志 ([921700a](https://github.com/huoshen80/ReinaManager/commit/921700ab3ec9f230cf882e9317a1ff65022c18f5))
+- *(build)* 更新依赖和调试配置 ([2b917c2](https://github.com/huoshen80/ReinaManager/commit/2b917c2afe61fc03b8685d60e3c162e1faecd9be))
+
+### ✨ 新功能
+
+- *(games)* 支持批量拖拽导入 ([a8efb74](https://github.com/huoshen80/ReinaManager/commit/a8efb7477c5258eec1131e155f1fa9c3e046b4d2))
+- *(cover)* 添加交替图片回退机制 ([a4b425f](https://github.com/huoshen80/ReinaManager/commit/a4b425f7a2f3907c4b35a8d2121fbaead9ad60fd))
+- *(bulk-import)* 打开导入结果中的游戏文件夹 ([e4f1d15](https://github.com/huoshen80/ReinaManager/commit/e4f1d1520fc5e2102e0f0d9f74f3f44fd401056c))
+- *(game-info)* 添加开发商来源选项 ([c6a2fb4](https://github.com/huoshen80/ReinaManager/commit/c6a2fb4a5bd2b32543811cb02c76623e08a6a926))
+
+### 🐛 Bug 修复
+
+- *(monitor)* 仅在空档期应用启动超时 ([be99a69](https://github.com/huoshen80/ReinaManager/commit/be99a6924ea7663460fe018ca288ec18a9361264))
+- *(metadata)* 保留 Kun 原始游戏名 ([e892805](https://github.com/huoshen80/ReinaManager/commit/e8928054f76412571721dc7a11cc63deff5928ba))
+- *(search)* 搜索游戏时保持列表顺序 ([9499abd](https://github.com/huoshen80/ReinaManager/commit/9499abd203f14567d2a8b681cd9123ce5ddb2c41))
+- *(proxy)* 遵循 Windows 系统代理设置 ([f84c83b](https://github.com/huoshen80/ReinaManager/commit/f84c83b902db8c0eb33bf9a9a48e869b37739115))
+- *(vite)* 使用 import.meta.dirname 配置路径别名 ([449255b](https://github.com/huoshen80/ReinaManager/commit/449255b360d8261be2b7185b979be4f7dcc2b17a))
+
+### 📚 文档
+
+- *(agent)* 添加项目工作流指南 ([2eb2234](https://github.com/huoshen80/ReinaManager/commit/2eb22340f04cd24257fd24c0942a451427aa0457))
+- 按主题整理架构指南 ([f70b3c3](https://github.com/huoshen80/ReinaManager/commit/f70b3c36af12bc454f3b2fd489071b5b902ab326))
+- *(agent)* 添加 CDP 前端调试工作流 ([7caef9f](https://github.com/huoshen80/ReinaManager/commit/7caef9fbe32f953dc7894140588b285735452807))
+- 添加 QQ 群徽章 ([e58481d](https://github.com/huoshen80/ReinaManager/commit/e58481d52c11c338dc984a5959b3112066f39c6e))
+- 前端样式优先使用 UnoCSS ([2d9c3cf](https://github.com/huoshen80/ReinaManager/commit/2d9c3cf745dbb359e577fcf4d07863bd6ad44840))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(db)* [**breaking**] Upgrade to SeaORM 2 ([d394734](https://github.com/huoshen80/ReinaManager/commit/d394734136b480823ff02e9583c68b5512973ae9))
+- *(database)* Remove redundant startup log ([921700a](https://github.com/huoshen80/ReinaManager/commit/921700ab3ec9f230cf882e9317a1ff65022c18f5))
+- *(build)* Update dependencies and debug profiles ([2b917c2](https://github.com/huoshen80/ReinaManager/commit/2b917c2afe61fc03b8685d60e3c162e1faecd9be))
+
+### ✨ Features
+
+- *(games)* Support bulk drag imports ([a8efb74](https://github.com/huoshen80/ReinaManager/commit/a8efb7477c5258eec1131e155f1fa9c3e046b4d2))
+- *(cover)* Add alternating image fallback ([a4b425f](https://github.com/huoshen80/ReinaManager/commit/a4b425f7a2f3907c4b35a8d2121fbaead9ad60fd))
+- *(bulk-import)* Open result game folders ([e4f1d15](https://github.com/huoshen80/ReinaManager/commit/e4f1d1520fc5e2102e0f0d9f74f3f44fd401056c))
+- *(game-info)* Add developer source options ([c6a2fb4](https://github.com/huoshen80/ReinaManager/commit/c6a2fb4a5bd2b32543811cb02c76623e08a6a926))
+
+### 🐛 Bug Fixes
+
+- *(monitor)* Scope startup timeout to empty periods ([be99a69](https://github.com/huoshen80/ReinaManager/commit/be99a6924ea7663460fe018ca288ec18a9361264))
+- *(metadata)* Preserve Kun original game names ([e892805](https://github.com/huoshen80/ReinaManager/commit/e8928054f76412571721dc7a11cc63deff5928ba))
+- *(search)* Keep list order when searching games ([9499abd](https://github.com/huoshen80/ReinaManager/commit/9499abd203f14567d2a8b681cd9123ce5ddb2c41))
+- *(proxy)* Follow Windows system settings ([f84c83b](https://github.com/huoshen80/ReinaManager/commit/f84c83b902db8c0eb33bf9a9a48e869b37739115))
+- *(vite)* Use import.meta.dirname for alias paths ([449255b](https://github.com/huoshen80/ReinaManager/commit/449255b360d8261be2b7185b979be4f7dcc2b17a))
+
+### 📚 Documentation
+
+- *(agent)* Add project workflow guidance ([2eb2234](https://github.com/huoshen80/ReinaManager/commit/2eb22340f04cd24257fd24c0942a451427aa0457))
+- Organize architecture guides by topic ([f70b3c3](https://github.com/huoshen80/ReinaManager/commit/f70b3c36af12bc454f3b2fd489071b5b902ab326))
+- *(agent)* Add CDP frontend debugging workflow ([7caef9f](https://github.com/huoshen80/ReinaManager/commit/7caef9fbe32f953dc7894140588b285735452807))
+- Add QQ group badges ([e58481d](https://github.com/huoshen80/ReinaManager/commit/e58481d52c11c338dc984a5959b3112066f39c6e))
+- Prefer UnoCSS for frontend styles ([2d9c3cf](https://github.com/huoshen80/ReinaManager/commit/2d9c3cf745dbb359e577fcf4d07863bd6ad44840))
+
+
 ## [0.28.1](https://github.com/huoshen80/ReinaManager/compare/v0.28.0...v0.28.1) (2026-08-12)
 
 <details>
