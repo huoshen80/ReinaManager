@@ -95,6 +95,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # src/ReinaManager 属主是 builder,root 下跑 git 需要 safe.directory
+          git config --global --add safe.directory '*'
           VER=$(git -C src/ReinaManager describe --abbrev=0 | sed 's/^v//')
           SHA=$(git -C src/ReinaManager rev-parse HEAD)
           # 滚动 Release:同名 tag 重建,资产按上游格式 ReinaManager_<ver>_<arch>.<ext> 命名
