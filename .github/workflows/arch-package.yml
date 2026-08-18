@@ -1,0 +1,93 @@
+name: Arch Package
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pkg:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install build deps
+        run: |
+          pacman -Syu --noconfirm git rust nodejs pnpm \
+            webkit2gtk-4.1 gtk3 libayatana-appindicator openssl hicolor-icon-theme
+
+      - name: Write PKGBUILD
+        run: |
+          cat > PKGBUILD <<'EOF'
+          pkgname=reinamanager-git
+          pkgver=0
+          pkgrel=1
+          pkgdesc="A lightweight galgame/visual-novel manager (git build)"
+          arch=('x86_64')
+          url="https://github.com/luoyuxiaoxiao/ReinaManager"
+          license=('AGPL-3.0-only')
+          # !strip: build.sh 逐字节比对打包二进制与构建产物,strip 会改字节导致校验必挂
+          options=(!lto !strip)
+          depends=('webkit2gtk-4.1' 'gtk3' 'hicolor-icon-theme' 'libayatana-appindicator' 'openssl')
+          makedepends=('git' 'rust' 'nodejs' 'pnpm')
+          provides=('reinamanager')
+          conflicts=('reinamanager')
+          source=("git+https://github.com/luoyuxiaoxiao/ReinaManager.git"
+                  "reinamanager.desktop")
+          sha256sums=('SKIP'
+                      'b620fd176cd63f0d110ce68489a059d02f748f272a127da20971e5091f6b9970')
+
+          pkgver() {
+            cd ReinaManager
+            git describe --long --tags | sed 's/^v//;s/\([^-]*-\)g/r\1/;s/-/./g'
+          }
+
+          build() {
+            cd ReinaManager
+            export TAURI_ENV_PLATFORM=linux
+            pnpm install --frozen-lockfile
+            rm -rf dist
+            pnpm build
+            cd src-tauri
+            cargo clean -p ReinaManager
+            cargo build --release --locked -p ReinaManager --features custom-protocol
+          }
+
+          package() {
+            cd ReinaManager
+            install -Dm755 "src-tauri/target/release/ReinaManager" "$pkgdir/usr/bin/reinamanager"
+            install -Dm644 "$srcdir/reinamanager.desktop" "$pkgdir/usr/share/applications/reinamanager.desktop"
+
+            local -A icons=([32x32]=32 [64x64]=64 [128x128]=128 [128x128@2x]=256 [icon]=512)
+            for name in "${!icons[@]}"; do
+              install -Dm644 "src-tauri/icons/$name.png" "$pkgdir/usr/share/icons/hicolor/${icons[$name]}x${icons[$name]}/apps/reinamanager.png"
+            done
+          }
+          EOF
+          cat > reinamanager.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=ReinaManager
+          Comment=A lightweight galgame/visual-novel manager
+          Exec=reinamanager
+          Icon=reinamanager
+          Terminal=false
+          Categories=Utility;Game;
+          StartupWMClass=ReinaManager
+          EOF
+
+      - name: makepkg
+        run: |
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          chown -R builder: .
+          sudo -u builder makepkg -f --noconfirm
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: reinamanager-arch-x86_64
+          path: "*.pkg.tar.zst"
