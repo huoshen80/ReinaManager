@@ -1,6 +1,10 @@
 import type { CustomData, GameData, SourceType } from "@/types";
 import type { SourceDisplayFields } from "../sourceCandidate";
-import type { SourceDataMap } from "../sourceRecord";
+import {
+	getSourceRecordMap,
+	type SourceDataMap,
+	type SourceRecordPayload,
+} from "../sourceRecord";
 import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
@@ -80,6 +84,25 @@ export function getSourceDisplayFields(
 	data: unknown,
 ): SourceDisplayFields {
 	return getRuntimeSourceAdapter(source).toDisplayFields(data);
+}
+
+export function getSourceDeveloperOptions(game: SourceRecordPayload): string[] {
+	const sourceMap = getSourceRecordMap(game);
+
+	return Array.from(
+		new Set(
+			DEVELOPER_PRIORITY.flatMap((source) => {
+				const data = sourceMap.get(source)?.data;
+				if (data == null) return [];
+
+				const developer = getSourceDisplayFields(
+					source,
+					data,
+				).developer?.trim();
+				return developer ? [developer] : [];
+			}),
+		),
+	);
 }
 
 export function applySingleSourceDisplay(

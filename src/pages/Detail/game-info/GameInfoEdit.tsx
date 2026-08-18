@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
 import { REGISTERED_SOURCE_KEYS } from "@/metadata";
+import { getSourceDeveloperOptions } from "@/metadata/data/displayMergeRules";
 import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
 import {
 	getSourceImageMap,
@@ -125,6 +126,10 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	);
 	const sourceImageOptions = useMemo(
 		() => (rawGame ? getSourceImageOptions(rawGame) : []),
+		[rawGame],
+	);
+	const developerOptions = useMemo(
+		() => (rawGame ? getSourceDeveloperOptions(rawGame) : []),
 		[rawGame],
 	);
 	const selectedGameSourceIdSignature = (() => {
@@ -853,20 +858,35 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 							</Box>
 
 							{/* 开发商 */}
-							<TextField
-								label={t("pages.Detail.GameInfoEdit.developer", "开发商")}
-								variant="outlined"
-								fullWidth
-								value={developer}
-								onChange={(e) => setDeveloper(e.target.value)}
+							<Autocomplete
+								freeSolo
+								openOnFocus
+								clearOnBlur={false}
+								options={developerOptions}
+								inputValue={developer}
+								onInputChange={(_, value) => setDeveloper(value)}
+								onChange={(_, value) => {
+									if (typeof value === "string") {
+										setDeveloper(value);
+									}
+								}}
+								filterOptions={(options) => options}
 								disabled={isLoading || disabled}
-								placeholder={t(
-									"pages.Detail.GameInfoEdit.developerPlaceholder",
-									"多个开发商请使用 / 分隔",
-								)}
-								helperText={t(
-									"pages.Detail.GameInfoEdit.developerHelperText",
-									"例如：开发商A / 开发商B",
+								fullWidth
+								renderInput={(params) => (
+									<TextField
+										{...params}
+										label={t("pages.Detail.GameInfoEdit.developer", "开发商")}
+										variant="outlined"
+										placeholder={t(
+											"pages.Detail.GameInfoEdit.developerPlaceholder",
+											"多个开发商请使用 / 分隔",
+										)}
+										helperText={t(
+											"pages.Detail.GameInfoEdit.developerHelperText",
+											"例如：开发商A / 开发商B",
+										)}
+									/>
 								)}
 							/>
 
