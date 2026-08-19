@@ -318,6 +318,7 @@
 			"delete": "Delete Task",
 			"empty": "No download tasks",
 			"gameInstallSource": "Game installation · {{provider}} · {{size}}",
+			"goToShionlib": "Push from Shionlib",
 			"installPath": "Installation Path: {{path}}",
 			"openFolder": "Open Folder",
 			"pause": "Pause",

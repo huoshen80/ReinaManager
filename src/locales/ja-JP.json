@@ -310,6 +310,7 @@
 			"delete": "タスクを削除",
 			"empty": "ダウンロードタスクはありません",
 			"gameInstallSource": "ゲームインストール · {{provider}} · {{size}}",
+			"goToShionlib": "Shionlibからプッシュ",
 			"installPath": "インストール先：{{path}}",
 			"openFolder": "フォルダを開く",
 			"pause": "一時停止",

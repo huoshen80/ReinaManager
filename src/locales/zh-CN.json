@@ -310,6 +310,7 @@
 			"delete": "删除任务",
 			"empty": "暂无下载任务",
 			"gameInstallSource": "游戏安装 · {{provider}} · {{size}}",
+			"goToShionlib": "从书音推送",
 			"installPath": "安装路径：{{path}}",
 			"openFolder": "打开文件夹",
 			"pause": "暂停",

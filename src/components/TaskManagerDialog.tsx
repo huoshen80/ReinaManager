@@ -1,9 +1,11 @@
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import FolderOpenRoundedIcon from "@mui/icons-material/FolderOpenRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
+import TelegramIcon from "@mui/icons-material/Telegram";
 import {
 	Alert,
 	Box,
@@ -22,6 +24,7 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -231,6 +234,12 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 		});
 	};
 
+	const handleOpenShionlib = () => {
+		void openUrl("https://shionlib.com/").catch((error) => {
+			snackbar.error(getUserErrorMessage(error, t));
+		});
+	};
+
 	const tasks = tasksQuery.data ?? [];
 	const groups = groupTasksByDate(tasks);
 	const getDateLabel = (date: string) =>
@@ -261,9 +270,19 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 						{getUserErrorMessage(tasksQuery.error, t)}
 					</Alert>
 				) : groups.length === 0 ? (
-					<Typography color="text.secondary" className="py-8 text-center">
-						{t("components.TaskManager.empty", "暂无下载任务")}
-					</Typography>
+					<Box className="flex flex-col items-center justify-center gap-3 py-8">
+						<DownloadRoundedIcon className="!text-[52px]" color="disabled" />
+						<Typography variant="h6" fontWeight={700}>
+							{t("components.TaskManager.empty", "暂无下载任务")}
+						</Typography>
+						<Button
+							variant="contained"
+							startIcon={<TelegramIcon />}
+							onClick={handleOpenShionlib}
+						>
+							{t("components.TaskManager.goToShionlib", "去 Shionlib 下载")}
+						</Button>
+					</Box>
 				) : (
 					<Stack spacing={2.5}>
 						{groups.map((group) => (
