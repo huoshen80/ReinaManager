@@ -472,7 +472,7 @@
 		},
 		"stats": {
 			"month": "Month",
-			"monthPlayTime": "Monthly Play Time",
+			"monthPlayTime": "Monthly Time",
 			"todayPlayTime": "Today",
 			"totalGames": "Total Games",
 			"totalPlayTime": "Total Play Time",

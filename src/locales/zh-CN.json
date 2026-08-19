@@ -456,7 +456,7 @@
 		},
 		"stats": {
 			"month": "月",
-			"monthPlayTime": "本月游戏时长",
+			"monthPlayTime": "本月时长",
 			"todayPlayTime": "今日时长",
 			"totalGames": "总游戏数",
 			"totalPlayTime": "总游戏时长",
