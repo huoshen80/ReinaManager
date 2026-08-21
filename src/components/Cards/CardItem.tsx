@@ -8,7 +8,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { forwardRef, memo } from "react";
 import { useStore } from "@/store/appStore";
-import { getGameCover, getGameNsfwStatus } from "@/utils/game";
+import { getVisibleGameCover } from "@/utils/game";
 import type { CardItemProps } from "./types";
 import { useCardInteraction } from "./useCardInteraction";
 
@@ -43,9 +43,7 @@ export const CardItem = memo(
 				useDelayedClick: interaction?.useDelayedClick ?? false,
 			});
 
-			const isNsfw = getGameNsfwStatus(game);
-			const coverImage =
-				nsfwCoverReplace && isNsfw ? "/images/NR18.png" : getGameCover(game);
+			const coverImage = getVisibleGameCover(game, nsfwCoverReplace);
 
 			return (
 				<Card
