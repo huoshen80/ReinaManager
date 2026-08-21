@@ -91,10 +91,6 @@ export function Stats() {
 			),
 		[customDates.endDate, customDates.startDate, range],
 	);
-	const todayDate = useMemo(
-		() => resolveStatisticsDateRange("7D")?.endDate ?? "",
-		[],
-	);
 	const distributionQuery = useStatisticsDistribution(
 		visibleGameIds,
 		dateRange?.startDate ?? "",
@@ -174,11 +170,10 @@ export function Stats() {
 			),
 		};
 	}, [overview?.trend, trendDateFormatter]);
-	const baseError = gamesQuery.error ?? statisticsQuery.error;
-	const error = baseError;
+	const error = gamesQuery.error ?? statisticsQuery.error;
 	const isLoading = gamesQuery.isLoading || statisticsQuery.isLoading;
 	const hasBlockingError = Boolean(
-		baseError &&
+		error &&
 			(!statisticsQuery.data || gamesQuery.index.displayList.length === 0),
 	);
 
@@ -204,7 +199,6 @@ export function Stats() {
 				<StatisticsRangeControls
 					range={range}
 					customDates={customDates}
-					todayDate={todayDate}
 					onRangeChange={(nextRange) => {
 						setCustomDates({ startDate: "", endDate: "" });
 						setRange(nextRange);

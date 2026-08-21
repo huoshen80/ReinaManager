@@ -30,7 +30,6 @@ interface CustomDates {
 interface StatisticsRangeControlsProps {
 	range: StatisticsRange;
 	customDates: CustomDates;
-	todayDate: string;
 	onRangeChange: (range: Exclude<StatisticsRange, "CUSTOM">) => void;
 	onCustomApply: (dates: CustomDates) => void;
 }
@@ -46,16 +45,16 @@ function moveMonth(date: Date, offset: number): Date {
 export function StatisticsRangeControls({
 	range,
 	customDates,
-	todayDate,
 	onRangeChange,
 	onCustomApply,
 }: StatisticsRangeControlsProps) {
 	const { t, i18n } = useTranslation();
+	const todayDate = formatLocalDate(new Date());
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 	const [draftDates, setDraftDates] = useState(customDates);
 	const [selectingEnd, setSelectingEnd] = useState(false);
 	const [visibleMonth, setVisibleMonth] = useState(() =>
-		parseDateKey(customDates.endDate || todayDate),
+		parseDateKey(customDates.endDate || formatLocalDate(new Date())),
 	);
 	const todayMonth = todayDate.slice(0, 7);
 	const monthTitle = useMemo(
@@ -100,9 +99,10 @@ export function StatisticsRangeControls({
 	);
 
 	const handleOpen = (element: HTMLElement) => {
+		const currentTodayDate = formatLocalDate(new Date());
 		setDraftDates(customDates);
 		setSelectingEnd(false);
-		setVisibleMonth(parseDateKey(customDates.endDate || todayDate));
+		setVisibleMonth(parseDateKey(customDates.endDate || currentTodayDate));
 		setAnchorEl(element);
 	};
 

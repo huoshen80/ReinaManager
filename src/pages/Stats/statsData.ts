@@ -131,11 +131,12 @@ export function buildStatisticsOverview(
 	const startKey = dateRange.startDate;
 	const endKey = dateRange.endDate;
 	const playtimeByDate = new Map<string, number>();
-	const playtimeByGame = new Map<number, number>();
+	const rankingByGameId = new Map<number, StatisticsRankingItem>();
 	const visibleGamesById = new Map(games.map((game) => [game.id, game]));
 
 	for (const [gameId, stats] of statistics) {
-		if (!visibleGamesById.has(gameId) || !Array.isArray(stats.daily_stats)) {
+		const game = visibleGamesById.get(gameId);
+		if (!game || !Array.isArray(stats.daily_stats)) {
 			continue;
 		}
 
@@ -154,10 +155,11 @@ export function buildStatisticsOverview(
 				record.date,
 				(playtimeByDate.get(record.date) ?? 0) + record.playtime,
 			);
-			playtimeByGame.set(
-				gameId,
-				(playtimeByGame.get(gameId) ?? 0) + record.playtime,
-			);
+			const rankingItem = rankingByGameId.get(gameId);
+			rankingByGameId.set(gameId, {
+				game,
+				playtime: (rankingItem?.playtime ?? 0) + record.playtime,
+			});
 		}
 	}
 
@@ -166,10 +168,7 @@ export function buildStatisticsOverview(
 		totalPlayTime += playtime;
 	}
 
-	const ranking = Array.from(playtimeByGame, ([gameId, playtime]) => ({
-		game: visibleGamesById.get(gameId) as GameData,
-		playtime,
-	})).toSorted(
+	const ranking = Array.from(rankingByGameId.values()).toSorted(
 		(left, right) =>
 			right.playtime - left.playtime || left.game.id - right.game.id,
 	);
@@ -182,8 +181,8 @@ export function buildStatisticsOverview(
 
 	const activeDays = playtimeByDate.size;
 	let completedGames = 0;
-	for (const gameId of playtimeByGame.keys()) {
-		if (visibleGamesById.get(gameId)?.clear === PlayStatus.PLAYED) {
+	for (const { game } of rankingByGameId.values()) {
+		if (game.clear === PlayStatus.PLAYED) {
 			completedGames += 1;
 		}
 	}
@@ -198,7 +197,7 @@ export function buildStatisticsOverview(
 
 	return {
 		totalPlayTime,
-		playedGames: playtimeByGame.size,
+		playedGames: rankingByGameId.size,
 		completedGames,
 		newGames,
 		activeDays,
