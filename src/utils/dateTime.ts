@@ -170,3 +170,25 @@ export function formatPlayTime(minutes: number): string {
 		count: hours,
 	});
 }
+
+export function formatCompactPlayTime(minutes: number | null): string {
+	if (minutes === null) return "";
+
+	const roundedMinutes = Math.round(minutes);
+	const hours = Math.floor(roundedMinutes / 60);
+	const remainingMinutes = roundedMinutes % 60;
+
+	if (hours === 0) return `${remainingMinutes}min`;
+	if (remainingMinutes === 0) return `${hours}h`;
+	return `${hours}h ${remainingMinutes}min`;
+}
+
+export function formatChartDayLabel(value: string): string {
+	const match = /^(?:\d{4})-(\d{2})-(\d{2})$/.exec(value);
+	return match ? `${match[1]}-${match[2]}` : value;
+}
+
+export function formatChartMonthLabel(value: string): string {
+	const match = /^(\d{4})-(\d{2})$/.exec(value);
+	return match ? `${match[1].slice(-2)}/${match[2]}` : value;
+}

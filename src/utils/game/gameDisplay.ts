@@ -47,6 +47,15 @@ export const getGameCover = (game: GameData): string => {
 	return "/images/default.png";
 };
 
+export function getVisibleGameCover(
+	game: GameData,
+	replaceNsfwCover: boolean,
+): string {
+	return replaceNsfwCover && getGameNsfwStatus(game)
+		? "/images/NR18.png"
+		: getGameCover(game);
+}
+
 export const getGameNsfwStatus = (game: GameData): boolean => {
 	return game.nsfw ?? isNsfwGame(game.tags || []);
 };

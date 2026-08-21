@@ -3,7 +3,12 @@
  * @description 封装所有游戏统计相关的后端调用
  */
 
-import type { GameLastPlayed, GameSession, GameStatistics } from "@/types";
+import type {
+	GameLastPlayed,
+	GameSession,
+	GameStatistics,
+	StatisticsDistribution,
+} from "@/types";
 import { BaseService } from "./base";
 
 export type LaunchGameResult =
@@ -116,6 +121,21 @@ class StatsService extends BaseService {
 	 */
 	async getAllGameLastPlayed(): Promise<GameLastPlayed[]> {
 		return this.invoke<GameLastPlayed[]>("get_all_game_last_played");
+	}
+
+	/**
+	 * 获取指定游戏和日期范围内的游玩时段分布
+	 */
+	async getStatisticsDistribution(
+		gameIds: number[],
+		startDate: string,
+		endDate: string,
+	): Promise<StatisticsDistribution> {
+		return this.invoke<StatisticsDistribution>("get_statistics_distribution", {
+			gameIds,
+			startDate,
+			endDate,
+		});
 	}
 }
 

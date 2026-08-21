@@ -9,7 +9,7 @@ use crate::database::repository::{
     collections_repository::{
         CategoryWithCount, CollectionBackendSortField, CollectionsRepository, GroupWithCount,
     },
-    game_stats_repository::{GameLastPlayed, GameStatsRepository},
+    game_stats_repository::{GameLastPlayed, GameStatsRepository, StatisticsDistribution},
     games_repository::{GameType, GamesRepository, SortOption, SortOrder},
     settings_repository::SettingsRepository,
 };
@@ -324,6 +324,19 @@ pub async fn get_all_game_last_played(
     GameStatsRepository::get_all_last_played(&db)
         .await
         .map_err(|e| format!("获取所有游戏最近游玩时间失败: {}", e))
+}
+
+/// 获取指定游戏和日期范围内的游玩时段分布
+#[tauri::command]
+pub async fn get_statistics_distribution(
+    db: State<'_, DatabaseConnection>,
+    game_ids: Vec<i32>,
+    start_date: String,
+    end_date: String,
+) -> Result<StatisticsDistribution, String> {
+    GameStatsRepository::get_statistics_distribution(&db, game_ids, &start_date, &end_date)
+        .await
+        .map_err(|e| format!("获取游玩时段分布失败: {}", e))
 }
 
 // ==================== 用户设置相关 ====================

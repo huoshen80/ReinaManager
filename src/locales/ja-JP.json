@@ -4,7 +4,8 @@
 			"collection": "コレクション",
 			"gameLibrary": "ゲームライブラリ ",
 			"home": "ホーム",
-			"settings": "設定"
+			"settings": "設定",
+			"stats": "統計"
 		}
 	},
 	"category": {
@@ -21,8 +22,10 @@
 		"browse": "参照",
 		"cancel": "キャンセル",
 		"changePlayStatus": "プレイ状態を変更",
+		"close": "閉じる",
 		"confirm": "確認",
 		"locale": "ja-JP",
+		"retry": "再試行",
 		"saving": "保存中...",
 		"today": "今日",
 		"yesterday": "昨日"
@@ -947,6 +950,51 @@
 				"saveSuccess": "VNDB Token を保存しました",
 				"userId": "ユーザー ID: {{id}}"
 			}
+		},
+		"Stats": {
+			"activeDays": "アクティブ日数",
+			"apply": "適用",
+			"averageActiveDayPlayTime": "アクティブ日の平均時間",
+			"completedGames": "クリア済みゲーム",
+			"customRange": "カスタム",
+			"distribution": "プレイ時間帯分布",
+			"distributionLoadFailed": "プレイ時間帯分布を読み込めませんでした",
+			"hourlyDistribution": "時間帯（24h）",
+			"loadFailed": "統計データを読み込めませんでした",
+			"month": "月",
+			"newGames": "新規ゲーム",
+			"nextMonth": "翌月",
+			"nextYear": "翌年",
+			"noGames": "統計対象のゲームがありません",
+			"noGamesHint": "ゲームを追加するか、コンテンツフィルターを調整してください",
+			"noRecords": "選択した期間にプレイ記録がありません",
+			"peakHour": "ピーク {{hour}}:00 · {{time}}",
+			"peakWeekday": "ピーク {{weekday}} · {{time}}",
+			"playedGames": "プレイしたゲーム",
+			"playTime": "プレイ時間",
+			"previousMonth": "前月",
+			"previousYear": "前年",
+			"rangeSelector": "統計期間",
+			"ranking": "プレイ時間 Top 10",
+			"rankingAll": "全プレイ時間ランキング",
+			"rankingCount": "全 {{total}} ゲーム",
+			"reset": "リセット",
+			"subtitle": "プレイ時間と最近の変化を振り返る",
+			"totalPlayTime": "プレイ時間",
+			"trend": "総プレイ時間の推移",
+			"viewMore": "もっと見る",
+			"week": "週",
+			"weekdayDistribution": "曜日分布",
+			"weekdays": {
+				"friday": "金",
+				"monday": "月",
+				"saturday": "土",
+				"sunday": "日",
+				"thursday": "木",
+				"tuesday": "火",
+				"wednesday": "水"
+			},
+			"year": "年"
 		}
 	},
 	"utils": {

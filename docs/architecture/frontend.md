@@ -12,6 +12,7 @@
 | `/libraries` | 游戏库搜索、筛选、排序和虚拟列表 |
 | `/libraries/:id` | 详情、编辑、统计、存档和评价 |
 | `/collection` | 分组、分类、开发商虚拟分类 |
+| `/stats` | 按时间范围汇总全库游玩概览、排行和趋势 |
 | `/settings` | 账号、数据源、界面、系统和备份设置 |
 
 ## 分层职责
@@ -41,6 +42,8 @@
 | 短期交互 | 组件本地状态 | 表单输入、弹窗内选择 |
 
 `src/providers/queryClient.ts` 将本地事实默认视为长期 fresh，远程查询可使用单独的时效配置。Zustand `persist` 只保存选定偏好，并通过 `appStoreMigrations.ts` 迁移。不要将数据库实体复制到 Zustand 形成第二事实源。
+
+全库统计页复用 `useAllGameStatistics` 的共享 Query，并与 `GameIndex` 中的展示游戏按 ID 关联。概览、排行和趋势在页面私有纯函数中按日期范围派生；24 小时与星期分布通过独立 Query 将当前可见游戏 ID 和日期范围交给后端聚合。统计读取失败必须保留 Query 错误态，不能转换为空数据。
 
 ## 标准数据流
 

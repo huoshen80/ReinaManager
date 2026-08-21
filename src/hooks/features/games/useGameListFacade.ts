@@ -59,6 +59,7 @@ export function useGameIndex() {
 		isLoading: allGamesQuery.isLoading,
 		isError: allGamesQuery.isError,
 		error: allGamesQuery.error,
+		refetch: allGamesQuery.refetch,
 	};
 }
 

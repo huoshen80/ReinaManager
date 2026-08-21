@@ -153,6 +153,7 @@ pub fn run() {
             get_game_statistics,
             get_all_game_statistics,
             get_all_game_last_played,
+            get_statistics_distribution,
             // 用户设置相关 commands
             get_all_settings,
             update_settings,

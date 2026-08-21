@@ -13,17 +13,20 @@ import {
 	getRecentSessionsForGames,
 } from "@/services/game/gameStats";
 import { statsService } from "@/services/invoke";
+import type { GameStatistics } from "@/types";
 import { getLocalDateString } from "@/utils/dateTime";
 
 export const statsKeys = {
 	all: ["stats"] as const,
+	allGameStatistics: () => [...statsKeys.all, "allGameStatistics"] as const,
 	gameStats: (gameId: number) => [...statsKeys.all, "game", gameId] as const,
 	sessions: (gameId: number, limit: number) =>
 		[...statsKeys.all, "sessions", gameId, limit] as const,
 	allGameLastPlayed: () => [...statsKeys.all, "allGameLastPlayed"] as const,
 	recentSessionsForGames: (gameIds: number[], limit: number) =>
 		[...statsKeys.all, "recentSessionsForGames", gameIds, limit] as const,
-	playTimeSummary: () => [...statsKeys.all, "playTimeSummary"] as const,
+	distribution: (gameIds: number[], startDate: string, endDate: string) =>
+		[...statsKeys.all, "distribution", gameIds, startDate, endDate] as const,
 	totalPlayTime: () => [...statsKeys.all, "totalPlayTime"] as const,
 	weekPlayTime: () => [...statsKeys.all, "weekPlayTime"] as const,
 	todayPlayTime: () => [...statsKeys.all, "todayPlayTime"] as const,
@@ -36,8 +39,9 @@ interface PlayTimeSummary {
 	todayPlayTime: number;
 }
 
-async function getPlayTimeSummary(): Promise<PlayTimeSummary> {
-	const statsMap = await getAllGameStatistics();
+function getPlayTimeSummary(
+	statsMap: ReadonlyMap<number, GameStatistics>,
+): PlayTimeSummary {
 	let totalPlayTime = 0;
 	let weekPlayTime = 0;
 	let monthPlayTime = 0;
@@ -93,10 +97,18 @@ async function getPlayTimeSummary(): Promise<PlayTimeSummary> {
 	};
 }
 
+function useAllGameStatistics() {
+	return useQuery({
+		queryKey: statsKeys.allGameStatistics(),
+		queryFn: getAllGameStatistics,
+	});
+}
+
 function usePlayTimeSummaryQuery() {
 	return useQuery({
-		queryKey: statsKeys.playTimeSummary(),
-		queryFn: getPlayTimeSummary,
+		queryKey: statsKeys.allGameStatistics(),
+		queryFn: getAllGameStatistics,
+		select: getPlayTimeSummary,
 	});
 }
 
@@ -142,6 +154,20 @@ function useRecentSessionsForGames(gameIds: number[], limit = 10) {
 		queryKey: statsKeys.recentSessionsForGames(gameIds, limit),
 		queryFn: () => getRecentSessionsForGames(gameIds, limit),
 		enabled: gameIds.length > 0,
+	});
+}
+
+function useStatisticsDistribution(
+	gameIds: number[],
+	startDate: string,
+	endDate: string,
+	{ enabled = true }: { enabled?: boolean } = {},
+) {
+	return useQuery({
+		queryKey: statsKeys.distribution(gameIds, startDate, endDate),
+		queryFn: () =>
+			statsService.getStatisticsDistribution(gameIds, startDate, endDate),
+		enabled: enabled && gameIds.length > 0,
 	});
 }
 
@@ -237,12 +263,14 @@ function usePlayTimeSummary() {
 
 export {
 	useAllGameLastPlayedMap,
+	useAllGameStatistics,
 	useCreateManualGameSession,
 	useDeleteGameSession,
 	useGameSessions,
 	useGameStats,
 	usePlayTimeSummary,
 	useRecentSessionsForGames,
+	useStatisticsDistribution,
 	useTodayPlayTime,
 	useTotalPlayTime,
 	useWeekPlayTime,

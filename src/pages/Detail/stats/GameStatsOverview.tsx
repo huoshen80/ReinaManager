@@ -29,6 +29,7 @@ import {
 import { snackbar } from "@/providers/snackBar";
 import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameSession, GameTimeStats } from "@/types";
+import { formatPlayTime } from "@/utils/dateTime";
 import { getUserErrorMessage } from "@/utils/errors";
 import { GameSessionCreateDialog } from "./GameSessionCreateDialog";
 import { GameSessionTimeline } from "./GameSessionTimeline";
@@ -168,13 +169,13 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 				color: "primary",
 				icon: <TodayIcon fontSize="small" />,
 				title: t("pages.Detail.todayPlayTime", "今日游戏时长"),
-				value: stats ? `${stats.todayPlayTime}` : "0分钟",
+				value: formatPlayTime(stats?.todayMinutes ?? 0),
 			},
 			{
 				color: "primary",
 				icon: <AccessTimeIcon fontSize="small" />,
 				title: t("pages.Detail.totalPlayTime", "累计总时长"),
-				value: stats ? `${stats.totalPlayTime}` : "0分钟",
+				value: formatPlayTime(stats?.totalMinutes ?? 0),
 			},
 			{
 				color: "primary",

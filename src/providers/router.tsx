@@ -1,6 +1,7 @@
 import CategoryIcon from "@mui/icons-material/Category";
 import GamesIcon from "@mui/icons-material/Games";
 import HomeIcon from "@mui/icons-material/Home";
+import InsertChartIcon from "@mui/icons-material/InsertChart";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { Box, CircularProgress } from "@mui/material";
 import React, { lazy, Suspense } from "react";
@@ -25,6 +26,11 @@ const Detail = lazy(() =>
 const Collection = lazy(() =>
 	import("@/pages/Collection").then((module) => ({
 		default: module.Collection,
+	})),
+);
+const Stats = lazy(() =>
+	import("@/pages/Stats").then((module) => ({
+		default: module.Stats,
 	})),
 );
 const Settings = lazy(() =>
@@ -90,6 +96,12 @@ export const appRoutes: AppRoute[] = [
 		title: "app.NAVIGATION.collection",
 		icon: <CategoryIcon />,
 		component: Collection,
+	},
+	{
+		path: "stats",
+		title: "app.NAVIGATION.stats",
+		icon: <InsertChartIcon />,
+		component: Stats,
 	},
 	{
 		path: "settings",
