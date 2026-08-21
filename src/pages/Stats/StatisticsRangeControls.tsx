@@ -279,7 +279,7 @@ export function StatisticsRangeControls({
 					})}
 				</Box>
 
-				<Box className="mt-4 flex items-center justify-between gap-2 border-0 border-t border-solid border-[var(--mui-palette-divider)] pt-3">
+				<Box className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--mui-palette-divider)] pt-3">
 					<Typography
 						variant="body2"
 						color="text.secondary"

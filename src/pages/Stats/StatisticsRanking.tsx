@@ -44,7 +44,7 @@ function RankingRow({
 			component={Link}
 			to={`/libraries/${item.game.id}`}
 			onClick={onNavigate}
-			className="min-w-0 max-w-full overflow-hidden rounded-lg flex items-center gap-3 p-2 no-underline transition-colors hover:bg-[var(--mui-palette-action-hover)]"
+			className="min-w-0 rounded-lg flex items-center gap-3 p-2 no-underline transition-colors hover:bg-[var(--mui-palette-action-hover)]"
 			color="inherit"
 		>
 			<Typography
