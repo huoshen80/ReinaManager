@@ -1,6 +1,6 @@
 use crate::entity::prelude::*;
 use crate::entity::{game_sessions, game_statistics};
-use chrono::{Local, LocalResult, NaiveTime, TimeZone};
+use chrono::{Datelike, Local, LocalResult, NaiveDate, NaiveTime, TimeZone, Timelike};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -32,6 +32,13 @@ pub struct GameLastPlayed {
     pub last_played: Option<i32>,
 }
 
+/// 指定日期范围内的会话开始时段分布。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct StatisticsDistribution {
+    pub hourly: [i64; 24],
+    pub weekdays: [i64; 7],
+}
+
 fn custom_error(message: impl Into<String>) -> DbErr {
     DbErr::Custom(message.into())
 }
@@ -50,6 +57,67 @@ fn local_date_from_timestamp(timestamp: i32) -> Result<String, DbErr> {
     Ok(timestamp_in_timezone(&Local, timestamp)?
         .format("%Y-%m-%d")
         .to_string())
+}
+
+fn date_range_timestamps<Tz: TimeZone>(
+    timezone: &Tz,
+    start_date: &str,
+    end_date: &str,
+) -> Result<(i32, i32), DbErr> {
+    let start = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
+        .map_err(|_| custom_error("开始日期格式无效，应为 YYYY-MM-DD"))?;
+    let end = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
+        .map_err(|_| custom_error("结束日期格式无效，应为 YYYY-MM-DD"))?;
+    if start > end {
+        return Err(custom_error("开始日期不能晚于结束日期"));
+    }
+
+    let end_exclusive = end
+        .succ_opt()
+        .ok_or_else(|| custom_error("结束日期超出支持范围"))?;
+    let start_timestamp = timezone
+        .from_local_datetime(&start.and_time(NaiveTime::MIN))
+        .earliest()
+        .ok_or_else(|| custom_error("无法解析开始日期"))?
+        .timestamp();
+    let end_timestamp = timezone
+        .from_local_datetime(&end_exclusive.and_time(NaiveTime::MIN))
+        .earliest()
+        .ok_or_else(|| custom_error("无法解析结束日期"))?
+        .timestamp();
+
+    Ok((
+        i32::try_from(start_timestamp).map_err(|_| custom_error("开始日期超出支持范围"))?,
+        i32::try_from(end_timestamp).map_err(|_| custom_error("结束日期超出支持范围"))?,
+    ))
+}
+
+fn aggregate_session_distribution<Tz: TimeZone>(
+    sessions: &[game_sessions::Model],
+    timezone: &Tz,
+) -> Result<StatisticsDistribution, DbErr> {
+    let mut distribution = StatisticsDistribution::default();
+
+    for session in sessions {
+        if session.duration <= 0 {
+            return Err(custom_error("会话时长必须大于零"));
+        }
+
+        let start = timestamp_in_timezone(timezone, session.start_time)?;
+        let hour = usize::try_from(start.hour()).map_err(|_| custom_error("小时索引无效"))?;
+        let weekday = usize::try_from(start.weekday().num_days_from_sunday())
+            .map_err(|_| custom_error("星期索引无效"))?;
+        let duration = i64::from(session.duration);
+
+        distribution.hourly[hour] = distribution.hourly[hour]
+            .checked_add(duration)
+            .ok_or_else(|| custom_error("小时分布时长溢出"))?;
+        distribution.weekdays[weekday] = distribution.weekdays[weekday]
+            .checked_add(duration)
+            .ok_or_else(|| custom_error("星期分布时长溢出"))?;
+    }
+
+    Ok(distribution)
 }
 
 fn manual_session_end_time(
@@ -599,6 +667,31 @@ impl GameStatsRepository {
             .all(db)
             .await
     }
+
+    /// 获取指定游戏和日期范围内的会话开始时段分布。
+    pub async fn get_statistics_distribution(
+        db: &DatabaseConnection,
+        game_ids: Vec<i32>,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<StatisticsDistribution, DbErr> {
+        if game_ids.iter().any(|game_id| *game_id <= 0) {
+            return Err(custom_error("游戏 ID 必须大于零"));
+        }
+        let (start_timestamp, end_timestamp) = date_range_timestamps(&Local, start_date, end_date)?;
+        if game_ids.is_empty() {
+            return Ok(StatisticsDistribution::default());
+        }
+
+        let sessions = GameSessions::find()
+            .filter(game_sessions::Column::GameId.is_in(game_ids))
+            .filter(game_sessions::Column::StartTime.gte(start_timestamp))
+            .filter(game_sessions::Column::StartTime.lt(end_timestamp))
+            .all(db)
+            .await?;
+
+        aggregate_session_distribution(&sessions, &Local)
+    }
 }
 
 #[cfg(test)]
@@ -849,6 +942,36 @@ mod tests {
     fn manual_session_rejects_future_end_time_and_overflow() {
         assert!(manual_session_end_time(1_700_000_000, 90, 1_700_000_100).is_err());
         assert!(manual_session_end_time(i32::MAX - 30, 1, i32::MAX).is_err());
+    }
+
+    #[test]
+    fn session_distribution_uses_local_start_hour_and_weekday() {
+        let sessions = vec![
+            session(1, timestamp(1, 9), timestamp(1, 11), 90),
+            session(2, timestamp(1, 9), timestamp(1, 10), 30),
+            session(3, timestamp(2, 20), timestamp(2, 21), 45),
+        ];
+
+        let distribution =
+            aggregate_session_distribution(&sessions, &timezone()).expect("时段统计应成功");
+
+        assert_eq!(distribution.hourly[9], 120);
+        assert_eq!(distribution.hourly[20], 45);
+        assert_eq!(distribution.weekdays[4], 120);
+        assert_eq!(distribution.weekdays[5], 45);
+        assert_eq!(distribution.hourly.iter().sum::<i64>(), 165);
+        assert_eq!(distribution.weekdays.iter().sum::<i64>(), 165);
+    }
+
+    #[test]
+    fn date_range_validation_is_inclusive_and_rejects_reverse_order() {
+        let (start, end) =
+            date_range_timestamps(&timezone(), "2026-01-01", "2026-01-02").expect("日期范围应有效");
+
+        assert_eq!(start, timestamp(1, 0));
+        assert_eq!(end, timestamp(3, 0));
+        assert!(date_range_timestamps(&timezone(), "2026-01-03", "2026-01-02").is_err());
+        assert!(date_range_timestamps(&timezone(), "2026/01/01", "2026-01-02").is_err());
     }
 
     #[tokio::test]

@@ -38,6 +38,8 @@ Tauri command
 
 游戏是聚合根：写入时在同一事务中维护 `games` 和 `game_sources`。合集与游戏统计的跨表不变量也由 repository 事务保护。`Option<Option<T>>` 在更新 DTO 中区分“不修改”和“显式清空”。
 
+全库统计中的时段分布是 `game_sessions` 的只读投影：command 校验包含首尾日期的范围与游戏 ID，repository 按会话开始时间汇总本地小时和星期。它不创建领域实体或持久化表，前端需传入经过内容过滤后的游戏 ID。
+
 这不是全局严格三层架构。独立特性可根据职责直接组合 repository、entity、文件系统或外部 HTTP。
 
 ## 存储

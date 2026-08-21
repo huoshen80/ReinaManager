@@ -47,29 +47,24 @@ export async function getGameStatistics(
 export async function getAllGameStatistics(): Promise<
 	Map<number, GameStatistics>
 > {
-	try {
-		const statsList = await statsService.getAllGameStatistics();
-		const statsMap = new Map<number, GameStatistics>();
+	const statsList = await statsService.getAllGameStatistics();
+	const statsMap = new Map<number, GameStatistics>();
 
-		for (const stats of statsList) {
-			// 解析JSON存储的每日统计数据
-			if (stats.daily_stats && typeof stats.daily_stats === "string") {
-				try {
-					const parsedStats = JSON.parse(stats.daily_stats);
-					stats.daily_stats = parsedStats;
-				} catch (e) {
-					console.error("解析游戏统计数据失败:", e);
-					stats.daily_stats = [];
-				}
+	for (const stats of statsList) {
+		// 解析JSON存储的每日统计数据
+		if (stats.daily_stats && typeof stats.daily_stats === "string") {
+			try {
+				const parsedStats = JSON.parse(stats.daily_stats);
+				stats.daily_stats = parsedStats;
+			} catch (error) {
+				console.error(`解析游戏 ${stats.game_id} 的统计数据失败:`, error);
+				stats.daily_stats = [];
 			}
-			statsMap.set(stats.game_id, stats);
 		}
-
-		return statsMap;
-	} catch (error) {
-		console.error("获取所有游戏统计失败:", error);
-		return new Map();
+		statsMap.set(stats.game_id, stats);
 	}
+
+	return statsMap;
 }
 
 export async function getAllGameLastPlayed(): Promise<Map<number, number>> {

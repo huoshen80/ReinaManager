@@ -449,6 +449,14 @@ export interface GameLastPlayed {
 }
 
 /**
+ * 指定日期范围内的会话开始时段分布。
+ */
+export interface StatisticsDistribution {
+	hourly: number[];
+	weekdays: number[];
+}
+
+/**
  * 格式化后的游戏时间统计
  */
 export interface GameTimeStats {
