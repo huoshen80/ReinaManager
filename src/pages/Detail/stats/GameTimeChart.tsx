@@ -1,6 +1,12 @@
 import { axisClasses } from "@mui/x-charts/ChartsAxis";
 import { LineChart } from "@mui/x-charts/LineChart";
 import { useCallback, useMemo } from "react";
+import { getChartEdgeLabelMargin, getPlayTimeAxisWidth } from "@/utils/chart";
+import {
+	formatChartDayLabel,
+	formatChartMonthLabel,
+	formatCompactPlayTime,
+} from "@/utils/dateTime";
 import type { GameTimeChartData, TimeRange } from "./gameStatsData";
 
 interface GameTimeChartProps {
@@ -8,43 +14,25 @@ interface GameTimeChartProps {
 	timeRange: TimeRange;
 }
 
-function formatChartPlaytime(minutes: number | null): string {
-	if (minutes === null) return "";
-
-	const roundedMinutes = Math.round(minutes);
-	const hours = Math.floor(roundedMinutes / 60);
-	const remainingMinutes = roundedMinutes % 60;
-
-	if (hours === 0) return `${remainingMinutes}m`;
-	if (remainingMinutes === 0) return `${hours}h`;
-	return `${hours}h ${remainingMinutes}m`;
-}
-
 export function GameTimeChart({ data, timeRange }: GameTimeChartProps) {
 	const maxPlaytime = data.reduce(
 		(maximum, item) => Math.max(maximum, item.playtime),
 		0,
 	);
-	const yAxisWidth =
-		maxPlaytime < 60
-			? 48
-			: (String(Math.ceil(maxPlaytime / 60)).length + 6) * 8 + 12;
+	const yAxisWidth = getPlayTimeAxisWidth(maxPlaytime);
 	const xAxisFormatter = useCallback(
 		(value: string) => {
 			if (timeRange === "1Y" || (timeRange === "ALL" && value.length === 7)) {
-				return value;
+				return formatChartMonthLabel(value);
 			}
-			if (timeRange === "MONTH") {
-				return value.substring(8);
-			}
-			return value.substring(5);
+			return formatChartDayLabel(value);
 		},
 		[timeRange],
 	);
 	const rightMargin = useMemo(() => {
 		if (data.length === 0) return 8;
 		const lastLabel = xAxisFormatter(data[data.length - 1].date);
-		return Math.max(8, lastLabel.length * 4 + 12);
+		return getChartEdgeLabelMargin(lastLabel);
 	}, [data, xAxisFormatter]);
 
 	return (
@@ -64,7 +52,7 @@ export function GameTimeChart({ data, timeRange }: GameTimeChartProps) {
 					scaleType: "linear",
 					tickMinStep: 1,
 					width: yAxisWidth,
-					valueFormatter: formatChartPlaytime,
+					valueFormatter: formatCompactPlayTime,
 					tickLabelStyle: { fontWeight: 600 },
 				},
 			]}
@@ -73,7 +61,7 @@ export function GameTimeChart({ data, timeRange }: GameTimeChartProps) {
 					dataKey: "playtime",
 					color: "#1976d2",
 					showMark: timeRange === "7D",
-					valueFormatter: formatChartPlaytime,
+					valueFormatter: formatCompactPlayTime,
 				},
 			]}
 			height={300}

@@ -10,7 +10,7 @@ import type {
 	GameTimeStats,
 	SessionEndCallback,
 } from "@/types";
-import { formatPlayTime, getLocalDateString } from "@/utils/dateTime";
+import { getLocalDateString } from "@/utils/dateTime";
 
 // 类型定义
 export type TimeUpdateCallback = (
@@ -129,9 +129,7 @@ export async function getFormattedGameStats(
 	}
 
 	return {
-		totalPlayTime: formatPlayTime(stats?.total_time || 0),
 		totalMinutes: stats?.total_time || 0,
-		todayPlayTime: formatPlayTime(todayMinutes),
 		todayMinutes,
 		sessionCount: stats?.session_count || 0,
 		lastPlayed: stats?.last_played ? new Date(stats.last_played * 1000) : null,

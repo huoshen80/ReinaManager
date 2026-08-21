@@ -456,13 +456,9 @@ export interface StatisticsDistribution {
 	weekdays: number[];
 }
 
-/**
- * 格式化后的游戏时间统计
- */
+/** 游戏时间统计 */
 export interface GameTimeStats {
-	totalPlayTime: string; // 格式化的总时间，如"10小时20分钟"
 	totalMinutes: number; // 总分钟数
-	todayPlayTime: string; // 今天的游戏时间
 	todayMinutes: number; // 今天的分钟数
 	sessionCount: number; // 启动次数
 	lastPlayed: Date | null; // 最后一次游玩时间

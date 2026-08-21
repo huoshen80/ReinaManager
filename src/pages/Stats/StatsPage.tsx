@@ -15,7 +15,13 @@ import {
 } from "@/hooks/queries/useStats";
 import { useStore } from "@/store/appStore";
 import type { GameStatistics } from "@/types";
-import { formatPlayTime } from "@/utils/dateTime";
+import { getChartEdgeLabelMargin, getPlayTimeAxisWidth } from "@/utils/chart";
+import {
+	formatChartDayLabel,
+	formatChartMonthLabel,
+	formatCompactPlayTime,
+	formatPlayTime,
+} from "@/utils/dateTime";
 import { getUserErrorMessage } from "@/utils/errors";
 import { applyNsfwFilter } from "@/utils/game";
 import { PlaytimeDistribution } from "./PlaytimeDistribution";
@@ -36,14 +42,6 @@ const STAT_SKELETON_KEYS = [
 	"days",
 	"average",
 ];
-
-function formatCompactPlayTime(minutes: number | null): string {
-	if (minutes === null) return "";
-	const roundedMinutes = Math.round(minutes);
-	if (roundedMinutes < 60) return `${roundedMinutes}m`;
-	const hours = roundedMinutes / 60;
-	return `${hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10}h`;
-}
 
 function StatisticsSkeleton() {
 	return (
@@ -66,7 +64,7 @@ function StatisticsSkeleton() {
 }
 
 export function Stats() {
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 	const [range, setRange] = useState<StatisticsRange>("30D");
 	const [customDates, setCustomDates] = useState({
 		startDate: "",
@@ -158,22 +156,24 @@ export function Stats() {
 				: [],
 		[overview, t],
 	);
-	const trendDateFormatter = useMemo(() => {
-		const formatter = new Intl.DateTimeFormat(
-			i18n.language,
-			dateRange?.groupByMonth
-				? { year: "2-digit", month: "numeric" }
-				: { month: "short", day: "numeric" },
-		);
-		return (value: string) =>
-			formatter.format(
-				new Date(
-					dateRange?.groupByMonth
-						? `${value}-01T00:00:00`
-						: `${value}T00:00:00`,
-				),
-			);
-	}, [dateRange?.groupByMonth, i18n.language]);
+	const trendDateFormatter = dateRange?.groupByMonth
+		? formatChartMonthLabel
+		: formatChartDayLabel;
+	const trendAxisLayout = useMemo(() => {
+		const trend = overview?.trend ?? [];
+		let maxPlayTime = 0;
+		for (const item of trend) {
+			maxPlayTime = Math.max(maxPlayTime, item.playtime);
+		}
+		const lastDate = trend[trend.length - 1]?.date;
+		return {
+			yAxisWidth: getPlayTimeAxisWidth(maxPlayTime),
+			rightMargin: getChartEdgeLabelMargin(
+				lastDate ? trendDateFormatter(lastDate) : "",
+				4,
+			),
+		};
+	}, [overview?.trend, trendDateFormatter]);
 	const baseError = gamesQuery.error ?? statisticsQuery.error;
 	const error = baseError;
 	const isLoading = gamesQuery.isLoading || statisticsQuery.isLoading;
@@ -307,6 +307,7 @@ export function Stats() {
 											yAxis={[
 												{
 													min: 0,
+													width: trendAxisLayout.yAxisWidth,
 													valueFormatter: formatCompactPlayTime,
 												},
 											]}
@@ -320,7 +321,10 @@ export function Stats() {
 												},
 											]}
 											height={440}
-											margin={{ left: 8, right: 16 }}
+											margin={{
+												left: 0,
+												right: trendAxisLayout.rightMargin,
+											}}
 											grid={{ horizontal: true }}
 										/>
 									</Box>

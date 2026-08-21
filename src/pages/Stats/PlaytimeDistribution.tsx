@@ -3,7 +3,8 @@ import { BarChart } from "@mui/x-charts/BarChart";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { StatisticsDistribution } from "@/types";
-import { formatPlayTime } from "@/utils/dateTime";
+import { getChartEdgeLabelMargin, getPlayTimeAxisWidth } from "@/utils/chart";
+import { formatCompactPlayTime, formatPlayTime } from "@/utils/dateTime";
 
 interface DistributionPoint {
 	label: string;
@@ -26,12 +27,10 @@ function getPeakIndex(values: number[]): number | null {
 	return peakIndex;
 }
 
-function formatCompactPlayTime(minutes: number | null): string {
+function formatHourTick(minutes: number | null): string {
 	if (minutes === null) return "";
-	const roundedMinutes = Math.round(minutes);
-	if (roundedMinutes < 60) return `${roundedMinutes}m`;
-	const hours = roundedMinutes / 60;
-	return `${hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10}h`;
+	const hours = Math.round((minutes / 60) * 10) / 10;
+	return `${hours}h`;
 }
 
 interface PlaytimeDistributionProps {
@@ -76,6 +75,20 @@ export function PlaytimeDistribution({
 	);
 	const hourPeakIndex = getPeakIndex(hourlyValues);
 	const weekdayPeakIndex = getPeakIndex(weekdayValues);
+	const hourlyAxisWidth = useMemo(
+		() => getPlayTimeAxisWidth(Math.max(...hourlyValues)),
+		[hourlyValues],
+	);
+	const weekdayAxis = useMemo(() => {
+		const maxPlayTime = Math.max(...weekdayValues);
+		const tickStep = Math.max(30, Math.ceil(maxPlayTime / 6 / 30) * 30);
+		const max = tickStep * 6;
+		return {
+			max,
+			tickInterval: Array.from({ length: 7 }, (_, index) => index * tickStep),
+			rightMargin: getChartEdgeLabelMargin(formatHourTick(max), 4),
+		};
+	}, [weekdayValues]);
 	const hourlyData = useMemo<DistributionPoint[]>(
 		() =>
 			hourlyValues.map((playtime, hour) => ({
@@ -149,7 +162,13 @@ export function PlaytimeDistribution({
 									},
 								},
 							]}
-							yAxis={[{ min: 0, valueFormatter: formatCompactPlayTime }]}
+							yAxis={[
+								{
+									min: 0,
+									width: hourlyAxisWidth,
+									valueFormatter: formatCompactPlayTime,
+								},
+							]}
 							series={[
 								{
 									dataKey: "playtime",
@@ -158,7 +177,7 @@ export function PlaytimeDistribution({
 								},
 							]}
 							height={210}
-							margin={{ left: 8, right: 12 }}
+							margin={{ left: 0, right: 12 }}
 							grid={{ horizontal: true }}
 							hideLegend
 						/>
@@ -201,7 +220,14 @@ export function PlaytimeDistribution({
 									},
 								},
 							]}
-							xAxis={[{ min: 0, valueFormatter: formatCompactPlayTime }]}
+							xAxis={[
+								{
+									min: 0,
+									max: weekdayAxis.max,
+									tickInterval: weekdayAxis.tickInterval,
+									valueFormatter: formatHourTick,
+								},
+							]}
 							series={[
 								{
 									dataKey: "playtime",
@@ -210,7 +236,7 @@ export function PlaytimeDistribution({
 								},
 							]}
 							height={260}
-							margin={{ left: 4, right: 12 }}
+							margin={{ left: 4, right: weekdayAxis.rightMargin }}
 							grid={{ vertical: true }}
 							hideLegend
 						/>
