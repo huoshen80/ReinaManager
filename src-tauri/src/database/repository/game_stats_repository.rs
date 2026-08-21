@@ -100,7 +100,7 @@ fn aggregate_session_distribution<Tz: TimeZone>(
 
     for session in sessions {
         if session.duration <= 0 {
-            return Err(custom_error("会话时长必须大于零"));
+            continue;
         }
 
         let start = timestamp_in_timezone(timezone, session.start_time)?;
@@ -961,6 +961,22 @@ mod tests {
         assert_eq!(distribution.weekdays[5], 45);
         assert_eq!(distribution.hourly.iter().sum::<i64>(), 165);
         assert_eq!(distribution.weekdays.iter().sum::<i64>(), 165);
+    }
+
+    #[test]
+    fn session_distribution_skips_non_positive_durations() {
+        let sessions = vec![
+            session(1, timestamp(1, 9), timestamp(1, 10), 30),
+            session(2, timestamp(1, 10), timestamp(1, 11), 0),
+            session(3, timestamp(1, 11), timestamp(1, 12), -15),
+        ];
+
+        let distribution =
+            aggregate_session_distribution(&sessions, &timezone()).expect("脏数据不应中断统计");
+
+        assert_eq!(distribution.hourly[9], 30);
+        assert_eq!(distribution.hourly.iter().sum::<i64>(), 30);
+        assert_eq!(distribution.weekdays.iter().sum::<i64>(), 30);
     }
 
     #[test]
