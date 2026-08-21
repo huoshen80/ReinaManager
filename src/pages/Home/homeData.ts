@@ -1,17 +1,11 @@
 import type { GameData, GameSession } from "@/types";
 import { PlayStatus } from "@/types/collection";
 import { getLocalDateString } from "@/utils/dateTime";
-import {
-	getGameCover,
-	getGameDisplayName,
-	getGameNsfwStatus,
-} from "@/utils/game";
+import { getGameDisplayName, getVisibleGameCover } from "@/utils/game";
 
 export const RANDOM_GAME_SESSION_KEY = "reina-home-random-game";
 export const ACTIVITY_PAGE_SIZE = 12;
 export const EMPTY_LAST_PLAYED = new Map<number, number>();
-
-const NSFW_COVER = "/images/NR18.png";
 
 export type ActivityFilter = "all" | "play" | "add";
 
@@ -36,9 +30,7 @@ export function getVisibleCover(
 	game: GameData,
 	replaceNsfwCover: boolean,
 ): string {
-	return replaceNsfwCover && getGameNsfwStatus(game)
-		? NSFW_COVER
-		: getGameCover(game);
+	return getVisibleGameCover(game, replaceNsfwCover);
 }
 
 export function buildActivities(

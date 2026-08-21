@@ -4,7 +4,8 @@
 			"collection": "Collection",
 			"gameLibrary": "Game Library ",
 			"home": "Home",
-			"settings": "Settings"
+			"settings": "Settings",
+			"stats": "Statistics"
 		}
 	},
 	"category": {
@@ -21,8 +22,10 @@
 		"browse": "Browse",
 		"cancel": "Cancel",
 		"changePlayStatus": "Change Play Status",
+		"close": "Close",
 		"confirm": "Confirm",
 		"locale": "en-US",
+		"retry": "Retry",
 		"saving": "Saving...",
 		"today": "Today",
 		"yesterday": "Yesterday"
@@ -964,6 +967,51 @@
 				"saveSuccess": "VNDB Token saved successfully",
 				"userId": "User ID: {{id}}"
 			}
+		},
+		"Stats": {
+			"activeDays": "Active days",
+			"apply": "Apply",
+			"averageActiveDayPlayTime": "Average per active day",
+			"completedGames": "Completed games",
+			"customRange": "Custom",
+			"distribution": "Play period distribution",
+			"distributionLoadFailed": "Failed to load play period distribution",
+			"hourlyDistribution": "Time of day (24h)",
+			"loadFailed": "Failed to load statistics",
+			"month": "Month",
+			"newGames": "New games",
+			"nextMonth": "Next month",
+			"nextYear": "Next year",
+			"noGames": "No games available for statistics",
+			"noGamesHint": "Add games or adjust the content filter to see statistics",
+			"noRecords": "No play records in the selected range",
+			"peakHour": "Peak {{hour}}:00 · {{time}}",
+			"peakWeekday": "Peak {{weekday}} · {{time}}",
+			"playedGames": "Games played",
+			"playTime": "Play time",
+			"previousMonth": "Previous month",
+			"previousYear": "Previous year",
+			"rangeSelector": "Statistics time range",
+			"ranking": "Top 10 by play time",
+			"rankingAll": "All play time rankings",
+			"rankingCount": "{{total}} games",
+			"reset": "Reset",
+			"subtitle": "Review your play time and recent activity",
+			"totalPlayTime": "Play time",
+			"trend": "Total play time trend",
+			"viewMore": "View more",
+			"week": "Week",
+			"weekdayDistribution": "Day of week",
+			"weekdays": {
+				"friday": "Fri",
+				"monday": "Mon",
+				"saturday": "Sat",
+				"sunday": "Sun",
+				"thursday": "Thu",
+				"tuesday": "Tue",
+				"wednesday": "Wed"
+			},
+			"year": "Year"
 		}
 	},
 	"utils": {

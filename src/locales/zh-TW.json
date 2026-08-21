@@ -4,7 +4,8 @@
 			"collection": "收藏夾",
 			"gameLibrary": "遊戲倉庫 ",
 			"home": "首頁",
-			"settings": "設定"
+			"settings": "設定",
+			"stats": "統計"
 		}
 	},
 	"category": {
@@ -21,8 +22,10 @@
 		"browse": "瀏覽",
 		"cancel": "取消",
 		"changePlayStatus": "修改遊戲狀態",
+		"close": "關閉",
 		"confirm": "確認",
 		"locale": "zh-TW",
+		"retry": "重試",
 		"saving": "保存中...",
 		"today": "今天",
 		"yesterday": "昨天"
@@ -947,6 +950,51 @@
 				"saveSuccess": "VNDB Token 儲存成功",
 				"userId": "使用者 ID: {{id}}"
 			}
+		},
+		"Stats": {
+			"activeDays": "活躍天數",
+			"apply": "套用",
+			"averageActiveDayPlayTime": "活躍日均時長",
+			"completedGames": "通關遊戲數",
+			"customRange": "自訂",
+			"distribution": "遊玩時段分布",
+			"distributionLoadFailed": "遊玩時段分布載入失敗",
+			"hourlyDistribution": "時段（24h）",
+			"loadFailed": "統計資料載入失敗",
+			"month": "月",
+			"newGames": "新增遊戲數",
+			"nextMonth": "下個月",
+			"nextYear": "下一年",
+			"noGames": "暫無可統計的遊戲",
+			"noGamesHint": "新增遊戲或調整內容篩選設定後再來看看",
+			"noRecords": "所選範圍內暫無遊玩記錄",
+			"peakHour": "高峰 {{hour}}:00 · {{time}}",
+			"peakWeekday": "高峰週{{weekday}} · {{time}}",
+			"playedGames": "遊玩遊戲數",
+			"playTime": "遊玩時長",
+			"previousMonth": "上個月",
+			"previousYear": "上一年",
+			"rangeSelector": "統計時間範圍",
+			"ranking": "遊玩時長 Top 10",
+			"rankingAll": "全部遊玩時長排行",
+			"rankingCount": "共 {{total}} 個遊戲",
+			"reset": "重設",
+			"subtitle": "回顧遊玩投入與近期變化",
+			"totalPlayTime": "遊玩時長",
+			"trend": "總遊玩時長趨勢",
+			"viewMore": "查看更多",
+			"week": "週",
+			"weekdayDistribution": "星期分布",
+			"weekdays": {
+				"friday": "五",
+				"monday": "一",
+				"saturday": "六",
+				"sunday": "日",
+				"thursday": "四",
+				"tuesday": "二",
+				"wednesday": "三"
+			},
+			"year": "年"
 		}
 	},
 	"utils": {

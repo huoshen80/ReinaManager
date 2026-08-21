@@ -4,7 +4,8 @@
 			"collection": "收藏夹",
 			"gameLibrary": "游戏仓库 ",
 			"home": "主页",
-			"settings": "设置"
+			"settings": "设置",
+			"stats": "统计"
 		}
 	},
 	"category": {
@@ -21,8 +22,10 @@
 		"browse": "浏览",
 		"cancel": "取消",
 		"changePlayStatus": "修改游戏状态",
+		"close": "关闭",
 		"confirm": "确认",
 		"locale": "zh-CN",
+		"retry": "重试",
 		"saving": "保存中...",
 		"today": "今天",
 		"yesterday": "昨天"
@@ -947,6 +950,51 @@
 				"saveSuccess": "VNDB Token 保存成功",
 				"userId": "用户 ID: {{id}}"
 			}
+		},
+		"Stats": {
+			"activeDays": "活跃天数",
+			"apply": "应用",
+			"averageActiveDayPlayTime": "活跃日均时长",
+			"completedGames": "通关游戏数",
+			"customRange": "自定义",
+			"distribution": "游玩时段分布",
+			"distributionLoadFailed": "游玩时段分布加载失败",
+			"hourlyDistribution": "时段（24h）",
+			"loadFailed": "统计数据加载失败",
+			"month": "月",
+			"newGames": "新增游戏数",
+			"nextMonth": "下个月",
+			"nextYear": "下一年",
+			"noGames": "暂无可统计的游戏",
+			"noGamesHint": "添加游戏或调整内容过滤设置后再来看看",
+			"noRecords": "所选范围内暂无游玩记录",
+			"peakHour": "高峰 {{hour}}:00 · {{time}}",
+			"peakWeekday": "高峰周{{weekday}} · {{time}}",
+			"playedGames": "游玩游戏数",
+			"playTime": "游玩时长",
+			"previousMonth": "上个月",
+			"previousYear": "上一年",
+			"rangeSelector": "统计时间范围",
+			"ranking": "游玩时长 Top 10",
+			"rankingAll": "全部游玩时长排行",
+			"rankingCount": "共 {{total}} 个游戏",
+			"reset": "重置",
+			"subtitle": "回顾游玩投入与近期变化",
+			"totalPlayTime": "游玩时长",
+			"trend": "总游玩时长趋势",
+			"viewMore": "查看更多",
+			"week": "周",
+			"weekdayDistribution": "星期分布",
+			"weekdays": {
+				"friday": "五",
+				"monday": "一",
+				"saturday": "六",
+				"sunday": "日",
+				"thursday": "四",
+				"tuesday": "二",
+				"wednesday": "三"
+			},
+			"year": "年"
 		}
 	},
 	"utils": {
