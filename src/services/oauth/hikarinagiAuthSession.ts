@@ -98,22 +98,18 @@ async function getValidHikarinagiAuth() {
 	return refreshHikarinagiAuthSingleFlight(auth);
 }
 
-async function getValidHikarinagiAccessToken() {
-	const auth = await getValidHikarinagiAuth();
-	return auth?.access_token;
-}
-
 export function isHikarinagiAuthExpiredError(error: unknown) {
 	return error instanceof Error && error.name === "HikarinagiAuthExpiredError";
 }
 
 export async function withHikarinagiAuth<T>(
-	fn: (token?: string) => Promise<T>,
+	fn: (token?: string, auth?: HikarinagiAuth) => Promise<T>,
 ) {
-	const token = await getValidHikarinagiAccessToken();
+	const auth = await getValidHikarinagiAuth();
+	const token = auth?.access_token;
 
 	try {
-		return await fn(token);
+		return await fn(token, auth ?? undefined);
 	} catch (error) {
 		if (token && isHttpStatus(error, 401)) {
 			await logoutHikarinagiAuth({ notify: true });
@@ -126,6 +122,15 @@ export async function withHikarinagiAuth<T>(
 		}
 		throw error;
 	}
+}
+
+export function hasHikarinagiScope(
+	auth: HikarinagiAuth | null | undefined,
+	requiredScope: string,
+) {
+	return new Set(auth?.scope?.split(/\s+/).filter(Boolean) ?? []).has(
+		requiredScope,
+	);
 }
 
 export async function initHikarinagiAuthRefresh() {

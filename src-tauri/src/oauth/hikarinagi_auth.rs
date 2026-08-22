@@ -23,13 +23,14 @@ const HIKARINAGI_CALLBACK_TIMEOUT: Duration = Duration::from_secs(300);
 const HIKARINAGI_AUTHORIZATION_ENDPOINT: &str = "https://id.hikarinagi.org/oidc/auth";
 const HIKARINAGI_TOKEN_ENDPOINT: &str = "https://id.hikarinagi.org/oidc/token";
 const HIKARINAGI_SCOPES: &str =
-    "openid user:read catalog:read status:read status:write offline_access";
+    "openid user:read catalog:full status:read status:write offline_access";
 
 #[derive(Debug, Deserialize)]
 struct HikarinagiTokenResponse {
     access_token: String,
     expires_in: i64,
     refresh_token: Option<String>,
+    scope: Option<String>,
 }
 
 #[tauri::command]
@@ -85,6 +86,10 @@ pub async fn hikarinagi_oauth_exchange_code(
         expires_at: Some(Utc::now().timestamp() + token_response.expires_in),
         user_id: None,
         name: None,
+        // OAuth 允许在授权范围与请求一致时省略 scope，此时保存本次明确请求的范围。
+        scope: token_response
+            .scope
+            .or_else(|| Some(HIKARINAGI_SCOPES.to_string())),
     };
 
     store_hikarinagi_auth(&db, &auth).await?;
@@ -124,6 +129,9 @@ pub async fn hikarinagi_oauth_refresh_token(
         expires_at: Some(Utc::now().timestamp() + token_response.expires_in),
         user_id: existing.and_then(|auth| auth.user_id),
         name: existing.and_then(|auth| auth.name.clone()),
+        scope: token_response
+            .scope
+            .or_else(|| existing.and_then(|auth| auth.scope.clone())),
     };
 
     store_hikarinagi_auth(&db, &auth).await?;

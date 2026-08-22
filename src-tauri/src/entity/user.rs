@@ -26,6 +26,7 @@ pub struct HikarinagiAuth {
     pub expires_at: Option<i64>,
     pub user_id: Option<i64>,
     pub name: Option<String>,
+    pub scope: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
