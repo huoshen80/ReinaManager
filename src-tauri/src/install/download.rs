@@ -341,11 +341,25 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
             ));
         }
 
+        let (checksum_algo, expected_checksum) = match (
+            request.checksum_algo.as_deref(),
+            request.checksum.as_deref(),
+        ) {
+            (Some(checksum_algo), Some(checksum)) => (checksum_algo, checksum),
+            (None, None) => return Ok(()),
+            _ => {
+                return Err(TaskFailure::new(
+                    "invalid_checksum",
+                    "校验算法与校验值必须同时提供",
+                ));
+            }
+        };
+
         let file = StdFile::open(&path)
             .map_err(|error| TaskFailure::new("verify_failed", error.to_string()))?;
         let mut reader = BufReader::with_capacity(1024 * 1024, file);
         let mut buffer = vec![0_u8; 1024 * 1024];
-        let actual = match request.checksum_algo.as_str() {
+        let actual = match checksum_algo {
             "sha256" => {
                 let mut hasher = Sha256::new();
                 loop {
@@ -380,7 +394,7 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
                 return Err(TaskFailure::new("unsupported_checksum", "不支持的校验算法"));
             }
         };
-        if actual != request.checksum {
+        if actual != expected_checksum {
             return Err(TaskFailure::new(
                 "checksum_mismatch",
                 "下载文件哈希校验失败",
@@ -396,11 +410,76 @@ pub(crate) async fn verify_file(path: PathBuf, request: InstallRequest) -> Resul
 mod tests {
     use super::*;
 
+    fn request_for_size(size: u64) -> InstallRequest {
+        InstallRequest {
+            v: 1,
+            provider: "self-hosted".to_string(),
+            resource_id: "test-resource".to_string(),
+            url: "https://example.com/game.zip".to_string(),
+            file_name: "game.zip".to_string(),
+            archive_format: "zip".to_string(),
+            size,
+            checksum_algo: None,
+            checksum: None,
+            expires_at: None,
+            bgm_id: None,
+            vndb_id: None,
+            hikarinagi_id: None,
+            title: "Test Game".to_string(),
+        }
+    }
+
     #[test]
     fn recognizes_expired_download_responses() {
         assert!(is_expired_http_status(Some(401)));
         assert!(is_expired_http_status(Some(403)));
         assert!(!is_expired_http_status(Some(200)));
         assert!(!is_expired_http_status(None));
+    }
+
+    #[tokio::test]
+    async fn verifies_size_when_checksum_is_absent() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let size = std::fs::metadata(&path).unwrap().len();
+
+        verify_file(path, request_for_size(size)).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rejects_size_mismatch_when_checksum_is_absent() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let size = std::fs::metadata(&path).unwrap().len();
+
+        let failure = verify_file(path, request_for_size(size + 1))
+            .await
+            .unwrap_err();
+        assert_eq!(failure.code, "size_mismatch");
+    }
+
+    #[tokio::test]
+    async fn verifies_sha256_when_checksum_is_present() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let contents = std::fs::read(&path).unwrap();
+        let checksum = Sha256::digest(&contents)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let mut request = request_for_size(contents.len() as u64);
+        request.checksum_algo = Some("sha256".to_string());
+        request.checksum = Some(checksum);
+
+        verify_file(path, request).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rejects_checksum_mismatch() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let size = std::fs::metadata(&path).unwrap().len();
+        let mut request = request_for_size(size);
+        request.checksum_algo = Some("sha256".to_string());
+        request.checksum = Some("0".repeat(64));
+
+        let failure = verify_file(path, request).await.unwrap_err();
+        assert_eq!(failure.code, "checksum_mismatch");
     }
 }

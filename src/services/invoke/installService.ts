@@ -26,8 +26,8 @@ export interface InstallRequest {
 	file_name: string;
 	archive_format: string;
 	size: number;
-	checksum_algo: "sha256" | "blake3";
-	checksum: string;
+	checksum_algo?: "sha256" | "blake3" | null;
+	checksum?: string | null;
 	expires_at?: number | null;
 	bgm_id?: string | null;
 	vndb_id?: string | null;

@@ -40,8 +40,8 @@ pub struct InstallRequest {
     pub file_name: String,
     pub archive_format: String,
     pub size: u64,
-    pub checksum_algo: String,
-    pub checksum: String,
+    pub checksum_algo: Option<String>,
+    pub checksum: Option<String>,
     pub expires_at: Option<i64>,
     pub bgm_id: Option<String>,
     pub vndb_id: Option<String>,
@@ -50,7 +50,7 @@ pub struct InstallRequest {
 }
 
 impl InstallRequest {
-    pub fn validate(self) -> Result<Self, String> {
+    pub fn validate(mut self) -> Result<Self, String> {
         if self.v != SUPPORTED_PROTOCOL_VERSION {
             return Err(format!("不支持的安装协议版本: {}", self.v));
         }
@@ -74,12 +74,21 @@ impl InstallRequest {
         if self.size == 0 || self.size > i64::MAX as u64 {
             return Err("文件大小无效".to_string());
         }
-        if !matches!(self.checksum_algo.as_str(), "sha256" | "blake3") {
-            return Err(format!("不支持的校验算法: {}", self.checksum_algo));
-        }
-        if self.checksum.len() != 64 || !self.checksum.bytes().all(|byte| byte.is_ascii_hexdigit())
-        {
-            return Err("校验值必须是 64 位十六进制字符串".to_string());
+        self.checksum_algo = self
+            .checksum_algo
+            .map(|checksum_algo| checksum_algo.to_ascii_lowercase());
+        self.checksum = self.checksum.map(|checksum| checksum.to_ascii_lowercase());
+        match (self.checksum_algo.as_deref(), self.checksum.as_deref()) {
+            (Some(checksum_algo), Some(checksum)) => {
+                if !matches!(checksum_algo, "sha256" | "blake3") {
+                    return Err(format!("不支持的校验算法: {checksum_algo}"));
+                }
+                if checksum.len() != 64 || !checksum.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                    return Err("校验值必须是 64 位十六进制字符串".to_string());
+                }
+            }
+            (None, None) => {}
+            _ => return Err("checksum_algo 与 checksum 必须同时提供".to_string()),
         }
         if self.expires_at.is_some_and(|value| value <= 0) {
             return Err("expires_at 无效".to_string());
@@ -114,7 +123,10 @@ impl InstallRequest {
     fn deduplication_key(&self) -> String {
         format!(
             "{}\u{1f}{}\u{1f}{}\u{1f}{}",
-            self.provider, self.resource_id, self.checksum, self.url
+            self.provider,
+            self.resource_id,
+            self.checksum.as_deref().unwrap_or_default(),
+            self.url
         )
     }
 }
@@ -266,9 +278,8 @@ pub fn parse_install_url(url: Url) -> Result<InstallRequest, String> {
         .trim()
         .to_ascii_lowercase();
     let file_name = required_param(&params, "file_name")?.trim().to_string();
-    let checksum = required_param(&params, "checksum")?
-        .trim()
-        .to_ascii_lowercase();
+    let checksum =
+        optional_param(&params, "checksum").map(|value| value.trim().to_ascii_lowercase());
     let resource_id = required_param(&params, "resource_id")?.trim().to_string();
     let bgm_id = match optional_param(&params, "bgm_id") {
         Some(value) => Some(non_empty_owned(value).ok_or_else(|| "bgm_id 不能为空".to_string())?),
@@ -296,9 +307,8 @@ pub fn parse_install_url(url: Url) -> Result<InstallRequest, String> {
         size: required_param(&params, "size")?
             .parse::<u64>()
             .map_err(|_| "size 无效".to_string())?,
-        checksum_algo: required_param(&params, "checksum_algo")?
-            .trim()
-            .to_ascii_lowercase(),
+        checksum_algo: optional_param(&params, "checksum_algo")
+            .map(|value| value.trim().to_ascii_lowercase()),
         checksum,
         expires_at: optional_param(&params, "expires_at")
             .map(|value| {
@@ -430,6 +440,72 @@ mod tests {
         assert_eq!(request.bgm_id, None);
         assert_eq!(request.vndb_id, None);
         assert_eq!(request.hikarinagi_id, None);
+    }
+
+    #[test]
+    fn parses_request_without_checksum() {
+        let url = Url::parse(
+            "reinamanager://install?v=1&provider=self-hosted&resource_id=42&url=http%3A%2F%2Flocalhost%3A8080%2Fgame.zip&file_name=game.zip&archive_format=zip&size=123&title=Game",
+        )
+        .unwrap();
+
+        let request = parse_install_url(url).unwrap();
+        assert_eq!(request.checksum_algo, None);
+        assert_eq!(request.checksum, None);
+    }
+
+    #[test]
+    fn rejects_incomplete_checksum_parameters() {
+        for checksum_query in [
+            "&checksum_algo=sha256",
+            "&checksum=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ] {
+            let url = Url::parse(&format!(
+                "reinamanager://install?v=1&provider=self-hosted&resource_id=42&url=http%3A%2F%2Flocalhost%3A8080%2Fgame.zip&file_name=game.zip&archive_format=zip&size=123&title=Game{checksum_query}",
+            ))
+            .unwrap();
+
+            assert_eq!(
+                parse_install_url(url).unwrap_err(),
+                "checksum_algo 与 checksum 必须同时提供"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_checksum_parameters() {
+        let cases = [
+            (
+                "md5",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            ),
+            ("sha256", "abc"),
+            ("", ""),
+        ];
+        for (checksum_algo, checksum) in cases {
+            let url = Url::parse(&format!(
+                "reinamanager://install?v=1&provider=self-hosted&resource_id=42&url=http%3A%2F%2Flocalhost%3A8080%2Fgame.zip&file_name=game.zip&archive_format=zip&size=123&title=Game&checksum_algo={checksum_algo}&checksum={checksum}",
+            ))
+            .unwrap();
+
+            assert!(parse_install_url(url).is_err());
+        }
+    }
+
+    #[test]
+    fn normalizes_uppercase_checksum_when_validating_direct_request() {
+        let url = Url::parse(&format!(
+            "reinamanager://install?{}&url=https%3A%2F%2Fexample.com%2Fgame.zip",
+            base_query()
+        ))
+        .unwrap();
+        let mut request = parse_install_url(url).unwrap();
+        request.checksum_algo = Some("SHA256".to_string());
+        request.checksum = Some("A".repeat(64));
+
+        let request = request.validate().unwrap();
+        assert_eq!(request.checksum_algo.as_deref(), Some("sha256"));
+        assert_eq!(request.checksum.as_deref(), Some("a".repeat(64).as_str()));
     }
 
     #[test]
