@@ -10,7 +10,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { SmartImage } from "@/components/SmartImage";
 import { getRuntimeSourceAdapter, MIXED_SOURCE_KEYS } from "@/metadata";
 import type {
 	MixedSourceCandidates,
@@ -89,7 +89,6 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 	title,
 }) => {
 	const { t } = useTranslation();
-	const resolveImageUrl = useProxyImageUrlResolver();
 	const [selection, setSelection] = useState<MixedSourceSelection>({});
 	const [enabled, setEnabled] = useState<MixedSourceEnabled>({});
 	const [activeSource, setActiveSource] = useState<SourceType | null>(null);
@@ -170,9 +169,8 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 										{displayInfo ? (
 											<div className="flex min-w-0 items-start gap-3">
 												{displayInfo.image ? (
-													<Box
-														component="img"
-														src={resolveImageUrl(displayInfo.image)}
+													<SmartImage
+														src={displayInfo.image}
 														alt={displayInfo.name}
 														className={`${coverClassName} flex-shrink-0 rounded object-cover`}
 													/>

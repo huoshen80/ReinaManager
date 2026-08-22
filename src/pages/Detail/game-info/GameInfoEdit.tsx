@@ -32,7 +32,7 @@ import { sep } from "@tauri-apps/api/path";
 import { basename } from "pathe";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { SmartImage } from "@/components/SmartImage";
 import { REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { getSourceDeveloperOptions } from "@/metadata/data/displayMergeRules";
 import { buildGameInfoUpdatePayload } from "@/metadata/data/metadata";
@@ -119,7 +119,6 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	disabled = false,
 }) => {
 	const { t } = useTranslation();
-	const resolveImageUrl = useProxyImageUrlResolver();
 	const sourceImageMap = useMemo(
 		() => (rawGame ? getSourceImageMap(rawGame) : {}),
 		[rawGame],
@@ -429,16 +428,14 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 					selectedGame.image)
 				: selectedGame.image;
 
-		return resolveImageUrl(
-			getCoverPreviewUrl({
-				selectedGame,
-				shouldDeleteImage,
-				tempCoverUrl,
-				previewUrl,
-				sourceCoverImage,
-				sourceCoverChanged: hasSourceCoverChanged(),
-			}),
-		);
+		return getCoverPreviewUrl({
+			selectedGame,
+			shouldDeleteImage,
+			tempCoverUrl,
+			previewUrl,
+			sourceCoverImage,
+			sourceCoverChanged: hasSourceCoverChanged(),
+		});
 	};
 
 	// 处理删除自定义封面（标记删除，不立即提交）
@@ -652,7 +649,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 					<Stack direction={{ xs: "column", md: "row" }} spacing={3}>
 						{/* 左侧：封面预览和操作 */}
 						<Box className="flex-shrink-0">
-							<img
+							<SmartImage
 								src={getCurrentCoverUrl()}
 								alt="Game Cover"
 								className="w-70 h-100 object-cover rounded-2 border border-gray-300"

@@ -33,7 +33,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Virtuoso } from "react-virtuoso";
 import { PlayStatusIcon } from "@/components/PlayStatusIcon";
-import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { SmartImage } from "@/components/SmartImage";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { getRuntimeSourceAdapter } from "@/metadata/sourceRegistry";
 import { snackbar } from "@/providers/snackBar";
@@ -91,7 +91,6 @@ export default function CloudCollectionTab({
 	open,
 }: CloudCollectionTabProps) {
 	const { t, i18n } = useTranslation();
-	const resolveImageUrl = useProxyImageUrlResolver();
 	const { addGamesFromBulkImport, checkGameExists, isAddingGames } =
 		useBulkGameAddActions();
 	const [source, setSource] = useState<CloudCollectionSource>(
@@ -632,9 +631,8 @@ export default function CloudCollectionTab({
 												onChange={() => handleToggleItem(item.key)}
 												disabled={busy || item.importState === "imported"}
 											/>
-											<Box
-												component="img"
-												src={resolveImageUrl(item.image)}
+											<SmartImage
+												src={item.image}
 												alt=""
 												loading="lazy"
 												decoding="async"

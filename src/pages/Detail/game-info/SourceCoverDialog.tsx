@@ -11,7 +11,7 @@ import {
 	Typography,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { SmartImage } from "@/components/SmartImage";
 import { getRuntimeSourceAdapter } from "@/metadata";
 import type { SourceImageOption } from "@/metadata/data/sourceImage";
 import type { SourceType } from "@/types";
@@ -41,7 +41,6 @@ export function SourceCoverDialog({
 	onReset,
 }: SourceCoverDialogProps) {
 	const { t } = useTranslation();
-	const resolveImageUrl = useProxyImageUrlResolver();
 	const sourceCoverAutoRule = options
 		.map((option) => getSourceLabel(option.source))
 		.join(" > ");
@@ -103,9 +102,8 @@ export function SourceCoverDialog({
 											: "transparent",
 									}}
 								>
-									<Box
-										component="img"
-										src={resolveImageUrl(option.image)}
+									<SmartImage
+										src={option.image}
 										alt={getSourceLabel(option.source)}
 										className="block w-full aspect-[3/4] object-cover"
 										sx={{ bgcolor: "action.hover" }}

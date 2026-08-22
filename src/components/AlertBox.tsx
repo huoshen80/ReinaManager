@@ -25,7 +25,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { SmartImage } from "@/components/SmartImage";
 import {
 	getCandidateSourceData,
 	getRuntimeSourceAdapter,
@@ -244,7 +244,6 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 	isLoading = false,
 }) => {
 	const { t } = useTranslation();
-	const resolveImageUrl = useProxyImageUrlResolver();
 	const viewGameSources: ViewGameSourceItem[] = [];
 
 	REGISTERED_SOURCE_KEYS.forEach((source) => {
@@ -281,8 +280,8 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 								{t("components.AlertBox.gameName", "游戏名称")}: {source.name}
 							</Typography>
 							{source.image && (
-								<img
-									src={resolveImageUrl(source.image)}
+								<SmartImage
+									src={source.image}
 									alt={source.alt}
 									className="w-full h-auto max-h-64 object-contain rounded"
 								/>

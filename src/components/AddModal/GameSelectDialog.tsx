@@ -17,7 +17,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
-import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { SmartImage } from "@/components/SmartImage";
 import type { SourceCandidate, SourceDisplayFields } from "@/metadata";
 import { getRuntimeSourceAdapter } from "@/metadata";
 import type { SourceType } from "@/types";
@@ -91,7 +91,6 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 	apiSource,
 }) => {
 	const { t } = useTranslation();
-	const resolveImageUrl = useProxyImageUrlResolver();
 	const listItems = sourceCandidates.map((candidate, index) => ({
 		key: `${candidate.source}:${candidate.externalId || index}`,
 		displayInfo: extractSourceCandidateDisplayInfo(candidate, apiSource),
@@ -132,9 +131,8 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 								>
 									<ListItemAvatar>
 										{displayInfo.image ? (
-											<Box
-												component="img"
-												src={resolveImageUrl(displayInfo.image)}
+											<SmartImage
+												src={displayInfo.image}
 												alt={displayInfo.name}
 												className="w-[60px] h-[80px] object-cover rounded mr-2"
 											/>
