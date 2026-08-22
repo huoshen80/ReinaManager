@@ -4,15 +4,10 @@
  * @module src/components/RightMenu/PlayStatusSubmenu
  */
 
-import CancelIcon from "@mui/icons-material/Cancel";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
-import PauseCircleIcon from "@mui/icons-material/PauseCircle";
-import PlayCircleIcon from "@mui/icons-material/PlayCircle";
-import StarBorderIcon from "@mui/icons-material/StarBorder";
 import {
 	Box,
 	ListItemIcon,
@@ -23,33 +18,13 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PlayStatusIcon } from "@/components/PlayStatusIcon";
 import {
 	ALL_PLAY_STATUSES,
 	isPlayedStatus,
 	PLAY_STATUS_I18N_KEYS,
-	PlayStatus,
+	type PlayStatus,
 } from "@/types/collection";
-
-/**
- * 获取游戏状态对应的图标组件（带颜色）
- * 想玩: 黄色, 在玩: 蓝色, 玩过: 绿色, 搁置: 浅红色, 弃坑: 红色
- */
-const getPlayStatusIcon = (status: PlayStatus) => {
-	switch (status) {
-		case PlayStatus.WISH:
-			return <StarBorderIcon fontSize="small" className="text-yellow-500" />;
-		case PlayStatus.PLAYING:
-			return <PlayCircleIcon fontSize="small" className="text-blue-500" />;
-		case PlayStatus.PLAYED:
-			return <CheckCircleIcon fontSize="small" className="text-green-500" />;
-		case PlayStatus.ON_HOLD:
-			return <PauseCircleIcon fontSize="small" className="text-red-400" />;
-		case PlayStatus.DROPPED:
-			return <CancelIcon fontSize="small" className="text-red-500" />;
-		default:
-			return <StarBorderIcon fontSize="small" className="text-yellow-500" />;
-	}
-};
 
 interface PlayStatusSubmenuProps {
 	/** 当前游戏状态 */
@@ -314,7 +289,9 @@ export const PlayStatusSubmenu: React.FC<PlayStatusSubmenuProps> = ({
 								onClick={() => handleStatusClick(status)}
 								selected={currentStatus === status}
 							>
-								<ListItemIcon>{getPlayStatusIcon(status)}</ListItemIcon>
+								<ListItemIcon>
+									<PlayStatusIcon status={status} />
+								</ListItemIcon>
 								<ListItemText primary={t(PLAY_STATUS_I18N_KEYS[status])} />
 							</MenuItem>
 						))}
