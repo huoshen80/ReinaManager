@@ -59,13 +59,14 @@ export function getBackendProxyImageUrl(
  *
  * 优先级策略：
  * 1. Bangumi (lain.bgm.tv)：国内直连大概率超时被阻断，因此优先走第三方代理镜像，失败后再尝试原站。
- * 2. VNDB (t.vndb.org)：直连较为稳定，因此优先走原站，失败后再尝试第三方代理镜像。
+ * 2. VNDB (t.vndb.org)：有有效代理时镜像优先，否则原站优先。
  * 3. 其他 URL：优先直连原站。
  * 4. 若配置了应用内代理且处于 Tauri 环境下，最后追加 reina-image 协议作为 Rust 代理终极兜底。
  */
 export function getImageCandidates(
 	imageUrl: string | null | undefined,
 	proxyUrl?: string | null,
+	isSystemProxyActive?: boolean,
 ): string[] {
 	if (!imageUrl) return [];
 
@@ -83,6 +84,8 @@ export function getImageCandidates(
 
 	const hostname = parsed.hostname;
 	const candidates: string[] = [];
+	const hasEffectiveProxy =
+		Boolean(proxyUrl?.trim()) || Boolean(isSystemProxyActive);
 
 	if (hostname === BANGUMI_IMAGE_HOST) {
 		const mirrorUrl = `${BANGUMI_IMAGE_PROXY_PREFIX}${imageUrl}`;
@@ -90,8 +93,13 @@ export function getImageCandidates(
 		candidates.push(mirrorUrl, imageUrl);
 	} else if (hostname === VNDB_IMAGE_HOST) {
 		const mirrorUrl = `${VNDB_IMAGE_PROXY_PREFIX}${imageUrl}`;
-		// 原站优先 -> 镜像
-		candidates.push(imageUrl, mirrorUrl);
+		if (hasEffectiveProxy) {
+			// 有代理：镜像优先 -> 原站
+			candidates.push(mirrorUrl, imageUrl);
+		} else {
+			// 无代理：原站优先 -> 镜像
+			candidates.push(imageUrl, mirrorUrl);
+		}
 	} else {
 		candidates.push(imageUrl);
 	}

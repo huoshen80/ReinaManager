@@ -61,6 +61,13 @@ class SettingsService extends BaseService {
 		return this.invoke<void>("update_proxy_config", { config });
 	}
 
+	/**
+	 * 获取 Windows 系统代理启用状态
+	 */
+	async getSystemProxyStatus(): Promise<boolean> {
+		return this.invoke<boolean>("get_system_proxy_status");
+	}
+
 	async bgmOAuthStartLogin(): Promise<string> {
 		return this.invoke<string>("bgm_oauth_start_login");
 	}

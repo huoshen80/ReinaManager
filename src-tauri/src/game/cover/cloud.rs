@@ -195,6 +195,16 @@ enum CoverDownloadError {
 }
 
 fn build_cover_download_candidates(original_url: &str) -> Vec<CoverDownloadCandidate> {
+    build_cover_download_candidates_with_proxy(
+        original_url,
+        crate::utils::http::has_effective_proxy(),
+    )
+}
+
+fn build_cover_download_candidates_with_proxy(
+    original_url: &str,
+    has_proxy: bool,
+) -> Vec<CoverDownloadCandidate> {
     let proxy = url::Url::parse(original_url).ok().and_then(|parsed| {
         if !matches!(parsed.scheme(), "http" | "https") {
             return None;
@@ -202,7 +212,10 @@ fn build_cover_download_candidates(original_url: &str) -> Vec<CoverDownloadCandi
 
         match parsed.host_str() {
             Some(BANGUMI_IMAGE_HOST) => Some(("Bangumi 代理", BANGUMI_IMAGE_PROXY_PREFIX, true)),
-            Some(VNDB_IMAGE_HOST) => Some(("VNDB 代理", VNDB_IMAGE_PROXY_PREFIX, false)),
+            Some(VNDB_IMAGE_HOST) => {
+                // 有代理时镜像优先 (proxy_first = true)；无代理时原站优先 (proxy_first = false)
+                Some(("VNDB 代理", VNDB_IMAGE_PROXY_PREFIX, has_proxy))
+            }
             _ => None,
         }
     });
@@ -709,7 +722,7 @@ mod tests {
         let original = "https://lain.bgm.tv/pic/cover/l/9b/e7/59392_05W7s.jpg";
 
         assert_eq!(
-            build_cover_download_candidates(original),
+            build_cover_download_candidates_with_proxy(original, false),
             vec![
                 CoverDownloadCandidate {
                     label: "Bangumi 代理",
@@ -732,11 +745,11 @@ mod tests {
     }
 
     #[test]
-    fn vndb_cover_uses_proxy_before_original_url() {
+    fn vndb_cover_without_proxy_uses_original_before_proxy_url() {
         let original = "https://t.vndb.org/cv/12/79412.jpg";
 
         assert_eq!(
-            build_cover_download_candidates(original),
+            build_cover_download_candidates_with_proxy(original, false),
             vec![
                 CoverDownloadCandidate {
                     label: "原始地址",
@@ -753,6 +766,33 @@ mod tests {
                 CoverDownloadCandidate {
                     label: "VNDB 代理",
                     url: format!("{VNDB_IMAGE_PROXY_PREFIX}{original}"),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn vndb_cover_with_proxy_uses_proxy_before_original_url() {
+        let original = "https://t.vndb.org/cv/12/79412.jpg";
+
+        assert_eq!(
+            build_cover_download_candidates_with_proxy(original, true),
+            vec![
+                CoverDownloadCandidate {
+                    label: "VNDB 代理",
+                    url: format!("{VNDB_IMAGE_PROXY_PREFIX}{original}"),
+                },
+                CoverDownloadCandidate {
+                    label: "原始地址",
+                    url: original.to_string(),
+                },
+                CoverDownloadCandidate {
+                    label: "VNDB 代理",
+                    url: format!("{VNDB_IMAGE_PROXY_PREFIX}{original}"),
+                },
+                CoverDownloadCandidate {
+                    label: "原始地址",
+                    url: original.to_string(),
                 },
             ]
         );
@@ -766,7 +806,7 @@ mod tests {
             "not-a-url",
         ] {
             assert_eq!(
-                build_cover_download_candidates(original),
+                build_cover_download_candidates_with_proxy(original, false),
                 vec![
                     CoverDownloadCandidate {
                         label: "原始地址",

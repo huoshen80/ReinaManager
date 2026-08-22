@@ -154,3 +154,32 @@ pub fn get_transfer_client() -> TransferClient {
         .transfer_client
         .clone()
 }
+
+/// 检查当前是否存在生效的代理配置（显式代理或系统代理）。
+pub fn has_effective_proxy() -> bool {
+    let guard = http_client().read().unwrap_or_else(|e| e.into_inner());
+    if !guard.proxy_url.is_empty() {
+        return true;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        super::windows::is_system_proxy_enabled()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
+/// 获取 Windows 系统代理启用状态（供前端查询）。
+#[tauri::command]
+pub fn get_system_proxy_status() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        super::windows::is_system_proxy_enabled()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}

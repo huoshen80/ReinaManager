@@ -15,6 +15,8 @@
  * - @/types
  * - @/store/gamePlayStore
  */
+import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -199,6 +201,8 @@ export interface AppState {
 	// 代理设置
 	proxyConfig: ProxyConfig;
 	setProxyConfig: (config: ProxyConfig) => void;
+	isSystemProxyActive: boolean;
+	setSystemProxyActive: (active: boolean) => void;
 }
 
 // 创建持久化的全局状态
@@ -524,6 +528,9 @@ export const useStore = create<AppState>()(
 				set({ proxyConfig: config });
 				settingsService.updateProxyConfig(config).catch(console.error);
 			},
+			isSystemProxyActive: false,
+			setSystemProxyActive: (active: boolean) =>
+				set({ isSystemProxyActive: active }),
 
 			// 初始化方法
 			initialize: async () => {
@@ -537,6 +544,28 @@ export const useStore = create<AppState>()(
 				await settingsService
 					.updateProxyConfig(proxyConfig)
 					.catch(console.error);
+
+				// 注册 Windows 系统代理变动监听并获取初始状态（通过版本号防止异步竞态覆盖）
+				if (isTauri()) {
+					try {
+						let eventRevision = 0;
+						await listen<{ enabled: boolean }>(
+							"system-proxy-changed",
+							(event) => {
+								eventRevision += 1;
+								set({ isSystemProxyActive: event.payload.enabled });
+							},
+						);
+						const initialRevision = eventRevision;
+						const enabled = await settingsService.getSystemProxyStatus();
+						// 仅在查询期间未收到过更新的系统代理事件时才写入初始查询结果
+						if (eventRevision === initialRevision) {
+							set({ isSystemProxyActive: enabled });
+						}
+					} catch (error) {
+						console.error("初始化系统代理状态失败:", error);
+					}
+				}
 			},
 		}),
 		{

@@ -43,7 +43,7 @@ use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 use tauri_plugin_store::StoreExt;
 use utils::{
     fs::{copy_file, delete_file, is_portable_mode, open_directory, resolve_dropped_local_path},
-    http::update_proxy_config,
+    http::{get_system_proxy_status, update_proxy_config},
     image::register_image_proxy_protocol,
     legacy_migration::run_startup_migrations,
     logs::{get_reina_log_level, set_reina_log_level},
@@ -158,6 +158,7 @@ pub fn run() {
             get_all_settings,
             update_settings,
             update_proxy_config,
+            get_system_proxy_status,
             // BGM OAuth 相关 commands
             bgm_oauth_start_login,
             bgm_oauth_cancel_login,
@@ -251,7 +252,7 @@ pub fn run() {
             setup_install_protocol(app);
 
             #[cfg(target_os = "windows")]
-            match start_system_proxy_monitor() {
+            match start_system_proxy_monitor(Some(app.handle().clone())) {
                 Ok(monitor) => {
                     app.manage(monitor);
                     log::debug!("Windows 系统代理监听已启动");

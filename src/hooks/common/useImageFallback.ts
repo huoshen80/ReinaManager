@@ -18,12 +18,13 @@ export function useImageFallback(
 	options?: UseImageFallbackOptions,
 ) {
 	const proxyUrl = useStore((state) => state.proxyConfig.url);
+	const isSystemProxyActive = useStore((state) => state.isSystemProxyActive);
 	const candidates = useMemo(
-		() => getImageCandidates(imageUrl, proxyUrl),
-		[imageUrl, proxyUrl],
+		() => getImageCandidates(imageUrl, proxyUrl, isSystemProxyActive),
+		[imageUrl, proxyUrl, isSystemProxyActive],
 	);
 
-	const sourceKey = `${imageUrl ?? ""}::${proxyUrl ?? ""}`;
+	const sourceKey = `${imageUrl ?? ""}::${proxyUrl ?? ""}::${isSystemProxyActive}`;
 	const [prevSourceKey, setPrevSourceKey] = useState(sourceKey);
 	const [candidateIndex, setCandidateIndex] = useState(0);
 
