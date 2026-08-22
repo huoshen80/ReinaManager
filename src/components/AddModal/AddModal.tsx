@@ -54,6 +54,7 @@ import { createAbortableRunner } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
 import { formatSteamAppIdWithPath } from "@/utils/steam";
 import BulkImportTab, { type BulkDropBatch } from "./BulkImportTab";
+import CloudCollectionTab from "./CloudCollectionTab";
 import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 import {
@@ -71,7 +72,7 @@ const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
 const DEFAULT_SCAN_DEPTH = 3;
 const DEFAULT_SCAN_MODE: GameScanMode = "executable";
 
-type AddModalTab = "single" | "bulk";
+type AddModalTab = "single" | "bulk" | "cloud";
 
 type SingleLaunchSelection =
 	| { kind: "none" }
@@ -136,6 +137,7 @@ const AddModal: React.FC = () => {
 		openAddModal,
 		closeAddModal,
 		setAddModalPath,
+		cloudCollectionImportSource,
 	} = useStore(
 		useShallow((s) => ({
 			apiSource: s.apiSource,
@@ -146,6 +148,7 @@ const AddModal: React.FC = () => {
 			openAddModal: s.openAddModal,
 			closeAddModal: s.closeAddModal,
 			setAddModalPath: s.setAddModalPath,
+			cloudCollectionImportSource: s.cloudCollectionImportSource,
 		})),
 	);
 	const [formText, setFormText] = useState("");
@@ -156,6 +159,7 @@ const AddModal: React.FC = () => {
 	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
 	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
+	const [cloudBusy, setCloudBusy] = useState(false);
 	const [bulkDropQueue, setBulkDropQueue] = useState<BulkDropBatch[]>([]);
 	const [launchSelection, setLaunchSelection] = useState<SingleLaunchSelection>(
 		{ kind: "none" },
@@ -187,13 +191,16 @@ const AddModal: React.FC = () => {
 	useEffect(() => {
 		if (addModalOpen) {
 			previousFocus.current = document.activeElement as HTMLElement;
+			if (cloudCollectionImportSource) {
+				setActiveTab("cloud");
+			}
 			return;
 		}
 
 		if (previousFocus.current) {
 			previousFocus.current.focus();
 		}
-	}, [addModalOpen]);
+	}, [addModalOpen, cloudCollectionImportSource]);
 
 	const handleAddGame = useCallback(
 		async (gameData: GameMetadataDraft) => {
@@ -212,7 +219,10 @@ const AddModal: React.FC = () => {
 		onError: showError,
 	});
 	const isBusy =
-		customLoading || metadataSearchFlow.isSearching || isAddingGame;
+		customLoading ||
+		metadataSearchFlow.isSearching ||
+		isAddingGame ||
+		cloudBusy;
 
 	const applyLaunchSelection = useCallback(
 		(selection: LaunchFileSelection) => {
@@ -326,6 +336,7 @@ const AddModal: React.FC = () => {
 		setBulkDropQueue([]);
 		setAddModalPath("");
 		setError("");
+		setCloudBusy(false);
 	}, [invalidateSingleDrop, metadataSearchFlow, setAddModalPath]);
 
 	const handleCloseModal = useCallback(() => {
@@ -426,11 +437,11 @@ const AddModal: React.FC = () => {
 				closeAfterTransition={false}
 				aria-labelledby="addgame-dialog-title"
 				fullWidth
-				maxWidth={activeTab === "bulk" ? "lg" : "sm"}
+				maxWidth={activeTab === "single" ? "sm" : "lg"}
 				slotProps={{
 					paper: {
 						sx:
-							activeTab === "bulk"
+							activeTab !== "single"
 								? {
 										height: "min(88vh, 920px)",
 										display: "flex",
@@ -461,6 +472,11 @@ const AddModal: React.FC = () => {
 					<Tab
 						value="bulk"
 						label={t("components.AddModal.bulkTab", "批量导入")}
+						disabled={isBusy}
+					/>
+					<Tab
+						value="cloud"
+						label={t("components.AddModal.cloudTab", "云端收藏")}
 						disabled={isBusy}
 					/>
 				</Tabs>
@@ -572,6 +588,13 @@ const AddModal: React.FC = () => {
 					onScanMaxDepthChange={setScanMaxDepth}
 					dropBatch={bulkDropQueue[0]}
 					onDropBatchHandled={handleBulkDropBatchHandled}
+				/>
+				<CloudCollectionTab
+					hidden={activeTab !== "cloud"}
+					open={addModalOpen}
+					initialSource={cloudCollectionImportSource ?? undefined}
+					onBusyChange={setCloudBusy}
+					onClose={handleCloseModal}
 				/>
 				{activeTab === "single" && (
 					<DialogActions>

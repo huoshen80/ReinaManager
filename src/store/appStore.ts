@@ -26,7 +26,7 @@ import {
 } from "@/metadata/constants";
 import { type ProxyConfig, settingsService } from "@/services/invoke";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
-import type { SourceType } from "@/types";
+import type { CloudCollectionSource, SourceType } from "@/types";
 import type {
 	CollectionEntitySortField,
 	PlayStatusFilter,
@@ -58,6 +58,7 @@ export interface AppState {
 	selectedGameId: number | null;
 	addModalOpen: boolean;
 	addModalPath: string;
+	cloudCollectionImportSource: CloudCollectionSource | null;
 	taskManagerOpen: boolean;
 
 	// 排序选项
@@ -92,6 +93,7 @@ export interface AppState {
 	// UI 操作方法
 	setSelectedGameId: (id: number | null) => void;
 	openAddModal: (path?: string) => void;
+	openCloudCollectionImport: (source: CloudCollectionSource) => void;
 	closeAddModal: () => void;
 	setAddModalPath: (path: string) => void;
 	openTaskManager: () => void;
@@ -207,6 +209,7 @@ export const useStore = create<AppState>()(
 			selectedGameId: null,
 			addModalOpen: false,
 			addModalPath: "",
+			cloudCollectionImportSource: null,
 			taskManagerOpen: false,
 
 			searchInput: "",
@@ -292,10 +295,21 @@ export const useStore = create<AppState>()(
 				const nextPath = path ?? get().addModalPath;
 				const { addModalOpen, addModalPath } = get();
 				if (addModalOpen && addModalPath === nextPath) return;
-				set({ addModalOpen: true, addModalPath: nextPath });
+				set({
+					addModalOpen: true,
+					addModalPath: nextPath,
+					cloudCollectionImportSource: null,
+				});
+			},
+			openCloudCollectionImport: (source) => {
+				set({
+					addModalOpen: true,
+					addModalPath: "",
+					cloudCollectionImportSource: source,
+				});
 			},
 			closeAddModal: () => {
-				set({ addModalOpen: false });
+				set({ addModalOpen: false, cloudCollectionImportSource: null });
 			},
 			setAddModalPath: (path: string) => {
 				set({ addModalPath: path });

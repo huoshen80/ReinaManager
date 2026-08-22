@@ -19,6 +19,7 @@
 		"unknownDeveloper": "Unknown Developer"
 	},
 	"common": {
+		"all": "All",
 		"browse": "Browse",
 		"cancel": "Cancel",
 		"changePlayStatus": "Change Play Status",
@@ -37,6 +38,7 @@
 			"bgmNotLoggedInHint": "Not logged into Bangumi account, some hidden items (such as R18) may not be searchable.",
 			"bulkTab": "Bulk Import",
 			"cancel": "Cancel",
+			"cloudTab": "Cloud Collection",
 			"confirm": "Confirm",
 			"developer": "Developer",
 			"dragDropHere": "Drop files here",
@@ -136,6 +138,32 @@
 			"removeFromCategory": "Remove from Current Category",
 			"removeFromCategoryFailed": "Failed to remove from category",
 			"removeFromCategorySuccess": "Removed from current category"
+		},
+		"CloudCollectionImport": {
+			"cancel": "Cancel Task",
+			"cancelled": "Import cancelled",
+			"clearVisible": "Clear",
+			"developer": "Developer: {{name}}",
+			"empty": "Select a source and load its collection",
+			"failed": "Failed",
+			"fetchingDetails": "Fetching complete metadata",
+			"imported": "Imported",
+			"importSelected_one": "Import Selected ({{count}})",
+			"importSelected_other": "Import Selected ({{count}})",
+			"load": "Load Collection",
+			"loading": "Loading cloud collection...",
+			"noImportableGames": "No games available to import",
+			"originalName": "Original title: {{name}}",
+			"resultSummary": "Imported {{imported}}, skipped {{skipped}}, failed {{failed}}",
+			"retry": "Retry Failed Items",
+			"search": "Search by name or source ID",
+			"selectionSummary": "Selected {{selected}} / {{total}}",
+			"selectVisible": "Select All",
+			"source": "Collection Source",
+			"status": "Play Status",
+			"success_one": "Imported {{count}} cloud game",
+			"success_other": "Imported {{count}} cloud games",
+			"writingGames": "Writing to game library"
 		},
 		"Collection": {
 			"errors": {
@@ -868,8 +896,10 @@
 				"reloginRequired": "Hikarinagi login has expired. Please log in again.",
 				"tokenExpiresAt": "Token expires at: {{date}}",
 				"tokenExpiryUnknown": "Token expiry unknown",
+				"upgradePermission": "Update Authorization for Full Import",
 				"userId": "User ID: {{id}}"
 			},
+			"importCloudCollection": "Import Cloud Collection",
 			"language": "Language",
 			"linuxLaunchCommand": {
 				"commandLabel": "Launch Command",

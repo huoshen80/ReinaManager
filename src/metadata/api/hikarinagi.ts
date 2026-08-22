@@ -37,6 +37,7 @@ interface HikarinagiCover {
 interface HikarinagiGameResponse {
 	aliases?: string[];
 	covers?: HikarinagiCover[];
+	developer?: string | null;
 	id: number;
 	nsfw?: boolean;
 	origin_intro?: string | null;
@@ -84,11 +85,20 @@ export type HikarinagiStatus =
 	| "PLAN";
 
 export interface HikarinagiRate {
+	cover?: {
+		height?: number;
+		id?: number;
+		nsfw?: boolean;
+		src?: string;
+		width?: number;
+	} | null;
 	id: number;
 	is_spoiler?: boolean;
 	rate?: number | null;
 	rate_content?: string;
 	status?: HikarinagiStatus;
+	title?: string | null;
+	work_type?: "GALGAME" | "LIGHT_NOVEL" | "MANGA";
 }
 
 export interface HikarinagiRatePage {
@@ -163,6 +173,7 @@ function toHikarinagiData(game: HikarinagiGameResponse): HikarinagiData {
 		score: game.rating?.score,
 		nsfw: game.nsfw,
 		date: normalizeDate(game.release_date),
+		developer: normalizeText(game.developer),
 	};
 }
 

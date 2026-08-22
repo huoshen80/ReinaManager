@@ -13,6 +13,7 @@ import type {
 	UpdateGameParams,
 } from "@/types";
 import { isSourceType } from "@/types";
+import type { PlayStatus } from "@/types/collection";
 import {
 	getArrayDiff,
 	getBoolDiff,
@@ -64,6 +65,8 @@ export interface BatchImportGameCandidate {
 	launch_type?: GameLaunchType;
 	steam_launch_id?: string;
 	matchedData?: GameMetadataDraft;
+	playStatus?: PlayStatus;
+	skipCloudStatusLookup?: boolean;
 }
 
 export interface GameRuntimeInsertOptions {
@@ -426,13 +429,16 @@ export async function buildBulkImportGameData(
 	cloudStatusContext?: CloudPlayStatusContext,
 ): Promise<InsertGameParams> {
 	if (item.matchedData) {
-		return buildInsertGameData(item.matchedData, {
+		const insertData = await buildInsertGameData(item.matchedData, {
 			localpath: item.path,
 			executable: item.selectedExe,
 			launch_type: item.launch_type,
 			steam_launch_id: item.steam_launch_id,
 			cloudStatusContext,
 		});
+		return item.playStatus === undefined
+			? insertData
+			: { ...insertData, clear: item.playStatus };
 	}
 	const launchFields = buildGameLaunchInsertFields(item);
 

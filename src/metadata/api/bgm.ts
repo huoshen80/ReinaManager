@@ -68,6 +68,15 @@ interface BgmSearchResponse {
 export interface BgmUserCollection {
 	subject_id: number;
 	type: number;
+	rate?: number;
+	comment?: string | null;
+	subject?: {
+		id: number;
+		name: string;
+		name_cn: string;
+		date?: string;
+		images?: { large?: string; common?: string };
+	};
 }
 
 export interface BgmUserCollectionModifyPayload {

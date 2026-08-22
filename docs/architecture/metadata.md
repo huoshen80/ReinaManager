@@ -84,6 +84,22 @@ FullGameData.sources
 → GameData
 ```
 
+### 云端收藏导入
+
+```text
+BGM / VNDB / Hikarinagi 用户收藏
+→ 统一收藏候选（来源 ID、状态、评分、评论、预览）
+→ 按同源 ID 排除本地已有游戏
+→ 获取完整 GameMetadataDraft
+→ 批量写入 localpath 为空的云端游戏
+```
+
+- BGM 收藏列表只用于预览和个人数据，选中后逐项读取完整条目详情。
+- VNDB 在 `ulist` 中显式选择个人字段及嵌套 `vn` 详情，同一次分页请求完成转换。
+- Hikarinagi 状态列表用于预览和个人数据，选中后逐项读取完整 Galgame 详情。
+- 收藏状态写入 `games.clear`，有效评分和非空评论写入 `custom_data`。详情失败的项目不使用预览数据降级入库。
+- 导入任务复用批量新增、身份去重和游戏缓存 patch；外部 API 请求统一沿用请求上下文、取消信号与限速队列。
+
 字段优先级属于 `displayMergeRules.ts`，不应复制到 Adapter 或 UI。
 
 ## HTTP 边界

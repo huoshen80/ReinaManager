@@ -19,6 +19,7 @@
 		"unknownDeveloper": "未知開發商"
 	},
 	"common": {
+		"all": "全部",
 		"browse": "瀏覽",
 		"cancel": "取消",
 		"changePlayStatus": "修改遊戲狀態",
@@ -37,6 +38,7 @@
 			"bgmNotLoggedInHint": "未登入 Bangumi 帳號，部分隱藏條目（如 R18）可能無法被搜尋到。",
 			"bulkTab": "批量匯入",
 			"cancel": "取消",
+			"cloudTab": "雲端收藏",
 			"confirm": "確認",
 			"developer": "開發商",
 			"dragDropHere": "拖拽文件到這裡",
@@ -131,6 +133,30 @@
 			"removeFromCategory": "移出目前分類",
 			"removeFromCategoryFailed": "移出分類失敗",
 			"removeFromCategorySuccess": "已從目前分類移除"
+		},
+		"CloudCollectionImport": {
+			"cancel": "取消任務",
+			"cancelled": "已取消匯入",
+			"clearVisible": "清空",
+			"developer": "開發商：{{name}}",
+			"empty": "請選擇來源並讀取收藏",
+			"failed": "失敗",
+			"fetchingDetails": "正在取得完整詮釋資料",
+			"imported": "已匯入",
+			"importSelected_other": "匯入所選（{{count}}）",
+			"load": "讀取收藏",
+			"loading": "正在讀取雲端收藏...",
+			"noImportableGames": "沒有可匯入的遊戲",
+			"originalName": "原名：{{name}}",
+			"resultSummary": "匯入 {{imported}} 個，略過 {{skipped}} 個，失敗 {{failed}} 個",
+			"retry": "重試失敗項目",
+			"search": "搜尋名稱或來源 ID",
+			"selectionSummary": "已選擇 {{selected}} / {{total}}",
+			"selectVisible": "全選",
+			"source": "收藏來源",
+			"status": "遊玩狀態",
+			"success_other": "成功匯入 {{count}} 個雲端遊戲",
+			"writingGames": "正在寫入遊戲庫"
 		},
 		"Collection": {
 			"errors": {
@@ -851,8 +877,10 @@
 				"reloginRequired": "Hikarinagi 登入已失效，請重新登入。",
 				"tokenExpiresAt": "Token 有效期至: {{date}}",
 				"tokenExpiryUnknown": "Token 有效期未知",
+				"upgradePermission": "更新授權以匯入完整收藏",
 				"userId": "使用者 ID: {{id}}"
 			},
+			"importCloudCollection": "匯入雲端收藏",
 			"language": "語言",
 			"linuxLaunchCommand": {
 				"commandLabel": "啟動命令",

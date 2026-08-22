@@ -21,10 +21,12 @@ import type {
 	GameMetadataDraft,
 	InsertGameParams,
 } from "@/types";
+import type { PlayStatus } from "@/types/collection";
 import { getUserErrorMessage } from "@/utils/errors";
 
 export interface BulkImportActionInput extends BatchImportGameCandidate {
 	status?: string;
+	playStatus?: PlayStatus;
 }
 
 export interface BulkImportPreparationError {
@@ -131,6 +133,9 @@ export function useBulkGameAddActions() {
 				const cloudHikarinagiIds = new Set<string>();
 				for (const item of items) {
 					if (item.status === "imported") {
+						continue;
+					}
+					if (item.skipCloudStatusLookup) {
 						continue;
 					}
 					const bgmId = item.matchedData
@@ -242,6 +247,7 @@ export function useBulkGameAddActions() {
 
 	return {
 		addGamesFromBulkImport,
+		checkGameExists,
 		isAddingGames: isPreparingGames,
 	};
 }

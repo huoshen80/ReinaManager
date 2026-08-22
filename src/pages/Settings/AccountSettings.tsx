@@ -1,6 +1,7 @@
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ClearIcon from "@mui/icons-material/Clear";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import LoginIcon from "@mui/icons-material/Login";
 import SyncIcon from "@mui/icons-material/Sync";
 import VpnKeyIcon from "@mui/icons-material/VpnKey";
@@ -35,6 +36,7 @@ import {
 import { getBgmAvatarUrl } from "@/metadata/api/bgm";
 import type { HikarinagiUserProfile } from "@/metadata/api/hikarinagi";
 import { snackbar } from "@/providers/snackBar";
+import { hasHikarinagiScope } from "@/services/oauth/hikarinagiAuthSession";
 import { useStore } from "@/store/appStore";
 import type { BgmAuth, HikarinagiAuth } from "@/types";
 import { useBgmAuthController } from "./useBgmAuthController";
@@ -239,12 +241,14 @@ export const BgmProviderSection = () => {
 		handleLogout,
 	} = useBgmAuthController();
 
-	const { syncBgmCollection, setSyncBgmCollection } = useStore(
-		useShallow((s) => ({
-			syncBgmCollection: s.syncBgmCollection,
-			setSyncBgmCollection: s.setSyncBgmCollection,
-		})),
-	);
+	const { syncBgmCollection, setSyncBgmCollection, openCloudCollectionImport } =
+		useStore(
+			useShallow((s) => ({
+				syncBgmCollection: s.syncBgmCollection,
+				setSyncBgmCollection: s.setSyncBgmCollection,
+				openCloudCollectionImport: s.openCloudCollectionImport,
+			})),
+		);
 
 	const isConnected = Boolean(bgmAuth?.access_token);
 
@@ -409,6 +413,17 @@ export const BgmProviderSection = () => {
 					</Stack>
 				)}
 			</Box>
+			{isConnected && (
+				<Button
+					variant="outlined"
+					size="small"
+					startIcon={<CloudDownloadIcon />}
+					onClick={() => openCloudCollectionImport("bgm")}
+					className="mt-3"
+				>
+					{t("pages.Settings.importCloudCollection", "导入云端收藏")}
+				</Button>
+			)}
 
 			<Divider className="my-4" />
 
@@ -529,10 +544,15 @@ export const HikarinagiProviderSection = () => {
 		handleLogout,
 	} = useHikarinagiAuthController();
 
-	const { syncHikarinagiCollection, setSyncHikarinagiCollection } = useStore(
+	const {
+		syncHikarinagiCollection,
+		setSyncHikarinagiCollection,
+		openCloudCollectionImport,
+	} = useStore(
 		useShallow((s) => ({
 			syncHikarinagiCollection: s.syncHikarinagiCollection,
 			setSyncHikarinagiCollection: s.setSyncHikarinagiCollection,
+			openCloudCollectionImport: s.openCloudCollectionImport,
 		})),
 	);
 
@@ -617,6 +637,32 @@ export const HikarinagiProviderSection = () => {
 					</Stack>
 				)}
 			</Box>
+			{isConnected && (
+				<Stack direction="row" spacing={1} className="mt-3">
+					{hasHikarinagiScope(hikarinagiAuth, "catalog:full") ? (
+						<Button
+							variant="outlined"
+							size="small"
+							startIcon={<CloudDownloadIcon />}
+							onClick={() => openCloudCollectionImport("hikarinagi")}
+						>
+							{t("pages.Settings.importCloudCollection", "导入云端收藏")}
+						</Button>
+					) : (
+						<Button
+							variant="outlined"
+							size="small"
+							onClick={handleOAuthLogin}
+							disabled={isOAuthLoading || isSaving}
+						>
+							{t(
+								"pages.Settings.hikarinagiAuth.upgradePermission",
+								"更新授权以导入完整收藏",
+							)}
+						</Button>
+					)}
+				</Stack>
+			)}
 
 			<Divider className="my-4" />
 
@@ -663,10 +709,15 @@ export const VndbProviderSection = () => {
 	const updateSettingsMutation = useUpdateSettings();
 	const [inputToken, setInputToken] = useState("");
 
-	const { syncVndbCollection, setSyncVndbCollection } = useStore(
+	const {
+		syncVndbCollection,
+		setSyncVndbCollection,
+		openCloudCollectionImport,
+	} = useStore(
 		useShallow((s) => ({
 			syncVndbCollection: s.syncVndbCollection,
 			setSyncVndbCollection: s.setSyncVndbCollection,
+			openCloudCollectionImport: s.openCloudCollectionImport,
 		})),
 	);
 
@@ -858,18 +909,31 @@ export const VndbProviderSection = () => {
 							},
 						}}
 					/>
-					<Box>
-						<Button
-							variant="outlined"
-							color="primary"
-							onClick={handleOpen}
-							size="small"
-						>
-							{t("pages.Settings.getToken", "获取令牌")}
-						</Button>
-					</Box>
+					{!hasVndbToken && (
+						<Box>
+							<Button
+								variant="outlined"
+								color="primary"
+								onClick={handleOpen}
+								size="small"
+							>
+								{t("pages.Settings.getToken", "获取令牌")}
+							</Button>
+						</Box>
+					)}
 				</Stack>
 			</Box>
+			{isConnected && vndbProfile?.permissions.includes("listread") && (
+				<Button
+					variant="outlined"
+					size="small"
+					startIcon={<CloudDownloadIcon />}
+					onClick={() => openCloudCollectionImport("vndb")}
+					className="mt-3"
+				>
+					{t("pages.Settings.importCloudCollection", "导入云端收藏")}
+				</Button>
+			)}
 
 			<Divider className="my-4" />
 

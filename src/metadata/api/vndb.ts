@@ -122,6 +122,18 @@ export interface VndbUserCollectionItem {
 	labels: VndbUserCollectionLabel[];
 }
 
+export interface VndbUserImportItem extends VndbUserCollectionItem {
+	metadata: GameMetadataDraft;
+	notes?: string | null;
+	vote?: number | null;
+}
+
+interface VndbUserImportResponse extends VndbUserCollectionItem {
+	notes?: string | null;
+	vn?: Omit<VndbVisualNovelResponse, "id"> & { id?: string };
+	vote?: number | null;
+}
+
 export interface VndbUserCollectionsPage {
 	results: VndbUserCollectionItem[];
 	more: boolean;
@@ -516,6 +528,52 @@ export async function fetchVndbUserCollectionsPage(
 		more: Boolean(response.data?.more),
 		count: response.data?.count,
 	};
+}
+
+export async function fetchVndbUserImportCollections(
+	token: string,
+	userId: string,
+	context: MetadataRequestContext,
+): Promise<VndbUserImportItem[]> {
+	const collections: VndbUserImportItem[] = [];
+	let page = 1;
+
+	while (true) {
+		const response = await http.post<VndbQueryResponse<VndbUserImportResponse>>(
+			`${VNDB_API_BASE}/ulist`,
+			{
+				user: userId,
+				fields: `id,vote,notes,labels{id,label},vn{${VNDB_FIELDS}}`,
+				results: 100,
+				page,
+			},
+			buildVndbRateLimitedAuthOptions(token, context),
+		);
+		const results = Array.isArray(response.data?.results)
+			? response.data.results
+			: [];
+
+		for (const item of results) {
+			if (!item.vn) continue;
+			const vn: VndbVisualNovelResponse = {
+				...item.vn,
+				// ulist 顶层 ID 已标识同一个 VN，API 可能省略嵌套的冗余 ID。
+				id: item.vn.id ?? item.id,
+			};
+			collections.push({
+				id: item.id,
+				labels: item.labels ?? [],
+				vote: item.vote,
+				notes: item.notes,
+				metadata: transformVndbData(vn, context.spoilerLevel),
+			});
+		}
+
+		if (!response.data.more || results.length === 0) break;
+		page += 1;
+	}
+
+	return collections;
 }
 
 /**
