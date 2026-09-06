@@ -8,7 +8,7 @@ use crate::entity::tasks;
 use crate::install::protocol::InstallRequest;
 use crate::utils::http::get_transfer_client;
 use reina_download::{
-    CancellationToken, DownloadError, DownloadOptions, DownloadRequest, Outcome, Phase, Progress,
+    CancellationToken, DownloadError, DownloadOptions, DownloadRequest, Outcome, Progress,
     SharedBudget,
 };
 use sea_orm::DatabaseConnection;
@@ -90,8 +90,17 @@ pub(crate) async fn download_file(
             }
             _ = interval.tick() => {
                 let progress = *progress_receiver.borrow();
-                persist_and_emit(app, db, task.id, request, &progress, &mut last_persisted)
-                    .await?;
+                if let Err(error) =
+                    persist_and_emit(app, db, task.id, request, &progress, &mut last_persisted)
+                        .await
+                {
+                    // 持久化失败时不能直接丢弃 engine future：其后台提交器可能仍在
+                    // 写控制文件，并会与后续重试并发。先取消并等待正常收尾，再返回
+                    // 最初的数据库错误；等待期间不再进入该失败分支。
+                    cancel_token.cancel();
+                    let _ = (&mut engine).await;
+                    return Err(error);
+                }
             }
         }
     };
@@ -114,15 +123,24 @@ pub(crate) async fn download_file(
         }
         Ok(Outcome::Cancelled) => {
             // 引擎已完成最后一次落盘提交；把提交水位写库后再转为暂停/取消。
-            let committed = progress.committed.min(request.size);
-            update_task_progress(db, task.id, committed as i64, Some(request.size as i64)).await?;
+            let committed = cancelled_progress_watermark(progress, last_persisted, request.size);
+            if progress.initialized {
+                update_task_progress(db, task.id, committed as i64, Some(request.size as i64))
+                    .await?;
+            }
+            let received_bytes = if progress.initialized {
+                progress.written.min(request.size)
+            } else {
+                // 引擎尚未初始化时，watch 可能仍是初始快照，事件也必须沿用数据库旧水位。
+                committed
+            };
             emit_download_progress(
                 app,
                 task.id,
                 committed as i64,
                 request.size as i64,
                 0.0,
-                i64::try_from(progress.written).unwrap_or(i64::MAX),
+                i64::try_from(received_bytes).unwrap_or(i64::MAX),
             );
             match requested {
                 TaskControl::Pause => Err(TaskFailure::new("paused", "任务已暂停")),
@@ -142,6 +160,15 @@ pub(crate) async fn download_file(
     }
 }
 
+fn cancelled_progress_watermark(progress: Progress, previous_committed: u64, size: u64) -> u64 {
+    if progress.initialized {
+        progress.committed.min(size)
+    } else {
+        // 探测阶段取消时，快照中的计数尚未代表本次引擎生命周期，保持数据库旧水位。
+        previous_committed.min(size)
+    }
+}
+
 async fn persist_and_emit(
     app: &tauri::AppHandle,
     db: &DatabaseConnection,
@@ -150,8 +177,8 @@ async fn persist_and_emit(
     progress: &Progress,
     last_persisted: &mut u64,
 ) -> Result<(), TaskFailure> {
-    // 探测完成前引擎还没读取控制文件，此时的 0 不能覆盖续传任务的已有进度。
-    if matches!(progress.phase, Phase::Probing) {
+    // 引擎初始化前的快照不代表本次下载生命周期，不能用其中的 0 覆盖续传水位。
+    if !progress.initialized {
         return Ok(());
     }
     let committed = progress.committed.min(request.size);
@@ -462,5 +489,29 @@ mod tests {
 
         let failure = verify_file(path, request).await.unwrap_err();
         assert_eq!(failure.code, "checksum_mismatch");
+    }
+
+    #[test]
+    fn probing_cancel_keeps_database_watermark() {
+        let progress = Progress {
+            phase: reina_download::Phase::Cancelled,
+            initialized: false,
+            committed: 0,
+            ..Progress::initial()
+        };
+
+        assert_eq!(cancelled_progress_watermark(progress, 128, 512), 128);
+    }
+
+    #[test]
+    fn initialized_cancel_persists_a_real_zero_reset() {
+        let progress = Progress {
+            phase: reina_download::Phase::Cancelled,
+            initialized: true,
+            committed: 0,
+            ..Progress::initial()
+        };
+
+        assert_eq!(cancelled_progress_watermark(progress, 128, 512), 0);
     }
 }

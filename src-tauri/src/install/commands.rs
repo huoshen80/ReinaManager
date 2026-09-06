@@ -152,27 +152,15 @@ pub async fn retry_task(
     let updated_download_path = updated_payload
         .download_path(task_id)
         .map_err(|failure| failure.message)?;
-    if previous_download_path != updated_download_path {
-        // 下载数据和它的控制文件必须一起迁移，否则新路径上无法续传。
-        let sources = reina_download::artifact_paths(&previous_download_path);
-        let destinations = reina_download::artifact_paths(&updated_download_path);
-        if sources.iter().any(|path| path.exists()) && destinations.iter().any(|path| path.exists())
-        {
-            return Err("新的下载临时文件已存在，请先清理冲突文件".to_string());
-        }
-        for (source, destination) in sources.iter().zip(&destinations) {
-            if !source.exists() {
-                continue;
-            }
-            tokio::fs::rename(source, destination)
-                .await
-                .map_err(|error| format!("迁移下载临时文件失败: {error}"))?;
-        }
-    }
+    let payload_json = serde_json::to_value(&updated_payload)
+        .map_err(|error| format!("序列化安装请求失败: {error}"))?;
+    // 下载数据和它的控制文件必须一起迁移，否则新路径上无法续传。
+    // 返回已移动的对，便于数据库写入失败时恢复原路径。
+    let moved_artifacts =
+        migrate_download_artifacts(&previous_download_path, &updated_download_path).await?;
     let mut active: tasks::ActiveModel = task.into();
     active.title = Set(request.title.clone());
-    active.payload_json = Set(serde_json::to_value(updated_payload)
-        .map_err(|error| format!("序列化安装请求失败: {error}"))?);
+    active.payload_json = Set(payload_json);
     active.status = Set("pending".to_string());
     active.stage = Set(None);
     if !has_installed_files {
@@ -189,13 +177,96 @@ pub async fn retry_task(
     active.started_at = Set(None);
     active.updated_at = Set(chrono::Utc::now().timestamp());
     active.finished_at = Set(None);
-    let task = active
-        .update(db.inner())
-        .await
-        .map_err(|error| format!("重置任务失败: {error}"))?;
+    let task = match active.update(db.inner()).await {
+        Ok(task) => task,
+        Err(error) => {
+            // 数据库仍保留旧 payload 时必须把文件也恢复到旧路径，否则下一次重试
+            // 无法找到旧下载。恢复失败不掩盖原始数据库错误，并明确列出残留风险。
+            if let Err(rollback_error) = rollback_download_artifacts(&moved_artifacts).await {
+                return Err(format!(
+                    "重置任务失败: {error}；下载文件回滚失败: {rollback_error}"
+                ));
+            }
+            return Err(format!("重置任务失败: {error}"));
+        }
+    };
 
     spawn_task(app, db.inner().clone(), task.id)?;
     Ok(task)
+}
+
+/// 按目标、控制文件、控制文件临时文件的固定顺序迁移下载产物。
+///
+/// 先检查每一对路径，避免把已有用户文件当成迁移目标覆盖；中途失败时只回滚
+/// 本次已经移动的文件。若数据库更新失败，调用方还会复用同一回滚逻辑恢复旧 payload。
+async fn migrate_download_artifacts(
+    source_path: &Path,
+    destination_path: &Path,
+) -> Result<Vec<(std::path::PathBuf, std::path::PathBuf)>, String> {
+    if source_path == destination_path {
+        return Ok(Vec::new());
+    }
+    let sources = reina_download::artifact_paths(source_path);
+    let destinations = reina_download::artifact_paths(destination_path);
+    let mut pending = Vec::new();
+    let mut source_exists_any = false;
+    let mut destination_exists_any = false;
+    for (source, destination) in sources.into_iter().zip(destinations) {
+        let source_exists = source.exists();
+        let destination_exists = destination.exists();
+        source_exists_any |= source_exists;
+        destination_exists_any |= destination_exists;
+        if source_exists {
+            pending.push((source, destination));
+        }
+    }
+    if source_exists_any && destination_exists_any {
+        return Err("新旧下载临时文件同时存在，未执行迁移，请先处理冲突文件".to_string());
+    }
+
+    let mut moved = Vec::with_capacity(pending.len());
+    for (source, destination) in pending {
+        if let Err(error) = tokio::fs::rename(&source, &destination).await {
+            let rollback_result = rollback_download_artifacts(&moved).await;
+            return match rollback_result {
+                Ok(()) => Err(format!("迁移下载临时文件失败: {error}")),
+                Err(rollback_error) => Err(format!(
+                    "迁移下载临时文件失败: {error}；下载文件回滚失败: {rollback_error}"
+                )),
+            };
+        }
+        moved.push((source, destination));
+    }
+    Ok(moved)
+}
+
+async fn rollback_download_artifacts(
+    moved: &[(std::path::PathBuf, std::path::PathBuf)],
+) -> Result<(), String> {
+    let mut errors = Vec::new();
+    for (source, destination) in moved.iter().rev() {
+        // 回滚也绝不能覆盖迁移期间出现的用户文件；这种情况下保留新文件并报告。
+        if source.exists() {
+            errors.push(format!("原路径已存在，未覆盖 {}", source.display()));
+            continue;
+        }
+        if !destination.exists() {
+            errors.push(format!("新路径已不存在，无法恢复 {}", source.display()));
+            continue;
+        }
+        if let Err(error) = tokio::fs::rename(destination, source).await {
+            errors.push(format!(
+                "{} -> {}: {error}",
+                destination.display(),
+                source.display()
+            ));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("；"))
+    }
 }
 
 #[tauri::command]
@@ -364,4 +435,137 @@ pub async fn fail_game_install_metadata(
         .map_err(|failure| failure.message)?;
     emit_game_install_failed(&app, task_id, Some(&task), &failure);
     Ok(task)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn test_directory() -> std::path::PathBuf {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("系统时间应晚于 Unix epoch")
+            .as_nanos();
+        let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "reina-retry-migration-{}-{nonce}-{sequence}",
+            std::process::id(),
+        ))
+    }
+
+    #[tokio::test]
+    async fn migration_does_not_overwrite_existing_destination() {
+        let directory = test_directory();
+        std::fs::create_dir_all(&directory).unwrap();
+        let source = directory.join("old.zip");
+        let destination = directory.join("new.zip");
+        std::fs::write(&source, b"partial download").unwrap();
+        std::fs::write(&destination, b"user file").unwrap();
+
+        let result = migrate_download_artifacts(&source, &destination).await;
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&source).unwrap(), b"partial download");
+        assert_eq!(std::fs::read(&destination).unwrap(), b"user file");
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn migration_moves_all_download_artifacts_together() {
+        let directory = test_directory();
+        std::fs::create_dir_all(&directory).unwrap();
+        let source = directory.join("old.zip");
+        let destination = directory.join("new.zip");
+        std::fs::write(&source, b"partial download").unwrap();
+        for (index, path) in reina_download::artifact_paths(&source)
+            .into_iter()
+            .skip(1)
+            .enumerate()
+        {
+            std::fs::write(path, format!("artifact-{index}")).unwrap();
+        }
+
+        let moved = migrate_download_artifacts(&source, &destination)
+            .await
+            .unwrap();
+
+        assert_eq!(moved.len(), reina_download::artifact_paths(&source).len());
+        for (index, path) in reina_download::artifact_paths(&source)
+            .into_iter()
+            .enumerate()
+        {
+            let destination_path = reina_download::artifact_paths(&destination)[index].clone();
+            assert!(!path.exists());
+            assert!(destination_path.exists());
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn rollback_restores_all_artifacts_without_overwrite() {
+        let directory = test_directory();
+        std::fs::create_dir_all(&directory).unwrap();
+        let source = directory.join("old.zip");
+        let destination = directory.join("new.zip");
+        for (index, path) in reina_download::artifact_paths(&source)
+            .into_iter()
+            .enumerate()
+        {
+            std::fs::write(path, format!("artifact-{index}")).unwrap();
+        }
+
+        let moved = migrate_download_artifacts(&source, &destination)
+            .await
+            .unwrap();
+        rollback_download_artifacts(&moved).await.unwrap();
+
+        for (index, path) in reina_download::artifact_paths(&source)
+            .into_iter()
+            .enumerate()
+        {
+            assert_eq!(
+                std::fs::read(path).unwrap(),
+                format!("artifact-{index}").as_bytes()
+            );
+        }
+        for path in reina_download::artifact_paths(&destination) {
+            assert!(!path.exists());
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn rollback_conflict_reports_error_and_retains_conflicting_new_file() {
+        let directory = test_directory();
+        std::fs::create_dir_all(&directory).unwrap();
+        let source = directory.join("old.zip");
+        let destination = directory.join("new.zip");
+        for (index, path) in reina_download::artifact_paths(&source)
+            .into_iter()
+            .enumerate()
+        {
+            std::fs::write(path, format!("artifact-{index}")).unwrap();
+        }
+
+        let moved = migrate_download_artifacts(&source, &destination)
+            .await
+            .unwrap();
+        let conflicting_source = reina_download::artifact_paths(&source)[1].clone();
+        std::fs::write(&conflicting_source, b"new user file").unwrap();
+
+        let result = rollback_download_artifacts(&moved).await;
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(conflicting_source).unwrap(), b"new user file");
+        // 没有冲突的产物仍应完成恢复，避免回滚失败扩大损失。
+        assert_eq!(std::fs::read(&source).unwrap(), b"artifact-0");
+        assert_eq!(
+            std::fs::read(reina_download::artifact_paths(&destination)[1].clone()).unwrap(),
+            b"artifact-1"
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
 }
