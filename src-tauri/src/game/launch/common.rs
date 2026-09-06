@@ -64,6 +64,7 @@ impl StopResult {
 
 pub struct ValidatedSteamLaunch {
     pub steam_launch_id: String,
+    #[cfg(target_os = "windows")]
     pub game_dir: String,
 }
 
@@ -141,6 +142,7 @@ pub fn validate_and_open_steam<R: Runtime>(
 
     Ok(ValidatedSteamLaunch {
         steam_launch_id,
+        #[cfg(target_os = "windows")]
         game_dir: game_dir.to_string(),
     })
 }

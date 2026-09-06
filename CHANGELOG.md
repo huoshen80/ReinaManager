@@ -1,3 +1,49 @@
+## [0.29.2](https://github.com/huoshen80/ReinaManager/compare/v0.29.1...v0.29.2) (2026-09-06)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ✨ 新功能
+
+- *(game-info)* 新增简介来源选择器 ([8a3d4ae](https://github.com/huoshen80/ReinaManager/commit/8a3d4ae59e39d803e7138c6d3d903f727769486c))
+- *(import)* 新增可选的可执行文件扫描 ([23d39af](https://github.com/huoshen80/ReinaManager/commit/23d39afc430b18b021bf65c32d54b23738d3b148))
+- *(install)* 替换 Takanawa 并支持 zstd 7z ([9d676c8](https://github.com/huoshen80/ReinaManager/commit/9d676c812d8d42ba25e9c8bcef68ba3da29b3132))
+
+### 🐛 Bug 修复
+
+- *(cards)* 防止状态更新时封面闪烁 ([3056ddb](https://github.com/huoshen80/ReinaManager/commit/3056ddb979f819aec58a2acc0feca2fdcd8ca112))
+- *(metadata)* 同步后端来源处理 ([7f3dade](https://github.com/huoshen80/ReinaManager/commit/7f3dadea40cd4b84b3e45161f4012e25a6806932))
+- *(stats)* 恢复页面滚动位置 ([dd608df](https://github.com/huoshen80/ReinaManager/commit/dd608df1201138cb56b33539c519c5a13f3a75b0))
+- *(app)* 调整启动和下载行为 ([f2a5968](https://github.com/huoshen80/ReinaManager/commit/f2a5968cdd7fb5ddc170ee03e4a01bba01d0ea61))
+- 修复 UnoCSS 问题 ([9fab7b8](https://github.com/huoshen80/ReinaManager/commit/9fab7b80e94e88b9478d3b7d9732f9f2c84e80e6))
+- *(detail)* 防止删除游戏时闪烁 ([2d4ca84](https://github.com/huoshen80/ReinaManager/commit/2d4ca848b4e5bc42204c9e388cd94edaf779a0f4))
+
+### 🧪 测试
+
+- *(install)* 移除同义反复的结果测试 ([a3bab85](https://github.com/huoshen80/ReinaManager/commit/a3bab854f0735d595954e4ca593aa21fce2e4143))
+
+</details>
+
+### ✨ Features
+
+- *(game-info)* Add source summary picker ([8a3d4ae](https://github.com/huoshen80/ReinaManager/commit/8a3d4ae59e39d803e7138c6d3d903f727769486c))
+- *(import)* Add optional executable scanning ([23d39af](https://github.com/huoshen80/ReinaManager/commit/23d39afc430b18b021bf65c32d54b23738d3b148))
+- *(install)* Replace Takanawa and add zstd 7z support (#92) ([9d676c8](https://github.com/huoshen80/ReinaManager/commit/9d676c812d8d42ba25e9c8bcef68ba3da29b3132))
+
+### 🐛 Bug Fixes
+
+- *(cards)* Prevent cover flicker on status updates ([3056ddb](https://github.com/huoshen80/ReinaManager/commit/3056ddb979f819aec58a2acc0feca2fdcd8ca112))
+- *(metadata)* Sync backend source handling ([7f3dade](https://github.com/huoshen80/ReinaManager/commit/7f3dadea40cd4b84b3e45161f4012e25a6806932))
+- *(stats)* Restore page scroll position ([dd608df](https://github.com/huoshen80/ReinaManager/commit/dd608df1201138cb56b33539c519c5a13f3a75b0))
+- *(app)* Adjust startup and download behavior ([f2a5968](https://github.com/huoshen80/ReinaManager/commit/f2a5968cdd7fb5ddc170ee03e4a01bba01d0ea61))
+- The bug of unocss ([9fab7b8](https://github.com/huoshen80/ReinaManager/commit/9fab7b80e94e88b9478d3b7d9732f9f2c84e80e6))
+- *(detail)* Prevent flicker when deleting games ([2d4ca84](https://github.com/huoshen80/ReinaManager/commit/2d4ca848b4e5bc42204c9e388cd94edaf779a0f4))
+
+### 🧪 Testing
+
+- *(install)* Remove tautological result test ([a3bab85](https://github.com/huoshen80/ReinaManager/commit/a3bab854f0735d595954e4ca593aa21fce2e4143))
+
+
 ## [0.29.1](https://github.com/huoshen80/ReinaManager/compare/v0.29.0...v0.29.1) (2026-08-27)
 
 <details>
