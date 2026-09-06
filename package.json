@@ -68,7 +68,7 @@
 		"git-cliff": "^2.13.1",
 		"i18next-cli": "=1.58.3",
 		"typescript": "^7.0.2",
-		"unocss": "^66.9.1",
+		"unocss": "^66.9.2",
 		"vite": "^8.2.2"
 	},
 	"packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882"
