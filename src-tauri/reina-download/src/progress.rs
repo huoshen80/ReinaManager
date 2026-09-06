@@ -2,7 +2,7 @@
 //!
 //! 独立任务按固定间隔采样并推送 [`Progress`]，UI 刷新与传输节奏解耦。
 
-use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 /// 下载所处的阶段，供 UI 展示。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +40,8 @@ impl Phase {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Progress {
     pub phase: Phase,
+    /// 控制文件、目标文件与共享进度计数已完成初始化。
+    pub initialized: bool,
     /// 总大小；探测完成前为 0。
     pub total: u64,
     /// 已落盘且写入控制文件的字节数，崩溃后仍然有效。
@@ -60,6 +62,7 @@ impl Progress {
     pub fn initial() -> Self {
         Self {
             phase: Phase::Probing,
+            initialized: false,
             total: 0,
             committed: 0,
             written: 0,
@@ -74,6 +77,7 @@ impl Progress {
 #[derive(Debug)]
 pub(crate) struct Shared {
     phase: AtomicU8Cell,
+    initialized: AtomicBool,
     total: AtomicU64,
     pub written: AtomicU64,
     pub committed: AtomicU64,
@@ -85,6 +89,7 @@ impl Shared {
     pub(crate) fn new() -> Self {
         Self {
             phase: AtomicU8Cell::new(Phase::Probing as u8),
+            initialized: AtomicBool::new(false),
             total: AtomicU64::new(0),
             written: AtomicU64::new(0),
             committed: AtomicU64::new(0),
@@ -101,9 +106,14 @@ impl Shared {
         self.total.store(total, Ordering::Relaxed);
     }
 
+    pub(crate) fn mark_initialized(&self) {
+        self.initialized.store(true, Ordering::Release);
+    }
+
     pub(crate) fn snapshot(&self, speed_bps: f64) -> Progress {
         Progress {
             phase: Phase::from_u8(self.phase.0.load(Ordering::Relaxed)),
+            initialized: self.initialized.load(Ordering::Acquire),
             total: self.total.load(Ordering::Relaxed),
             committed: self.committed.load(Ordering::Relaxed),
             written: self.written.load(Ordering::Relaxed),

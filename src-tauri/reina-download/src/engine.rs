@@ -93,12 +93,21 @@ async fn run(
     control_file_path: &std::path::Path,
     cancel: &CancellationToken,
 ) -> Result<Outcome, DownloadError> {
+    // 探测尚未完成前，旧控制文件仍是调用方可见的断点；只有确认需要重置后才归零。
+    if let Some(control) = existing_control.as_ref() {
+        let written = control.written_total();
+        shared.written.store(written, Ordering::Relaxed);
+        shared.committed.store(written, Ordering::Relaxed);
+    }
+
+    let budget: Option<Gate> = options.budget.as_ref().map(|budget| budget.0.clone());
+
     // 探测。
     shared.set_phase(Phase::Probing);
     let probe = tokio::select! {
         biased;
         () = cancel.cancelled() => return Ok(Outcome::Cancelled),
-        probe = probe_with_retry(client, &request.url, options, &shared) => probe?,
+        probe = probe_with_retry(client, &request.url, options, &shared, budget.as_ref(), cancel) => probe?,
     };
     // 部分源站只在首个请求上忽略 Range；短暂等待后复测一次，尽量避免进入单流。
     let probe = if probe.range_supported {
@@ -109,7 +118,12 @@ async fn run(
             () = cancel.cancelled() => return Ok(Outcome::Cancelled),
             () = tokio::time::sleep(options.range_confirm_delay) => {}
         }
-        match self::probe(client, &request.url).await.ok() {
+        let second = tokio::select! {
+            biased;
+            () = cancel.cancelled() => return Ok(Outcome::Cancelled),
+            second = self::probe(client, &request.url, budget.as_ref(), cancel) => second.ok(),
+        };
+        match second {
             Some(second)
                 if second.range_supported
                     && (probe.total.is_none() || second.total == probe.total) =>
@@ -136,13 +150,23 @@ async fn run(
         control.pieces.iter_mut().for_each(|written| *written = 0);
     }
 
-    // 先建目标文件并落控制文件再收字节，保证"有目标无控制文件"恒等于下载完成。
+    // 控制文件不能脱离目标文件复用：目标缺失或长度不符时，旧分片字节已不可证明。
+    // 这里显式归零，避免随后预分配出的新零文件继承旧的完成计数。
+    let target_is_usable = std::fs::metadata(&request.target)
+        .map(|metadata| metadata.len() == size)
+        .unwrap_or(false);
+    if !target_is_usable {
+        control.pieces.iter_mut().for_each(|written| *written = 0);
+    }
+
+    // 先落控制文件再建目标文件。若初始化在两步之间中断，控制文件仍会阻止
+    // 下次把新建（或尚未创建）的目标误认作没有控制文件的外来完成文件。
+    control.save(control_file_path)?;
     let target_path = request.target.clone();
     let file = tokio::task::spawn_blocking(move || fsx::open_target(&target_path, size, true))
         .await
         .map_err(join_error)??;
     let file = Arc::new(file);
-    control.save(control_file_path)?;
 
     let pieces: Arc<Vec<AtomicU64>> = Arc::new(
         control
@@ -154,6 +178,8 @@ async fn run(
     let already = control.written_total();
     shared.written.store(already, Ordering::Relaxed);
     shared.committed.store(already, Ordering::Relaxed);
+    // 控制文件、目标文件和共享计数均已就绪；之后的取消快照可以安全交给调用方持久化。
+    shared.mark_initialized();
 
     if size == 0 || control.is_complete() {
         return finalize(&shared, &file, control_file_path)
@@ -180,20 +206,44 @@ async fn run(
     let outcome = if probe.range_supported {
         shared.set_phase(Phase::Downloading);
         run_segmented(
-            request, options, client, &shared, &pieces, &file, size, cancel,
+            request,
+            options,
+            client,
+            &shared,
+            &pieces,
+            &file,
+            size,
+            cancel,
+            budget.as_ref(),
         )
         .await
     } else {
         shared.set_phase(Phase::SingleStream);
         match run_single_stream(
-            request, options, client, &shared, &pieces, &file, size, cancel,
+            request,
+            options,
+            client,
+            &shared,
+            &pieces,
+            &file,
+            size,
+            cancel,
+            budget.as_ref(),
         )
         .await
         {
             Ok(StreamEnd::Upgraded) => {
                 shared.set_phase(Phase::Downloading);
                 run_segmented(
-                    request, options, client, &shared, &pieces, &file, size, cancel,
+                    request,
+                    options,
+                    client,
+                    &shared,
+                    &pieces,
+                    &file,
+                    size,
+                    cancel,
+                    budget.as_ref(),
                 )
                 .await
             }
@@ -239,30 +289,53 @@ async fn probe_with_retry(
     url: &str,
     options: &DownloadOptions,
     shared: &Arc<Shared>,
+    budget: Option<&Gate>,
+    cancel: &CancellationToken,
 ) -> Result<ProbeResult, DownloadError> {
     const PROBE_ATTEMPTS: u32 = 5;
     let mut attempt = 0u32;
     loop {
-        match probe(client, url).await {
+        match probe(client, url, budget, cancel).await {
             Ok(result) => return Ok(result),
             Err(error) if error.is_retryable() && attempt + 1 < PROBE_ATTEMPTS => {
                 attempt += 1;
                 shared.retries.fetch_add(1, Ordering::Relaxed);
                 log::debug!("probe attempt {attempt} failed, retrying: {error}");
-                tokio::time::sleep(backoff(attempt).min(options.stall_timeout)).await;
+                tokio::select! {
+                    biased;
+                    () = cancel.cancelled() => {
+                        return Err(DownloadError::Network("cancelled".into()));
+                    }
+                    () = tokio::time::sleep(backoff(attempt).min(options.stall_timeout)) => {}
+                }
             }
             Err(error) => return Err(error),
         }
     }
 }
 
-async fn probe(client: &Client, url: &str) -> Result<ProbeResult, DownloadError> {
-    let response = client
-        .get(url)
-        .header(RANGE, "bytes=0-0")
-        .send()
-        .await
-        .map_err(|error| map_reqwest(&error))?;
+async fn probe(
+    client: &Client,
+    url: &str,
+    budget: Option<&Gate>,
+    cancel: &CancellationToken,
+) -> Result<ProbeResult, DownloadError> {
+    let _permit = match budget {
+        Some(gate) => Some(
+            gate.acquire(cancel)
+                .await
+                .ok_or_else(|| DownloadError::Network("cancelled".into()))?,
+        ),
+        None => None,
+    };
+    let response = tokio::select! {
+        biased;
+        () = cancel.cancelled() => return Err(DownloadError::Network("cancelled".into())),
+        response = client
+            .get(url)
+            .header(RANGE, "bytes=0-0")
+            .send() => response.map_err(|error| map_reqwest(&error))?,
+    };
     let status = response.status();
     let headers = response.headers().clone();
     let etag = http::header_string(&headers, ETAG);
@@ -380,6 +453,7 @@ async fn run_segmented(
     file: &Arc<File>,
     size: u64,
     cancel: &CancellationToken,
+    budget: Option<&Gate>,
 ) -> Result<Outcome, DownloadError> {
     let adaptive = Arc::new(Adaptive::new(
         options.min_connections,
@@ -387,7 +461,7 @@ async fn run_segmented(
         options.max_connections,
         options.grow_after_successes,
     ));
-    let budget: Option<Gate> = options.budget.as_ref().map(|budget| budget.0.clone());
+    let budget = budget.cloned();
     let mut pending: VecDeque<(u64, u32)> = (0..pieces.len() as u64)
         .filter(|index| {
             pieces[usize::try_from(*index).expect("piece index fits usize")].load(Ordering::Relaxed)
@@ -575,12 +649,14 @@ async fn fetch_piece(
     let range_start = piece_start + already;
     let range_end = piece_start + len - 1;
 
-    let response = client
-        .get(url)
-        .header(RANGE, format!("bytes={range_start}-{range_end}"))
-        .send()
-        .await
-        .map_err(|error| plain(map_reqwest(&error)))?;
+    let response = tokio::select! {
+        biased;
+        () = cancel.cancelled() => return Err(plain(DownloadError::Network("cancelled".into()))),
+        response = client
+            .get(url)
+            .header(RANGE, format!("bytes={range_start}-{range_end}"))
+            .send() => response.map_err(|error| plain(map_reqwest(&error)))?,
+    };
     let status = response.status();
     if status != StatusCode::PARTIAL_CONTENT {
         let retry_after = http::retry_after(response.headers(), SystemTime::now());
@@ -679,6 +755,7 @@ async fn run_single_stream(
     file: &Arc<File>,
     size: u64,
     cancel: &CancellationToken,
+    budget: Option<&Gate>,
 ) -> Result<StreamEnd, DownloadError> {
     shared.connections.store(1, Ordering::Relaxed);
     // 后台定期重探 Range 支持；单流进度按分片记录，升级时可无损衔接。
@@ -689,9 +766,10 @@ async fn run_single_stream(
         options.upgrade_probe_interval,
         cancel.clone(),
         Arc::clone(&upgrade),
+        budget.cloned(),
     );
     let end = run_single_stream_inner(
-        request, options, client, shared, pieces, file, size, cancel, &upgrade,
+        request, options, client, shared, pieces, file, size, cancel, &upgrade, budget,
     )
     .await;
     prober.abort();
@@ -709,6 +787,7 @@ async fn run_single_stream_inner(
     size: u64,
     cancel: &CancellationToken,
     upgrade: &Arc<AtomicBool>,
+    budget: Option<&Gate>,
 ) -> Result<StreamEnd, DownloadError> {
     let mut attempt = 0u32;
     loop {
@@ -727,7 +806,7 @@ async fn run_single_stream_inner(
             }
         }
         match stream_once(
-            request, options, client, shared, pieces, file, size, cancel, upgrade,
+            request, options, client, shared, pieces, file, size, cancel, upgrade, budget,
         )
         .await
         {
@@ -777,12 +856,22 @@ async fn stream_once(
     size: u64,
     cancel: &CancellationToken,
     upgrade: &Arc<AtomicBool>,
+    budget: Option<&Gate>,
 ) -> Result<StreamPass, DownloadError> {
-    let response = client
-        .get(&request.url)
-        .send()
-        .await
-        .map_err(|error| map_reqwest(&error))?;
+    let _permit = match budget {
+        Some(gate) => match gate.acquire(cancel).await {
+            Some(permit) => Some(permit),
+            None => return Ok(StreamPass::Cancelled),
+        },
+        None => None,
+    };
+    let response = tokio::select! {
+        biased;
+        () = cancel.cancelled() => return Ok(StreamPass::Cancelled),
+        response = client.get(&request.url).send() => {
+            response.map_err(|error| map_reqwest(&error))?
+        }
+    };
     let status = response.status();
     if status != StatusCode::OK {
         return Err(http::status_error(status));
@@ -857,6 +946,7 @@ fn spawn_upgrade_prober(
     interval: Duration,
     cancel: CancellationToken,
     upgrade: Arc<AtomicBool>,
+    budget: Option<Gate>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let interval = interval.max(Duration::from_millis(100));
@@ -869,7 +959,7 @@ fn spawn_upgrade_prober(
                 () = tokio::time::sleep(delay) => {}
             }
             delay = interval;
-            if let Ok(result) = probe(&client, &url).await {
+            if let Ok(result) = probe(&client, &url, budget.as_ref(), &cancel).await {
                 if result.range_supported {
                     upgrade.store(true, Ordering::Relaxed);
                     break;

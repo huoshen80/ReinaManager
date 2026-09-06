@@ -37,6 +37,10 @@ enum Mode {
     WrongTotal(u64),
     /// 前 N 个请求只发响应头，不发数据。
     StallFirst(usize),
+    /// 前几个请求忽略 Range，随后指定序号的请求不发响应头。
+    IgnoreRangeUntilStall { stall_request: usize },
+    /// 指定数量的响应发出响应头后，等待测试释放响应体。
+    HoldResponses { limit: usize, ignore_range: usize },
 }
 
 struct ServerState {
@@ -46,6 +50,10 @@ struct ServerState {
     body_bytes_served: AtomicU64,
     /// 已服务的 206 分段响应数。
     ranged_responses: AtomicUsize,
+    /// 被测试闸门明确保持在响应头之前的请求数及其峰值。
+    held_responses: AtomicUsize,
+    peak_held_responses: AtomicUsize,
+    response_releases: std::sync::Mutex<Vec<watch::Sender<bool>>>,
     /// 每写 8 KiB 插入的延迟，让测试能观察到下载中途的状态。
     chunk_delay: Duration,
 }
@@ -65,6 +73,11 @@ impl Server {
             requests: AtomicUsize::new(0),
             body_bytes_served: AtomicU64::new(0),
             ranged_responses: AtomicUsize::new(0),
+            held_responses: AtomicUsize::new(0),
+            peak_held_responses: AtomicUsize::new(0),
+            response_releases: std::sync::Mutex::new(
+                (0..256).map(|_| watch::channel(false).0).collect(),
+            ),
             chunk_delay,
         });
         let accept_state = Arc::clone(&state);
@@ -97,6 +110,18 @@ impl Server {
     fn body_bytes_served(&self) -> u64 {
         self.state.body_bytes_served.load(Ordering::Relaxed)
     }
+
+    fn peak_held_responses(&self) -> usize {
+        self.state.peak_held_responses.load(Ordering::Relaxed)
+    }
+
+    fn held_responses(&self) -> usize {
+        self.state.held_responses.load(Ordering::Relaxed)
+    }
+
+    fn release_response(&self, request_number: usize) {
+        self.state.response_releases.lock().unwrap()[request_number - 1].send_replace(true);
+    }
 }
 
 async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Result<()> {
@@ -121,7 +146,7 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
                 .map(str::to_owned)
         })
         .map(|value| value.trim().to_owned());
-    state.requests.fetch_add(1, Ordering::Relaxed);
+    let request_number = state.requests.fetch_add(1, Ordering::Relaxed) + 1;
 
     let total = state.data.len() as u64;
     let mode = state.mode.lock().unwrap().clone();
@@ -149,6 +174,11 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
             tokio::time::sleep(Duration::from_secs(120)).await;
             return Ok(());
         }
+        Mode::IgnoreRangeUntilStall { stall_request } if request_number == stall_request => {
+            // 连响应头也不发，专门覆盖取消 send().await 的路径。
+            tokio::time::sleep(Duration::from_secs(120)).await;
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -158,8 +188,12 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
             *state.mode.lock().unwrap() = Mode::IgnoreRangeFirst(remaining - 1);
             true
         }
+        Mode::IgnoreRangeUntilStall { stall_request } if request_number < stall_request => true,
+        Mode::HoldResponses { ignore_range, .. } if request_number <= ignore_range => true,
         _ => false,
     };
+    let hold_response =
+        matches!(mode, Mode::HoldResponses { limit, .. } if request_number <= limit);
     match (range, ignore_range) {
         (Some(range), false) => {
             let (start, end) = parse_range(Some(&range), total);
@@ -173,6 +207,9 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
                 body.len()
             );
             state.ranged_responses.fetch_add(1, Ordering::Relaxed);
+            if hold_response {
+                wait_for_response_release(&state, request_number).await;
+            }
             stream.write_all(head.as_bytes()).await?;
             let cap = match mode {
                 Mode::DropAfter { bytes, times } if times > 0 => {
@@ -190,11 +227,37 @@ async fn handle(mut stream: TcpStream, state: Arc<ServerState>) -> std::io::Resu
             let head = format!(
                 "HTTP/1.1 200 OK\r\nContent-Length: {total}\r\nETag: \"fixed-etag\"\r\nConnection: close\r\n\r\n"
             );
+            if hold_response {
+                wait_for_response_release(&state, request_number).await;
+            }
             stream.write_all(head.as_bytes()).await?;
             write_body(&mut stream, &state.data, None, &state).await?;
         }
     }
     Ok(())
+}
+
+async fn wait_for_response_release(state: &ServerState, request_number: usize) {
+    let mut release = state.response_releases.lock().unwrap()[request_number - 1].subscribe();
+    let held = state.held_responses.fetch_add(1, Ordering::Relaxed) + 1;
+    let mut peak = state.peak_held_responses.load(Ordering::Relaxed);
+    while held > peak {
+        match state.peak_held_responses.compare_exchange_weak(
+            peak,
+            held,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => break,
+            Err(observed) => peak = observed,
+        }
+    }
+    while !*release.borrow() {
+        if release.changed().await.is_err() {
+            break;
+        }
+    }
+    state.held_responses.fetch_sub(1, Ordering::Relaxed);
 }
 
 async fn write_body(
@@ -283,6 +346,28 @@ fn request(url: String, target: &std::path::Path, size: u64) -> DownloadRequest 
         expected_size: size,
         identity: Some("sha256:test-identity".to_owned()),
     }
+}
+
+fn control_temp_path(target: &std::path::Path) -> PathBuf {
+    let mut value = control_path(target).into_os_string();
+    value.push(".tmp");
+    PathBuf::from(value)
+}
+
+fn write_control(target: &std::path::Path, size: usize, piece_size: usize, pieces: &[u64]) {
+    let control = serde_json::json!({
+        "version": 1,
+        "size": size,
+        "piece_size": piece_size,
+        "identity": "sha256:test-identity",
+        "etag": "\"fixed-etag\"",
+        "pieces": pieces,
+    });
+    std::fs::write(
+        control_path(target),
+        serde_json::to_vec(&control).expect("control JSON must serialize"),
+    )
+    .unwrap();
 }
 
 async fn run_download(
@@ -559,6 +644,104 @@ async fn stall_detection_recovers_dead_connections() {
 }
 
 #[tokio::test]
+async fn cancellation_interrupts_a_stalled_second_probe() {
+    let data = test_data(100_000);
+    let server = Server::start(
+        data.clone(),
+        Mode::IgnoreRangeUntilStall { stall_request: 2 },
+        Duration::ZERO,
+    )
+    .await;
+    let paths = run_paths();
+    let (sender, receiver) = watch::channel(Progress::initial());
+    let cancel = CancellationToken::new();
+    let handle = tokio::spawn(download(
+        request(
+            server.url("/cancel-second-probe"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        fast_options(),
+        reqwest::Client::new(),
+        sender,
+        cancel.clone(),
+    ));
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while server.requests() < 2 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("second probe did not reach the fault-injection server");
+    let cancelled_at = std::time::Instant::now();
+    cancel.cancel();
+    let result = tokio::time::timeout(Duration::from_secs(2), handle)
+        .await
+        .expect("cancelling a stalled second probe waited for the HTTP client timeout")
+        .expect("download task panicked");
+    assert!(matches!(result, Ok(Outcome::Cancelled)), "{result:?}");
+    assert!(
+        !receiver.borrow().initialized,
+        "探测阶段取消时目标尚未初始化"
+    );
+    assert!(
+        cancelled_at.elapsed() < Duration::from_secs(2),
+        "second probe cancellation took {:?}",
+        cancelled_at.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn cancellation_interrupts_single_stream_waiting_for_response_headers() {
+    let data = test_data(100_000);
+    let server = Server::start(
+        data.clone(),
+        Mode::IgnoreRangeUntilStall { stall_request: 3 },
+        Duration::ZERO,
+    )
+    .await;
+    let paths = run_paths();
+    let (sender, receiver) = watch::channel(Progress::initial());
+    let cancel = CancellationToken::new();
+    let handle = tokio::spawn(download(
+        request(
+            server.url("/cancel-single-headers"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        fast_options(),
+        reqwest::Client::new(),
+        sender,
+        cancel.clone(),
+    ));
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while server.requests() < 3 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("single-stream request did not reach the fault-injection server");
+    let cancelled_at = std::time::Instant::now();
+    cancel.cancel();
+    let result = tokio::time::timeout(Duration::from_secs(2), handle)
+        .await
+        .expect("cancelling a single stream waited for the HTTP client timeout")
+        .expect("download task panicked");
+    assert!(matches!(result, Ok(Outcome::Cancelled)), "{result:?}");
+    assert!(
+        receiver.borrow().initialized,
+        "目标初始化完成后取消必须保留 initialized 标志"
+    );
+    assert!(
+        cancelled_at.elapsed() < Duration::from_secs(2),
+        "single-stream header cancellation took {:?}",
+        cancelled_at.elapsed()
+    );
+}
+
+#[tokio::test]
 async fn rejects_wrong_reported_size() {
     let data = test_data(100_000);
     let server = Server::start(data, Mode::WrongTotal(999), Duration::ZERO).await;
@@ -616,9 +799,117 @@ async fn refuses_foreign_file_at_target_path() {
 }
 
 #[tokio::test]
+async fn control_save_failure_does_not_leave_a_false_complete_target() {
+    let data = test_data(100_003);
+    let server = Server::start(data.clone(), Mode::Normal, Duration::ZERO).await;
+    let paths = run_paths();
+    std::fs::create_dir(control_temp_path(&paths.target)).unwrap();
+
+    let (first, _) = run_download(
+        request(
+            server.url("/save-failure"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        fast_options(),
+    )
+    .await;
+    assert!(
+        first.is_err(),
+        "control save failure must be surfaced: {first:?}"
+    );
+    assert_ne!(
+        std::fs::metadata(&paths.target)
+            .ok()
+            .map(|metadata| metadata.len()),
+        Some(data.len() as u64),
+        "failed control save must not leave a target that looks complete"
+    );
+
+    // 第二次调用不能把第一次失败留下的目标误判成已完成。
+    let (second, _) = run_download(
+        request(
+            server.url("/save-failure-retry"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        fast_options(),
+    )
+    .await;
+    assert!(
+        !matches!(second, Ok(Outcome::Completed)),
+        "a failed control save must not turn into a false Completed: {second:?}"
+    );
+}
+
+#[tokio::test]
+async fn repairs_missing_target_even_when_control_claims_a_piece() {
+    let data = test_data(180_003);
+    let server = Server::start(data.clone(), Mode::Normal, Duration::ZERO).await;
+    let paths = run_paths();
+    let piece_size = fast_options().piece_size as usize;
+    write_control(
+        &paths.target,
+        data.len(),
+        piece_size,
+        &[piece_size as u64, 0, (data.len() - 2 * piece_size) as u64],
+    );
+
+    let (result, _) = run_download(
+        request(
+            server.url("/missing-target"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        fast_options(),
+    )
+    .await;
+
+    assert!(matches!(result, Ok(Outcome::Completed)), "{result:?}");
+    assert_eq!(std::fs::read(&paths.target).unwrap(), data);
+}
+
+#[tokio::test]
+async fn repairs_truncated_target_even_when_control_claims_bytes_beyond_eof() {
+    let data = test_data(180_003);
+    let server = Server::start(data.clone(), Mode::Normal, Duration::ZERO).await;
+    let paths = run_paths();
+    let piece_size = fast_options().piece_size as usize;
+    write_control(
+        &paths.target,
+        data.len(),
+        piece_size,
+        &[piece_size as u64, 0, (data.len() - 2 * piece_size) as u64],
+    );
+    // 目标实际只保留了声明完整分片的一小段，不能信任控制文件的进度声明。
+    std::fs::write(&paths.target, &data[..1024]).unwrap();
+
+    let (result, _) = run_download(
+        request(
+            server.url("/truncated-target"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        fast_options(),
+    )
+    .await;
+
+    assert!(matches!(result, Ok(Outcome::Completed)), "{result:?}");
+    assert_eq!(std::fs::read(&paths.target).unwrap(), data);
+}
+
+#[tokio::test]
 async fn shared_budget_caps_total_connections() {
     let data = test_data(800_000);
-    let server = Server::start(data.clone(), Mode::Normal, Duration::from_millis(1)).await;
+    let server = Server::start(
+        data.clone(),
+        Mode::HoldResponses {
+            limit: 4,
+            ignore_range: 0,
+        },
+        Duration::from_millis(1),
+    )
+    .await;
     let paths_a = run_paths();
     let paths_b = run_paths();
     let budget = SharedBudget::new(2);
@@ -627,25 +918,125 @@ async fn shared_budget_caps_total_connections() {
 
     let (sender_a, _keep_a) = watch::channel(Progress::initial());
     let (sender_b, _keep_b) = watch::channel(Progress::initial());
-    let (first, second) = tokio::join!(
-        download(
-            request(server.url("/a"), &paths_a.target, data.len() as u64),
-            options.clone(),
-            reqwest::Client::new(),
-            sender_a,
-            CancellationToken::new(),
-        ),
-        download(
-            request(server.url("/b"), &paths_b.target, data.len() as u64),
-            options,
-            reqwest::Client::new(),
-            sender_b,
-            CancellationToken::new(),
-        ),
-    );
+    let handle_a = tokio::spawn(download(
+        request(server.url("/a"), &paths_a.target, data.len() as u64),
+        options.clone(),
+        reqwest::Client::new(),
+        sender_a,
+        CancellationToken::new(),
+    ));
+    let handle_b = tokio::spawn(download(
+        request(server.url("/b"), &paths_b.target, data.len() as u64),
+        options,
+        reqwest::Client::new(),
+        sender_b,
+        CancellationToken::new(),
+    ));
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while server.held_responses() < 2 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("initial probes did not reach the response gate");
+    assert_eq!(server.requests(), 2, "probe responses exceeded budget=2");
+    server.release_response(1);
+    server.release_response(2);
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while server.held_responses() < 2 || server.requests() < 4 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("segmented requests did not reach the response gate");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(server.requests(), 4, "segmented requests exceeded budget=2");
+    assert_eq!(server.held_responses(), 2);
+    server.release_response(3);
+    server.release_response(4);
+
+    let first = handle_a.await.unwrap();
+    let second = handle_b.await.unwrap();
 
     assert!(matches!(first, Ok(Outcome::Completed)), "{first:?}");
     assert!(matches!(second, Ok(Outcome::Completed)), "{second:?}");
     assert_eq!(std::fs::read(&paths_a.target).unwrap(), data);
     assert_eq!(std::fs::read(&paths_b.target).unwrap(), data);
+    assert!(
+        server.peak_held_responses() <= 2,
+        "shared budget exceeded: observed {} held responses",
+        server.peak_held_responses()
+    );
+}
+
+#[tokio::test]
+async fn shared_budget_one_does_not_deadlock_single_stream_upgrade_probe() {
+    let data = test_data(2 * 1024 * 1024);
+    let server = Server::start(
+        data.clone(),
+        // 首测和复测先返回 200，随后单流期间的升级探测才有机会请求 206。
+        Mode::HoldResponses {
+            limit: 3,
+            ignore_range: 2,
+        },
+        Duration::from_millis(2),
+    )
+    .await;
+    let paths = run_paths();
+    let budget = SharedBudget::new(1);
+    let mut options = fast_options();
+    options.budget = Some(budget);
+
+    let (sender, _keep) = watch::channel(Progress::initial());
+    let handle = tokio::spawn(download(
+        request(
+            server.url("/budget-one-upgrade"),
+            &paths.target,
+            data.len() as u64,
+        ),
+        options,
+        reqwest::Client::new(),
+        sender,
+        CancellationToken::new(),
+    ));
+
+    for request_number in 1..=2 {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while server.requests() < request_number {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .expect("probe did not reach the response gate");
+        assert_eq!(server.requests(), request_number);
+        server.release_response(request_number);
+    }
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while server.requests() < 3 || server.held_responses() < 1 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("single-stream response did not reach the response gate");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(server.requests(), 3, "upgrade probe bypassed budget=1");
+    server.release_response(3);
+    let result = tokio::time::timeout(Duration::from_secs(5), handle)
+        .await
+        .expect("budget=1 single-stream completion deadlocked")
+        .expect("download task panicked");
+
+    assert!(matches!(result, Ok(Outcome::Completed)), "{result:?}");
+    assert_eq!(std::fs::read(&paths.target).unwrap(), data);
+    assert!(
+        server.requests() >= 3,
+        "expected probes and single-stream request"
+    );
+    assert!(
+        server.peak_held_responses() <= 1,
+        "budget=1 exceeded: observed {} held responses",
+        server.peak_held_responses()
+    );
 }
