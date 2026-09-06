@@ -157,10 +157,15 @@ pub(crate) async fn remove_task_artifacts(
 }
 
 pub(crate) async fn remove_download_artifacts(download_path: &Path) -> Result<(), TaskFailure> {
-    let part_path = takanawa_core::part_path_for(download_path);
-    let lock_path = takanawa_core::part_lock_path_for(download_path);
+    let mut paths = reina_download::artifact_paths(download_path);
+    // 旧版 Takanawa 下载器的遗留文件，升级后一并清理。
+    for legacy_suffix in [".part", ".part.lock"] {
+        let mut value = download_path.as_os_str().to_owned();
+        value.push(legacy_suffix);
+        paths.push(std::path::PathBuf::from(value));
+    }
     let mut first_error = None;
-    for path in [download_path, part_path.as_path(), lock_path.as_path()] {
+    for path in &paths {
         match tokio::fs::remove_file(path).await {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -259,15 +264,6 @@ pub(crate) async fn fail_task(
     result: Option<Value>,
 ) -> Result<tasks::Model, TaskFailure> {
     fail_task_with_progress(db, task_id, error_code, error_message, result, None).await
-}
-
-pub(crate) async fn fail_task_and_reset_progress(
-    db: &DatabaseConnection,
-    task_id: i64,
-    error_code: &str,
-    error_message: &str,
-) -> Result<tasks::Model, TaskFailure> {
-    fail_task_with_progress(db, task_id, error_code, error_message, None, Some(0)).await
 }
 
 async fn fail_task_with_progress(

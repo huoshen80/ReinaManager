@@ -128,9 +128,11 @@ pub async fn retry_task(
         .ok()
         .flatten()
         .is_some_and(|result| Path::new(&result.install_path).is_dir());
+    // checksum/size 不符说明已下载的数据本身有问题，必须清掉重来；
+    // url_expired 不在其列——数据没问题，换新直链后可以从断点续传。
     let reset_partial_download = matches!(
         task.error_code.as_deref(),
-        Some("checksum_mismatch" | "size_mismatch" | "url_expired")
+        Some("checksum_mismatch" | "size_mismatch")
     );
     if reset_partial_download {
         let partial_path = stored_payload
@@ -150,13 +152,22 @@ pub async fn retry_task(
     let updated_download_path = updated_payload
         .download_path(task_id)
         .map_err(|failure| failure.message)?;
-    if previous_download_path != updated_download_path && previous_download_path.exists() {
-        if updated_download_path.exists() {
+    if previous_download_path != updated_download_path {
+        // 下载数据和它的控制文件必须一起迁移，否则新路径上无法续传。
+        let sources = reina_download::artifact_paths(&previous_download_path);
+        let destinations = reina_download::artifact_paths(&updated_download_path);
+        if sources.iter().any(|path| path.exists()) && destinations.iter().any(|path| path.exists())
+        {
             return Err("新的下载临时文件已存在，请先清理冲突文件".to_string());
         }
-        tokio::fs::rename(&previous_download_path, &updated_download_path)
-            .await
-            .map_err(|error| format!("迁移下载临时文件失败: {error}"))?;
+        for (source, destination) in sources.iter().zip(&destinations) {
+            if !source.exists() {
+                continue;
+            }
+            tokio::fs::rename(source, destination)
+                .await
+                .map_err(|error| format!("迁移下载临时文件失败: {error}"))?;
+        }
     }
     let mut active: tasks::ActiveModel = task.into();
     active.title = Set(request.title.clone());
