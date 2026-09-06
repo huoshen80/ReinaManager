@@ -133,7 +133,7 @@
 
 特別感謝這些平台提供的公共 API、數據與資源！
 
-- **[7-zip](https://www.7-zip.org/)** - 開源的檔案解壓縮工具
+- **[7-Zip ZS (7-Zip-zstd)](https://github.com/mcmilk/7-Zip-zstd)** - 基於 [7-Zip](https://www.7-zip.org/) 的增強分支，提供 Zstandard 等額外壓縮演算法支援。
 
 ## 許可證
 

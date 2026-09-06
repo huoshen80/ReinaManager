@@ -133,7 +133,7 @@
 
 特别感谢这些平台提供的公共 API 和数据以及资源！
 
-- **[7-zip](https://www.7-zip.org/)** - 开源的文件解压缩工具
+- **[7-Zip ZS (7-Zip-zstd)](https://github.com/mcmilk/7-Zip-zstd)** - 基于 [7-Zip](https://www.7-zip.org/) 的增强分支，提供 Zstandard 等额外压缩算法支持。
 
 ## 许可证
 
