@@ -26,6 +26,7 @@ import {
 } from "@/hooks/common/useScrollRestore";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
 import { useActiveTaskCount } from "@/hooks/queries/useTasks";
+import { GameDeletionProvider } from "@/providers/GameDeletionProvider";
 import { type SelectedCategory, useStore } from "@/store/appStore";
 import { DefaultGroup } from "@/types/collection";
 import { getDeveloperCategoryGameIds } from "@/utils/game/gameIndex";
@@ -355,29 +356,31 @@ export const Layout: React.FC = () => {
 		<>
 			<AddModal />
 			<TaskManagerDialog open={taskManagerOpen} onClose={closeTaskManager} />
-			<DashboardLayout
-				slots={{
-					header: Header,
-					sidebarFooter: SidebarFooter,
-				}}
-				defaultSidebarCollapsed={true}
-			>
-				{isLibraries ? (
-					<PageContainer
-						className="max-w-full"
-						sx={{
-							"& > .MuiStack-root > :not(style) ~ :not(style)": {
-								mt: "0 !important",
-							},
-						}}
-					>
+			<GameDeletionProvider>
+				<DashboardLayout
+					slots={{
+						header: Header,
+						sidebarFooter: SidebarFooter,
+					}}
+					defaultSidebarCollapsed={true}
+				>
+					{isLibraries ? (
+						<PageContainer
+							className="max-w-full"
+							sx={{
+								"& > .MuiStack-root > :not(style) ~ :not(style)": {
+									mt: "0 !important",
+								},
+							}}
+						>
+							<Outlet />
+						</PageContainer>
+					) : (
 						<Outlet />
-					</PageContainer>
-				) : (
-					<Outlet />
-				)}
-				<BackToTopButton />
-			</DashboardLayout>
+					)}
+					<BackToTopButton />
+				</DashboardLayout>
+			</GameDeletionProvider>
 		</>
 	);
 };

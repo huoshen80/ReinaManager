@@ -206,13 +206,8 @@ export const Detail: React.FC = () => {
 		return title ? [...base, { title, path }] : base;
 	}, [activePage?.breadcrumbs, location.pathname, title]);
 
-	// 派生状态：基于selectedGame和isDetailLoading计算当前状态
-	const isLoading =
-		isLoadingSelectedGame || !selectedGame || selectedGame.id !== id;
-	const isNotFound = !isLoadingSelectedGame && !selectedGame && id; // 加载完成但仍然没有数据
-
 	// 加载状态UI - 使用骨架屏
-	if (isLoading) {
+	if (isLoadingSelectedGame) {
 		return (
 			<PageContainer key={id} sx={{ maxWidth: "100% !important" }}>
 				<Box
@@ -232,7 +227,7 @@ export const Detail: React.FC = () => {
 	}
 
 	// 未找到游戏UI
-	if (isNotFound) {
+	if (!selectedGame || selectedGame.id !== id) {
 		return (
 			<PageContainer key={id} sx={{ maxWidth: "100% !important" }}>
 				<Box
@@ -242,9 +237,17 @@ export const Detail: React.FC = () => {
 					alignItems="center"
 					minHeight="50vh"
 				>
-					<Typography>
-						{t("pages.Detail.notFound", "未找到游戏数据")}
-					</Typography>
+					<Box className="flex flex-col items-center gap-3">
+						<Typography>
+							{t("pages.Detail.notFound", "未找到游戏数据")}
+						</Typography>
+						<Button
+							variant="contained"
+							onClick={() => navigate("/libraries", { replace: true })}
+						>
+							{t("app.NAVIGATION.gameLibrary", "游戏仓库")}
+						</Button>
+					</Box>
 				</Box>
 			</PageContainer>
 		);

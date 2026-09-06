@@ -53,7 +53,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openurl } from "@tauri-apps/plugin-shell";
 import type { MouseEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertConfirmBox } from "@/components/AlertBox";
@@ -63,11 +63,13 @@ import { PathSettingsModal } from "@/components/PathSettingsModal";
 import { PlayStatusSubmenu } from "@/components/RightMenu/PlayStatusSubmenu";
 import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
+import { useGameById } from "@/hooks/features/games/useGameFacade";
 import { useGameStatusActions } from "@/hooks/features/games/useGameStatusActions";
 import { useDeleteGame, useUpdateGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { getRuntimeSourceAdapter, REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
+import { GameDeletionContext } from "@/providers/GameDeletionProvider";
 import { snackbar } from "@/providers/snackBar";
 import { handleOpenFolder } from "@/services/fs/fileDialog";
 import { useStore } from "@/store/appStore";
@@ -280,7 +282,8 @@ const OpenFolder = ({ selectedGame }: { selectedGame: GameData }) => {
  */
 export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 	const { t } = useTranslation();
-	const setSelectedGameId = useStore((state) => state.setSelectedGameId);
+	const deletion = useContext(GameDeletionContext);
+	const { selectedGame } = useGameById(id);
 	const [openAlert, setOpenAlert] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const deleteGameMutation = useDeleteGame();
@@ -290,14 +293,15 @@ export const DeleteModal: React.FC<{ id: number }> = ({ id }) => {
 	 * 删除游戏操作
 	 */
 	const handleDeleteGame = async () => {
+		if (isDeleting || !selectedGame) return;
 		try {
 			setIsDeleting(true);
+			deletion?.setGame(selectedGame);
 			await deleteGameMutation.mutateAsync(id);
-			setSelectedGameId(null);
 			navigate(-1);
 		} catch (error) {
 			console.error("删除游戏失败:", error);
-		} finally {
+			deletion?.setGame(null);
 			setIsDeleting(false);
 			setOpenAlert(false);
 		}
