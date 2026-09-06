@@ -1,5 +1,5 @@
 [workspace]
-members = ["reina-path", "migration"]
+members = ["reina-path", "migration", "reina-download"]
 
 [package]
 name = "ReinaManager"
@@ -25,6 +25,7 @@ sha2 = "0.11.0"
 tar = "0.4.46"
 ureq = { version = "3.4.0", default-features = false, features = ["rustls"] }
 xz2 = "0.1.7"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 
 [dependencies]
 # Serialization & logging
@@ -68,15 +69,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 parking_lot = "0.12.5"
 sha2 = "0.11.0"
 blake3 = "1.8.7"
-takanawa-core = { git = "https://github.com/huoshen80/takanawa.git", rev = "0a895b9" }
-takanawa-http = { git = "https://github.com/huoshen80/takanawa.git", rev = "0a895b9", default-features = false, features = [
-    "tls-platform-native",
-] }
-takanawa-reqwest = { package = "reqwest", version = "0.13.4", default-features = false, features = [
-    "native-tls",
-    "socks",
-    "system-proxy",
-] }
+reina-download = { path = "reina-download" }
 
 # Async runtime / DB
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "time", "sync", "fs", "io-util", "net"] }

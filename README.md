@@ -133,7 +133,7 @@ If you find this project helpful and would like to support its development, you 
 
 Special thanks to these platforms for providing public APIs, data, and resources!
 
-- **[7-zip](https://www.7-zip.org/)** - an open-source file archiver
+- **[7-Zip ZS (7-Zip-zstd)](https://github.com/mcmilk/7-Zip-zstd)** - a 7-Zip fork with additional compression codecs including Zstandard, based on [7-Zip](https://www.7-zip.org/).
 
 ## License
 

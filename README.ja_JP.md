@@ -133,7 +133,7 @@ ReinaManager へのすべての貢献に感謝します！
 
 これらのプラットフォームが提供する公開 API、データ、リソースに心より感謝します！
 
-- **[7-zip](https://www.7-zip.org/)** - オープンソースのファイル解凍ツール
+- **[7-Zip ZS (7-Zip-zstd)](https://github.com/mcmilk/7-Zip-zstd)** - [7-Zip](https://www.7-zip.org/) をベースに、Zstandard などの追加圧縮コーデックを提供する強化フォーク。
 
 ## ライセンス
 

@@ -2,9 +2,8 @@ use super::{
     download::{download_file, verify_file},
     persistence::check_task_control,
     persistence::{
-        cleanup_task_artifacts, emit_progress, fail_task, fail_task_and_reset_progress, find_task,
-        remove_download_artifacts, save_game_install_result, set_task_cancelled, set_task_paused,
-        set_task_stage,
+        cleanup_task_artifacts, emit_progress, fail_task, find_task, save_game_install_result,
+        set_task_cancelled, set_task_paused, set_task_stage,
     },
     types::{
         GAME_INSTALL_TASK_TYPE, GameInstallResultV1, TaskControl, TaskFailure, TaskRuntimeState,
@@ -24,7 +23,8 @@ use std::sync::OnceLock;
 use tauri::Manager;
 use tokio::sync::{Semaphore, SemaphorePermit, watch};
 
-const MAX_CONCURRENT_DOWNLOADS: usize = 1;
+// 多任务的总连接数由 download.rs 的全局连接预算约束，单任务限流时各自独立降级。
+const MAX_CONCURRENT_DOWNLOADS: usize = 3;
 const MAX_CONCURRENT_EXTRACTS: usize = 1;
 
 static DOWNLOAD_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
@@ -70,23 +70,11 @@ pub(crate) fn spawn_task(
                         failure.code,
                         failure.message
                     );
-                    let url_expired = failure.code == "url_expired";
-                    let failed = if url_expired {
-                        fail_task_and_reset_progress(&db, task_id, &failure.code, &failure.message)
-                            .await
-                    } else {
-                        fail_task(&db, task_id, &failure.code, &failure.message, None).await
-                    };
+                    // 直链过期不再清理已下载的数据：续传身份与 URL 无关，
+                    // 用新直链重试可以从断点继续。
+                    let failed =
+                        fail_task(&db, task_id, &failure.code, &failure.message, None).await;
                     if let Ok(task) = &failed {
-                        if url_expired
-                            && let Err(cleanup_failure) = clear_expired_download(task).await
-                        {
-                            log::warn!(
-                                "清理过期下载失败 task_id={task_id} code={}: {}",
-                                cleanup_failure.code,
-                                cleanup_failure.message
-                            );
-                        }
                         emit_progress(
                             &app,
                             task_id,
@@ -104,12 +92,6 @@ pub(crate) fn spawn_task(
         app.state::<TaskRuntimeState>().finish(task_id);
     });
     Ok(())
-}
-
-async fn clear_expired_download(task: &tasks::Model) -> Result<(), TaskFailure> {
-    let payload = parse_game_install_payload(task)?;
-    let download_path = payload.download_path(task.id)?;
-    remove_download_artifacts(&download_path).await
 }
 
 fn download_semaphore() -> &'static Semaphore {

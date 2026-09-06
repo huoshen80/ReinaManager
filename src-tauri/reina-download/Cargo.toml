@@ -1,0 +1,27 @@
+[package]
+name = "reina-download"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+description = "Segmented, resumable HTTP downloader used by ReinaManager's install pipeline"
+
+[dependencies]
+httpdate = "1.0"
+log = "0.4"
+reqwest = { version = "0.12", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+tokio-util = "0.7"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["full"] }
