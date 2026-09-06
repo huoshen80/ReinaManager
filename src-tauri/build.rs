@@ -18,8 +18,8 @@ enum PackageFormat {
 
 struct SevenZipPackage {
     platform: &'static str,
-    // Windows 使用带 zstd 编解码器的 7-Zip-zstd 分支（Shionlib 上存在 zstd
-    // 压制的 7z 包），Linux/macOS 分支无对应产物，维持官方构建。
+    // Windows 与 Linux x64/arm64 使用带扩展编解码器的 7-Zip-zstd；
+    // Linux x86 与 macOS 暂时维持官方 7-Zip。
     version: &'static str,
     file_name: &'static str,
     url: &'static str,
@@ -27,6 +27,7 @@ struct SevenZipPackage {
     executable: &'static str,
     required_library: Option<&'static str>,
     format: PackageFormat,
+    license_file_name: &'static str,
     /// 压缩包内不含许可证时，从该地址下载（url, sha256）。
     license_download: Option<(&'static str, &'static str)>,
 }
@@ -46,7 +47,7 @@ fn main() {
 
 fn prepare_seven_zip(manifest_dir: &Path) -> Result<(), String> {
     let package = current_seven_zip_package()?;
-    // 该目录由 CI 单独缓存；缓存未命中时仍需从官方发布地址下载并校验 7-Zip。
+    // 该目录由 CI 单独缓存；缓存未命中时从对应上游发布地址下载并校验 7-Zip。
     let resource_root = manifest_dir.join("target/7zip");
     let executable = resource_root.join(package.executable);
 
@@ -102,17 +103,17 @@ fn prepare_seven_zip_files(
     }
     match package.license_download {
         Some((url, sha256)) => {
-            let license_path = resource_root.join("License.txt");
+            let license_path = resource_root.join(package.license_file_name);
             download_file(url, &license_path)?;
             verify_sha256(&license_path, sha256)?;
         }
-        None => copy_license(&extracted, resource_root)?,
+        None => copy_license(&extracted, resource_root, package.license_file_name)?,
     }
     fs::write(
         resource_root.join("NOTICE.md"),
         format!(
-            "7-Zip {} is bundled at build time.\nSource: {}\nLicense: see License.txt.\n",
-            package.version, package.url
+            "7-Zip {} is bundled at build time.\nSource: {}\nLicense and redistribution terms: see {}.\n",
+            package.version, package.url, package.license_file_name
         ),
     )
     .map_err(|error| format!("写入 7-Zip NOTICE 失败: {error}"))?;
@@ -134,7 +135,11 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7z.exe",
         required_library: Some("7z.dll"),
         format: PackageFormat::WindowsInstaller,
-        license_download: None,
+        license_file_name: "COPYING",
+        license_download: Some((
+            "https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/COPYING",
+            "efd01ecf087d0345468c57f7146879952c39c8daf4c461876a95de1c0d1722f3",
+        )),
     };
     static WINDOWS_X86: SevenZipPackage = SevenZipPackage {
         version: "26.02-zstd-v1.5.7-R2",
@@ -145,7 +150,11 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7z.exe",
         required_library: Some("7z.dll"),
         format: PackageFormat::WindowsInstaller,
-        license_download: None,
+        license_file_name: "COPYING",
+        license_download: Some((
+            "https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/COPYING",
+            "efd01ecf087d0345468c57f7146879952c39c8daf4c461876a95de1c0d1722f3",
+        )),
     };
     static WINDOWS_ARM64: SevenZipPackage = SevenZipPackage {
         version: "26.02-zstd-v1.5.7-R2",
@@ -156,7 +165,11 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7z.exe",
         required_library: Some("7z.dll"),
         format: PackageFormat::WindowsInstaller,
-        license_download: None,
+        license_file_name: "COPYING",
+        license_download: Some((
+            "https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/COPYING",
+            "efd01ecf087d0345468c57f7146879952c39c8daf4c461876a95de1c0d1722f3",
+        )),
     };
     static LINUX_X64: SevenZipPackage = SevenZipPackage {
         version: "26.02-zstd-v1.5.7-R2",
@@ -167,7 +180,11 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7zz",
         required_library: None,
         format: PackageFormat::Zip,
-        license_download: Some(("https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/DOC/License.txt", "5b565f1591a5872cb163a17a06725c4ec010f60401c9068d1b5e1e8c89517f39")),
+        license_file_name: "COPYING",
+        license_download: Some((
+            "https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/COPYING",
+            "efd01ecf087d0345468c57f7146879952c39c8daf4c461876a95de1c0d1722f3",
+        )),
     };
     static LINUX_X86: SevenZipPackage = SevenZipPackage {
         version: "26.02",
@@ -178,6 +195,7 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7zz",
         required_library: None,
         format: PackageFormat::TarXz,
+        license_file_name: "License.txt",
         license_download: None,
     };
     static LINUX_ARM64: SevenZipPackage = SevenZipPackage {
@@ -189,7 +207,11 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7zz",
         required_library: None,
         format: PackageFormat::Zip,
-        license_download: Some(("https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/DOC/License.txt", "5b565f1591a5872cb163a17a06725c4ec010f60401c9068d1b5e1e8c89517f39")),
+        license_file_name: "COPYING",
+        license_download: Some((
+            "https://raw.githubusercontent.com/mcmilk/7-Zip-zstd/v26.02-v1.5.7-R2/COPYING",
+            "efd01ecf087d0345468c57f7146879952c39c8daf4c461876a95de1c0d1722f3",
+        )),
     };
     static MACOS_X64: SevenZipPackage = SevenZipPackage {
         version: "26.02",
@@ -200,6 +222,7 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7zz",
         required_library: None,
         format: PackageFormat::TarXz,
+        license_file_name: "License.txt",
         license_download: None,
     };
     static MACOS_ARM64: SevenZipPackage = SevenZipPackage {
@@ -211,6 +234,7 @@ fn current_seven_zip_package() -> Result<&'static SevenZipPackage, String> {
         executable: "7zz",
         required_library: None,
         format: PackageFormat::TarXz,
+        license_file_name: "License.txt",
         license_download: None,
     };
 
@@ -243,7 +267,7 @@ fn seven_zip_is_cached(resource_root: &Path, package: &SevenZipPackage, executab
     fs::read_to_string(resource_root.join(".build-info")).is_ok_and(|value| value == build_info)
         && executable.is_file()
         && library_exists
-        && resource_root.join("License.txt").is_file()
+        && resource_root.join(package.license_file_name).is_file()
 }
 
 fn download_file(url: &str, destination: &Path) -> Result<(), String> {
@@ -359,11 +383,15 @@ fn copy_extracted_file(
     Ok(())
 }
 
-fn copy_license(extracted: &Path, resource_root: &Path) -> Result<(), String> {
+fn copy_license(
+    extracted: &Path,
+    resource_root: &Path,
+    license_file_name: &str,
+) -> Result<(), String> {
     let source =
         find_file(extracted, "License.txt").or_else(|_| find_file(extracted, "license.txt"))?;
-    fs::copy(source, resource_root.join("License.txt"))
-        .map_err(|error| format!("复制 7-Zip 许可证失败: {error}"))?;
+    fs::copy(source, resource_root.join(license_file_name))
+        .map_err(|error| format!("复制 7-Zip 许可证 {license_file_name} 失败: {error}"))?;
     Ok(())
 }
 
