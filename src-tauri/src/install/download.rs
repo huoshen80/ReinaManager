@@ -23,7 +23,8 @@ use tokio::sync::watch;
 
 /// 全局连接预算：所有并行下载任务加起来的在飞连接上限。
 /// 单任务上限由 `DownloadOptions::max_connections` 决定。
-const GLOBAL_CONNECTION_BUDGET: usize = 16;
+// 三个并行下载任务各自最多使用八条连接，预算与该上限保持一致。
+const GLOBAL_CONNECTION_BUDGET: usize = 24;
 const PROGRESS_REPORT_INTERVAL: Duration = Duration::from_millis(500);
 
 fn download_budget() -> &'static SharedBudget {
