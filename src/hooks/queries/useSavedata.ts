@@ -144,8 +144,8 @@ function useRestoreBackup() {
 			const savedataBackupPath = await getSavedataBackupPath(gameId);
 			const backupFilePath = join(savedataBackupPath, backup.file);
 
-			// 恢复备份
-			await savedataService.restoreBackup(backupFilePath, savePath);
+			// 恢复备份，并将后端确定的实际恢复路径返回给页面
+			return savedataService.restoreBackup(backupFilePath, savePath);
 		},
 	});
 }

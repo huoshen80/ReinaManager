@@ -149,6 +149,23 @@ export const handleFolder = async (defaultPath: string = "") => {
 	return selectedPath;
 };
 
+/** 选择单个存档文件，不限制文件扩展名。 */
+export const handleSaveDataFile = async (defaultPath: string = "") => {
+	const selectedPath = await openDirectory({
+		multiple: false,
+		directory: false,
+		defaultPath: defaultPath,
+		filters: [
+			{
+				name: t("utils.handleDirectory.allFiles", "所有文件"),
+				extensions: ["*"],
+			},
+		],
+	});
+	if (selectedPath === null) return null;
+	return selectedPath;
+};
+
 export const handleExeFile = async (defaultPath: string = "") => {
 	const selectedPath = await openDirectory({
 		multiple: false,

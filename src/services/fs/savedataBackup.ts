@@ -39,7 +39,7 @@ export async function openGameSaveDataFolder(
 	if (!saveDataPath) {
 		throw new Error("存档路径不能为空");
 	}
-	await fileService.openDirectory(saveDataPath);
+	await savedataService.openLocation(saveDataPath);
 }
 
 export async function openDatabaseBackupFolder(): Promise<void> {

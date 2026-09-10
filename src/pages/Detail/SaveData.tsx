@@ -1,6 +1,7 @@
 import BackupIcon from "@mui/icons-material/Backup";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import RestoreIcon from "@mui/icons-material/Restore";
 import SaveIcon from "@mui/icons-material/Save";
 import {
@@ -29,7 +30,7 @@ import { SelectedGameGuard } from "@/components/SelectedGameGuard";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { useSaveDataResources } from "@/hooks/queries/useSavedata";
 import { snackbar } from "@/providers/snackBar";
-import { handleFolder } from "@/services/fs/fileDialog";
+import { handleFolder, handleSaveDataFile } from "@/services/fs/fileDialog";
 import {
 	openGameBackupFolder,
 	openGameSaveDataFolder,
@@ -42,6 +43,9 @@ import { formatFileSize } from "@/utils/fileSize";
 const formatDate = (timestamp: number): string => {
 	return new Date(timestamp * 1000).toLocaleString();
 };
+
+const isRootedV2Backup = (fileName: string): boolean =>
+	fileName.startsWith("savedata_v2_") && fileName.endsWith(".7z");
 
 interface SaveDataContentProps {
 	selectedGame: GameData;
@@ -158,12 +162,18 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 		}
 	};
 
+	// 选择单个存档文件，不限制扩展名
+	const handleSelectSaveDataFilePath = async () => {
+		const selectedPath = await handleSaveDataFile(selectedGame.localpath ?? "");
+		if (selectedPath) {
+			setSaveDataPath(selectedPath);
+		}
+	};
+
 	// 创建备份
 	const handleCreateBackup = async () => {
 		if (!hasSavedGameSavePath) {
-			snackbar.error(
-				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
-			);
+			snackbar.error(t("pages.Detail.Backup.pathRequired", "请先选择存档路径"));
 			return;
 		}
 
@@ -194,9 +204,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 	// 打开存档文件夹
 	const handleOpenSaveDataFolder = async () => {
 		if (!hasSavedGameSavePath) {
-			snackbar.error(
-				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
-			);
+			snackbar.error(t("pages.Detail.Backup.pathRequired", "请先选择存档路径"));
 			return;
 		}
 
@@ -204,7 +212,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 			await openGameSaveDataFolder(originalSaveDataPath);
 		} catch (error) {
 			snackbar.error(
-				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档文件夹失败")}: ${getUserErrorMessage(error, t)}`,
+				`${t("pages.Detail.Backup.openSaveDataFolderFailed", "打开存档位置失败")}: ${getUserErrorMessage(error, t)}`,
 			);
 		}
 	};
@@ -245,9 +253,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 	// 打开恢复确认对话框
 	const handleRestoreClick = (backup: SavedataRecord) => {
 		if (!hasSavedGameSavePath) {
-			snackbar.error(
-				t("pages.Detail.Backup.pathRequired", "请先选择存档文件夹"),
-			);
+			snackbar.error(t("pages.Detail.Backup.pathRequired", "请先选择存档路径"));
 			return;
 		}
 		setBackupToRestore(backup);
@@ -258,12 +264,19 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 	const handleConfirmRestore = async () => {
 		if (!backupToRestore || !hasSavedGameSavePath) return;
 		try {
-			await restoreBackupMutation.mutateAsync({
+			const restoreResult = await restoreBackupMutation.mutateAsync({
 				gameId,
 				backup: backupToRestore,
 				savePath: originalSaveDataPath,
 			});
-			snackbar.success(t("pages.Detail.Backup.restoreSuccess", "存档恢复成功"));
+			snackbar.success(
+				`${t("pages.Detail.Backup.restoreSuccess", "存档恢复成功")}: ${restoreResult.restored_path}`,
+			);
+			if (restoreResult.cleanup_warning) {
+				snackbar.warning(
+					`${t("pages.Detail.Backup.cleanupWarning", "备份清理提示")}: ${restoreResult.cleanup_warning}`,
+				);
+			}
 			setRestoreDialogOpen(false);
 			setBackupToRestore(null);
 		} catch (error) {
@@ -326,21 +339,53 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 								onChange={(e) => setSaveDataPath(e.target.value)}
 								disabled={isSaving}
 								placeholder={t(
-									"pages.Detail.Backup.selectSaveDataFolder",
-									"请选择例如名为 savedata、userdata、save 的文件夹",
+									"pages.Detail.Backup.selectSaveDataPath",
+									"请选择存档文件或文件夹",
 								)}
 								slotProps={{
 									input: {
 										endAdornment: (
 											<InputAdornment position="end">
-												<IconButton
-													onClick={handleSelectSaveDataPath}
-													disabled={isSaving}
-													edge="end"
-													size="small"
-												>
-													<FolderOpenIcon />
-												</IconButton>
+												<Stack direction="row" spacing={0.25}>
+													<Tooltip
+														title={t(
+															"pages.Detail.Backup.selectSaveDataDirectory",
+															"选择存档文件夹",
+														)}
+													>
+														<IconButton
+															onClick={handleSelectSaveDataPath}
+															disabled={isSaving}
+															aria-label={t(
+																"pages.Detail.Backup.selectSaveDataDirectory",
+																"选择存档文件夹",
+															)}
+															edge="end"
+															size="small"
+														>
+															<FolderOpenIcon />
+														</IconButton>
+													</Tooltip>
+													<Tooltip
+														title={t(
+															"pages.Detail.Backup.selectSaveDataFile",
+															"选择存档文件",
+														)}
+													>
+														<IconButton
+															onClick={handleSelectSaveDataFilePath}
+															disabled={isSaving}
+															aria-label={t(
+																"pages.Detail.Backup.selectSaveDataFile",
+																"选择存档文件",
+															)}
+															edge="end"
+															size="small"
+														>
+															<InsertDriveFileOutlinedIcon />
+														</IconButton>
+													</Tooltip>
+												</Stack>
 											</InputAdornment>
 										),
 									},
@@ -417,10 +462,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 									startIcon={<FolderOpenIcon />}
 									sx={{ flex: 1 }}
 								>
-									{t(
-										"pages.Detail.Backup.openSaveDataFolder",
-										"打开存档文件夹",
-									)}
+									{t("pages.Detail.Backup.openSaveDataFolder", "打开存档位置")}
 								</Button>
 							</Stack>
 						</Stack>
@@ -504,6 +546,22 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 											primary={backup.file}
 											secondary={
 												<>
+													<Typography
+														variant="body2"
+														color="textSecondary"
+														component="span"
+													>
+														{isRootedV2Backup(backup.file)
+															? t(
+																	"pages.Detail.Backup.rootedV2Backup",
+																	"新版存档备份",
+																)
+															: t(
+																	"pages.Detail.Backup.legacyDirectoryBackup",
+																	"旧版目录备份",
+																)}
+													</Typography>
+													<br />
 													<Typography
 														variant="body2"
 														color="textSecondary"
