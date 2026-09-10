@@ -42,7 +42,10 @@ use tauri::Manager;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 use tauri_plugin_store::StoreExt;
 use utils::{
-    fs::{copy_file, delete_file, is_portable_mode, open_directory, resolve_dropped_local_path},
+    fs::{
+        copy_file, delete_file, is_portable_mode, open_directory, open_savedata_location,
+        resolve_dropped_local_path,
+    },
     http::{get_system_proxy_status, update_proxy_config},
     image::register_image_proxy_protocol,
     legacy_migration::run_startup_migrations,
@@ -99,6 +102,7 @@ pub fn run() {
             launch_game,
             stop_game,
             open_directory,
+            open_savedata_location,
             resolve_dropped_local_path,
             resolve_bulk_import_paths,
             is_portable_mode,

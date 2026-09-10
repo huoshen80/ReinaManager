@@ -147,6 +147,27 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
     }
 }
 
+/// 单文件存档打开其所在目录；存档已丢失时仍允许用户查看父目录。
+#[command]
+pub async fn open_savedata_location(save_path: String) -> Result<(), String> {
+    let path = Path::new(save_path.trim());
+    if !path.is_absolute() {
+        return Err("存档位置必须是非空绝对路径".to_string());
+    }
+    let location = match fs::metadata(path) {
+        Ok(metadata) if metadata.is_dir() => path,
+        Ok(metadata) if metadata.is_file() => path
+            .parent()
+            .ok_or_else(|| "无法确定存档所在目录".to_string())?,
+        Ok(_) => return Err("存档位置不是普通文件或目录".to_string()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => path
+            .parent()
+            .ok_or_else(|| "无法确定存档所在目录".to_string())?,
+        Err(error) => return Err(format!("读取存档位置失败: {error}")),
+    };
+    open_directory(location.to_string_lossy().into_owned()).await
+}
+
 #[command]
 pub async fn resolve_dropped_local_path(
     dropped_path: String,
