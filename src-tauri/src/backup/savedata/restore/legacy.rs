@@ -42,6 +42,7 @@ pub(super) fn restore<R: Read + Seek>(
     let plan = RestorePlan {
         final_path: target_path.to_path_buf(),
         replace_existing: target_kind.is_some(),
+        restored_to_alternate: false,
     };
     let committed = commit_restored_payload(
         &staging,
@@ -62,6 +63,7 @@ pub(super) fn restore<R: Read + Seek>(
     Ok(RestoreSavedataResult {
         restored_path: target_path.to_string_lossy().into_owned(),
         replaced_existing: plan.replace_existing,
+        restored_to_alternate: false,
         cleanup_warning,
     })
 }

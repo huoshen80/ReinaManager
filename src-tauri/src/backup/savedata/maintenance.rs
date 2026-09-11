@@ -84,17 +84,21 @@ async fn delete_backup_record(
     backup_file_path: &Path,
     backup_id: i32,
 ) -> Option<String> {
-    let mut errors = Vec::new();
-    if let Err(error) = fs::remove_file(backup_file_path) {
-        errors.push(format!(
-            "删除备份文件失败 {}: {error}",
-            backup_file_path.display()
-        ));
+    match fs::remove_file(backup_file_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            // 文件仍存在时保留数据库记录，避免产生无法从界面管理的孤儿归档。
+            return Some(format!(
+                "删除备份文件失败 {}: {error}",
+                backup_file_path.display()
+            ));
+        }
     }
-    if let Err(error) = GamesRepository::delete_savedata_record(db, backup_id).await {
-        errors.push(format!("删除数据库记录失败 (ID: {backup_id}): {error}"));
-    }
-    (!errors.is_empty()).then(|| errors.join("; "))
+    GamesRepository::delete_savedata_record(db, backup_id)
+        .await
+        .err()
+        .map(|error| format!("删除数据库记录失败 (ID: {backup_id}): {error}"))
 }
 
 #[command]
@@ -136,21 +140,23 @@ pub(super) async fn resolve_savedata_backup_root(
 pub(super) async fn cleanup_old_backups(
     db: &DatabaseConnection,
     backup_dir: &Path,
-    game_id: i64,
+    game_id: i32,
+    protected_backup_id: i32,
 ) -> Result<(), String> {
-    let max_backups = GamesRepository::find_by_id(db, game_id as i32)
+    let game = GamesRepository::find_by_id(db, game_id)
         .await
         .map_err(|error| format!("获取游戏信息失败: {error}"))?
-        .and_then(|game| game.maxbackups)
-        .expect("maxbackups should not be null") as usize;
-    let mut records = GamesRepository::get_savedata_records(db, game_id as i32)
+        .ok_or_else(|| format!("游戏不存在: {game_id}"))?;
+    let max_backups = game.maxbackups.unwrap_or(20).max(1) as usize;
+    let mut records = GamesRepository::get_savedata_records(db, game_id)
         .await
         .map_err(|error| format!("获取备份记录失败: {error}"))?;
-    if records.len() < max_backups {
+    if records.len() <= max_backups {
         return Ok(());
     }
-    records.sort_by_key(|record| record.backup_time);
-    let delete_count = records.len() - (max_backups - 1);
+    let delete_count = records.len() - max_backups;
+    records.retain(|record| record.id != protected_backup_id);
+    records.sort_by_key(|record| (record.backup_time, record.id));
     let mut errors = Vec::new();
     for record in &records[..delete_count] {
         let backup_file_path = backup_dir.join(&record.file);

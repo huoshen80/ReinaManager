@@ -11,8 +11,8 @@ pub struct Model {
     pub game_id: i32,
     #[sea_orm(column_type = "Text")]
     pub file: String,
-    pub backup_time: i32,
-    pub file_size: i32,
+    pub backup_time: i64,
+    pub file_size: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

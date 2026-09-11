@@ -1,4 +1,5 @@
 import BackupIcon from "@mui/icons-material/Backup";
+import ClearIcon from "@mui/icons-material/Clear";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
@@ -269,9 +270,22 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 				backup: backupToRestore,
 				savePath: originalSaveDataPath,
 			});
-			snackbar.success(
-				`${t("pages.Detail.Backup.restoreSuccess", "存档恢复成功")}: ${restoreResult.restored_path}`,
-			);
+			if (restoreResult.restored_to_alternate) {
+				snackbar.warning(
+					t(
+						"pages.Detail.Backup.alternateRestoreWarning",
+						"备份名称与当前存档路径不一致。为避免覆盖错误路径，备份已恢复至：{{restoredPath}}。当前配置仍为：{{configuredPath}}，请检查。",
+						{
+							restoredPath: restoreResult.restored_path,
+							configuredPath: originalSaveDataPath,
+						},
+					),
+				);
+			} else {
+				snackbar.success(
+					`${t("pages.Detail.Backup.restoreSuccess", "存档恢复成功")}: ${restoreResult.restored_path}`,
+				);
+			}
 			if (restoreResult.cleanup_warning) {
 				snackbar.warning(
 					`${t("pages.Detail.Backup.cleanupWarning", "备份清理提示")}: ${restoreResult.cleanup_warning}`,
@@ -336,7 +350,6 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 							<TextField
 								fullWidth
 								value={saveDataPath}
-								onChange={(e) => setSaveDataPath(e.target.value)}
 								disabled={isSaving}
 								placeholder={t(
 									"pages.Detail.Backup.selectSaveDataPath",
@@ -344,6 +357,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 								)}
 								slotProps={{
 									input: {
+										readOnly: true,
 										endAdornment: (
 											<InputAdornment position="end">
 												<Stack direction="row" spacing={0.25}>
@@ -383,6 +397,25 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 															size="small"
 														>
 															<InsertDriveFileOutlinedIcon />
+														</IconButton>
+													</Tooltip>
+													<Tooltip
+														title={t(
+															"pages.Detail.Backup.clearSaveDataPath",
+															"清除存档路径",
+														)}
+													>
+														<IconButton
+															onClick={() => setSaveDataPath("")}
+															disabled={isSaving || !saveDataPath}
+															aria-label={t(
+																"pages.Detail.Backup.clearSaveDataPath",
+																"清除存档路径",
+															)}
+															edge="end"
+															size="small"
+														>
+															<ClearIcon />
 														</IconButton>
 													</Tooltip>
 												</Stack>

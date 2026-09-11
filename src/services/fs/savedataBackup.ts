@@ -12,16 +12,7 @@ export async function createGameSavedataBackup(
 	saveDataPath: string,
 ): Promise<{ folder_name: string; backup_time: number; file_size: number }> {
 	try {
-		const backupInfo = await savedataService.createBackup(gameId, saveDataPath);
-
-		await savedataService.saveSavedataRecord(
-			gameId,
-			backupInfo.folder_name,
-			backupInfo.backup_time,
-			backupInfo.file_size,
-		);
-
-		return backupInfo;
+		return await savedataService.createBackup(gameId, saveDataPath);
 	} catch (error) {
 		console.error("创建游戏存档备份失败:", error);
 		throw error;

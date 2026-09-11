@@ -1,5 +1,6 @@
 mod archive;
 mod create;
+mod fs_safety;
 mod maintenance;
 mod restore;
 

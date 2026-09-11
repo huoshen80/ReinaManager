@@ -1,5 +1,6 @@
 use super::inspect::inspect_archive_path;
 use crate::backup::archive::ZSTD_COMPRESSION_LEVEL;
+use crate::backup::savedata::fs_safety::reject_path_redirector;
 use sevenz_rust2::{ArchiveEntry, ArchiveWriter, encoder_options::ZstandardOptions};
 use std::fs::{self, File, OpenOptions};
 use std::path::Path;
@@ -8,7 +9,8 @@ pub(in crate::backup::savedata) fn create_savedata_archive(
     source_path: &Path,
     archive_path: &Path,
 ) -> Result<u64, Box<dyn std::error::Error>> {
-    validate_source_tree(source_path)?;
+    let source_metadata = fs::symlink_metadata(source_path)?;
+    reject_special_metadata(&source_metadata, source_path)?;
     reject_archive_inside_source(source_path, archive_path)?;
     let root_name = source_path
         .file_name()
@@ -27,7 +29,7 @@ pub(in crate::backup::savedata) fn create_savedata_archive(
         writer.set_content_methods(vec![
             ZstandardOptions::from_level(ZSTD_COMPRESSION_LEVEL).into(),
         ]);
-        if source_path.is_dir() {
+        if source_metadata.is_dir() {
             push_directory(&mut writer, source_path, &root_name)
         } else {
             writer
@@ -92,26 +94,9 @@ fn reject_special_metadata(
     metadata: &fs::Metadata,
     path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if metadata.file_type().is_symlink() || (!metadata.is_file() && !metadata.is_dir()) {
-        return Err(format!("存档包含符号链接或特殊文件: {}", path.display()).into());
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        if metadata.file_attributes() & 0x400 != 0 {
-            return Err(format!("存档包含 junction/reparse 文件: {}", path.display()).into());
-        }
-    }
-    Ok(())
-}
-
-fn validate_source_tree(source: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let metadata = fs::symlink_metadata(source)?;
-    reject_special_metadata(&metadata, source)?;
-    if metadata.is_dir() {
-        for entry in fs::read_dir(source)? {
-            validate_source_tree(&entry?.path())?;
-        }
+    reject_path_redirector(metadata, path)?;
+    if !metadata.is_file() && !metadata.is_dir() {
+        return Err(format!("存档包含特殊文件: {}", path.display()).into());
     }
     Ok(())
 }

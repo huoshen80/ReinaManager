@@ -193,20 +193,6 @@ pub async fn update_games_batch(
 
 // ==================== 存档备份相关 ====================
 
-/// 保存存档备份记录
-#[tauri::command]
-pub async fn save_savedata_record(
-    db: State<'_, DatabaseConnection>,
-    game_id: i32,
-    file_name: String,
-    backup_time: i32,
-    file_size: i32,
-) -> Result<i32, String> {
-    GamesRepository::save_savedata_record(&db, game_id, &file_name, backup_time, file_size)
-        .await
-        .map_err(|e| format!("保存存档备份记录失败: {}", e))
-}
-
 /// 获取指定游戏的备份数量
 #[tauri::command]
 pub async fn get_savedata_count(

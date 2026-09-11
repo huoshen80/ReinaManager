@@ -213,7 +213,8 @@ fn reject_entry_kind(entry: &ArchiveEntry) -> Result<(), Box<dyn std::error::Err
     if entry.is_anti_item {
         return Err(format!("存档归档包含 anti-item: {}", entry.name).into());
     }
-    if entry.has_windows_attributes && entry.windows_attributes & (0x400 | 0x40) != 0 {
+    // 自定义解压器只创建普通文件/目录，不会还原归档中的 reparse 属性。
+    if entry.has_windows_attributes && entry.windows_attributes & 0x40 != 0 {
         return Err(format!("存档归档包含特殊文件: {}", entry.name).into());
     }
     if entry.has_windows_attributes {

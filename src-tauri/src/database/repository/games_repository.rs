@@ -1063,8 +1063,8 @@ impl GamesRepository {
         db: &DatabaseConnection,
         game_id: i32,
         file_name: &str,
-        backup_time: i32,
-        file_size: i32,
+        backup_time: i64,
+        file_size: i64,
     ) -> Result<i32, DbErr> {
         let savedata_record = savedata::ActiveModel {
             id: NotSet,

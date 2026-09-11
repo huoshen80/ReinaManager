@@ -35,6 +35,9 @@ pub(super) fn restore<R: Read + Seek>(
     let committed = commit_restored_payload(&payload, &plan, info.root_kind, |source, target| {
         fs::rename(source, target)
     });
+    if committed.is_err() {
+        remove_staging(&staging);
+    }
     let mut cleanup_warning = committed?;
     if let Err(error) = fs::remove_dir_all(&staging)
         && error.kind() != std::io::ErrorKind::NotFound
@@ -52,6 +55,7 @@ pub(super) fn restore<R: Read + Seek>(
     Ok(RestoreSavedataResult {
         restored_path: plan.final_path.to_string_lossy().into_owned(),
         replaced_existing: plan.replace_existing,
+        restored_to_alternate: plan.restored_to_alternate,
         cleanup_warning,
     })
 }
@@ -70,10 +74,11 @@ fn plan_restore(info: &ArchiveSaveInfo, target: &Path) -> Result<RestorePlan, St
         return Err("当前存档与备份类型不一致，拒绝恢复".to_string());
     }
     let parent = target.parent().ok_or("当前存档路径没有父目录")?;
-    if target_name == info.root_name {
+    if save_name_eq(target_name, &info.root_name) {
         return Ok(RestorePlan {
             final_path: target.to_path_buf(),
             replace_existing: target_kind.is_some(),
+            restored_to_alternate: false,
         });
     }
     let alternate = parent.join(&info.root_name);
@@ -85,8 +90,20 @@ fn plan_restore(info: &ArchiveSaveInfo, target: &Path) -> Result<RestorePlan, St
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(RestorePlan {
             final_path: alternate,
             replace_existing: false,
+            restored_to_alternate: true,
         }),
         Err(error) => Err(format!("检查备份原名目标失败: {error}")),
+    }
+}
+
+fn save_name_eq(current: &str, archived: &str) -> bool {
+    #[cfg(windows)]
+    {
+        current.eq_ignore_ascii_case(archived)
+    }
+    #[cfg(not(windows))]
+    {
+        current == archived
     }
 }
 
@@ -108,6 +125,8 @@ fn validate_payload(path: &Path, info: &ArchiveSaveInfo) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::super::service::restore_for_test;
+    #[cfg(windows)]
+    use super::save_name_eq;
     use crate::backup::savedata::archive::create_savedata_archive;
     use std::fs;
     use std::path::PathBuf;
@@ -203,5 +222,11 @@ mod tests {
         assert!(restore_for_test(&archive, &target).is_err());
         assert_eq!(fs::read(&target).unwrap(), b"keep");
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn save_names_follow_windows_ascii_case_semantics() {
+        assert!(save_name_eq("savedata", "SaveData"));
     }
 }

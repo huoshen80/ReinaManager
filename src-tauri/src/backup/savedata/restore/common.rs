@@ -1,4 +1,5 @@
 use super::super::archive::SaveEntryKind;
+use super::super::fs_safety::reject_path_redirector;
 use serde::Serialize;
 use sevenz_rust2::ArchiveReader;
 use std::fs;
@@ -10,12 +11,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct RestoreSavedataResult {
     pub restored_path: String,
     pub replaced_existing: bool,
+    pub restored_to_alternate: bool,
     pub cleanup_warning: Option<String>,
 }
 
 pub(super) struct RestorePlan {
     pub final_path: PathBuf,
     pub replace_existing: bool,
+    pub restored_to_alternate: bool,
 }
 
 pub(super) fn commit_restored_payload(
@@ -73,19 +76,7 @@ pub(super) fn commit_restored_payload(
 pub(super) fn ensure_safe_existing_object(path: &Path) -> Result<SaveEntryKind, String> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|error| format!("读取存档路径失败 {}: {error}", path.display()))?;
-    if metadata.file_type().is_symlink() {
-        return Err(format!("存档路径不能是符号链接: {}", path.display()));
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        if metadata.file_attributes() & 0x400 != 0 {
-            return Err(format!(
-                "存档路径不能是 junction/reparse 对象: {}",
-                path.display()
-            ));
-        }
-    }
+    reject_path_redirector(&metadata, path)?;
     if metadata.is_dir() {
         Ok(SaveEntryKind::Directory)
     } else if metadata.is_file() {
@@ -193,19 +184,8 @@ pub(super) fn extract_archive<R: Read + Seek>(
 pub(super) fn validate_extracted_tree(path: &Path) -> Result<(), String> {
     let metadata =
         fs::symlink_metadata(path).map_err(|error| format!("读取解压内容失败: {error}"))?;
-    if metadata.file_type().is_symlink() {
-        return Err(format!("解压内容包含符号链接: {}", path.display()));
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        if metadata.file_attributes() & 0x400 != 0 {
-            return Err(format!(
-                "解压内容包含 junction/reparse 对象: {}",
-                path.display()
-            ));
-        }
-    }
+    reject_path_redirector(&metadata, path)
+        .map_err(|error| format!("解压内容包含路径重定向对象: {error}"))?;
     if metadata.is_dir() {
         for entry in fs::read_dir(path).map_err(|error| format!("读取解压目录失败: {error}"))?
         {
@@ -244,6 +224,7 @@ mod tests {
             let plan = RestorePlan {
                 final_path: target.clone(),
                 replace_existing: true,
+                restored_to_alternate: false,
             };
             let mut calls = 0;
             let mut old = PathBuf::new();

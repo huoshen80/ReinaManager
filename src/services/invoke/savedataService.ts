@@ -18,6 +18,7 @@ export interface BackupInfo {
 export interface RestoreBackupResult {
 	restored_path: string;
 	replaced_existing: boolean;
+	restored_to_alternate: boolean;
 	cleanup_warning: string | null;
 }
 
@@ -60,23 +61,6 @@ class SavedataService extends BaseService {
 	/** 打开存档位置；文件打开其父目录，目录打开自身。 */
 	async openLocation(savePath: string): Promise<void> {
 		return this.invoke<void>("open_savedata_location", { savePath });
-	}
-
-	/**
-	 * 保存存档备份记录
-	 */
-	async saveSavedataRecord(
-		gameId: number,
-		fileName: string,
-		backupTime: number,
-		fileSize: number,
-	): Promise<number> {
-		return this.invoke<number>("save_savedata_record", {
-			gameId,
-			fileName,
-			backupTime,
-			fileSize,
-		});
 	}
 
 	/**

@@ -145,7 +145,6 @@ pub fn run() {
             get_source_bindings,
             update_games_batch,
             // 存档备份相关 commands
-            save_savedata_record,
             get_savedata_count,
             get_savedata_records,
             // 游戏统计相关 commands
