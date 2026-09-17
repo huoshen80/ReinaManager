@@ -45,6 +45,7 @@ import {
 import { formatDateLabel, getLocalDateString } from "@/utils/dateTime";
 import { getUserErrorMessage } from "@/utils/errors";
 import { formatFileSize } from "@/utils/fileSize";
+import { getSafeLocale } from "@/utils/locale";
 import { getTaskStateLabel } from "@/utils/task";
 
 interface TaskManagerDialogProps {
@@ -309,7 +310,7 @@ export function TaskManagerDialog({ open, onClose }: TaskManagerDialogProps) {
 	const groups = groupTasksByDate(tasks);
 	const getDateLabel = (date: string) =>
 		formatDateLabel(date, {
-			language: i18n.language,
+			language: getSafeLocale(i18n.resolvedLanguage),
 			todayLabel: t("common.today", "今天"),
 			yesterdayLabel: t("common.yesterday", "昨天"),
 		});

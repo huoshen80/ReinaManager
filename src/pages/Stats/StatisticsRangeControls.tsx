@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getSafeLocale } from "@/utils/locale";
 import {
 	formatLocalDate,
 	resolveStatisticsDateRange,
@@ -49,6 +50,7 @@ export function StatisticsRangeControls({
 	onCustomApply,
 }: StatisticsRangeControlsProps) {
 	const { t, i18n } = useTranslation();
+	const locale = getSafeLocale(i18n.resolvedLanguage);
 	const todayDate = formatLocalDate(new Date());
 	const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 	const [draftDates, setDraftDates] = useState(customDates);
@@ -59,20 +61,20 @@ export function StatisticsRangeControls({
 	const todayMonth = todayDate.slice(0, 7);
 	const monthTitle = useMemo(
 		() =>
-			new Intl.DateTimeFormat(i18n.language, {
+			new Intl.DateTimeFormat(locale, {
 				year: "numeric",
 				month: "long",
 			}).format(visibleMonth),
-		[i18n.language, visibleMonth],
+		[locale, visibleMonth],
 	);
 	const weekdayLabels = useMemo(() => {
-		const formatter = new Intl.DateTimeFormat(i18n.language, {
+		const formatter = new Intl.DateTimeFormat(locale, {
 			weekday: "short",
 		});
 		return Array.from({ length: 7 }, (_, index) =>
 			formatter.format(new Date(2026, 7, 2 + index)),
 		);
-	}, [i18n.language]);
+	}, [locale]);
 	const calendarDays = useMemo(() => {
 		const monthStart = new Date(
 			visibleMonth.getFullYear(),

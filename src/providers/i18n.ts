@@ -5,6 +5,7 @@ import en_US from "@/locales/en-US.json";
 import ja_JP from "@/locales/ja-JP.json";
 import zh_CN from "@/locales/zh-CN.json";
 import zh_TW from "@/locales/zh-TW.json";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "@/utils/locale";
 
 const resources = {
 	"zh-CN": {
@@ -21,6 +22,22 @@ const resources = {
 	},
 };
 
+if (typeof window !== "undefined") {
+	try {
+		const cachedLocale = window.localStorage.getItem("i18nextLng");
+		if (
+			cachedLocale &&
+			!SUPPORTED_LOCALES.includes(
+				cachedLocale as (typeof SUPPORTED_LOCALES)[number],
+			)
+		) {
+			window.localStorage.removeItem("i18nextLng");
+		}
+	} catch {
+		// localStorage 不可用时交由语言检测器和 fallbackLng 处理。
+	}
+}
+
 i18n
 	// 检测用户语言
 	.use(LanguageDetector)
@@ -29,7 +46,8 @@ i18n
 	// 初始化i18next
 	.init({
 		resources,
-		fallbackLng: "zh-CN", // 默认语言
+		supportedLngs: [...SUPPORTED_LOCALES],
+		fallbackLng: DEFAULT_LOCALE, // 默认语言
 		interpolation: {
 			escapeValue: false, // 不转义特殊字符
 		},

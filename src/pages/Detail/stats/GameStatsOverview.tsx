@@ -31,6 +31,7 @@ import { useGamePlayStore } from "@/store/gamePlayStore";
 import type { GameSession, GameTimeStats } from "@/types";
 import { formatPlayTime } from "@/utils/dateTime";
 import { getUserErrorMessage } from "@/utils/errors";
+import { getSafeLocale } from "@/utils/locale";
 import { GameSessionCreateDialog } from "./GameSessionCreateDialog";
 import { GameSessionTimeline } from "./GameSessionTimeline";
 import { GameTimeChart } from "./GameTimeChart";
@@ -60,7 +61,8 @@ interface GameStatsOverviewProps {
 export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 	gameID,
 }: GameStatsOverviewProps) => {
-	const { t } = useTranslation();
+	const { i18n, t } = useTranslation();
+	const locale = getSafeLocale(i18n.resolvedLanguage);
 	const runningGameIds = useGamePlayStore((s) => s.runningGameIds);
 	const gameStatsQuery = useGameStats(gameID);
 	const [sessionLimit, setSessionLimit] = useState(SESSION_PAGE_SIZE);
@@ -121,13 +123,13 @@ export const GameStatsOverview: React.FC<GameStatsOverviewProps> = ({
 			const [year, month] = monthStr.split("-").map(Number);
 			const date = new Date(year, month - 1, 1);
 			// 使用Intl.DateTimeFormat进行国际化格式化
-			const formatter = new Intl.DateTimeFormat(t("common.locale", "zh-CN"), {
+			const formatter = new Intl.DateTimeFormat(locale, {
 				year: "numeric",
 				month: "long",
 			});
 			return formatter.format(date);
 		},
-		[t],
+		[locale],
 	);
 
 	// 监听当前游戏的运行状态变化，关闭后自动刷新统计

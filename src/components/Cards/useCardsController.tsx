@@ -10,6 +10,7 @@ import { snackbar } from "@/providers/snackBar";
 import { useStore } from "@/store/appStore";
 import type { GameData } from "@/types";
 import { getGameDisplayName } from "@/utils/game";
+import { getSafeLocale } from "@/utils/locale";
 import { CardsBatchBar } from "./CardsBatchBar";
 import { getCardSortFieldOverlay } from "./cardSortFieldOverlay";
 import { RightMenuHost } from "./RightMenuHost";
@@ -29,6 +30,7 @@ export function useCardsController({
 	enableSortFieldOverlay = false,
 }: UseCardsControllerOptions) {
 	const { i18n, t } = useTranslation();
+	const locale = getSafeLocale(i18n.resolvedLanguage);
 	const navigate = useNavigate();
 	const path = useLocation().pathname;
 	const isLibraries = path === "/libraries";
@@ -173,7 +175,7 @@ export function useCardsController({
 							game,
 							sortOption,
 							lastPlayed: lastPlayedQuery.data?.get(gameId),
-							language: i18n.language,
+							language: locale,
 							t,
 						})
 					: undefined,
@@ -202,7 +204,7 @@ export function useCardsController({
 			handleCardDoubleClick,
 			handleRemoveSingleFromCategory,
 			isCollectionCategory,
-			i18n.language,
+			locale,
 			lastPlayedQuery.data,
 			shouldShowCardSortFieldOverlay,
 			selectedBatchGameIdSet,

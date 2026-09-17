@@ -26,6 +26,7 @@ import {
 	type Category as CategoryType,
 	DefaultGroup,
 } from "@/types/collection";
+import { getSafeLocale } from "@/utils/locale";
 import {
 	CollectionBreadcrumbs,
 	type CollectionLevel,
@@ -46,6 +47,7 @@ import { useCollectionNavigation } from "./useCollectionNavigation";
 
 export const Collection: React.FC = () => {
 	const { i18n, t } = useTranslation();
+	const locale = getSafeLocale(i18n.resolvedLanguage);
 	useScrollRestore("/collection");
 	const {
 		currentGroupId,
@@ -188,23 +190,23 @@ export const Collection: React.FC = () => {
 		showLevel === "categories" && currentGroupId === DefaultGroup.DEVELOPER;
 	const collator = useMemo(
 		() =>
-			new Intl.Collator(i18n.resolvedLanguage, {
+			new Intl.Collator(locale, {
 				numeric: true,
 				sensitivity: "base",
 			}),
-		[i18n.resolvedLanguage],
+		[locale],
 	);
 	const normalizedGroupSearch = normalizeCollectionSearch(
 		deferredGroupSearch,
-		i18n.resolvedLanguage,
+		locale,
 	);
 	const normalizedCategorySearch = normalizeCollectionSearch(
 		deferredCategorySearch,
-		i18n.resolvedLanguage,
+		locale,
 	);
 	const normalizedDeveloperSearch = normalizeCollectionSearch(
 		deferredDeveloperSearch,
-		i18n.resolvedLanguage,
+		locale,
 	);
 	const filteredDeveloperCategories = useMemo(
 		() =>
@@ -213,18 +215,14 @@ export const Collection: React.FC = () => {
 					matchesCollectionSearch(
 						category.name,
 						normalizedDeveloperSearch,
-						i18n.resolvedLanguage,
+						locale,
 					),
 				)
 				.map((category) => ({
 					...category,
 					stableKey: category.virtualKey ?? category.name,
 				})),
-		[
-			i18n.resolvedLanguage,
-			normalizedDeveloperSearch,
-			virtualCategories.developerCategories,
-		],
+		[locale, normalizedDeveloperSearch, virtualCategories.developerCategories],
 	);
 	const filteredRealCategories = useMemo(
 		() =>
@@ -232,10 +230,10 @@ export const Collection: React.FC = () => {
 				matchesCollectionSearch(
 					category.name,
 					normalizedCategorySearch,
-					i18n.resolvedLanguage,
+					locale,
 				),
 			),
-		[currentCategories, i18n.resolvedLanguage, normalizedCategorySearch],
+		[currentCategories, locale, normalizedCategorySearch],
 	);
 	const categories = useMemo((): CategoryType[] => {
 		if (currentGroupId === DefaultGroup.DEVELOPER) {
@@ -269,18 +267,14 @@ export const Collection: React.FC = () => {
 		() =>
 			groups
 				.filter((group) =>
-					matchesCollectionSearch(
-						group.name,
-						normalizedGroupSearch,
-						i18n.resolvedLanguage,
-					),
+					matchesCollectionSearch(group.name, normalizedGroupSearch, locale),
 				)
 				.map((group) => ({
 					id: group.id.toString(),
 					name: group.name,
 					game_count: group.game_count,
 				})),
-		[groups, i18n.resolvedLanguage, normalizedGroupSearch],
+		[groups, locale, normalizedGroupSearch],
 	);
 	const customGroups = useMemo(
 		() =>
@@ -300,7 +294,7 @@ export const Collection: React.FC = () => {
 	const showDeveloperGroup = matchesCollectionSearch(
 		developerGroupName,
 		normalizedGroupSearch,
-		i18n.resolvedLanguage,
+		locale,
 	);
 	const allGroups = [
 		...(showDeveloperGroup

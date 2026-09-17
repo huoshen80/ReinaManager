@@ -1,4 +1,5 @@
 import i18next from "i18next";
+import { getSafeLocale } from "@/utils/locale";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -58,7 +59,7 @@ export function formatDateLabel(
 		return `${yesterdayLabel} ${formatTime(date)}`;
 	}
 
-	return new Intl.DateTimeFormat(language, {
+	return new Intl.DateTimeFormat(getSafeLocale(language), {
 		year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
 		month: "long",
 		day: "numeric",
