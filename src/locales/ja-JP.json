@@ -262,10 +262,10 @@
 		},
 		"PathInput": {
 			"available": "パスは使用可能です",
-			"linuxHint": "パス先頭の $VAR、${VAR}、~/... に対応しています",
+			"linuxHint": "パス先頭の $VAR、${VAR}、~/... に対応しています。途中の変数は文字列として扱われます",
 			"missing": "現在このパスは存在しません",
 			"resolvedPath": "実際の場所：{{path}}",
-			"windowsHint": "パス先頭の %VAR%\\... に対応しています",
+			"windowsHint": "パス先頭の %VAR%\\... に対応しています。途中の変数は文字列として扱われます",
 			"wrongType": "パスの種類がこの項目と一致しません"
 		},
 		"PathSettingsModal": {

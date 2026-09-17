@@ -272,10 +272,10 @@
 		},
 		"PathInput": {
 			"available": "Path is available",
-			"linuxHint": "Supports $VAR, ${VAR}, and ~/... at the start of a path",
+			"linuxHint": "Supports $VAR, ${VAR}, and ~/... at the start; variables in the middle are treated literally",
 			"missing": "The path does not currently exist",
 			"resolvedPath": "Resolved location: {{path}}",
-			"windowsHint": "Supports %VAR%\\... at the start of a path",
+			"windowsHint": "Supports %VAR%\\... at the start; variables in the middle are treated literally",
 			"wrongType": "The path type does not match this field"
 		},
 		"PathSettingsModal": {

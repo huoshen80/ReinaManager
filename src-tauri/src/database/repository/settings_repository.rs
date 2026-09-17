@@ -2,6 +2,7 @@ use crate::database::dto::UpdateSettingsData;
 use crate::entity::prelude::*;
 use crate::entity::user;
 use crate::entity::user::Model;
+use crate::utils::fs::validate_configured_user_path;
 use sea_orm::*;
 
 /// 用户设置仓库
@@ -60,6 +61,19 @@ impl SettingsRepository {
         data: UpdateSettingsData,
     ) -> Result<(), DbErr> {
         let data = data.cleaned(); // 清洗空字符串
+
+        for path in [
+            data.save_root_path.as_ref().and_then(Option::as_deref),
+            data.db_backup_path.as_ref().and_then(Option::as_deref),
+            data.install_root_path.as_ref().and_then(Option::as_deref),
+            data.le_path.as_ref().and_then(Option::as_deref),
+            data.magpie_path.as_ref().and_then(Option::as_deref),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            validate_configured_user_path(path).map_err(DbErr::Custom)?;
+        }
 
         Self::ensure_user_exists(db).await?;
 

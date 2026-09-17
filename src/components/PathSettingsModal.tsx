@@ -36,6 +36,7 @@ import { dirname } from "pathe";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PathInput } from "@/components/PathInput";
+import { useUserPathInspection } from "@/hooks/common/useUserPathInspection";
 import { useAllSettings, useUpdateSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
 import { handleExeFile, handleFolder } from "@/services/fs/fileDialog";
@@ -59,6 +60,14 @@ interface PathSettingsDraft {
 	lePath: string;
 	magpiePath: string;
 	dbBackupPath: string;
+}
+
+function getErrorCode(error: unknown): string | undefined {
+	if (error && typeof error === "object" && "code" in error) {
+		const code = (error as { code?: unknown }).code;
+		return typeof code === "string" ? code : undefined;
+	}
+	return undefined;
 }
 
 const EMPTY_DRAFT: PathSettingsDraft = {
@@ -88,6 +97,20 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const isSubmittingRef = useRef(false);
 	const { data: settingsData, isPending } = useAllSettings({ enabled: open });
 	const updateSettingsMutation = useUpdateSettings();
+	const installRootInspection = useUserPathInspection(
+		draft.installRootPath,
+		inSettingsPage,
+	);
+	const savePathInspection = useUserPathInspection(
+		draft.savePath,
+		inSettingsPage,
+	);
+	const lePathInspection = useUserPathInspection(draft.lePath);
+	const magpiePathInspection = useUserPathInspection(draft.magpiePath);
+	const dbBackupPathInspection = useUserPathInspection(
+		draft.dbBackupPath,
+		inSettingsPage,
+	);
 
 	const initDraft = useCallback(
 		(settings: NonNullable<typeof settingsData>) => {
@@ -137,6 +160,21 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 			nextDraft.dbBackupPath !== previousDraft.dbBackupPath;
 
 		if (!isDirty || isSubmittingRef.current) return !isSubmittingRef.current;
+
+		const inspectedPaths = [
+			[nextDraft.installRootPath, installRootInspection],
+			[nextDraft.savePath, savePathInspection],
+			[nextDraft.lePath, lePathInspection],
+			[nextDraft.magpiePath, magpiePathInspection],
+			[nextDraft.dbBackupPath, dbBackupPathInspection],
+		] as const;
+		const hasBlockingPathError = inspectedPaths.some(([value, state]) => {
+			if (state.inspectedValue !== value.trim()) return false;
+			return ["path_not_absolute", "path_variable_syntax"].includes(
+				getErrorCode(state.error) ?? "",
+			);
+		});
+		if (hasBlockingPathError) return false;
 
 		try {
 			isSubmittingRef.current = true;
@@ -302,6 +340,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								</Typography>
 								<PathInput
 									pathType="directory"
+									inspectionState={installRootInspection}
 									variant="outlined"
 									value={draft.installRootPath}
 									onChange={(value) => updateDraft("installRootPath", value)}
@@ -360,6 +399,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								</Typography>
 								<PathInput
 									pathType="directory"
+									inspectionState={savePathInspection}
 									variant="outlined"
 									value={draft.savePath}
 									onChange={(value) => updateDraft("savePath", value)}
@@ -416,6 +456,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								</Typography>
 								<PathInput
 									pathType="directory"
+									inspectionState={dbBackupPathInspection}
 									variant="outlined"
 									value={draft.dbBackupPath}
 									onChange={(value) => updateDraft("dbBackupPath", value)}
@@ -473,6 +514,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 						</Typography>
 						<PathInput
 							pathType="file"
+							inspectionState={lePathInspection}
 							variant="outlined"
 							value={draft.lePath}
 							onChange={(value) => updateDraft("lePath", value)}
@@ -529,6 +571,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 						</Typography>
 						<PathInput
 							pathType="file"
+							inspectionState={magpiePathInspection}
 							variant="outlined"
 							value={draft.magpiePath}
 							onChange={(value) => updateDraft("magpiePath", value)}

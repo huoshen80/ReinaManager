@@ -68,24 +68,38 @@ pub fn normalize_install_root_path(value: &str) -> Result<PathBuf, String> {
     reina_path::resolve_user_path(value).map_err(|error| error.to_string())
 }
 
+/// 校验用户配置路径，但保留尚未在当前机器定义的变量表达式。
+pub fn validate_configured_user_path(value: &str) -> Result<(), String> {
+    match reina_path::resolve_user_path(value) {
+        Ok(_) | Err(reina_path::PathResolveError::UndefinedVariable(_)) => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
 #[command]
-pub fn inspect_user_path(path: String) -> Result<UserPathInspection, UserPathCommandError> {
+pub async fn inspect_user_path(path: String) -> Result<UserPathInspection, UserPathCommandError> {
     let resolved = reina_path::resolve_user_path(&path)?;
-    let kind = match fs::metadata(&resolved) {
-        Ok(metadata) if metadata.is_file() => UserPathKind::File,
-        Ok(metadata) if metadata.is_dir() => UserPathKind::Directory,
-        Ok(_) => UserPathKind::Other,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => UserPathKind::Missing,
-        Err(error) => {
-            return Err(UserPathCommandError {
-                code: "path_inspection_failed".to_string(),
-                message: "无法读取路径状态".to_string(),
-                detail: format!("{}: {error}", resolved.display()),
-            });
-        }
-    };
+    let resolved_path = resolved.to_string_lossy().into_owned();
+    let error_path = resolved_path.clone();
+    let kind = tokio::task::spawn_blocking(move || match fs::metadata(&resolved) {
+        Ok(metadata) if metadata.is_file() => Ok(UserPathKind::File),
+        Ok(metadata) if metadata.is_dir() => Ok(UserPathKind::Directory),
+        Ok(_) => Ok(UserPathKind::Other),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(UserPathKind::Missing),
+        Err(error) => Err(UserPathCommandError {
+            code: "path_inspection_failed".to_string(),
+            message: "无法读取路径状态".to_string(),
+            detail: format!("{error_path}: {error}"),
+        }),
+    })
+    .await
+    .map_err(|error| UserPathCommandError {
+        code: "path_inspection_failed".to_string(),
+        message: "无法读取路径状态".to_string(),
+        detail: error.to_string(),
+    })??;
     Ok(UserPathInspection {
-        resolved_path: resolved.to_string_lossy().into_owned(),
+        resolved_path,
         kind,
     })
 }
@@ -546,7 +560,7 @@ pub async fn delete_file(file_path: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_install_root_path;
+    use super::{normalize_install_root_path, validate_configured_user_path};
     use std::path::PathBuf;
 
     #[test]
@@ -566,5 +580,20 @@ mod tests {
             normalize_install_root_path(&format!("  {root}/.  ")),
             Ok(PathBuf::from(root))
         );
+    }
+
+    #[test]
+    fn configured_path_allows_undefined_variable() {
+        #[cfg(windows)]
+        let path = r"%REINA_TEST_UNDEFINED%\Games";
+        #[cfg(not(windows))]
+        let path = "$REINA_TEST_UNDEFINED/Games";
+
+        assert!(validate_configured_user_path(path).is_ok());
+    }
+
+    #[test]
+    fn configured_path_rejects_relative_path() {
+        assert!(validate_configured_user_path("games").is_err());
     }
 }

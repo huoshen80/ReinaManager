@@ -106,11 +106,7 @@ mod win_elevated_launch {
     }
 }
 
-async fn resolve_tool_path(
-    _db: &DatabaseConnection,
-    path: Option<&str>,
-    tool_kind: ToolPathKind,
-) -> Result<String, String> {
+fn resolve_tool_path(path: Option<&str>, tool_kind: ToolPathKind) -> Result<String, String> {
     let Some(path) = path.filter(|value| !value.trim().is_empty()) else {
         return Err(format!("{}路径未设置，请先配置路径", tool_kind.label()));
     };
@@ -183,22 +179,18 @@ async fn launch_game_inner<R: Runtime>(
         )?;
         let magpie_path = if game.magpie.unwrap_or(0) == 1 {
             match db.inner().get_settings().await {
-                Ok(settings) => match resolve_tool_path(
-                    db.inner(),
-                    settings.magpie_path_value(),
-                    ToolPathKind::Magpie,
-                )
-                .await
-                {
-                    Ok(path) => Some(path),
-                    Err(error) => {
-                        warn!(
-                            "Steam 已启动，但 Magpie 配置不可用 game_id={}: {}",
-                            game_id, error
-                        );
-                        None
+                Ok(settings) => {
+                    match resolve_tool_path(settings.magpie_path_value(), ToolPathKind::Magpie) {
+                        Ok(path) => Some(path),
+                        Err(error) => {
+                            warn!(
+                                "Steam 已启动，但 Magpie 配置不可用 game_id={}: {}",
+                                game_id, error
+                            );
+                            None
+                        }
                     }
-                },
+                }
                 Err(error) => {
                     warn!(
                         "Steam 已启动，但读取 Magpie 配置失败 game_id={}: {}",
@@ -249,27 +241,19 @@ async fn launch_game_inner<R: Runtime>(
         None
     };
     let le_path = if use_le {
-        Some(
-            resolve_tool_path(
-                db.inner(),
-                settings.as_ref().and_then(|s| s.le_path_value()),
-                ToolPathKind::Le,
-            )
-            .await?,
-        )
+        Some(resolve_tool_path(
+            settings.as_ref().and_then(|s| s.le_path_value()),
+            ToolPathKind::Le,
+        )?)
     } else {
         None
     };
 
     let magpie_path = if use_magpie {
-        Some(
-            resolve_tool_path(
-                db.inner(),
-                settings.as_ref().and_then(|s| s.magpie_path_value()),
-                ToolPathKind::Magpie,
-            )
-            .await?,
-        )
+        Some(resolve_tool_path(
+            settings.as_ref().and_then(|s| s.magpie_path_value()),
+            ToolPathKind::Magpie,
+        )?)
     } else {
         None
     };

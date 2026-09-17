@@ -138,13 +138,20 @@ pub(super) async fn resolve_savedata_backup_root(
 ) -> Result<PathBuf, String> {
     use crate::database::repository::settings_repository::DbSettingsExt;
     let settings = db.get_settings().await?;
-    Ok(if let Some(custom) = settings.save_root_path_value() {
-        reina_path::resolve_user_path(custom)
-            .map_err(|error| format!("游戏存档备份根目录解析失败: {error}"))?
-            .join("backups")
-    } else {
-        reina_path::get_base_data_dir()?.join("backups")
-    })
+    let Some(custom) = settings.save_root_path_value() else {
+        return reina_path::get_default_savedata_backup_path();
+    };
+
+    match reina_path::resolve_user_path(custom) {
+        Ok(path) => Ok(path.join("backups")),
+        Err(error) => {
+            log::warn!(
+                "自定义存档备份根目录解析失败，保留配置并回退默认目录: configured={}, error={error}",
+                custom
+            );
+            reina_path::get_default_savedata_backup_path()
+        }
+    }
 }
 
 #[command]

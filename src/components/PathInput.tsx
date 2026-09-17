@@ -111,16 +111,23 @@ export function PathInput({
 			value={value}
 			onChange={(event) => onChange(event.target.value)}
 			error={hasError}
-			helperText={status ?? helperText ?? variableHint}
+			helperText={
+				status ??
+				helperText ??
+				(isLoading ? (
+					<Box component="span" className="inline-flex items-center gap-1">
+						<CircularProgress size={14} />
+						{variableHint}
+					</Box>
+				) : (
+					variableHint
+				))
+			}
 			slotProps={{
 				...slotProps,
 				input: {
 					...slotProps?.input,
-					endAdornment: isLoading ? (
-						<CircularProgress size={18} />
-					) : (
-						endAdornment
-					),
+					endAdornment,
 				},
 			}}
 		/>

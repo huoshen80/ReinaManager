@@ -176,7 +176,12 @@ export const GameLaunchSettings: React.FC<GameLaunchSettingsProps> = ({
 							onChange={(_, value) =>
 								steam.actions.handleLaunchTypeChange(value)
 							}
-							disabled={isLoading || disabled || steam.dialog.scanning}
+							disabled={
+								isLoading ||
+								disabled ||
+								steam.dialog.scanning ||
+								localPathInspection.isLoading
+							}
 							aria-label={t("pages.Detail.GameInfoEdit.launchType", "启动方式")}
 							size="small"
 							fullWidth

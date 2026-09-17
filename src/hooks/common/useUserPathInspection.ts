@@ -7,12 +7,14 @@ export interface UserPathInspectionState {
 	inspection: UserPathInspection | null;
 	error: unknown;
 	isLoading: boolean;
+	inspectedValue: string;
 }
 
 const EMPTY_STATE: UserPathInspectionState = {
 	inspection: null,
 	error: null,
 	isLoading: false,
+	inspectedValue: "",
 };
 
 /** 对用户配置路径做轻量预览，不把输入过程写入全局查询缓存。 */
@@ -25,23 +27,47 @@ export function useUserPathInspection(
 	const [state, setState] = useState<UserPathInspectionState>(EMPTY_STATE);
 
 	useEffect(() => {
+		const nextValue = value.trim();
+		++requestIdRef.current;
+		if (!enabled || !nextValue) {
+			setState(EMPTY_STATE);
+			return;
+		}
+		setState({
+			inspection: null,
+			error: null,
+			isLoading: true,
+			inspectedValue: nextValue,
+		});
+	}, [value, enabled]);
+
+	useEffect(() => {
 		const requestId = ++requestIdRef.current;
 		if (!enabled || !debouncedValue) {
 			setState(EMPTY_STATE);
 			return;
 		}
 
-		setState((current) => ({ ...current, error: null, isLoading: true }));
 		void fileService
 			.inspectUserPath(debouncedValue)
 			.then((inspection) => {
 				if (requestId === requestIdRef.current) {
-					setState({ inspection, error: null, isLoading: false });
+					setState({
+						inspection,
+						error: null,
+						isLoading: false,
+						inspectedValue: debouncedValue,
+					});
 				}
 			})
 			.catch((error: unknown) => {
 				if (requestId === requestIdRef.current) {
-					setState({ inspection: null, error, isLoading: false });
+					setState({
+						inspection: null,
+						error,
+						isLoading: false,
+						inspectedValue: debouncedValue,
+					});
 				}
 			});
 	}, [debouncedValue, enabled]);

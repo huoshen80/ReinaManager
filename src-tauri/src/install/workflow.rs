@@ -14,7 +14,7 @@ use crate::database::repository::games_repository::GamesRepository;
 use crate::entity::{game_sources, games, tasks};
 use crate::game::scan::scan_executable_candidates;
 use crate::install::protocol::InstallRequest;
-use crate::utils::fs::validate_executable_name;
+use crate::utils::fs::{normalize_install_root_path, validate_executable_name};
 use sea_orm::*;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
@@ -246,13 +246,19 @@ pub(crate) fn parse_game_install_payload(
         .map_err(|error| TaskFailure::new("invalid_payload", error.to_string()))?;
     match payload.request.v {
         1 => {
-            payload.install_root()?;
+            let install_root = payload
+                .configured_install_root
+                .as_deref()
+                .map(normalize_install_root_path)
+                .transpose()
+                .map_err(|message| TaskFailure::new("install_root_failed", message))?
+                .unwrap_or(payload.install_root()?);
             Ok(GameInstallTaskPayloadV1 {
                 request: payload
                     .request
                     .validate()
                     .map_err(|message| TaskFailure::new("invalid_payload", message))?,
-                install_root: payload.install_root,
+                install_root: install_root.to_string_lossy().into_owned(),
                 configured_install_root: payload.configured_install_root,
             })
         }

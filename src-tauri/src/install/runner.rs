@@ -6,7 +6,8 @@ use super::{
         set_task_cancelled, set_task_paused, set_task_stage,
     },
     types::{
-        GAME_INSTALL_TASK_TYPE, GameInstallResultV1, TaskControl, TaskFailure, TaskRuntimeState,
+        GAME_INSTALL_TASK_TYPE, GameInstallResultV1, GameInstallTaskPayloadV1, TaskControl,
+        TaskFailure, TaskRuntimeState,
     },
     workflow::{
         emit_game_install_failed, game_directory_name, parse_game_install_payload,
@@ -17,8 +18,9 @@ use crate::entity::tasks;
 use crate::install::archive::{
     ArchiveError, collapse_single_directory_layers, extract_archive, move_game_root,
 };
+use crate::utils::fs::normalize_install_root_path;
 use sea_orm::DatabaseConnection;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use tauri::Manager;
 use tokio::sync::{Semaphore, SemaphorePermit, watch};
@@ -154,6 +156,8 @@ async fn run_game_install_task(
     if let Some(result) = parse_game_install_result(&task)?
         && Path::new(&result.install_path).is_dir()
     {
+        let result = relocate_completed_install(&payload, result).await?;
+        save_game_install_result(db, task.id, &result).await?;
         prepare_game_import(app, db, &task, request, result, control).await?;
         cleanup_task_artifacts(&payload, task.id).await;
         return Ok(());
@@ -256,18 +260,81 @@ async fn run_game_install_task(
     .map_err(|error| TaskFailure::new("organize_task_failed", error.to_string()))?
     .map_err(|message| TaskFailure::new("organize_failed", message))?;
     let directory_name = game_directory_name(&game_root, &staging, request, task.id);
+    let current_install_root = payload
+        .configured_install_root
+        .as_deref()
+        .map(normalize_install_root_path)
+        .transpose()
+        .map_err(|message| TaskFailure::new("install_root_failed", message))?
+        .unwrap_or(install_root.clone());
+    if current_install_root != install_root {
+        log::info!(
+            "安装任务检测到安装根目录变化，使用最新解析结果 task_id={} old={} new={}",
+            task.id,
+            install_root.display(),
+            current_install_root.display()
+        );
+    }
+    let effective_payload = GameInstallTaskPayloadV1 {
+        request: payload.request.clone(),
+        install_root: current_install_root.to_string_lossy().into_owned(),
+        configured_install_root: payload.configured_install_root.clone(),
+    };
     let final_root = tokio::task::spawn_blocking({
-        let install_root = install_root.clone();
+        let install_root = current_install_root.clone();
         move || move_game_root(&game_root, &install_root, &directory_name, task.id)
     })
     .await
     .map_err(|error| TaskFailure::new("organize_task_failed", error.to_string()))?
     .map_err(|message| TaskFailure::new("organize_failed", message))?;
-    let configured_install_path = payload.configured_path_for(&final_root)?;
+    let configured_install_path = effective_payload.configured_path_for(&final_root)?;
     let result = GameInstallResultV1::partial(&final_root, configured_install_path, None);
     // 先保存正式目录 checkpoint；应用崩溃后可跳过下载和解压，从扫描阶段恢复。
     save_game_install_result(db, task.id, &result).await?;
     prepare_game_import(app, db, &task, request, result, control).await?;
     cleanup_task_artifacts(&payload, task.id).await;
+    if effective_payload.install_root != payload.install_root {
+        cleanup_task_artifacts(&effective_payload, task.id).await;
+    }
     Ok(())
+}
+
+async fn relocate_completed_install(
+    payload: &GameInstallTaskPayloadV1,
+    mut result: GameInstallResultV1,
+) -> Result<GameInstallResultV1, TaskFailure> {
+    let install_root = payload.install_root()?;
+    let install_path = PathBuf::from(&result.install_path);
+    let is_in_current_root = install_path
+        .parent()
+        .is_some_and(|parent| parent == install_root);
+    if is_in_current_root {
+        return Ok(result);
+    }
+
+    let directory_name = install_path.file_name().ok_or_else(|| {
+        TaskFailure::new("install_path_invalid", "已整理的游戏目录缺少有效目录名")
+    })?;
+    let target_path = install_root.join(directory_name);
+    if target_path.exists() {
+        return Err(TaskFailure::new(
+            "install_path_conflict",
+            format!("最新安装根目录中已存在目标目录: {}", target_path.display()),
+        ));
+    }
+    tokio::fs::create_dir_all(&install_root)
+        .await
+        .map_err(|error| TaskFailure::new("install_root_failed", error.to_string()))?;
+    tokio::fs::rename(&install_path, &target_path)
+        .await
+        .map_err(|error| TaskFailure::new("install_path_relocate_failed", error.to_string()))?;
+
+    result.install_path = target_path.to_string_lossy().into_owned();
+    result.configured_install_path = payload.configured_path_for(&target_path)?;
+    log::info!(
+        "安装任务恢复时迁移已整理目录 old={} new={}",
+        install_path.display(),
+        target_path.display()
+    );
+    Ok(result)
 }

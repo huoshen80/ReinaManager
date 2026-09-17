@@ -146,7 +146,18 @@ pub async fn retry_task(
     }
     let updated_payload = GameInstallTaskPayloadV1 {
         request: request.clone(),
-        install_root: stored_payload.install_root.clone(),
+        install_root: stored_payload
+            .configured_install_root
+            .as_deref()
+            .map(normalize_install_root_path)
+            .transpose()?
+            .unwrap_or(
+                stored_payload
+                    .install_root()
+                    .map_err(|failure| failure.message)?,
+            )
+            .to_string_lossy()
+            .into_owned(),
         configured_install_root: stored_payload.configured_install_root.clone(),
     };
     let previous_download_path = stored_payload
