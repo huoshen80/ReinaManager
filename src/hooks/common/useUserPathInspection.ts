@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { useDebouncedValue } from "@/hooks/common/useDebouncedValue";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fileService } from "@/services/invoke";
 import type { UserPathInspection } from "@/services/invoke/fileService";
 
@@ -8,6 +7,11 @@ export interface UserPathInspectionState {
 	error: unknown;
 	isLoading: boolean;
 	inspectedValue: string;
+}
+
+export interface UserPathInspectionControls extends UserPathInspectionState {
+	inspect: (value?: string) => Promise<void>;
+	markEditing: (value: string) => void;
 }
 
 const EMPTY_STATE: UserPathInspectionState = {
@@ -21,56 +25,100 @@ const EMPTY_STATE: UserPathInspectionState = {
 export function useUserPathInspection(
 	value: string,
 	enabled = true,
-): UserPathInspectionState {
-	const debouncedValue = useDebouncedValue(value.trim(), 300);
+): UserPathInspectionControls {
 	const requestIdRef = useRef(0);
+	const previousValueRef = useRef<string>();
+	const expectedEditedValueRef = useRef<string | null>(null);
+	const inFlightRequestRef = useRef<{
+		value: string;
+		promise: Promise<void>;
+	} | null>(null);
 	const [state, setState] = useState<UserPathInspectionState>(EMPTY_STATE);
+
+	const inspect = useCallback(
+		async (requestedValue = value) => {
+			const inspectedValue = requestedValue.trim();
+			if (!enabled || !inspectedValue) {
+				++requestIdRef.current;
+				inFlightRequestRef.current = null;
+				setState(EMPTY_STATE);
+				return;
+			}
+
+			const inFlightRequest = inFlightRequestRef.current;
+			if (inFlightRequest?.value === inspectedValue) {
+				await inFlightRequest.promise;
+				return;
+			}
+
+			const requestId = ++requestIdRef.current;
+			setState({
+				inspection: null,
+				error: null,
+				isLoading: true,
+				inspectedValue,
+			});
+			const promise = (async () => {
+				try {
+					const inspection = await fileService.inspectUserPath(inspectedValue);
+					if (requestId === requestIdRef.current) {
+						setState({
+							inspection,
+							error: null,
+							isLoading: false,
+							inspectedValue,
+						});
+					}
+				} catch (error: unknown) {
+					if (requestId === requestIdRef.current) {
+						setState({
+							inspection: null,
+							error,
+							isLoading: false,
+							inspectedValue,
+						});
+					}
+				}
+			})();
+			inFlightRequestRef.current = { value: inspectedValue, promise };
+			await promise;
+			if (inFlightRequestRef.current?.promise === promise) {
+				inFlightRequestRef.current = null;
+			}
+		},
+		[enabled, value],
+	);
+
+	const markEditing = useCallback((nextValue: string) => {
+		expectedEditedValueRef.current = nextValue.trim();
+		++requestIdRef.current;
+		inFlightRequestRef.current = null;
+		setState({
+			...EMPTY_STATE,
+			inspectedValue: nextValue.trim(),
+		});
+	}, []);
 
 	useEffect(() => {
 		const nextValue = value.trim();
-		++requestIdRef.current;
+		const previousValue = previousValueRef.current;
+		previousValueRef.current = nextValue;
+
 		if (!enabled || !nextValue) {
-			setState(EMPTY_STATE);
-			return;
-		}
-		setState({
-			inspection: null,
-			error: null,
-			isLoading: true,
-			inspectedValue: nextValue,
-		});
-	}, [value, enabled]);
-
-	useEffect(() => {
-		const requestId = ++requestIdRef.current;
-		if (!enabled || !debouncedValue) {
+			expectedEditedValueRef.current = null;
+			++requestIdRef.current;
 			setState(EMPTY_STATE);
 			return;
 		}
 
-		void fileService
-			.inspectUserPath(debouncedValue)
-			.then((inspection) => {
-				if (requestId === requestIdRef.current) {
-					setState({
-						inspection,
-						error: null,
-						isLoading: false,
-						inspectedValue: debouncedValue,
-					});
-				}
-			})
-			.catch((error: unknown) => {
-				if (requestId === requestIdRef.current) {
-					setState({
-						inspection: null,
-						error,
-						isLoading: false,
-						inspectedValue: debouncedValue,
-					});
-				}
-			});
-	}, [debouncedValue, enabled]);
+		if (expectedEditedValueRef.current === nextValue) {
+			expectedEditedValueRef.current = null;
+			return;
+		}
+		if (previousValue === nextValue && previousValue !== undefined) return;
+		expectedEditedValueRef.current = null;
+		void inspect(nextValue);
+	}, [enabled, inspect, value]);
 
-	return state;
+	return { ...state, inspect, markEditing };
 }

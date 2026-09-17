@@ -272,10 +272,11 @@
 		},
 		"PathInput": {
 			"available": "Path is available",
-			"linuxHint": "Supports $VAR, ${VAR}, and ~/... at the start; variables in the middle are treated literally",
+			"inspecting": "Checking path…",
+			"linuxHint": "At the start, you can use $HOME, ${HOME}, or ~, for example $HOME/Games",
 			"missing": "The path does not currently exist",
 			"resolvedPath": "Resolved location: {{path}}",
-			"windowsHint": "Supports %VAR%\\... at the start; variables in the middle are treated literally",
+			"windowsHint": "At the start, you can use environment variables such as %USERPROFILE%, for example %USERPROFILE%\\Games",
 			"wrongType": "The path type does not match this field"
 		},
 		"PathSettingsModal": {

@@ -262,10 +262,11 @@
 		},
 		"PathInput": {
 			"available": "路径可用",
-			"linuxHint": "支持路径开头的 $VAR、${VAR} 和 ~/...，路径中间的变量按字面量处理",
+			"inspecting": "正在检查路径…",
+			"linuxHint": "路径开头可以使用 $HOME、${HOME} 或 ~，例如 $HOME/Games",
 			"missing": "当前路径不存在",
 			"resolvedPath": "实际位置：{{path}}",
-			"windowsHint": "支持路径开头的 %VAR%\\...，路径中间的变量按字面量处理",
+			"windowsHint": "路径开头可以使用 %USERPROFILE% 等环境变量，例如 %USERPROFILE%\\Games",
 			"wrongType": "路径类型不符合当前字段要求"
 		},
 		"PathSettingsModal": {

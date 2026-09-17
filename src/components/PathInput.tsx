@@ -3,7 +3,7 @@ import type { TextFieldProps } from "@mui/material/TextField";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
-	type UserPathInspectionState,
+	type UserPathInspectionControls,
 	useUserPathInspection,
 } from "@/hooks/common/useUserPathInspection";
 import { getUserErrorMessage } from "@/utils/errors";
@@ -18,7 +18,17 @@ interface PathInputProps
 	endAdornment?: ReactNode;
 	helperText?: ReactNode;
 	validationError?: ReactNode;
-	inspectionState?: UserPathInspectionState;
+	inspectionState?: UserPathInspectionControls;
+}
+
+function usesVariablePrefix(path: string) {
+	const trimmed = path.trim();
+	if (import.meta.env.TAURI_ENV_PLATFORM === "linux") {
+		return (
+			trimmed.startsWith("$") || trimmed === "~" || trimmed.startsWith("~/")
+		);
+	}
+	return trimmed.startsWith("%");
 }
 
 function matchesExpectedType(
@@ -41,6 +51,8 @@ export function PathInput({
 	helperText,
 	validationError,
 	inspectionState,
+	onBlur,
+	onKeyDown,
 	slotProps,
 	...textFieldProps
 }: PathInputProps) {
@@ -49,52 +61,66 @@ export function PathInput({
 		value,
 		inspectionState === undefined,
 	);
-	const { inspection, error, isLoading } =
+	const { inspection, error, isLoading, inspectedValue, inspect, markEditing } =
 		inspectionState ?? internalInspectionState;
+	const isInspectionCurrent = inspectedValue === value.trim();
+	const currentInspection = isInspectionCurrent ? inspection : null;
+	const currentError = isInspectionCurrent ? error : null;
+	const currentIsLoading = isInspectionCurrent
+		? isLoading
+		: Boolean(value.trim());
 	const wrongType = Boolean(
-		inspection &&
-			inspection.kind !== "missing" &&
-			!matchesExpectedType(inspection.kind, pathType),
+		currentInspection &&
+			currentInspection.kind !== "missing" &&
+			!matchesExpectedType(currentInspection.kind, pathType),
 	);
-	const hasError = Boolean(error) || wrongType || Boolean(validationError);
+	const hasError =
+		Boolean(currentError) || wrongType || Boolean(validationError);
+	const showResolvedPath = usesVariablePrefix(value);
 	const variableHint =
 		import.meta.env.TAURI_ENV_PLATFORM === "linux"
 			? t(
 					"components.PathInput.linuxHint",
-					`支持路径开头的 $VAR、\${VAR} 和 ~/...`,
+					`路径开头可以使用 $HOME、\${HOME} 或 ~，例如 $HOME/Games`,
 				)
-			: t("components.PathInput.windowsHint", "支持路径开头的 %VAR%\\...");
+			: t(
+					"components.PathInput.windowsHint",
+					"路径开头可以使用 %USERPROFILE% 等环境变量，例如 %USERPROFILE%\\Games",
+				);
+	const inspectingHint = t("components.PathInput.inspecting", "正在检查路径…");
 
 	let status: ReactNode = null;
 	if (validationError) {
 		status = validationError;
-	} else if (error) {
-		status = getUserErrorMessage(error, t);
-	} else if (inspection) {
+	} else if (currentError) {
+		status = getUserErrorMessage(currentError, t);
+	} else if (currentInspection) {
 		const stateText =
-			inspection.kind === "missing"
+			currentInspection.kind === "missing"
 				? t("components.PathInput.missing", "当前路径不存在")
 				: wrongType
 					? t("components.PathInput.wrongType", "路径类型不符合当前字段要求")
 					: t("components.PathInput.available", "路径可用");
 		status = (
 			<Box component="span" className="block min-w-0">
-				<Typography
-					component="span"
-					variant="caption"
-					className="block truncate"
-				>
-					{t("components.PathInput.resolvedPath", "实际位置：{{path}}", {
-						path: inspection.resolved_path,
-					})}
-				</Typography>
+				{showResolvedPath ? (
+					<Typography
+						component="span"
+						variant="caption"
+						className="block truncate"
+					>
+						{t("components.PathInput.resolvedPath", "实际位置：{{path}}", {
+							path: currentInspection.resolved_path,
+						})}
+					</Typography>
+				) : null}
 				<Typography
 					component="span"
 					variant="caption"
 					color={
 						wrongType
 							? "error"
-							: inspection.kind === "missing"
+							: currentInspection.kind === "missing"
 								? "warning.main"
 								: "success.main"
 					}
@@ -109,18 +135,31 @@ export function PathInput({
 		<TextField
 			{...textFieldProps}
 			value={value}
-			onChange={(event) => onChange(event.target.value)}
+			onChange={(event) => {
+				const nextValue = event.target.value;
+				markEditing(nextValue);
+				onChange(nextValue);
+			}}
+			onBlur={(event) => {
+				void inspect();
+				onBlur?.(event);
+			}}
+			onKeyDown={(event) => {
+				if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+					void inspect();
+				}
+				onKeyDown?.(event);
+			}}
 			error={hasError}
 			helperText={
 				status ??
-				helperText ??
-				(isLoading ? (
+				(currentIsLoading ? (
 					<Box component="span" className="inline-flex items-center gap-1">
 						<CircularProgress size={14} />
-						{variableHint}
+						{inspectingHint}
 					</Box>
 				) : (
-					variableHint
+					(helperText ?? variableHint)
 				))
 			}
 			slotProps={{

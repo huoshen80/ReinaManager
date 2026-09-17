@@ -262,10 +262,11 @@
 		},
 		"PathInput": {
 			"available": "パスは使用可能です",
-			"linuxHint": "パス先頭の $VAR、${VAR}、~/... に対応しています。途中の変数は文字列として扱われます",
+			"inspecting": "パスを確認中…",
+			"linuxHint": "パス先頭では $HOME、${HOME}、~ が使えます。例: $HOME/Games",
 			"missing": "現在このパスは存在しません",
 			"resolvedPath": "実際の場所：{{path}}",
-			"windowsHint": "パス先頭の %VAR%\\... に対応しています。途中の変数は文字列として扱われます",
+			"windowsHint": "パス先頭では %USERPROFILE% などの環境変数が使えます。例: %USERPROFILE%\\Games",
 			"wrongType": "パスの種類がこの項目と一致しません"
 		},
 		"PathSettingsModal": {
