@@ -23,7 +23,7 @@ interface PathInputProps
 
 function usesVariablePrefix(path: string) {
 	const trimmed = path.trim();
-	if (import.meta.env.TAURI_ENV_PLATFORM === "linux") {
+	if (import.meta.env.TAURI_ENV_PLATFORM !== "win32") {
 		return (
 			trimmed.startsWith("$") || trimmed === "~" || trimmed.startsWith("~/")
 		);
@@ -78,7 +78,7 @@ export function PathInput({
 		Boolean(currentError) || wrongType || Boolean(validationError);
 	const showResolvedPath = usesVariablePrefix(value);
 	const variableHint =
-		import.meta.env.TAURI_ENV_PLATFORM === "linux"
+		import.meta.env.TAURI_ENV_PLATFORM !== "win32"
 			? t(
 					"components.PathInput.linuxHint",
 					`路径开头可以使用 $HOME、\${HOME} 或 ~，例如 $HOME/Games`,

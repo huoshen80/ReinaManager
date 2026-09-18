@@ -42,6 +42,7 @@ import { snackbar } from "@/providers/snackBar";
 import { handleExeFile, handleFolder } from "@/services/fs/fileDialog";
 import { getAppDataDirPath } from "@/services/fs/pathCache";
 import { moveBackupFolder } from "@/services/fs/savedataBackup";
+import type { UpdateSettingsParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 
 /**
@@ -60,14 +61,6 @@ interface PathSettingsDraft {
 	lePath: string;
 	magpiePath: string;
 	dbBackupPath: string;
-}
-
-function getErrorCode(error: unknown): string | undefined {
-	if (error && typeof error === "object" && "code" in error) {
-		const code = (error as { code?: unknown }).code;
-		return typeof code === "string" ? code : undefined;
-	}
-	return undefined;
 }
 
 const EMPTY_DRAFT: PathSettingsDraft = {
@@ -161,35 +154,55 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 
 		if (!isDirty || isSubmittingRef.current) return !isSubmittingRef.current;
 
-		const inspectedPaths = [
-			[nextDraft.installRootPath, installRootInspection],
-			[nextDraft.savePath, savePathInspection],
-			[nextDraft.lePath, lePathInspection],
-			[nextDraft.magpiePath, magpiePathInspection],
-			[nextDraft.dbBackupPath, dbBackupPathInspection],
-		] as const;
-		const hasBlockingPathError = inspectedPaths.some(([value, state]) => {
-			if (state.inspectedValue !== value.trim()) return false;
-			return ["path_not_absolute", "path_variable_syntax"].includes(
-				getErrorCode(state.error) ?? "",
+		const updates: UpdateSettingsParams = {};
+		const changedFields: string[] = [];
+		if (
+			inSettingsPage &&
+			nextDraft.installRootPath !== previousDraft.installRootPath
+		) {
+			updates.installRootPath = nextDraft.installRootPath || null;
+			changedFields.push(
+				t(
+					"components.PathSettingsModal.installRootPath.title",
+					"游戏安装根目录",
+				),
 			);
-		});
-		if (hasBlockingPathError) return false;
+		}
+		if (inSettingsPage && nextDraft.savePath !== previousDraft.savePath) {
+			updates.saveRootPath = nextDraft.savePath || null;
+			changedFields.push(
+				t("components.PathSettingsModal.savePath.title", "游戏存档备份根目录"),
+			);
+		}
+		if (
+			inSettingsPage &&
+			nextDraft.dbBackupPath !== previousDraft.dbBackupPath
+		) {
+			updates.dbBackupPath = nextDraft.dbBackupPath || null;
+			changedFields.push(
+				t(
+					"components.PathSettingsModal.dbBackupPath.title",
+					"数据库备份根目录",
+				),
+			);
+		}
+		if (nextDraft.lePath !== previousDraft.lePath) {
+			updates.lePath = nextDraft.lePath || null;
+			changedFields.push(
+				t("components.PathSettingsModal.lePath.title", "LE转区软件路径"),
+			);
+		}
+		if (nextDraft.magpiePath !== previousDraft.magpiePath) {
+			updates.magpiePath = nextDraft.magpiePath || null;
+			changedFields.push(
+				t("components.PathSettingsModal.magpiePath.title", "Magpie软件路径"),
+			);
+		}
 
 		try {
 			isSubmittingRef.current = true;
 			setIsSubmitting(true);
-			await updateSettingsMutation.mutateAsync({
-				installRootPath: inSettingsPage
-					? nextDraft.installRootPath || null
-					: undefined,
-				saveRootPath: inSettingsPage ? nextDraft.savePath || null : undefined,
-				dbBackupPath: inSettingsPage
-					? nextDraft.dbBackupPath || null
-					: undefined,
-				lePath: nextDraft.lePath || null,
-				magpiePath: nextDraft.magpiePath || null,
-			});
+			await updateSettingsMutation.mutateAsync(updates);
 
 			setDraft(nextDraft);
 			setInitialDraft(nextDraft);
@@ -220,9 +233,10 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 		} catch (error) {
 			snackbar.error(
 				t(
-					"components.PathSettingsModal.saveError",
-					"保存路径设置失败：{{error}}",
+					"components.PathSettingsModal.saveFieldError",
+					"保存{{field}}失败：{{error}}",
 					{
+						field: changedFields.join("、"),
 						error: getUserErrorMessage(error, t),
 					},
 				),
