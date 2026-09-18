@@ -224,6 +224,7 @@
 		},
 		"InstallRequest": {
 			"confirm": "Confirm Installation",
+			"completedWithActualPath": "The environment-variable path changed, so the actual installation path was saved",
 			"defaultPathSaveFailed": "The installation task was created, but the default path could not be saved: {{error}}",
 			"installPath": "Installation Path",
 			"installPathPlaceholder": "Select directory for game installation",
@@ -306,6 +307,7 @@
 				"title": "Magpie Software Path"
 			},
 			"saveError": "Failed to save path settings: {{error}}",
+			"saveFieldError": "Failed to save {{field}}: {{error}}",
 			"savePath": {
 				"moveBackupWarning": "Backup path saved, but failed to migrate old backups: {{error}}",
 				"note": "Set the root directory for game save backups. Leave empty to use the default path",

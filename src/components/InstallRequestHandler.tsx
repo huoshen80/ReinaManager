@@ -236,6 +236,14 @@ export function InstallRequestHandler() {
 					listen<InstallCompletedEvent>("game-install-completed", (event) => {
 						queryClient.invalidateQueries({ queryKey: ["games"] });
 						void invalidateTasks();
+						if (event.payload.used_actual_path) {
+							snackbar.warning(
+								translationRef.current(
+									"components.InstallRequest.completedWithActualPath",
+									"环境变量路径已变化，已使用实际安装路径保存游戏目录",
+								),
+							);
+						}
 						if (event.payload.executable_missing) {
 							snackbar.warning(
 								translationRef.current(

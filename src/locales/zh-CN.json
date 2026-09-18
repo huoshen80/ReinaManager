@@ -214,6 +214,7 @@
 		},
 		"InstallRequest": {
 			"confirm": "确认安装",
+			"completedWithActualPath": "环境变量路径已变化，已使用实际安装路径保存游戏目录",
 			"defaultPathSaveFailed": "安装任务已创建，但默认路径保存失败：{{error}}",
 			"installPath": "安装路径",
 			"installPathPlaceholder": "选择用于安装游戏的目录",
@@ -296,6 +297,7 @@
 				"title": "Magpie软件路径"
 			},
 			"saveError": "保存路径设置失败：{{error}}",
+			"saveFieldError": "保存{{field}}失败：{{error}}",
 			"savePath": {
 				"moveBackupWarning": "备份路径已保存，但迁移旧备份失败：{{error}}",
 				"note": "设置游戏存档的备份根目录，留空将使用默认路径",

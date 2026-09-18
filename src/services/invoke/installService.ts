@@ -110,6 +110,7 @@ export interface InstallCompletedEvent {
 	result_path: string;
 	executable?: string | null;
 	executable_missing: boolean;
+	used_actual_path: boolean;
 }
 
 export interface InstallFailedEvent {

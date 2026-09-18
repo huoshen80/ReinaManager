@@ -214,6 +214,7 @@
 		},
 		"InstallRequest": {
 			"confirm": "確認安裝",
+			"completedWithActualPath": "環境變數路徑已變更，已使用實際安裝路徑儲存遊戲目錄",
 			"defaultPathSaveFailed": "安裝任務已建立，但預設路徑儲存失敗：{{error}}",
 			"installPath": "安裝路徑",
 			"installPathPlaceholder": "選擇用於安裝遊戲的目錄",
@@ -296,6 +297,7 @@
 				"title": "Magpie軟體路徑"
 			},
 			"saveError": "儲存路徑設定失敗：{{error}}",
+			"saveFieldError": "儲存{{field}}失敗：{{error}}",
 			"savePath": {
 				"moveBackupWarning": "備份路徑已儲存，但遷移舊備份失敗：{{error}}",
 				"note": "設置遊戲存檔的備份根目錄，留空將使用預設路徑",

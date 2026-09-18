@@ -124,6 +124,7 @@ pub(crate) struct GameInstallCompletedEvent {
     pub(crate) result_path: String,
     pub(crate) executable: Option<String>,
     pub(crate) executable_missing: bool,
+    pub(crate) used_actual_path: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]

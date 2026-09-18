@@ -214,6 +214,7 @@
 		},
 		"InstallRequest": {
 			"confirm": "インストールを確認",
+			"completedWithActualPath": "環境変数のパスが変わったため、実際のインストール先を保存しました",
 			"defaultPathSaveFailed": "インストールタスクは作成されましたが、既定のパスを保存できませんでした：{{error}}",
 			"installPath": "インストールパス",
 			"installPathPlaceholder": "ゲームのインストールに使用するディレクトリを選択",
@@ -296,6 +297,7 @@
 				"title": "Magpieソフトウェアパス"
 			},
 			"saveError": "パス設定の保存に失敗しました：{{error}}",
+			"saveFieldError": "{{field}}の保存に失敗しました：{{error}}",
 			"savePath": {
 				"moveBackupWarning": "バックアップパスは保存されましたが、古いバックアップの移行に失敗しました：{{error}}",
 				"note": "ゲームセーブデータのバックアップルートディレクトリを設定します。空のままにするとデフォルトパスが使用されます",

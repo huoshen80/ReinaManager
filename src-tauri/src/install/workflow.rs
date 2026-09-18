@@ -14,7 +14,7 @@ use crate::database::repository::games_repository::GamesRepository;
 use crate::entity::{game_sources, games, tasks};
 use crate::game::scan::scan_executable_candidates;
 use crate::install::protocol::InstallRequest;
-use crate::utils::fs::{normalize_install_root_path, validate_executable_name};
+use crate::utils::fs::validate_executable_name;
 use sea_orm::*;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
@@ -104,7 +104,7 @@ pub(crate) async fn import_installed_game(
         ));
     }
     let request = parse_game_install_payload(&task)?.request;
-    let partial = parse_game_install_result(&task)?.ok_or_else(|| {
+    let mut partial = parse_game_install_result(&task)?.ok_or_else(|| {
         TaskFailure::new("install_result_missing", "安装任务缺少已整理的游戏目录")
     })?;
     let install_path = PathBuf::from(&partial.install_path);
@@ -115,10 +115,8 @@ pub(crate) async fn import_installed_game(
         ));
     }
     let executable_name = resolve_installed_executable_name(&install_path, &partial)?;
-    let configured_install_path = partial
-        .configured_install_path
-        .clone()
-        .unwrap_or_else(|| partial.install_path.clone());
+    let (configured_install_path, used_actual_path) = validated_configured_install_path(&partial);
+    partial.configured_install_path = Some(configured_install_path.clone());
     let task = claim_game_import(db, task_id).await?;
     emit_progress(
         app,
@@ -213,7 +211,7 @@ pub(crate) async fn import_installed_game(
         version: 1,
         game_id: Some(game_id),
         install_path: partial.install_path.clone(),
-        configured_install_path: partial.configured_install_path.clone(),
+        configured_install_path: Some(configured_install_path),
         executable: executable_name.clone(),
         created_new_game: Some(created_new_game),
         matched_by,
@@ -234,6 +232,7 @@ pub(crate) async fn import_installed_game(
             result_path: completed_result.install_path,
             executable_missing: completed_result.executable.is_none(),
             executable: completed_result.executable,
+            used_actual_path,
         },
     );
     Ok(completed)
@@ -246,19 +245,13 @@ pub(crate) fn parse_game_install_payload(
         .map_err(|error| TaskFailure::new("invalid_payload", error.to_string()))?;
     match payload.request.v {
         1 => {
-            let install_root = payload
-                .configured_install_root
-                .as_deref()
-                .map(normalize_install_root_path)
-                .transpose()
-                .map_err(|message| TaskFailure::new("install_root_failed", message))?
-                .unwrap_or(payload.install_root()?);
+            let install_root = payload.install_root()?.to_string_lossy().into_owned();
             Ok(GameInstallTaskPayloadV1 {
                 request: payload
                     .request
                     .validate()
                     .map_err(|message| TaskFailure::new("invalid_payload", message))?,
-                install_root: install_root.to_string_lossy().into_owned(),
+                install_root,
                 configured_install_root: payload.configured_install_root,
             })
         }
@@ -266,6 +259,48 @@ pub(crate) fn parse_game_install_payload(
             "unsupported_payload_version",
             format!("不支持的游戏安装载荷版本: {version}"),
         )),
+    }
+}
+
+fn validated_configured_install_path(result: &GameInstallResultV1) -> (String, bool) {
+    let actual_path = PathBuf::from(&result.install_path);
+    let Some(configured_path) = result.configured_install_path.as_deref() else {
+        return (result.install_path.clone(), false);
+    };
+
+    match reina_path::resolve_user_path(configured_path) {
+        Ok(resolved_path) if same_install_path(&resolved_path, &actual_path) => {
+            (configured_path.to_string(), false)
+        }
+        Ok(resolved_path) => {
+            log::warn!(
+                "安装结果配置路径与实际路径不一致，改用实际绝对路径: configured={} resolved={} actual={}",
+                configured_path,
+                resolved_path.display(),
+                actual_path.display()
+            );
+            (result.install_path.clone(), true)
+        }
+        Err(error) => {
+            log::warn!(
+                "安装结果配置路径当前无法解析，改用实际绝对路径: configured={} actual={} error={error}",
+                configured_path,
+                actual_path.display()
+            );
+            (result.install_path.clone(), true)
+        }
+    }
+}
+
+fn same_install_path(left: &Path, right: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        left.to_string_lossy()
+            .eq_ignore_ascii_case(&right.to_string_lossy())
+    }
+    #[cfg(not(windows))]
+    {
+        left == right
     }
 }
 
