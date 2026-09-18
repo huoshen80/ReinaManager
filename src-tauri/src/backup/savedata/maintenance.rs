@@ -94,11 +94,10 @@ async fn delete_backup_record(
 ) -> Option<String> {
     match fs::remove_file(backup_file_path) {
         Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => {
-            // 文件仍存在时保留数据库记录，避免产生无法从界面管理的孤儿归档。
+            // 文件不存在或无法访问时保留数据库记录，避免丢失仍可能存在的备份线索。
             return Some(format!(
-                "删除备份文件失败 {}: {error}",
+                "删除备份文件失败 {}，数据库记录未变更: {error}",
                 backup_file_path.display()
             ));
         }
@@ -144,13 +143,9 @@ pub(super) async fn resolve_savedata_backup_root(
 
     match reina_path::resolve_user_path(custom) {
         Ok(path) => Ok(path.join("backups")),
-        Err(error) => {
-            log::warn!(
-                "自定义存档备份根目录解析失败，保留配置并回退默认目录: configured={}, error={error}",
-                custom
-            );
-            reina_path::get_default_savedata_backup_path()
-        }
+        Err(error) => Err(format!(
+            "自定义存档备份根目录解析失败，已保留原配置: configured={custom}, error={error}"
+        )),
     }
 }
 
@@ -194,7 +189,7 @@ pub(super) async fn cleanup_old_backups(
         }
     }
     if !errors.is_empty() {
-        log::warn!("清理旧备份时遇到错误:\n{}", errors.join("\n"));
+        return Err(format!("清理旧备份时遇到错误:\n{}", errors.join("\n")));
     }
     Ok(())
 }
