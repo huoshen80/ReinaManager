@@ -9,7 +9,7 @@ mod utils;
 use backup::covers::backup_custom_covers;
 use backup::database::{backup_database, import_database, open_database_backup_folder};
 use backup::savedata::{
-    create_savedata_backup, delete_savedata_backup, move_backup_folder,
+    change_savedata_backup_root, create_savedata_backup, delete_savedata_backup,
     open_savedata_backup_folder, restore_savedata_backup,
 };
 use database::*;
@@ -122,7 +122,7 @@ pub fn run() {
             delete_task,
             complete_game_install_task,
             fail_game_install_metadata,
-            move_backup_folder,
+            change_savedata_backup_root,
             copy_file,
             create_savedata_backup,
             delete_savedata_backup,

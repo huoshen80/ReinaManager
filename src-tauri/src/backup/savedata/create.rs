@@ -1,5 +1,7 @@
 use super::archive::create_savedata_archive;
-use super::maintenance::{cleanup_old_backups, resolve_savedata_backup_root};
+use super::maintenance::{
+    acquire_savedata_backup_operation_lock, cleanup_old_backups, resolve_savedata_backup_root,
+};
 use crate::database::repository::games_repository::GamesRepository;
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
@@ -23,6 +25,7 @@ pub async fn create_savedata_backup(
     game_id: i64,
     source_path: String,
 ) -> Result<BackupInfo, String> {
+    let _operation_guard = acquire_savedata_backup_operation_lock().await;
     let source_path = reina_path::resolve_user_path(&source_path)
         .map_err(|error| format!("存档路径解析失败: {error}"))?;
     if !source_path.exists() {

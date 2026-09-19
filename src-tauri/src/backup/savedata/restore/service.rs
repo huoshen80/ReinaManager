@@ -1,6 +1,8 @@
 use super::common::RestoreSavedataResult;
 use super::{legacy, rooted};
-use crate::backup::savedata::maintenance::resolve_savedata_backup_root;
+use crate::backup::savedata::maintenance::{
+    acquire_savedata_backup_operation_lock, resolve_savedata_backup_root,
+};
 use crate::database::repository::games_repository::GamesRepository;
 use sea_orm::DatabaseConnection;
 use sevenz_rust2::{ArchiveReader, Password};
@@ -23,6 +25,7 @@ pub async fn restore_savedata_backup(
     backup_id: i32,
     target_path: String,
 ) -> Result<RestoreSavedataResult, String> {
+    let _operation_guard = acquire_savedata_backup_operation_lock().await;
     let record = GamesRepository::get_savedata_record_by_id(&db, backup_id)
         .await
         .map_err(|error| format!("获取备份记录失败: {error}"))?
