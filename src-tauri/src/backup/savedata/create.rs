@@ -131,12 +131,7 @@ fn next_backup_filename(
     game_id: i64,
     now: chrono::DateTime<Utc>,
 ) -> Result<String, String> {
-    let base = format!(
-        "savedata_v2_{}_{}_{:03}",
-        game_id,
-        now.format("%Y%m%d_%H%M%S"),
-        now.timestamp_subsec_millis()
-    );
+    let base = format!("savedata_v2_{}_{}", game_id, now.format("%Y%m%d_%H%M%S"));
     for suffix in 0..1000 {
         let filename = if suffix == 0 {
             format!("{base}.7z")
