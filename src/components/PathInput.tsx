@@ -7,6 +7,7 @@ import {
 	useUserPathInspection,
 } from "@/hooks/common/useUserPathInspection";
 import { getUserErrorMessage } from "@/utils/errors";
+import { isWindowsPlatform } from "@/utils/tauriProtocol";
 
 export type PathType = "file" | "directory" | "file-or-directory";
 
@@ -23,7 +24,7 @@ interface PathInputProps
 
 function usesVariablePrefix(path: string) {
 	const trimmed = path.trim();
-	if (import.meta.env.TAURI_ENV_PLATFORM !== "win32") {
+	if (!isWindowsPlatform) {
 		return (
 			trimmed.startsWith("$") || trimmed === "~" || trimmed.startsWith("~/")
 		);
@@ -77,16 +78,15 @@ export function PathInput({
 	const hasError =
 		Boolean(currentError) || wrongType || Boolean(validationError);
 	const showResolvedPath = usesVariablePrefix(value);
-	const variableHint =
-		import.meta.env.TAURI_ENV_PLATFORM !== "win32"
-			? t(
-					"components.PathInput.linuxHint",
-					`路径开头可以使用 $HOME、\${HOME} 或 ~，例如 $HOME/Games`,
-				)
-			: t(
-					"components.PathInput.windowsHint",
-					"路径开头可以使用 %USERPROFILE% 等环境变量，例如 %USERPROFILE%\\Games",
-				);
+	const variableHint = !isWindowsPlatform
+		? t(
+				"components.PathInput.linuxHint",
+				`路径开头可以使用 $HOME、\${HOME} 或 ~，例如 $HOME/Games`,
+			)
+		: t(
+				"components.PathInput.windowsHint",
+				"路径开头可以使用 %USERPROFILE% 等环境变量，例如 %USERPROFILE%\\Games",
+			);
 	const inspectingHint = t("components.PathInput.inspecting", "正在检查路径…");
 
 	let status: ReactNode = null;

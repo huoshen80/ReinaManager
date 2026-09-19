@@ -20,6 +20,7 @@ import { settingsService } from "@/services/invoke";
 import { withHikarinagiAuth } from "@/services/oauth/hikarinagiAuthSession";
 import { getNetworkRequestContext } from "@/services/requestContext";
 import type { LogLevel, UpdateSettingsParams } from "@/types";
+import { saveDataKeys } from "./useSavedata";
 
 // ============================================================================
 // Key Factory - 统一的 Query Key 前缀
@@ -235,9 +236,14 @@ export function useChangeSavedataBackupRoot() {
 			forceMissingSource?: boolean;
 		}) => settingsService.changeSavedataBackupRoot(newPath, forceMissingSource),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: settingsKeys.allSettings(),
-			});
+			void Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: settingsKeys.allSettings(),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: saveDataKeys.all,
+				}),
+			]);
 		},
 	});
 }

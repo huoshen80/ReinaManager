@@ -228,10 +228,11 @@ pub async fn change_savedata_backup_root(
     };
 
     let cleanup_path = old_path.clone();
-    let cleanup_result = tokio::task::spawn_blocking(move || fs::remove_dir_all(&cleanup_path))
-        .await
-        .map_err(|error| error.to_string())
-        .and_then(|result| result.map_err(|error| error.to_string()));
+    let cleanup_result =
+        tokio::task::spawn_blocking(move || remove_old_backup_directory(&cleanup_path))
+            .await
+            .map_err(|error| error.to_string())
+            .and_then(|result| result.map_err(|error| error.to_string()));
     match cleanup_result {
         Ok(()) => Ok(completed_migration_result(
             Some(old_path.to_string_lossy().into_owned()),
@@ -515,6 +516,25 @@ fn prepared_migration_error(
     PreparedMigrationError {
         failures,
         requires_confirmation: false,
+    }
+}
+
+fn remove_old_backup_directory(path: &Path) -> Result<(), std::io::Error> {
+    fs::remove_dir_all(path)?;
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    match fs::remove_dir(parent) {
+        Ok(()) => Ok(()),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::NotFound | std::io::ErrorKind::DirectoryNotEmpty
+            ) =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error),
     }
 }
 
@@ -1140,6 +1160,19 @@ mod tests {
         let missing = collect_missing_savedata_records(&root, &records).unwrap();
 
         assert_eq!(missing, vec![2]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn removes_empty_configured_backup_parent() {
+        let root = test_directory();
+        let configured_root = root.join("configured");
+        let backup_root = configured_root.join("backups");
+        fs::create_dir_all(&backup_root).unwrap();
+
+        remove_old_backup_directory(&backup_root).unwrap();
+
+        assert!(!configured_root.exists());
         fs::remove_dir_all(root).unwrap();
     }
 }
