@@ -228,13 +228,8 @@ export function useChangeSavedataBackupRoot() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
-			newPath,
-			forceMissingSource = false,
-		}: {
-			newPath: string;
-			forceMissingSource?: boolean;
-		}) => settingsService.changeSavedataBackupRoot(newPath, forceMissingSource),
+		mutationFn: ({ newPath }: { newPath: string }) =>
+			settingsService.changeSavedataBackupRoot(newPath),
 		onSuccess: () => {
 			void Promise.all([
 				queryClient.invalidateQueries({

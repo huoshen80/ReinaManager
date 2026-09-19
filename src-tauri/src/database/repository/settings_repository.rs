@@ -134,9 +134,6 @@ impl SettingsRepository {
             let path = path.trim().to_string();
             (!path.is_empty()).then_some(path)
         });
-        if let Some(path) = path.as_deref() {
-            validate_configured_user_path(path).map_err(DbErr::Custom)?;
-        }
 
         Self::ensure_user_exists(db).await?;
         let user = User::find_by_id(1)
@@ -159,9 +156,6 @@ impl SettingsRepository {
             let path = path.trim().to_string();
             (!path.is_empty()).then_some(path)
         });
-        if let Some(path) = path.as_deref() {
-            validate_configured_user_path(path).map_err(DbErr::Custom)?;
-        }
 
         Self::ensure_user_exists(db).await?;
         let transaction = db.begin().await?;

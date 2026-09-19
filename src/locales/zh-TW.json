@@ -302,6 +302,7 @@
 			"savePath": {
 				"cleanedRecords_one": "備份路徑已儲存，並清理了 {{count}} 筆失效備份記錄",
 				"cleanedRecords_other": "備份路徑已儲存，並清理了 {{count}} 筆失效備份記錄",
+				"skipMigrationWarning": "備份路徑已儲存，但未遷移舊備份：{{error}}。舊備份位置：{{path}}",
 				"missingRootConfirm": "清理記錄並切換",
 				"missingRootMessage": "舊備份目錄 {{path}} 不存在，但資料庫中仍有對應記錄。確認後將清理這些失效記錄，並切換到新的備份目錄。此操作無法復原。",
 				"missingRootTitle": "舊存檔備份目錄不存在",

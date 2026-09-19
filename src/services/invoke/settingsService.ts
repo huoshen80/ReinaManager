@@ -28,8 +28,8 @@ export interface ProxyConfig {
 
 export type SavedataBackupMigrationStatus =
 	| "completed"
-	| "failed"
-	| "completed_with_residue";
+	| "saved_with_warning"
+	| "failed";
 
 export interface SavedataBackupMigrationFailure {
 	source_path?: string | null;
@@ -44,7 +44,6 @@ export interface SavedataBackupRootMigrationResult {
 	message: string;
 	failures: SavedataBackupMigrationFailure[];
 	residue_path?: string | null;
-	requires_confirmation: boolean;
 	cleaned_record_count: number;
 }
 
@@ -81,11 +80,10 @@ class SettingsService extends BaseService {
 
 	async changeSavedataBackupRoot(
 		newPath: string,
-		forceMissingSource = false,
 	): Promise<SavedataBackupRootMigrationResult> {
 		return this.invoke<SavedataBackupRootMigrationResult>(
 			"change_savedata_backup_root",
-			{ newPath, forceMissingSource },
+			{ newPath },
 		);
 	}
 

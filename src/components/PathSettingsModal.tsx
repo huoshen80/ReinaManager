@@ -33,9 +33,8 @@ import InputLabel from "@mui/material/InputLabel";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { dirname } from "pathe";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertBox } from "@/components/AlertBox";
 import { PathInput } from "@/components/PathInput";
 import { useUserPathInspection } from "@/hooks/common/useUserPathInspection";
 import {
@@ -66,11 +65,6 @@ interface PathSettingsDraft {
 	dbBackupPath: string;
 }
 
-interface MissingBackupRootConfirmation {
-	draft: PathSettingsDraft;
-	oldPath?: string | null;
-}
-
 const EMPTY_DRAFT: PathSettingsDraft = {
 	installRootPath: "",
 	savePath: "",
@@ -96,8 +90,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	const initialDraftRef = useRef<PathSettingsDraft>(EMPTY_DRAFT);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const isSubmittingRef = useRef(false);
-	const [missingBackupRootConfirmation, setMissingBackupRootConfirmation] =
-		useState<MissingBackupRootConfirmation | null>(null);
 	const { data: settingsData, isPending } = useAllSettings({ enabled: open });
 	const updateSettingsMutation = useUpdateSettings();
 	const changeSavedataBackupRootMutation = useChangeSavedataBackupRoot();
@@ -154,10 +146,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	/**
 	 * 自动保存路径设置
 	 */
-	const saveDraft = async (
-		nextDraft: PathSettingsDraft,
-		forceMissingSource = false,
-	) => {
+	const saveDraft = async (nextDraft: PathSettingsDraft) => {
 		const previousDraft = initialDraftRef.current;
 		const isDirty =
 			nextDraft.installRootPath !== previousDraft.installRootPath ||
@@ -219,16 +208,8 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 			if (inSettingsPage && nextDraft.savePath !== previousDraft.savePath) {
 				const migration = await changeSavedataBackupRootMutation.mutateAsync({
 					newPath: nextDraft.savePath,
-					forceMissingSource,
 				});
 				if (migration.status === "failed") {
-					if (migration.requires_confirmation && !forceMissingSource) {
-						setMissingBackupRootConfirmation({
-							draft: nextDraft,
-							oldPath: migration.old_path,
-						});
-						return false;
-					}
 					const details = migration.failures
 						.map((failure) =>
 							[failure.source_path, failure.target_path, failure.message]
@@ -240,16 +221,27 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 						[migration.message, details].filter(Boolean).join("；"),
 					);
 				}
-				if (migration.status === "completed_with_residue") {
-					snackbar.warning(
-						t(
-							"components.PathSettingsModal.savePath.moveBackupWarning",
-							"备份路径已保存，但旧备份目录清理不完整：{{error}}",
-							{
-								error: migration.residue_path ?? migration.message,
-							},
-						),
-					);
+				if (migration.status === "saved_with_warning") {
+					if (migration.residue_path) {
+						snackbar.warning(
+							t(
+								"components.PathSettingsModal.savePath.moveBackupWarning",
+								"备份路径已保存，但旧备份目录清理不完整：{{error}}",
+								{ error: migration.residue_path },
+							),
+						);
+					} else {
+						snackbar.warning(
+							t(
+								"components.PathSettingsModal.savePath.skipMigrationWarning",
+								"备份路径已保存，但未迁移旧备份：{{error}}。旧备份位置：{{path}}",
+								{
+									error: migration.message,
+									path: migration.old_path ?? t("common.unknown", "未知路径"),
+								},
+							),
+						);
+					}
 				}
 				if (migration.cleaned_record_count > 0) {
 					snackbar.info(
@@ -263,6 +255,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 				persistedDraft = { ...persistedDraft, savePath: nextDraft.savePath };
 				setInitialDraft(persistedDraft);
 				initialDraftRef.current = persistedDraft;
+				await savePathInspection.inspect(nextDraft.savePath);
 			}
 			if (Object.keys(updates).length > 0) {
 				await updateSettingsMutation.mutateAsync(updates);
@@ -288,14 +281,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 		} finally {
 			isSubmittingRef.current = false;
 			setIsSubmitting(false);
-		}
-	};
-
-	const handleForceMissingBackupRoot = async () => {
-		if (!missingBackupRootConfirmation) return;
-		const success = await saveDraft(missingBackupRootConfirmation.draft, true);
-		if (success) {
-			setMissingBackupRootConfirmation(null);
 		}
 	};
 
@@ -369,7 +354,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	};
 
 	return (
-		<>
+		<Fragment>
 			<Dialog
 				open={open}
 				onClose={isSubmitting ? undefined : () => void handleClose()}
@@ -690,36 +675,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 					</Button>
 				</DialogActions>
 			</Dialog>
-			<AlertBox
-				open={missingBackupRootConfirmation !== null}
-				setOpen={(open) => {
-					if (!open && !isSubmitting) {
-						setMissingBackupRootConfirmation(null);
-					}
-				}}
-				title={t(
-					"components.PathSettingsModal.savePath.missingRootTitle",
-					"旧存档备份目录不存在",
-				)}
-				message={t(
-					"components.PathSettingsModal.savePath.missingRootMessage",
-					"旧备份目录 {{path}} 不存在，但数据库中仍有对应记录。确认后将清理这些失效记录，并切换到新的备份目录。此操作不可撤销。",
-					{
-						path:
-							missingBackupRootConfirmation?.oldPath ??
-							t("common.unknown", "未知路径"),
-					},
-				)}
-				onConfirm={() => void handleForceMissingBackupRoot()}
-				confirmText={t(
-					"components.PathSettingsModal.savePath.missingRootConfirm",
-					"清理记录并切换",
-				)}
-				confirmColor="warning"
-				confirmVariant="contained"
-				autoCloseOnConfirm={false}
-				isLoading={isSubmitting}
-			/>
-		</>
+		</Fragment>
 	);
 };

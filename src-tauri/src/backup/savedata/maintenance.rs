@@ -19,8 +19,8 @@ static SAVEDATA_BACKUP_OPERATION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 #[serde(rename_all = "snake_case")]
 pub enum SavedataBackupMigrationStatus {
     Completed,
+    SavedWithWarning,
     Failed,
-    CompletedWithResidue,
 }
 
 #[derive(Debug, Serialize)]
@@ -38,7 +38,6 @@ pub struct SavedataBackupRootMigrationResult {
     pub message: String,
     pub failures: Vec<SavedataBackupMigrationFailure>,
     pub residue_path: Option<String>,
-    pub requires_confirmation: bool,
     pub cleaned_record_count: u64,
 }
 
@@ -61,7 +60,7 @@ enum PreparedMigration {
 #[derive(Debug)]
 struct PreparedMigrationError {
     failures: Vec<SavedataBackupMigrationFailure>,
-    requires_confirmation: bool,
+    skip_migration: bool,
 }
 
 #[derive(Debug)]
@@ -74,7 +73,6 @@ enum SourceState {
 pub async fn change_savedata_backup_root(
     db: State<'_, DatabaseConnection>,
     new_path: String,
-    force_missing_source: bool,
 ) -> Result<SavedataBackupRootMigrationResult, String> {
     let _operation_guard = acquire_savedata_backup_operation_lock().await;
     let settings = db.get_settings().await?;
@@ -87,76 +85,77 @@ pub async fn change_savedata_backup_root(
     let configured_new_path =
         (!configured_new_path.is_empty()).then(|| configured_new_path.to_string());
 
-    if let Some(path) = configured_new_path.as_deref()
-        && let Err(error) = crate::utils::fs::validate_configured_user_path(path)
-    {
-        return Ok(failed_migration_result(
-            settings.save_root_path.clone(),
-            Some(path.to_string()),
-            vec![migration_failure(None, Some(Path::new(path)), error)],
-        ));
-    }
-
-    let old_backup_path = match resolve_configured_backup_root(settings.save_root_path.as_deref()) {
-        Ok(path) => Some(path),
-        Err(_error) if savedata_count == 0 => None,
+    let new_root = match resolve_configured_root(configured_new_path.as_deref()) {
+        Ok(path) => path,
         Err(error) => {
-            return Ok(failed_migration_result(
+            return save_without_migration(
+                db.inner(),
                 settings.save_root_path.clone(),
-                configured_new_path.clone(),
-                vec![migration_failure(
-                    settings.save_root_path.as_deref().map(Path::new),
-                    None,
-                    error,
-                )],
-            ));
+                configured_new_path,
+                error,
+            )
+            .await;
         }
     };
+    let new_root_for_check = new_root.clone();
+    let new_root_check =
+        tokio::task::spawn_blocking(move || ensure_existing_directory(&new_root_for_check))
+            .await
+            .map_err(|error| format!("检查新的存档备份目录失败: {error}"))?;
+    if let Err(error) = new_root_check {
+        return save_without_migration(
+            db.inner(),
+            settings.save_root_path.clone(),
+            configured_new_path,
+            error
+                .failures
+                .into_iter()
+                .map(|failure| failure.message)
+                .collect::<Vec<_>>()
+                .join("；"),
+        )
+        .await;
+    }
+
     let new_backup_path = match resolve_configured_backup_root(configured_new_path.as_deref()) {
         Ok(path) => path,
         Err(error) => {
-            return Ok(failed_migration_result(
+            return save_without_migration(
+                db.inner(),
                 settings.save_root_path.clone(),
-                configured_new_path.clone(),
-                vec![migration_failure(
-                    None,
-                    configured_new_path.as_deref().map(Path::new),
+                configured_new_path,
+                error,
+            )
+            .await;
+        }
+    };
+
+    let old_backup_path = if savedata_count == 0 {
+        None
+    } else {
+        match resolve_configured_backup_root(settings.save_root_path.as_deref()) {
+            Ok(path) => Some(path),
+            Err(error) => {
+                return save_without_migration(
+                    db.inner(),
+                    settings.save_root_path.clone(),
+                    configured_new_path,
                     error,
-                )],
-            ));
+                )
+                .await;
+            }
         }
     };
 
     let prepared = if let Some(old_backup_path) = old_backup_path {
         let source_path = old_backup_path.clone();
         let target_path = new_backup_path.clone();
-        let source_for_task = source_path.clone();
-        let target_for_task = target_path.clone();
-        let force_for_task = force_missing_source;
         let records_for_task = savedata_records;
         let prepared = tokio::task::spawn_blocking(move || {
-            let source_exists = matches!(
-                fs::symlink_metadata(&source_for_task),
-                Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink()
-            );
-            let stale_record_ids = if source_exists {
-                collect_missing_savedata_records(&source_for_task, &records_for_task)?
-            } else if force_for_task
-                && matches!(
-                    fs::symlink_metadata(&source_for_task),
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound
-                )
-            {
-                records_for_task.iter().map(|record| record.id).collect()
-            } else {
-                Vec::new()
-            };
-            let prepared = prepare_backup_migration(
-                &source_for_task,
-                &target_for_task,
-                savedata_count,
-                force_for_task,
-            )?;
+            ensure_existing_directory(&source_path)?;
+            let stale_record_ids =
+                collect_missing_savedata_records(&source_path, &records_for_task)?;
+            let prepared = prepare_backup_migration(&source_path, &target_path, savedata_count)?;
             Ok::<_, PreparedMigrationError>((stale_record_ids, prepared))
         })
         .await
@@ -164,11 +163,24 @@ pub async fn change_savedata_backup_root(
         match prepared {
             Ok((stale_record_ids, prepared)) => (stale_record_ids, prepared),
             Err(error) => {
-                return Ok(failed_migration_result_with_confirmation(
-                    Some(source_path.to_string_lossy().into_owned()),
-                    Some(target_path.to_string_lossy().into_owned()),
+                if error.skip_migration {
+                    return save_without_migration(
+                        db.inner(),
+                        settings.save_root_path.clone(),
+                        configured_new_path,
+                        error
+                            .failures
+                            .into_iter()
+                            .map(|failure| failure.message)
+                            .collect::<Vec<_>>()
+                            .join("；"),
+                    )
+                    .await;
+                }
+                return Ok(failed_migration_result(
+                    settings.save_root_path.clone(),
+                    configured_new_path,
                     error.failures,
-                    error.requires_confirmation,
                 ));
             }
         }
@@ -252,7 +264,7 @@ pub async fn change_savedata_backup_root(
             cleaned_record_count,
         )),
         Err(error) => Ok(SavedataBackupRootMigrationResult {
-            status: SavedataBackupMigrationStatus::CompletedWithResidue,
+            status: SavedataBackupMigrationStatus::SavedWithWarning,
             old_path: Some(old_path.to_string_lossy().into_owned()),
             new_path: configured_new_path,
             message: format!("配置已更新，但旧备份目录清理不完整: {error}"),
@@ -262,10 +274,81 @@ pub async fn change_savedata_backup_root(
                 format!("删除旧备份目录失败: {error}"),
             )],
             residue_path: Some(old_path.to_string_lossy().into_owned()),
-            requires_confirmation: false,
             cleaned_record_count,
         }),
     }
+}
+
+fn resolve_configured_root(configured_path: Option<&str>) -> Result<PathBuf, String> {
+    match configured_path {
+        Some(path) => reina_path::resolve_user_path(path)
+            .map_err(|error| format!("存档备份目录无法解析，已跳过迁移: {error}")),
+        None => reina_path::get_default_savedata_backup_path(),
+    }
+}
+
+fn ensure_existing_directory(path: &Path) -> Result<(), PreparedMigrationError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => Ok(()),
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            Err(prepared_migration_warning(vec![migration_failure(
+                Some(path),
+                None,
+                "路径是符号链接，无法确认目录是否可访问",
+            )]))
+        }
+        Ok(_) => Err(prepared_migration_warning(vec![migration_failure(
+            Some(path),
+            None,
+            "路径存在但不是目录",
+        )])),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(prepared_migration_warning(vec![migration_failure(
+                Some(path),
+                None,
+                "目录不存在，已跳过旧备份迁移",
+            )]))
+        }
+        Err(error) => Err(prepared_migration_warning(vec![migration_failure(
+            Some(path),
+            None,
+            format!("无法访问目录，已跳过旧备份迁移: {error}"),
+        )])),
+    }
+}
+
+async fn save_without_migration(
+    db: &DatabaseConnection,
+    old_configured_path: Option<String>,
+    new_path: Option<String>,
+    reason: String,
+) -> Result<SavedataBackupRootMigrationResult, String> {
+    let old_path = configured_backup_path_for_message(old_configured_path.as_deref());
+    SettingsRepository::update_save_root_path(db, new_path.clone())
+        .await
+        .map_err(|error| format!("保存新的存档备份路径失败: {error}"))?;
+    log::warn!(
+        "存档备份目录已更新但未迁移旧备份 old_path={} new_path={} reason={}",
+        old_path.as_deref().unwrap_or("<default>"),
+        new_path.as_deref().unwrap_or("<default>"),
+        reason
+    );
+    Ok(SavedataBackupRootMigrationResult {
+        status: SavedataBackupMigrationStatus::SavedWithWarning,
+        old_path,
+        new_path,
+        message: reason,
+        failures: Vec::new(),
+        residue_path: None,
+        cleaned_record_count: 0,
+    })
+}
+
+fn configured_backup_path_for_message(configured_path: Option<&str>) -> Option<String> {
+    resolve_configured_backup_root(configured_path)
+        .ok()
+        .map(|path| path.to_string_lossy().into_owned())
+        .or_else(|| configured_path.map(ToOwned::to_owned))
 }
 
 fn resolve_configured_backup_root(configured_path: Option<&str>) -> Result<PathBuf, String> {
@@ -290,7 +373,6 @@ fn completed_migration_result(
         message: message.to_string(),
         failures: Vec::new(),
         residue_path: None,
-        requires_confirmation: false,
         cleaned_record_count,
     }
 }
@@ -307,20 +389,7 @@ fn failed_migration_result(
         message: "存档备份目录迁移失败，配置未切换".to_string(),
         failures,
         residue_path: None,
-        requires_confirmation: false,
         cleaned_record_count: 0,
-    }
-}
-
-fn failed_migration_result_with_confirmation(
-    old_path: Option<String>,
-    new_path: Option<String>,
-    failures: Vec<SavedataBackupMigrationFailure>,
-    requires_confirmation: bool,
-) -> SavedataBackupRootMigrationResult {
-    SavedataBackupRootMigrationResult {
-        requires_confirmation,
-        ..failed_migration_result(old_path, new_path, failures)
     }
 }
 
@@ -374,7 +443,6 @@ fn prepare_backup_migration(
     source: &Path,
     target: &Path,
     savedata_count: u64,
-    force_missing_source: bool,
 ) -> Result<PreparedMigration, PreparedMigrationError> {
     let source_state = match fs::symlink_metadata(source) {
         Ok(metadata) if metadata.file_type().is_symlink() => {
@@ -402,21 +470,15 @@ fn prepare_backup_migration(
         }
     };
     if matches!(source_state, SourceState::Missing) {
-        if savedata_count > 0 && !force_missing_source {
-            return Err(PreparedMigrationError {
-                failures: vec![migration_failure(
-                    Some(source),
-                    None,
-                    format!("旧备份目录不存在，但数据库仍有 {savedata_count} 条备份记录"),
-                )],
-                requires_confirmation: true,
-            });
-        }
-        if savedata_count > 0 {
-            validate_missing_source_target(source, target).map_err(prepared_migration_error)?;
-            return Ok(PreparedMigration::NoSource);
-        }
-        return Ok(PreparedMigration::NoSource);
+        return Err(prepared_migration_warning(vec![migration_failure(
+            Some(source),
+            None,
+            if savedata_count > 0 {
+                format!("旧备份目录不存在，但数据库仍有 {savedata_count} 条备份记录")
+            } else {
+                "旧备份目录不存在".to_string()
+            },
+        )]));
     }
 
     let normalized_source = normalize_for_overlap(source);
@@ -531,7 +593,16 @@ fn prepared_migration_error(
 ) -> PreparedMigrationError {
     PreparedMigrationError {
         failures,
-        requires_confirmation: false,
+        skip_migration: false,
+    }
+}
+
+fn prepared_migration_warning(
+    failures: Vec<SavedataBackupMigrationFailure>,
+) -> PreparedMigrationError {
+    PreparedMigrationError {
+        failures,
+        skip_migration: true,
     }
 }
 
@@ -551,52 +622,6 @@ fn remove_old_backup_directory(path: &Path) -> Result<(), std::io::Error> {
             Ok(())
         }
         Err(error) => Err(error),
-    }
-}
-
-fn validate_missing_source_target(
-    source: &Path,
-    target: &Path,
-) -> Result<(), Vec<SavedataBackupMigrationFailure>> {
-    let normalized_source = normalize_for_overlap(source);
-    let normalized_target = normalize_for_overlap(target);
-    let source_overlap = resolve_for_overlap(&normalized_source);
-    let target_overlap = resolve_for_overlap(&normalized_target);
-    let (source_overlap, target_overlap) = match (source_overlap, target_overlap) {
-        (Ok(source_overlap), Ok(target_overlap)) => (source_overlap, target_overlap),
-        (Err(error), _) | (_, Err(error)) => {
-            return Err(vec![migration_failure(
-                Some(source),
-                Some(target),
-                format!("无法确认新旧备份目录是否重叠: {error}"),
-            )]);
-        }
-    };
-    if paths_overlap(&source_overlap, &target_overlap)
-        && !same_path(&source_overlap, &target_overlap)
-    {
-        return Err(vec![migration_failure(
-            Some(source),
-            Some(target),
-            "新旧备份目录存在父子或符号链接重叠关系，已拒绝迁移",
-        )]);
-    }
-    match fs::symlink_metadata(target) {
-        Ok(metadata) => Err(vec![migration_failure(
-            Some(source),
-            Some(target),
-            if metadata.file_type().is_symlink() {
-                "目标备份目录是符号链接，请先手动处理"
-            } else {
-                "目标备份目录已存在，请先手动处理"
-            },
-        )]),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(vec![migration_failure(
-            Some(source),
-            Some(target),
-            format!("无法检查目标备份目录: {error}"),
-        )]),
     }
 }
 
@@ -979,14 +1004,20 @@ async fn delete_backup_record(
     backup_file_path: &Path,
     backup_id: i32,
 ) -> Option<String> {
-    match fs::remove_file(backup_file_path) {
-        Ok(()) => {}
-        Err(error) => {
+    let backup_file_path = backup_file_path.to_path_buf();
+    let path_for_task = backup_file_path.clone();
+    let remove_result = tokio::task::spawn_blocking(move || fs::remove_file(&path_for_task)).await;
+    match remove_result {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
             // 文件不存在或无法访问时保留数据库记录，避免丢失仍可能存在的备份线索。
             return Some(format!(
                 "删除备份文件失败 {}，数据库记录未变更: {error}",
                 backup_file_path.display()
             ));
+        }
+        Err(error) => {
+            return Some(format!("删除备份文件任务失败，数据库记录未变更: {error}"));
         }
     }
     GamesRepository::delete_savedata_record(db, backup_id)
@@ -1099,7 +1130,7 @@ mod tests {
         fs::create_dir_all(source.join("game_1")).unwrap();
         fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
 
-        let prepared = prepare_backup_migration(&source, &target, 1, false).unwrap();
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
 
         assert!(matches!(prepared, PreparedMigration::Ready { .. }));
         assert_eq!(
@@ -1116,7 +1147,7 @@ mod tests {
         let target = source.join("nested").join("backups");
         fs::create_dir_all(&source).unwrap();
 
-        let failures = prepare_backup_migration(&source, &target, 0, false)
+        let failures = prepare_backup_migration(&source, &target, 0)
             .unwrap_err()
             .failures;
 
@@ -1131,23 +1162,9 @@ mod tests {
         let source = root.join("missing");
         let target = root.join("new").join("backups");
 
-        let error = prepare_backup_migration(&source, &target, 1, false).unwrap_err();
+        let error = prepare_backup_migration(&source, &target, 1).unwrap_err();
 
         assert!(error.failures[0].message.contains("数据库仍有"));
-        assert!(error.requires_confirmation);
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn force_allows_missing_source_with_records() {
-        let root = test_directory();
-        fs::create_dir_all(&root).unwrap();
-        let source = root.join("missing");
-        let target = root.join("new").join("backups");
-
-        let prepared = prepare_backup_migration(&source, &target, 1, true).unwrap();
-
-        assert!(matches!(prepared, PreparedMigration::NoSource));
         fs::remove_dir_all(root).unwrap();
     }
 

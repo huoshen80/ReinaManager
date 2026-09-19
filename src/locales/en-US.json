@@ -312,6 +312,7 @@
 			"savePath": {
 				"cleanedRecords_one": "Backup path saved and {{count}} invalid backup record was cleaned up",
 				"cleanedRecords_other": "Backup path saved and {{count}} invalid backup records were cleaned up",
+				"skipMigrationWarning": "Backup path saved, but old backups were not migrated: {{error}}. Old backup location: {{path}}",
 				"missingRootConfirm": "Clean Records and Switch",
 				"missingRootMessage": "The old backup directory {{path}} does not exist, but corresponding records remain in the database. Confirm to remove these invalid records and switch to the new backup directory. This action cannot be undone.",
 				"missingRootTitle": "Old Save Backup Directory Missing",
