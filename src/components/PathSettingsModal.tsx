@@ -209,18 +209,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 				const migration = await changeSavedataBackupRootMutation.mutateAsync({
 					newPath: nextDraft.savePath,
 				});
-				if (migration.status === "failed") {
-					const details = migration.failures
-						.map((failure) =>
-							[failure.source_path, failure.target_path, failure.message]
-								.filter(Boolean)
-								.join(" → "),
-						)
-						.join("；");
-					throw new Error(
-						[migration.message, details].filter(Boolean).join("；"),
-					);
-				}
 				if (migration.status === "saved_with_warning") {
 					if (migration.residue_path) {
 						snackbar.warning(

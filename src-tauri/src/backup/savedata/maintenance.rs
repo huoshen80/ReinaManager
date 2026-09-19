@@ -20,7 +20,6 @@ static SAVEDATA_BACKUP_OPERATION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 pub enum SavedataBackupMigrationStatus {
     Completed,
     SavedWithWarning,
-    Failed,
 }
 
 #[derive(Debug, Serialize)]
@@ -177,11 +176,7 @@ pub async fn change_savedata_backup_root(
                     )
                     .await;
                 }
-                return Ok(failed_migration_result(
-                    settings.save_root_path.clone(),
-                    configured_new_path,
-                    error.failures,
-                ));
+                return Err(format_migration_failures(error.failures));
             }
         }
     } else {
@@ -222,11 +217,7 @@ pub async fn change_savedata_backup_root(
                 ));
             }
         }
-        return Ok(failed_migration_result(
-            settings.save_root_path,
-            configured_new_path,
-            failures,
-        ));
+        return Err(format_migration_failures(failures));
     }
     if cleaned_record_count > 0 {
         log::info!(
@@ -377,19 +368,26 @@ fn completed_migration_result(
     }
 }
 
-fn failed_migration_result(
-    old_path: Option<String>,
-    new_path: Option<String>,
-    failures: Vec<SavedataBackupMigrationFailure>,
-) -> SavedataBackupRootMigrationResult {
-    SavedataBackupRootMigrationResult {
-        status: SavedataBackupMigrationStatus::Failed,
-        old_path,
-        new_path,
-        message: "存档备份目录迁移失败，配置未切换".to_string(),
-        failures,
-        residue_path: None,
-        cleaned_record_count: 0,
+fn format_migration_failures(failures: Vec<SavedataBackupMigrationFailure>) -> String {
+    let details = failures
+        .into_iter()
+        .map(|failure| {
+            [
+                failure.source_path,
+                failure.target_path,
+                Some(failure.message),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" → ")
+        })
+        .collect::<Vec<_>>()
+        .join("；");
+    if details.is_empty() {
+        "存档备份目录迁移失败，配置未切换".to_string()
+    } else {
+        format!("存档备份目录迁移失败，配置未切换: {details}")
     }
 }
 

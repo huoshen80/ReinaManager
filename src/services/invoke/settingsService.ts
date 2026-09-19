@@ -26,10 +26,7 @@ export interface ProxyConfig {
 	url: string;
 }
 
-export type SavedataBackupMigrationStatus =
-	| "completed"
-	| "saved_with_warning"
-	| "failed";
+export type SavedataBackupMigrationStatus = "completed" | "saved_with_warning";
 
 export interface SavedataBackupMigrationFailure {
 	source_path?: string | null;
