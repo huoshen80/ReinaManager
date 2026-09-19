@@ -39,6 +39,7 @@ pub struct SavedataBackupRootMigrationResult {
     pub failures: Vec<SavedataBackupMigrationFailure>,
     pub residue_path: Option<String>,
     pub requires_confirmation: bool,
+    pub cleaned_record_count: u64,
 }
 
 pub(super) async fn acquire_savedata_backup_operation_lock() -> MutexGuard<'static, ()> {
@@ -177,6 +178,7 @@ pub async fn change_savedata_backup_root(
 
     let (stale_record_ids, prepared) = prepared;
     let clear_records = !stale_record_ids.is_empty();
+    let cleaned_record_count = stale_record_ids.len() as u64;
     let update_result = if clear_records {
         SettingsRepository::update_save_root_path_and_delete_savedata_records(
             db.inner(),
@@ -214,6 +216,14 @@ pub async fn change_savedata_backup_root(
             failures,
         ));
     }
+    if cleaned_record_count > 0 {
+        log::info!(
+            "存档备份目录迁移清理失效记录 count={} old_path={} new_path={}",
+            cleaned_record_count,
+            settings.save_root_path.as_deref().unwrap_or("<default>"),
+            configured_new_path.as_deref().unwrap_or("<default>")
+        );
+    }
 
     let PreparedMigration::Ready { old_path, .. } = prepared else {
         return Ok(completed_migration_result(
@@ -224,6 +234,7 @@ pub async fn change_savedata_backup_root(
             } else {
                 "没有需要迁移的历史存档备份，已更新配置"
             },
+            cleaned_record_count,
         ));
     };
 
@@ -238,6 +249,7 @@ pub async fn change_savedata_backup_root(
             Some(old_path.to_string_lossy().into_owned()),
             configured_new_path,
             "存档备份目录迁移完成，配置已更新",
+            cleaned_record_count,
         )),
         Err(error) => Ok(SavedataBackupRootMigrationResult {
             status: SavedataBackupMigrationStatus::CompletedWithResidue,
@@ -251,6 +263,7 @@ pub async fn change_savedata_backup_root(
             )],
             residue_path: Some(old_path.to_string_lossy().into_owned()),
             requires_confirmation: false,
+            cleaned_record_count,
         }),
     }
 }
@@ -268,6 +281,7 @@ fn completed_migration_result(
     old_path: Option<String>,
     new_path: Option<String>,
     message: &str,
+    cleaned_record_count: u64,
 ) -> SavedataBackupRootMigrationResult {
     SavedataBackupRootMigrationResult {
         status: SavedataBackupMigrationStatus::Completed,
@@ -277,6 +291,7 @@ fn completed_migration_result(
         failures: Vec::new(),
         residue_path: None,
         requires_confirmation: false,
+        cleaned_record_count,
     }
 }
 
@@ -293,6 +308,7 @@ fn failed_migration_result(
         failures,
         residue_path: None,
         requires_confirmation: false,
+        cleaned_record_count: 0,
     }
 }
 

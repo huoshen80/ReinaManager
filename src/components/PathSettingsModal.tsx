@@ -251,6 +251,15 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 						),
 					);
 				}
+				if (migration.cleaned_record_count > 0) {
+					snackbar.info(
+						t(
+							"components.PathSettingsModal.savePath.cleanedRecords",
+							"备份路径已保存，并清理了 {{count}} 条失效备份记录",
+							{ count: migration.cleaned_record_count },
+						),
+					);
+				}
 				persistedDraft = { ...persistedDraft, savePath: nextDraft.savePath };
 				setInitialDraft(persistedDraft);
 				initialDraftRef.current = persistedDraft;

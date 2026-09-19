@@ -45,6 +45,7 @@ export interface SavedataBackupRootMigrationResult {
 	failures: SavedataBackupMigrationFailure[];
 	residue_path?: string | null;
 	requires_confirmation: boolean;
+	cleaned_record_count: number;
 }
 
 class SettingsService extends BaseService {
