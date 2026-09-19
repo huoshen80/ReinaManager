@@ -192,7 +192,8 @@ export const handleExeFile = async (defaultPath: string = "") => {
 async function resolveLaunchFileSelection(
 	selectedPath: string,
 ): Promise<LaunchFileSelection> {
-	if (extname(selectedPath).toLowerCase() !== ".url") {
+	let ext = extname(selectedPath).toLowerCase();
+	if (ext !== ".url" && ext !== ".desktop") {
 		return { launchType: "local", path: selectedPath };
 	}
 
