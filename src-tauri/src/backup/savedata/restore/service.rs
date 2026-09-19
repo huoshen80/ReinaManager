@@ -34,7 +34,11 @@ pub async fn restore_savedata_backup(
         .await?
         .join(format!("game_{}", record.game_id))
         .join(record.file);
-    if !backup_file_path.is_file() {
+    let backup_path_for_check = backup_file_path.clone();
+    let backup_exists = tokio::task::spawn_blocking(move || backup_path_for_check.is_file())
+        .await
+        .map_err(|error| format!("检查备份文件任务失败: {error}"))?;
+    if !backup_exists {
         return Err("备份文件不存在".to_string());
     }
     let target_path = reina_path::resolve_user_path(&target_path)

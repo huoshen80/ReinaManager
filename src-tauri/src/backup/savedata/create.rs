@@ -28,20 +28,28 @@ pub async fn create_savedata_backup(
     let _operation_guard = acquire_savedata_backup_operation_lock().await;
     let source_path = reina_path::resolve_user_path(&source_path)
         .map_err(|error| format!("存档路径解析失败: {error}"))?;
-    if !source_path.exists() {
-        return Err("源存档文件或文件夹不存在".to_string());
-    }
+    let source_for_check = source_path.clone();
+    tokio::task::spawn_blocking(move || fs::symlink_metadata(&source_for_check))
+        .await
+        .map_err(|error| format!("检查源存档失败: {error}"))?
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "源存档文件或文件夹不存在".to_string()
+            } else {
+                format!("检查源存档失败: {error}")
+            }
+        })?;
     let backup_root = resolve_savedata_backup_root(&db).await?;
     let game_backup_dir = backup_root.join(format!("game_{game_id}"));
-    fs::create_dir_all(&game_backup_dir).map_err(|error| format!("创建备份目录失败: {error}"))?;
-
     let now = Utc::now();
-    let backup_filename = format!(
-        "savedata_v2_{}_{}_{}.7z",
-        game_id,
-        now.format("%Y%m%d_%H%M%S"),
-        now.timestamp_subsec_nanos()
-    );
+    let directory_for_setup = game_backup_dir.clone();
+    let backup_filename = tokio::task::spawn_blocking(move || {
+        fs::create_dir_all(&directory_for_setup)
+            .map_err(|error| format!("创建备份目录失败: {error}"))?;
+        next_backup_filename(&directory_for_setup, game_id, now)
+    })
+    .await
+    .map_err(|error| format!("准备备份目录任务失败: {error}"))??;
     let backup_file_path = game_backup_dir.join(&backup_filename);
     let archive_source = source_path.clone();
     let archive_path = backup_file_path.clone();
@@ -56,16 +64,31 @@ pub async fn create_savedata_backup(
             return Err(remove_failed_archive(
                 &backup_file_path,
                 format!("备份任务异常退出: {error}"),
-            ));
+            )
+            .await);
         }
     };
 
-    let game_id = i32::try_from(game_id).map_err(|_| {
-        remove_failed_archive(&backup_file_path, "游戏 ID 超出数据库范围".to_string())
-    })?;
-    let database_size = i64::try_from(backup_size).map_err(|_| {
-        remove_failed_archive(&backup_file_path, "备份文件大小超出数据库范围".to_string())
-    })?;
+    let game_id = match i32::try_from(game_id) {
+        Ok(game_id) => game_id,
+        Err(_) => {
+            return Err(remove_failed_archive(
+                &backup_file_path,
+                "游戏 ID 超出数据库范围".to_string(),
+            )
+            .await);
+        }
+    };
+    let database_size = match i64::try_from(backup_size) {
+        Ok(database_size) => database_size,
+        Err(_) => {
+            return Err(remove_failed_archive(
+                &backup_file_path,
+                "备份文件大小超出数据库范围".to_string(),
+            )
+            .await);
+        }
+    };
     let backup_id = match GamesRepository::save_savedata_record(
         &db,
         game_id,
@@ -80,7 +103,8 @@ pub async fn create_savedata_backup(
             return Err(remove_failed_archive(
                 &backup_file_path,
                 format!("保存存档备份记录失败: {error}"),
-            ));
+            )
+            .await);
         }
     };
 
@@ -102,13 +126,42 @@ pub async fn create_savedata_backup(
     })
 }
 
-fn remove_failed_archive(path: &Path, error: String) -> String {
-    match fs::remove_file(path) {
-        Ok(()) => error,
-        Err(cleanup_error) if cleanup_error.kind() == std::io::ErrorKind::NotFound => error,
-        Err(cleanup_error) => format!(
-            "{error}；同时清理未登记归档失败 {}: {cleanup_error}",
-            path.display()
-        ),
+fn next_backup_filename(
+    backup_dir: &Path,
+    game_id: i64,
+    now: chrono::DateTime<Utc>,
+) -> Result<String, String> {
+    let base = format!(
+        "savedata_v2_{}_{}_{:03}",
+        game_id,
+        now.format("%Y%m%d_%H%M%S"),
+        now.timestamp_subsec_millis()
+    );
+    for suffix in 0..1000 {
+        let filename = if suffix == 0 {
+            format!("{base}.7z")
+        } else {
+            format!("{base}_{suffix:03}.7z")
+        };
+        let path = backup_dir.join(&filename);
+        match fs::symlink_metadata(&path) {
+            Ok(_) => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(filename);
+            }
+            Err(error) => return Err(format!("检查备份文件名是否冲突失败: {error}")),
+        }
+    }
+    Err("同一时间生成的备份文件过多，请稍后重试".to_string())
+}
+
+async fn remove_failed_archive(path: &Path, error: String) -> String {
+    let path = path.to_path_buf();
+    let cleanup_result = tokio::task::spawn_blocking(move || fs::remove_file(&path)).await;
+    match cleanup_result {
+        Ok(Ok(())) => error,
+        Ok(Err(cleanup_error)) if cleanup_error.kind() == std::io::ErrorKind::NotFound => error,
+        Err(cleanup_error) => format!("{error}；同时清理未登记归档任务失败: {cleanup_error}"),
+        Ok(Err(cleanup_error)) => format!("{error}；同时清理未登记归档失败: {cleanup_error}"),
     }
 }
