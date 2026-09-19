@@ -221,3 +221,23 @@ export function useUpdateSettings() {
 		},
 	});
 }
+
+/** 原子迁移存档备份目录并更新配置。 */
+export function useChangeSavedataBackupRoot() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			newPath,
+			forceMissingSource = false,
+		}: {
+			newPath: string;
+			forceMissingSource?: boolean;
+		}) => settingsService.changeSavedataBackupRoot(newPath, forceMissingSource),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: settingsKeys.allSettings(),
+			});
+		},
+	});
+}

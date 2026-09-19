@@ -26,6 +26,27 @@ export interface ProxyConfig {
 	url: string;
 }
 
+export type SavedataBackupMigrationStatus =
+	| "completed"
+	| "failed"
+	| "completed_with_residue";
+
+export interface SavedataBackupMigrationFailure {
+	source_path?: string | null;
+	target_path?: string | null;
+	message: string;
+}
+
+export interface SavedataBackupRootMigrationResult {
+	status: SavedataBackupMigrationStatus;
+	old_path?: string | null;
+	new_path?: string | null;
+	message: string;
+	failures: SavedataBackupMigrationFailure[];
+	residue_path?: string | null;
+	requires_confirmation: boolean;
+}
+
 class SettingsService extends BaseService {
 	/**
 	 * 动态设置日志输出级别（不持久化）
@@ -55,6 +76,16 @@ class SettingsService extends BaseService {
 		return this.invoke<void>("update_settings", {
 			data: updates,
 		});
+	}
+
+	async changeSavedataBackupRoot(
+		newPath: string,
+		forceMissingSource = false,
+	): Promise<SavedataBackupRootMigrationResult> {
+		return this.invoke<SavedataBackupRootMigrationResult>(
+			"change_savedata_backup_root",
+			{ newPath, forceMissingSource },
+		);
 	}
 
 	async updateProxyConfig(config: ProxyConfig): Promise<void> {

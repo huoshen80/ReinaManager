@@ -1,7 +1,4 @@
-import { join } from "pathe";
-import { getAppDataDirPath } from "@/services/fs/pathCache";
 import { fileService, savedataService } from "@/services/invoke";
-import { toError } from "@/utils/errors";
 
 export async function createGameSavedataBackup(
 	gameId: number,
@@ -30,33 +27,4 @@ export async function openGameSaveDataFolder(
 
 export async function openDatabaseBackupFolder(): Promise<void> {
 	await fileService.openDatabaseBackupFolder();
-}
-
-export async function moveBackupFolder(
-	oldPath: string,
-	newPath: string,
-): Promise<{ moved: boolean; message: string }> {
-	try {
-		const appDataDir = getAppDataDirPath();
-		const oldBackupDir = oldPath
-			? join(oldPath, "backups")
-			: join(appDataDir, "backups");
-		const newBackupDir = join(newPath, "backups");
-
-		const result = await fileService.moveBackupFolder(
-			oldBackupDir,
-			newBackupDir,
-		);
-
-		return {
-			moved: result.success,
-			message: result.message,
-		};
-	} catch (error) {
-		console.error("移动备份文件夹失败:", error);
-		return {
-			moved: false,
-			message: toError(error, "Failed to move backup folder").message,
-		};
-	}
 }

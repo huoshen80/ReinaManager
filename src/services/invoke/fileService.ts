@@ -23,11 +23,6 @@ export interface ImportResult {
 	backup_path: string | null;
 }
 
-export interface MoveBackupFolderResult {
-	success: boolean;
-	message: string;
-}
-
 export interface PortableModeResult {
 	is_portable: boolean;
 }
@@ -228,19 +223,6 @@ class FileService extends BaseService {
 	 */
 	async importDatabase(sourcePath: string): Promise<ImportResult> {
 		return this.invoke<ImportResult>("import_database", { sourcePath });
-	}
-
-	/**
-	 * 移动备份文件夹
-	 */
-	async moveBackupFolder(
-		oldPath: string,
-		newPath: string,
-	): Promise<MoveBackupFolderResult> {
-		return this.invoke<MoveBackupFolderResult>("move_backup_folder", {
-			oldPath,
-			newPath,
-		});
 	}
 }
 

@@ -376,7 +376,6 @@ export interface UpdateSettingsParams {
 	bgmAuth?: Nullable<BgmAuth>;
 	hikarinagiAuth?: Nullable<HikarinagiAuth>;
 	vndbToken?: Nullable<string>;
-	saveRootPath?: Nullable<string>;
 	dbBackupPath?: Nullable<string>;
 	installRootPath?: Nullable<string>;
 	lePath?: Nullable<string>;
