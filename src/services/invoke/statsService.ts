@@ -13,7 +13,6 @@ import { BaseService } from "./base";
 
 export type LaunchGameResult =
 	| { status: "tracking"; message: string; process_id?: number }
-	| { status: "delegated"; message: string }
 	| { status: "failed"; message: string };
 
 export interface StopGameResult {

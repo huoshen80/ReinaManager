@@ -15,6 +15,7 @@ dependencies = [
  "image",
  "log",
  "migration",
+ "nix",
  "parking_lot",
  "pinyin",
  "reina-download",

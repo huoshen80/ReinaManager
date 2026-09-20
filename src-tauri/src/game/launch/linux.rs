@@ -1,7 +1,8 @@
 use super::{LaunchResult, StopResult, load_game, validate_and_open_steam, validate_local_launch};
 use crate::game::monitor::TimeTrackingMode;
-use crate::game::monitor::{get_connection, get_manager_proxy};
-use crate::game::monitor::{monitor_game, stop_game_session};
+use crate::game::monitor::{MonitorTarget, get_connection, get_manager_proxy};
+use crate::game::monitor::{monitor_game, stop_game_session, stop_steam_game, wait_for_steam_game};
+use crate::game::steam::steam_app_id_from_launch_id;
 use log::{debug, info};
 use sea_orm::DatabaseConnection;
 use std::future::poll_fn;
@@ -64,10 +65,25 @@ async fn launch_game_inner<R: Runtime>(
             args.as_deref(),
         )?;
 
-        return Ok(LaunchResult::delegated(format!(
-            "已交由 Steam 启动游戏 ({})，工作目录: {})",
-            steam_launch.steam_launch_id, steam_launch.game_dir
-        )));
+        // Steam 在 Linux 上以 reaper 进程启动游戏，识别到它才能开始计时
+        let process_id = wait_for_steam_game(steam_launch.steam_app_id)
+            .await
+            .map_err(|error| format!("{error}，本次游玩未开始计时"))?;
+
+        monitor_game(
+            app_handle.clone(),
+            db.inner().clone(),
+            time_tracking_mode,
+            game_id,
+            process_id,
+            MonitorTarget::SteamAppId(steam_launch.steam_app_id),
+        )
+        .await;
+
+        return Ok(LaunchResult::tracking(
+            format!("已交由 Steam 启动游戏 ({})", steam_launch.steam_launch_id),
+            Some(process_id),
+        ));
     }
 
     let local_launch = validate_local_launch(&game)?;
@@ -139,7 +155,7 @@ async fn launch_game_inner<R: Runtime>(
         time_tracking_mode,
         game_id,
         process_id,
-        systemd_unit_name.clone(),
+        MonitorTarget::SystemdUnit(systemd_unit_name.clone()),
     )
     .await;
 
@@ -359,7 +375,34 @@ async fn next_job_removed(stream: &mut JobRemovedStream) -> Option<JobRemoved> {
 }
 
 #[command]
-pub async fn stop_game(game_id: u32) -> Result<StopResult, String> {
+pub async fn stop_game(
+    db: State<'_, DatabaseConnection>,
+    game_id: u32,
+) -> Result<StopResult, String> {
+    let game = load_game(db.inner(), game_id).await?;
+
+    if game.launch_type == "steam" {
+        // Steam 启动的游戏不在 ReinaManager 的 systemd unit 里，只能靠 reaper 定位
+        let launch_id = game
+            .steam_launch_id
+            .as_deref()
+            .map(str::trim)
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .ok_or_else(|| "Steam 启动 ID 无效，请重新关联 Steam 启动项".to_string())?;
+        let app_id = steam_app_id_from_launch_id(launch_id)
+            .map_err(|error| format!("{error}，请重新关联 Steam 启动项"))?;
+
+        let terminated_count = stop_steam_game(app_id)?;
+
+        info!("已终止 Steam 游戏进程 game_id={game_id} app_id={app_id} count={terminated_count}");
+
+        return Ok(StopResult::success(
+            format!("成功停止游戏 {}，终止进程数: {}", game_id, terminated_count),
+            terminated_count,
+        ));
+    }
+
     match stop_game_session(game_id).await {
         Ok(terminated_count) => Ok(StopResult::success(
             format!("成功停止游戏 {}，终止进程数: {}", game_id, terminated_count),

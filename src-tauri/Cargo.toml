@@ -105,6 +105,7 @@ windows = { version = "0.62.2", features = [
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.29", features = ["signal"] }
 xcb = "1.7.1"
 zbus = "5.19.0"
 zbus_systemd = { version = "0.26100.0", features = ["systemd1"] }

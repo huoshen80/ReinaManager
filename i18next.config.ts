@@ -10,6 +10,8 @@ export default defineConfig({
 		defaultNS: false,
 		defaultValue: "__MISSING__",
 		removeUnusedKeys: true,
+		// translationRef 是 InstallRequestHandler 中避免闭包过期的 t 引用，需要显式声明才能被提取
+		functions: ["t", "*.t", "translationRef.current"],
 		preservePatterns: [
 			"category.playStatus.*",
 			"app.NAVIGATION.gameLibrary",

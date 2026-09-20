@@ -25,10 +25,10 @@
 		"changePlayStatus": "修改游戏状态",
 		"close": "关闭",
 		"confirm": "确认",
-		"unknown": "未知",
 		"retry": "重试",
 		"saving": "保存中...",
 		"today": "今天",
+		"unknown": "未知",
 		"yesterday": "昨天"
 	},
 	"components": {
@@ -214,11 +214,14 @@
 			"empty": "没有找到符合条件的游戏"
 		},
 		"InstallRequest": {
-			"confirm": "确认安装",
+			"completed": "游戏安装成功",
 			"completedWithActualPath": "环境变量路径已变化，已使用实际安装路径保存游戏目录",
+			"completedWithoutExecutable": "游戏文件安装完成，请在游戏设置中手动配置启动程序",
+			"confirm": "确认安装",
 			"defaultPathSaveFailed": "安装任务已创建，但默认路径保存失败：{{error}}",
 			"installPath": "安装路径",
 			"installPathPlaceholder": "选择用于安装游戏的目录",
+			"invalidRequest": "安装请求无效：{{error}}",
 			"metadataLabel": "元数据：",
 			"pathRequired": "请先选择或输入安装路径",
 			"preparing": "正在准备安装…",
@@ -256,7 +259,6 @@
 			"selectExecutableRequired": "请选择可执行文件",
 			"steamLaunchTargetMissing": "Steam 启动项无效，请重新关联",
 			"steamMonitorPathMissing": "Steam 游戏监控目录缺失，请重新关联",
-			"steamTrackingUnavailable": "已交由 Steam 启动；当前平台暂不支持跟踪该次游玩",
 			"stopFailed": "游戏停止失败:",
 			"stopGame": "停止游戏",
 			"stoppingGame": "停止游戏中...",
@@ -297,11 +299,9 @@
 				"selectBtn": "选择文件",
 				"title": "Magpie软件路径"
 			},
-			"saveError": "保存路径设置失败：{{error}}",
 			"saveFieldError": "保存{{field}}失败：{{error}}",
 			"savePath": {
-				"cleanedRecords_one": "备份路径已保存，并清理了 {{count}} 条失效备份记录",
-				"cleanedRecords_other": "备份路径已保存，并清理了 {{count}} 条失效备份记录",
+				"cleanedRecords": "备份路径已保存，并清理了 {{count}} 条失效备份记录",
 				"missingRootConfirm": "清理记录并切换",
 				"missingRootMessage": "旧备份目录 {{path}} 不存在，但数据库中仍有对应记录。确认后将清理这些失效记录，并切换到新的备份目录。此操作不可撤销。",
 				"missingRootTitle": "旧存档备份目录不存在",

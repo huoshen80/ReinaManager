@@ -170,7 +170,6 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 						};
 					});
 					break;
-				case "delegated":
 				case "failed":
 					set((state) => removeGameRuntimeState(state, gameId));
 					break;
