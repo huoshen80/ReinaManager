@@ -25,10 +25,10 @@
 		"changePlayStatus": "Change Play Status",
 		"close": "Close",
 		"confirm": "Confirm",
-		"unknown": "Unknown",
 		"retry": "Retry",
 		"saving": "Saving...",
 		"today": "Today",
+		"unknown": "Unknown",
 		"yesterday": "Yesterday"
 	},
 	"components": {
@@ -224,11 +224,14 @@
 			"empty": "No matching games found"
 		},
 		"InstallRequest": {
-			"confirm": "Confirm Installation",
+			"completed": "Game installed successfully",
 			"completedWithActualPath": "The environment-variable path changed, so the actual installation path was saved",
+			"completedWithoutExecutable": "Game files installed. Select the launch executable manually in the game settings",
+			"confirm": "Confirm Installation",
 			"defaultPathSaveFailed": "The installation task was created, but the default path could not be saved: {{error}}",
 			"installPath": "Installation Path",
 			"installPathPlaceholder": "Select directory for game installation",
+			"invalidRequest": "Invalid installation request: {{error}}",
 			"metadataLabel": "Metadata: ",
 			"pathRequired": "Please select or enter an installation path",
 			"preparing": "Preparing installation…",
@@ -266,7 +269,6 @@
 			"selectExecutableRequired": "Please select an executable file",
 			"steamLaunchTargetMissing": "The Steam launch item is invalid. Associate it again.",
 			"steamMonitorPathMissing": "The Steam monitoring folder is missing. Associate the launch item again.",
-			"steamTrackingUnavailable": "The game was handed off to Steam; play tracking is not supported on this platform yet.",
 			"stopFailed": "Failed to stop game:",
 			"stopGame": "Stop Game",
 			"stoppingGame": "Stopping game...",
@@ -307,7 +309,6 @@
 				"selectBtn": "Select File",
 				"title": "Magpie Software Path"
 			},
-			"saveError": "Failed to save path settings: {{error}}",
 			"saveFieldError": "Failed to save {{field}}: {{error}}",
 			"savePath": {
 				"cleanedRecords_one": "Backup path saved and {{count}} invalid backup record was cleaned up",

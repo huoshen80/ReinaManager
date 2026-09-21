@@ -177,7 +177,7 @@ export const handleExeFile = async (defaultPath: string = "") => {
 		filters: [
 			{
 				name: t("utils.handleDirectory.executable", "可执行文件"),
-				extensions: ["exe", "bat", "cmd"],
+				extensions: ["exe", "bat", "cmd", "sh"],
 			},
 			{
 				name: t("utils.handleDirectory.allFiles", "所有文件"),
@@ -192,7 +192,8 @@ export const handleExeFile = async (defaultPath: string = "") => {
 async function resolveLaunchFileSelection(
 	selectedPath: string,
 ): Promise<LaunchFileSelection> {
-	if (extname(selectedPath).toLowerCase() !== ".url") {
+	const ext = extname(selectedPath).toLowerCase();
+	if (ext !== ".url" && ext !== ".desktop") {
 		return { launchType: "local", path: selectedPath };
 	}
 
@@ -216,7 +217,7 @@ export const handleLaunchFile = async (
 		filters: [
 			{
 				name: t("utils.handleDirectory.launchFile", "启动文件"),
-				extensions: ["exe", "bat", "cmd", "url"],
+				extensions: ["exe", "bat", "cmd", "url", "desktop"],
 			},
 		],
 	});

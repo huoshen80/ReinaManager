@@ -176,8 +176,9 @@ fn resolve_paths_blocking(
     let shortcut_paths = path_bufs
         .iter()
         .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("url"))
+            path.extension().is_some_and(|extension| {
+                extension.eq_ignore_ascii_case("url") || extension == "desktop"
+            })
         })
         .map(PathBuf::as_path)
         .collect::<Vec<_>>();
@@ -188,9 +189,9 @@ fn resolve_paths_blocking(
     let mut candidates = Vec::new();
 
     for path in path_bufs {
-        let is_shortcut = path
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("url"));
+        let is_shortcut = path.extension().is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("url") || extension == "desktop"
+        });
         let candidate = if is_shortcut {
             match shortcut_results
                 .next()

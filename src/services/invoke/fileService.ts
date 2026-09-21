@@ -105,7 +105,7 @@ class FileService extends BaseService {
 		);
 	}
 
-	/** 解析单个 Steam `.url` 快捷方式并匹配本机 Steam 库。 */
+	/** 解析单个 Steam `.url`(`.desktop`) 快捷方式并匹配本机 Steam 库。 */
 	async resolveSteamShortcutFile(path: string): Promise<SteamLaunchTarget> {
 		return this.invoke<SteamLaunchTarget>("resolve_steam_shortcut_file", {
 			path,
