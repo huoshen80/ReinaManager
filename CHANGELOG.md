@@ -1,3 +1,102 @@
+## [0.30.0](https://github.com/huoshen80/ReinaManager/compare/v0.29.2...v0.30.0) (2026-09-22)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- 移除未使用的 Fragment ([3d88396](https://github.com/huoshen80/ReinaManager/commit/3d88396a2e34df44c2119a5c6c5ae99e53956b18))
+- *(branding)* 更新 hikarinagi 字标 ([a7cd00f](https://github.com/huoshen80/ReinaManager/commit/a7cd00f1cff5359eba49a34f8d79c408558fa2fd))
+
+### ✨ 新功能
+
+- *(savedata)* 支持文件备份和旧版备份 ([beb1789](https://github.com/huoshen80/ReinaManager/commit/beb17891b38367ec53c994147b34e5c914f5b481))
+- *(savedata)* 支持选择文件保存路径 ([e24187e](https://github.com/huoshen80/ReinaManager/commit/e24187e6ea45ce6d8a75750d2f9ab70ee8984157))
+- *(paths)* 支持环境变量 ([0f43908](https://github.com/huoshen80/ReinaManager/commit/0f43908766eb58100df3441e37a6d3cd3d1f24ba))
+- *(savedata)* 安全迁移备份根目录 ([a3e08ac](https://github.com/huoshen80/ReinaManager/commit/a3e08acb3102772c3e994c8da1bdbd699718fe0a))
+- *(settings)* 添加备份根目录迁移确认 ([fd349e9](https://github.com/huoshen80/ReinaManager/commit/fd349e9628380ce528b17162aa3b34d18f957631))
+- *(linux)* 通过 Steam 支持改进游戏启动和监控 (#95) ([77295d0](https://github.com/huoshen80/ReinaManager/commit/77295d0bea97e80e8c37852ab9dbb0eb0c2705e7))
+- *(backup)* 添加定时自动备份 ([03288c8](https://github.com/huoshen80/ReinaManager/commit/03288c8d0e419cf12927a55789772542208836f8))
+
+### 🎨 样式
+
+- 统一换行符 ([b110a96](https://github.com/huoshen80/ReinaManager/commit/b110a96e3071204e56b7ec93e09ba9da4490db78))
+
+### 🐛 Bug 修复
+
+- *(savedata)* 强化备份生命周期管理 ([dc1836f](https://github.com/huoshen80/ReinaManager/commit/dc1836f5fc6aceb6a12553aa1bc4a3693b88c12d))
+- *(i18n)* 防护不支持的语言区域 ([d1ea219](https://github.com/huoshen80/ReinaManager/commit/d1ea21925d6b106410ed71db41f6f3fea0337c23))
+- *(paths)* 安全保留已配置的路径 ([170720f](https://github.com/huoshen80/ReinaManager/commit/170720f1c7570ed9a6ddf4605ed1bbd2a3335b98))
+- *(paths)* 明确检查反馈 ([d18a6b0](https://github.com/huoshen80/ReinaManager/commit/d18a6b025a5bca8be1beb661c542761bbf7538c0))
+- *(savedata)* 备份文件失败时保留记录 ([bf2830f](https://github.com/huoshen80/ReinaManager/commit/bf2830f4a8eab21ee93393be38e1ce9c2dd9ecd0))
+- *(install)* 在重试过程中固定任务路径 ([d9441ef](https://github.com/huoshen80/ReinaManager/commit/d9441efc0c3e5ba2030ebbca55b2bc0fe79bb1c7))
+- *(paths)* 独立保存发生变化的设置字段 ([bf449b0](https://github.com/huoshen80/ReinaManager/commit/bf449b0c9820590246d732d326efbe9d7583725b))
+- *(savedata)* 刷新迁移清理状态 ([08ab0fa](https://github.com/huoshen80/ReinaManager/commit/08ab0fac46dd8a218b47309761188fef5872fc43))
+- *(savedata)* 报告过期记录清理 ([3822fd2](https://github.com/huoshen80/ReinaManager/commit/3822fd2ea7a0b6f464f56980265214319f3cba1c))
+- *(savedata)* 简化备份根目录警告 ([3c87bac](https://github.com/huoshen80/ReinaManager/commit/3c87baca07e643dd6aec37e7a11c9cefa51b1377))
+- *(savedata)* 缩短备份文件名 ([f8270aa](https://github.com/huoshen80/ReinaManager/commit/f8270aa8f8f258ee12816b78f703b13146114d6e))
+- *(savedata)* 使用秒级精度的备份名称 ([8dafdde](https://github.com/huoshen80/ReinaManager/commit/8dafddeddf72d7e9bac213d904095ac345c2916f))
+- *(savedata)* 为无法访问的备份确认清理操作 ([8a06436](https://github.com/huoshen80/ReinaManager/commit/8a06436a40dd8a218b47309761188fef5872fc43))
+- *(savedata)* 统一备份根目录语义 ([578ba70](https://github.com/huoshen80/ReinaManager/commit/578ba70bc6ba9e066b68539e8d1e092ec6312452))
+- *(paths)* 保持临时路径为绝对路径 ([4b01156](https://github.com/huoshen80/ReinaManager/commit/4b01156e7f77ab76ee1e1de92accb42b39b02d69))
+- *(ui)* 清理本地化标签 ([27ade93](https://github.com/huoshen80/ReinaManager/commit/27ade93706841eda64c0230c0716d23cbaa6ed6e))
+- *(game)* 按平台限定 Steam 启动数据 ([81931d1](https://github.com/huoshen80/ReinaManager/commit/81931d142a8c8f88e01c1a260bce2fbd25f74b15))
+- *(backup)* 安全发布唯一的备份文件 ([d2570a6](https://github.com/huoshen80/ReinaManager/commit/d2570a68774d8210155d5230d80af2699747d7f3))
+- *(savedata)* 强化备份根目录迁移 ([b8eaaf3](https://github.com/huoshen80/ReinaManager/commit/b8eaaf341c3d6a9bc42722ad94ec986d70384135))
+- *(metadata)* 适配 Kungal API 字段 ([995fdae](https://github.com/huoshen80/ReinaManager/commit/995fdae06155d5cd75b0ad8eaff5c9a19ada1339))
+
+### 🚜 重构
+
+- *(savedata)* 减少迁移结果状态 ([6fa4734](https://github.com/huoshen80/ReinaManager/commit/6fa4734e844f0edbd24e15b23aab752bd45ed22f))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove unused Fragment ([3d88396](https://github.com/huoshen80/ReinaManager/commit/3d88396a2e34df44c2119a5c6c5ae99e53956b18))
+- *(branding)* Update hikarinagi wordmark ([a7cd00f](https://github.com/huoshen80/ReinaManager/commit/a7cd00f1cff5359eba49a34f8d79c408558fa2fd))
+
+### ✨ Features
+
+- *(savedata)* Support file and legacy backups ([beb1789](https://github.com/huoshen80/ReinaManager/commit/beb17891b38367ec53c994147b34e5c914f5b481))
+- *(savedata)* Allow file save path selection ([e24187e](https://github.com/huoshen80/ReinaManager/commit/e24187e6ea45ce6d8a75750d2f9ab70ee8984157))
+- *(paths)* Support environment variables ([0f43908](https://github.com/huoshen80/ReinaManager/commit/0f43908766eb58100df3441e37a6d3cd3d1f24ba))
+- *(savedata)* Migrate backup roots safely ([a3e08ac](https://github.com/huoshen80/ReinaManager/commit/a3e08acb3102772c3e994c8da1bdbd699718fe0a))
+- *(settings)* Add backup root migration confirmation ([fd349e9](https://github.com/huoshen80/ReinaManager/commit/fd349e9628380ce528b17162aa3b34d18f957631))
+- *(linux)* Improve game launching and monitoring with Steam support (#95) ([77295d0](https://github.com/huoshen80/ReinaManager/commit/77295d0bea97e80e8c37852ab9dbb0eb0c2705e7))
+- *(backup)* Add scheduled automatic backups ([03288c8](https://github.com/huoshen80/ReinaManager/commit/03288c8d0e419cf12927a55789772542208836f8))
+
+### 🎨 Styling
+
+- Normalize line endings ([b110a96](https://github.com/huoshen80/ReinaManager/commit/b110a96e3071204e56b7ec93e09ba9da4490db78))
+
+### 🐛 Bug Fixes
+
+- *(savedata)* Harden backup lifecycle ([dc1836f](https://github.com/huoshen80/ReinaManager/commit/dc1836f5fc6aceb6a12553aa1bc4a3693b88c12d))
+- *(i18n)* Guard unsupported locales ([d1ea219](https://github.com/huoshen80/ReinaManager/commit/d1ea21925d6b106410ed71db41f6f3fea0337c23))
+- *(paths)* Preserve configured paths safely ([170720f](https://github.com/huoshen80/ReinaManager/commit/170720f1c7570ed9a6ddf4605ed1bbd2a3335b98))
+- *(paths)* Clarify inspection feedback ([d18a6b0](https://github.com/huoshen80/ReinaManager/commit/d18a6b025a5bca8be1beb661c542761bbf7538c0))
+- *(savedata)* Preserve records when backup files fail ([bf2830f](https://github.com/huoshen80/ReinaManager/commit/bf2830f4a8eab21ee93393be38e1ce9c2dd9ecd0))
+- *(install)* Pin task paths across retries ([d9441ef](https://github.com/huoshen80/ReinaManager/commit/d9441efc0c3e5ba2030ebbca55b2bc0fe79bb1c7))
+- *(paths)* Save changed settings fields independently ([bf449b0](https://github.com/huoshen80/ReinaManager/commit/bf449b0c9820590246d732d326efbe9d7583725b))
+- *(savedata)* Refresh migration cleanup state ([08ab0fa](https://github.com/huoshen80/ReinaManager/commit/08ab0fac46dd8a218b47309761188fef5872fc43))
+- *(savedata)* Report stale record cleanup ([3822fd2](https://github.com/huoshen80/ReinaManager/commit/3822fd2ea7a0b6f464f56980265214319f3cba1c))
+- *(savedata)* Simplify backup root warnings ([3c87bac](https://github.com/huoshen80/ReinaManager/commit/3c87baca07e643dd6aec37e7a11c9cefa51b1377))
+- *(savedata)* Shorten backup filenames ([f8270aa](https://github.com/huoshen80/ReinaManager/commit/f8270aa8f8f258ee12816b78f703b13146114d6e))
+- *(savedata)* Use second precision backup names ([8dafdde](https://github.com/huoshen80/ReinaManager/commit/8dafddeddf72d7e9bac213d904095ac345c2916f))
+- *(savedata)* Confirm cleanup for inaccessible backups ([8a06436](https://github.com/huoshen80/ReinaManager/commit/8a0643658aaff25d33f59ec8b74901296044a540))
+- *(savedata)* Normalize backup root semantics ([578ba70](https://github.com/huoshen80/ReinaManager/commit/578ba70bc6ba9e066b68539e8d1e092ec6312452))
+- *(paths)* Keep transient paths absolute ([4b01156](https://github.com/huoshen80/ReinaManager/commit/4b01156e7f77ab76ee1e1de92accb42b39b02d69))
+- *(ui)* Clean up localized labels ([27ade93](https://github.com/huoshen80/ReinaManager/commit/27ade93706841eda64c0230c0716d23cbaa6ed6e))
+- *(game)* Scope Steam launch data by platform ([81931d1](https://github.com/huoshen80/ReinaManager/commit/81931d142a8c8f88e01c1a260bce2fbd25f74b15))
+- *(backup)* Safely publish unique backup files ([d2570a6](https://github.com/huoshen80/ReinaManager/commit/d2570a68774d8210155d5230d80af2699747d7f3))
+- *(savedata)* Harden backup root migration ([b8eaaf3](https://github.com/huoshen80/ReinaManager/commit/b8eaaf341c3d6a9bc42722ad94ec986d70384135))
+- *(metadata)* Adapt Kungal API fields ([995fdae](https://github.com/huoshen80/ReinaManager/commit/995fdae06155d5cd75b0ad8eaff5c9a19ada1339))
+
+### 🚜 Refactor
+
+- *(savedata)* Reduce migration result states ([6fa4734](https://github.com/huoshen80/ReinaManager/commit/6fa4734e844f0edbd24e15b23aab752bd45ed22f))
+
 ## [0.29.2](https://github.com/huoshen80/ReinaManager/compare/v0.29.1...v0.29.2) (2026-09-06)
 
 <details>
