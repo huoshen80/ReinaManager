@@ -1,5 +1,6 @@
 use crate::database::dto::FullGameData;
 use crate::database::repository::games_repository::GamesRepository;
+use crate::game::steam::steam_app_id_from_launch_id;
 use log::{info, warn};
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -15,9 +16,6 @@ pub enum LaunchResult {
         #[serde(skip_serializing_if = "Option::is_none")]
         process_id: Option<u32>,
     },
-    Delegated {
-        message: String,
-    },
     Failed {
         message: String,
     },
@@ -28,13 +26,6 @@ impl LaunchResult {
         Self::Tracking {
             message,
             process_id,
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    pub fn delegated(message: impl Into<String>) -> Self {
-        Self::Delegated {
-            message: message.into(),
         }
     }
 
@@ -64,7 +55,11 @@ impl StopResult {
 
 pub struct ValidatedSteamLaunch {
     pub steam_launch_id: String,
-    #[cfg(target_os = "windows")]
+    /// Steam 进程实际使用的 32 位 AppId
+    ///
+    /// 非 Steam 快捷方式的启动 ID 与 AppId 并不相同，Linux 侧靠它识别 reaper 进程。
+    pub steam_app_id: u32,
+    #[allow(dead_code)]
     pub game_dir: String,
 }
 
@@ -123,12 +118,14 @@ pub fn validate_and_open_steam<R: Runtime>(
     game_dir: Option<&str>,
     args: Option<&[String]>,
 ) -> Result<ValidatedSteamLaunch, String> {
-    let steam_launch_id = steam_launch_id
+    let steam_launch_id_value = steam_launch_id
         .map(str::trim)
         .and_then(|value| value.parse::<u64>().ok())
         .filter(|value| *value > 0)
-        .map(|value| value.to_string())
         .ok_or_else(|| "Steam 启动 ID 无效，请重新关联 Steam 启动项".to_string())?;
+    let steam_app_id = steam_app_id_from_launch_id(steam_launch_id_value)
+        .map_err(|_| "Steam 启动 ID 无效，请重新关联 Steam 启动项".to_string())?;
+    let steam_launch_id = steam_launch_id_value.to_string();
     let configured_game_dir = game_dir
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -161,7 +158,7 @@ pub fn validate_and_open_steam<R: Runtime>(
 
     Ok(ValidatedSteamLaunch {
         steam_launch_id,
-        #[cfg(target_os = "windows")]
+        steam_app_id,
         game_dir: game_dir.to_string_lossy().into_owned(),
     })
 }
@@ -184,13 +181,6 @@ mod tests {
             })
             .unwrap(),
             json!({ "status": "tracking", "message": "无进程号" })
-        );
-        assert_eq!(
-            serde_json::to_value(LaunchResult::Delegated {
-                message: "已委托".to_string(),
-            })
-            .unwrap(),
-            json!({ "status": "delegated", "message": "已委托" })
         );
         assert_eq!(
             serde_json::to_value(LaunchResult::failed("失败")).unwrap(),

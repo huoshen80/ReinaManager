@@ -25,10 +25,10 @@
 		"changePlayStatus": "プレイ状態を変更",
 		"close": "閉じる",
 		"confirm": "確認",
-		"unknown": "不明",
 		"retry": "再試行",
 		"saving": "保存中...",
 		"today": "今日",
+		"unknown": "不明",
 		"yesterday": "昨日"
 	},
 	"components": {
@@ -214,11 +214,14 @@
 			"empty": "条件に一致するゲームが見つかりません"
 		},
 		"InstallRequest": {
-			"confirm": "インストールを確認",
+			"completed": "ゲームのインストールに成功しました",
 			"completedWithActualPath": "環境変数のパスが変わったため、実際のインストール先を保存しました",
+			"completedWithoutExecutable": "ゲームファイルのインストールが完了しました。ゲーム設定で起動プログラムを手動で設定してください",
+			"confirm": "インストールを確認",
 			"defaultPathSaveFailed": "インストールタスクは作成されましたが、既定のパスを保存できませんでした：{{error}}",
 			"installPath": "インストールパス",
 			"installPathPlaceholder": "ゲームのインストールに使用するディレクトリを選択",
+			"invalidRequest": "インストールリクエストが無効です：{{error}}",
 			"metadataLabel": "メタデータ：",
 			"pathRequired": "インストールパスを選択または入力してください",
 			"preparing": "インストールを準備しています…",
@@ -256,7 +259,6 @@
 			"selectExecutableRequired": "実行ファイルを選択してください",
 			"steamLaunchTargetMissing": "Steam の起動項目が無効です。再度関連付けてください",
 			"steamMonitorPathMissing": "Steam ゲームの監視フォルダがありません。再度関連付けてください",
-			"steamTrackingUnavailable": "Steam に起動を引き渡しました。このプラットフォームでは今回のプレイを追跡できません",
 			"stopFailed": "ゲーム停止に失敗しました:",
 			"stopGame": "ゲームを停止",
 			"stoppingGame": "ゲームを停止中...",
@@ -297,7 +299,6 @@
 				"selectBtn": "ファイルを選択",
 				"title": "Magpieソフトウェアパス"
 			},
-			"saveError": "パス設定の保存に失敗しました：{{error}}",
 			"saveFieldError": "{{field}}の保存に失敗しました：{{error}}",
 			"savePath": {
 				"cleanedRecords_one": "バックアップパスを保存し、無効なバックアップ記録を{{count}}件削除しました",

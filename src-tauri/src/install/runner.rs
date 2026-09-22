@@ -6,8 +6,7 @@ use super::{
         set_task_cancelled, set_task_paused, set_task_stage,
     },
     types::{
-        GAME_INSTALL_TASK_TYPE, GameInstallResultV1, TaskControl,
-        TaskFailure, TaskRuntimeState,
+        GAME_INSTALL_TASK_TYPE, GameInstallResultV1, TaskControl, TaskFailure, TaskRuntimeState,
     },
     workflow::{
         emit_game_install_failed, game_directory_name, parse_game_install_payload,

@@ -354,6 +354,30 @@ fn shortcut_launch_id(shortcut_app_id: u32) -> String {
     ((u64::from(shortcut_app_id) << 32) | STEAM_SHORTCUT_MARKER).to_string()
 }
 
+/// 从 Steam 启动 ID 反推 Steam 进程实际使用的 32 位 AppId
+///
+/// Steam 启动游戏时，reaper 进程命令行携带的是 32 位应用 ID：
+/// - 商店应用：AppId 即为启动 ID 本身（如 413150）
+/// - 非 Steam 快捷方式：启动 ID 为 `(shortcut appid << 32) | STEAM_SHORTCUT_MARKER`，AppId 是其高 32 位
+pub fn steam_app_id_from_launch_id(launch_id: u64) -> Result<u32, String> {
+    if launch_id == 0 {
+        return Err("Steam 启动 ID 无效".to_string());
+    }
+
+    let app_id = if launch_id > u64::from(u32::MAX) {
+        if (launch_id & u64::from(u32::MAX)) != STEAM_SHORTCUT_MARKER {
+            return Err("Steam 启动 ID 无效".to_string());
+        }
+        (launch_id >> 32) as u32
+    } else {
+        launch_id as u32
+    };
+
+    (app_id != 0)
+        .then_some(app_id)
+        .ok_or_else(|| "Steam 启动 ID 无效".to_string())
+}
+
 fn parse_shortcuts_vdf(path: &Path) -> Result<(Vec<SteamLaunchTarget>, Vec<String>), String> {
     let bytes = fs::read(path).map_err(|error| format!("读取 {} 失败: {error}", path.display()))?;
     let root = parse_binary_vdf(&bytes)
@@ -630,14 +654,18 @@ fn parse_url_launch_id(text: &str) -> Result<String, String> {
 }
 
 fn resolve_steam_shortcut_file_blocking(path: &Path) -> Result<SteamLaunchTarget, String> {
-    if !path
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("url"))
-    {
-        return Err("仅支持 .url Steam 快捷方式".to_string());
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if !(ext.eq_ignore_ascii_case("url") || ext == "desktop") {
+        return Err("仅支持 .url(.desktop) Steam 快捷方式".to_string());
     }
     let bytes = fs::read(path).map_err(|error| format!("读取 {} 失败: {error}", path.display()))?;
-    let launch_id = parse_url_launch_id(&decode_shortcut_text(&bytes)?)?;
+    let launch_id = if ext.eq_ignore_ascii_case("url") {
+        parse_url_launch_id(&decode_shortcut_text(&bytes)?)?
+    } else if ext == "desktop" {
+        parse_desktop_launch_id(&bytes)?
+    } else {
+        return Err("未知的 Steam 快捷方式类型".to_string());
+    };
     let steam_dirs = locate_steam_dirs()?;
     scan_steam_dirs(&steam_dirs, &SteamImportFilter::default())
         .targets
@@ -646,22 +674,47 @@ fn resolve_steam_shortcut_file_blocking(path: &Path) -> Result<SteamLaunchTarget
         .ok_or_else(|| format!("本机 Steam 库中未找到启动项 {launch_id}"))
 }
 
-/// 批量解析 Steam `.url`，只扫描一次本机 Steam 库。
+fn parse_desktop_launch_id(bytes: &[u8]) -> Result<String, String> {
+    let text = String::from_utf8_lossy(bytes).to_string();
+    let launch_id = text
+        .lines()
+        .find(|line| line.trim().starts_with("Exec=steam steam://rungameid/"))
+        .map(|line| {
+            line.trim()
+                .trim_start_matches("Exec=steam steam://rungameid/")
+                .to_string()
+        })
+        .ok_or_else(|| "LaunchID 未找到".to_string())?;
+    if launch_id.is_empty() {
+        return Err("LaunchID 未找到".to_string());
+    }
+    Ok(launch_id)
+}
+
+/// 批量解析 Steam `.url`(`.desktop`)，只扫描一次本机 Steam 库。
 pub(crate) fn resolve_steam_shortcut_files_blocking(
     paths: &[&Path],
 ) -> Vec<Result<SteamLaunchTarget, String>> {
     let launch_ids = paths
         .iter()
         .map(|path| {
-            if !path
+            let ext = path
                 .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("url"))
-            {
-                return Err("仅支持 .url Steam 快捷方式".to_string());
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default();
+            if !(ext.eq_ignore_ascii_case("url") || ext == "desktop") {
+                return Err("仅支持 .url(.desktop) Steam 快捷方式".to_string());
             }
             let bytes =
                 fs::read(path).map_err(|error| format!("读取 {} 失败: {error}", path.display()))?;
-            parse_url_launch_id(&decode_shortcut_text(&bytes)?)
+            if ext == "desktop" {
+                parse_desktop_launch_id(&bytes)
+            } else if ext.eq_ignore_ascii_case("url") {
+                parse_url_launch_id(&decode_shortcut_text(&bytes)?)
+            } else {
+                Err("仅支持 .url(.desktop) Steam 快捷方式".to_string())
+            }
         })
         .collect::<Vec<_>>();
 
@@ -948,6 +1001,21 @@ mod tests {
     }
 
     #[test]
+    fn resolves_app_id_used_by_steam_launch_process() {
+        // 商店应用：启动 ID 就是 32 位 AppId
+        assert_eq!(steam_app_id_from_launch_id(413_150).unwrap(), 413_150);
+
+        // 非 Steam 快捷方式：取高 32 位，3_624_799_010 为 Steam 日志中实测的 reaper AppId
+        let launch_id = (u64::from(3_624_799_010_u32) << 32) | STEAM_SHORTCUT_MARKER;
+        assert_eq!(
+            steam_app_id_from_launch_id(launch_id).unwrap(),
+            3_624_799_010
+        );
+
+        assert!(steam_app_id_from_launch_id(0).is_err());
+    }
+
+    #[test]
     fn rejects_truncated_or_trailing_binary_vdf() {
         let fixture = shortcut_fixture(730, "Game", r#""D:\Game\game.exe""#, r#""D:\Game""#);
         assert!(parse_binary_vdf(&fixture[..fixture.len() - 1]).is_err());
@@ -1039,5 +1107,18 @@ mod tests {
         assert!(!games.contains_key("730"));
         assert!(conflicted_launch_ids.contains("730"));
         assert_eq!(warnings.len(), 1);
+    }
+    #[test]
+    fn test_parse_desktop_launch_id() {
+        let body: &'static str = "[Desktop Entry]
+Name=GAL
+Comment=Play this game on Steam
+Exec=steam steam://rungameid/4513880
+Icon=steam_icon_4513880
+Terminal=false
+Type=Application
+Categories=Game;";
+        let id = parse_desktop_launch_id(body.as_bytes()).unwrap();
+        assert_eq!(id, "4513880");
     }
 }

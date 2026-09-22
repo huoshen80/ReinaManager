@@ -82,13 +82,6 @@ export function useGameLaunchFlow() {
 					const result = await launchGame(game.id);
 					if (result.status === "failed") {
 						snackbar.error(result.message);
-					} else if (result.status === "delegated") {
-						snackbar.info(
-							t(
-								"components.LaunchModal.steamTrackingUnavailable",
-								"已交由 Steam 启动；当前平台暂不支持跟踪该次游玩",
-							),
-						);
 					}
 					return;
 				}

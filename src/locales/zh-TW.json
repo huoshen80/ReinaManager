@@ -25,10 +25,10 @@
 		"changePlayStatus": "修改遊戲狀態",
 		"close": "關閉",
 		"confirm": "確認",
-		"unknown": "未知",
 		"retry": "重試",
 		"saving": "保存中...",
 		"today": "今天",
+		"unknown": "未知",
 		"yesterday": "昨天"
 	},
 	"components": {
@@ -214,11 +214,14 @@
 			"empty": "沒有找到符合條件的遊戲"
 		},
 		"InstallRequest": {
-			"confirm": "確認安裝",
+			"completed": "遊戲安裝成功",
 			"completedWithActualPath": "環境變數路徑已變更，已使用實際安裝路徑儲存遊戲目錄",
+			"completedWithoutExecutable": "遊戲檔案安裝完成，請在遊戲設定中手動設定啟動程式",
+			"confirm": "確認安裝",
 			"defaultPathSaveFailed": "安裝任務已建立，但預設路徑儲存失敗：{{error}}",
 			"installPath": "安裝路徑",
 			"installPathPlaceholder": "選擇用於安裝遊戲的目錄",
+			"invalidRequest": "安裝請求無效：{{error}}",
 			"metadataLabel": "中繼資料：",
 			"pathRequired": "請先選擇或輸入安裝路徑",
 			"preparing": "正在準備安裝…",
@@ -256,7 +259,6 @@
 			"selectExecutableRequired": "請選擇可執行文件",
 			"steamLaunchTargetMissing": "Steam 啟動項目無效，請重新關聯",
 			"steamMonitorPathMissing": "Steam 遊戲監控目錄缺失，請重新關聯",
-			"steamTrackingUnavailable": "已交由 Steam 啟動；目前平台暫不支援追蹤本次遊玩",
 			"stopFailed": "遊戲停止失敗:",
 			"stopGame": "停止遊戲",
 			"stoppingGame": "正在停止遊戲...",
@@ -297,7 +299,6 @@
 				"selectBtn": "選擇文件",
 				"title": "Magpie軟體路徑"
 			},
-			"saveError": "儲存路徑設定失敗：{{error}}",
 			"saveFieldError": "儲存{{field}}失敗：{{error}}",
 			"savePath": {
 				"cleanedRecords_one": "備份路徑已儲存，並清理了 {{count}} 筆失效備份記錄",
