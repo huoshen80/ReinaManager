@@ -73,13 +73,19 @@ enum PreparedMigration {
     Ready {
         old_path: PathBuf,
         new_path: PathBuf,
+        target_commit: PreparedTargetCommit,
     },
+}
+
+#[derive(Clone, Debug)]
+enum PreparedTargetCommit {
+    Replaced { target_existed: bool },
+    FlattenedNestedRoot { copied_entries: Vec<OsString> },
 }
 
 #[derive(Debug)]
 struct PreparedMigrationError {
     failures: Vec<SavedataBackupMigrationFailure>,
-    skip_migration: bool,
 }
 
 #[derive(Debug)]
@@ -104,41 +110,9 @@ pub async fn change_savedata_backup_root(
     let configured_new_path =
         (!configured_new_path.is_empty()).then(|| configured_new_path.to_string());
 
-    let new_root = match resolve_configured_root(configured_new_path.as_deref()) {
-        Ok(path) => path,
-        Err(error) => {
-            return save_without_migration(
-                db.inner(),
-                settings.save_root_path.clone(),
-                configured_new_path,
-                error,
-            )
-            .await;
-        }
-    };
-    let new_root_for_check = new_root.clone();
-    let new_root_check =
-        tokio::task::spawn_blocking(move || ensure_existing_directory(&new_root_for_check))
-            .await
-            .map_err(|error| format!("检查新的存档备份目录失败: {error}"))?;
-    if let Err(error) = new_root_check {
-        return save_without_migration(
-            db.inner(),
-            settings.save_root_path.clone(),
-            configured_new_path,
-            error
-                .failures
-                .into_iter()
-                .map(|failure| failure.message)
-                .collect::<Vec<_>>()
-                .join("；"),
-        )
-        .await;
-    }
-
     let new_backup_path = match resolve_configured_backup_root(configured_new_path.as_deref()) {
         Ok(path) => path,
-        Err(error) => {
+        Err(error) if savedata_count == 0 => {
             return save_without_migration(
                 db.inner(),
                 settings.save_root_path.clone(),
@@ -147,6 +121,7 @@ pub async fn change_savedata_backup_root(
             )
             .await;
         }
+        Err(error) => return Err(format!("存档备份目录迁移失败，配置未切换: {error}")),
     };
 
     let old_backup_path = if savedata_count == 0 {
@@ -155,13 +130,7 @@ pub async fn change_savedata_backup_root(
         match resolve_configured_backup_root(settings.save_root_path.as_deref()) {
             Ok(path) => Some(path),
             Err(error) => {
-                return save_without_migration(
-                    db.inner(),
-                    settings.save_root_path.clone(),
-                    configured_new_path,
-                    error,
-                )
-                .await;
+                return Err(format!("存档备份目录迁移失败，配置未切换: {error}"));
             }
         }
     };
@@ -181,23 +150,7 @@ pub async fn change_savedata_backup_root(
         .map_err(|error| format!("准备存档备份目录迁移失败: {error}"))?;
         match prepared {
             Ok((stale_record_ids, prepared)) => (stale_record_ids, prepared),
-            Err(error) => {
-                if error.skip_migration {
-                    return save_without_migration(
-                        db.inner(),
-                        settings.save_root_path.clone(),
-                        configured_new_path,
-                        error
-                            .failures
-                            .into_iter()
-                            .map(|failure| failure.message)
-                            .collect::<Vec<_>>()
-                            .join("；"),
-                    )
-                    .await;
-                }
-                return Err(format_migration_failures(error.failures));
-            }
+            Err(error) => return Err(format_migration_failures(error.failures)),
         }
     } else {
         (Vec::new(), PreparedMigration::NoSource)
@@ -222,19 +175,30 @@ pub async fn change_savedata_backup_root(
             Some(&new_backup_path),
             format!("保存新的存档备份路径失败: {error}"),
         )];
-        if let PreparedMigration::Ready { new_path, .. } = &prepared {
-            let cleanup_path = new_path.clone();
-            if let Err(cleanup_error) =
-                tokio::task::spawn_blocking(move || fs::remove_dir_all(&cleanup_path))
-                    .await
-                    .map_err(|error| error.to_string())
-                    .and_then(|result| result.map_err(|error| error.to_string()))
+        if let PreparedMigration::Ready {
+            old_path,
+            new_path,
+            target_commit,
+        } = &prepared
+        {
+            let rollback_source = old_path.clone();
+            let rollback_target = new_path.clone();
+            let rollback_target_commit = target_commit.clone();
+            match tokio::task::spawn_blocking(move || {
+                rollback_prepared_migration(
+                    &rollback_source,
+                    &rollback_target,
+                    &rollback_target_commit,
+                )
+            })
+            .await
             {
-                failures.push(migration_failure(
-                    None,
+                Ok(rollback_failures) => failures.extend(rollback_failures),
+                Err(rollback_error) => failures.push(migration_failure(
+                    Some(old_path),
                     Some(new_path),
-                    format!("回滚新备份目录失败: {cleanup_error}"),
-                ));
+                    format!("回滚新备份目录任务失败: {rollback_error}"),
+                )),
             }
         }
         return Err(format_migration_failures(failures));
@@ -261,7 +225,8 @@ pub async fn change_savedata_backup_root(
         ));
     };
 
-    let cleanup_path = old_path.clone();
+    let cleanup_path = old_path;
+    let reported_old_path = cleanup_path.clone();
     let cleanup_result =
         tokio::task::spawn_blocking(move || remove_old_backup_directory(&cleanup_path))
             .await
@@ -269,32 +234,24 @@ pub async fn change_savedata_backup_root(
             .and_then(|result| result.map_err(|error| error.to_string()));
     match cleanup_result {
         Ok(()) => Ok(completed_migration_result(
-            Some(old_path.to_string_lossy().into_owned()),
+            Some(reported_old_path.to_string_lossy().into_owned()),
             configured_new_path,
             "存档备份目录迁移完成，配置已更新",
             cleaned_record_count,
         )),
         Err(error) => Ok(SavedataBackupRootMigrationResult {
             status: SavedataBackupMigrationStatus::SavedWithWarning,
-            old_path: Some(old_path.to_string_lossy().into_owned()),
+            old_path: Some(reported_old_path.to_string_lossy().into_owned()),
             new_path: configured_new_path,
             message: format!("配置已更新，但旧备份目录清理不完整: {error}"),
             failures: vec![migration_failure(
-                Some(&old_path),
+                Some(&reported_old_path),
                 None,
                 format!("删除旧备份目录失败: {error}"),
             )],
-            residue_path: Some(old_path.to_string_lossy().into_owned()),
+            residue_path: Some(reported_old_path.to_string_lossy().into_owned()),
             cleaned_record_count,
         }),
-    }
-}
-
-fn resolve_configured_root(configured_path: Option<&str>) -> Result<PathBuf, String> {
-    match configured_path {
-        Some(path) => reina_path::resolve_user_path(path)
-            .map_err(|error| format!("存档备份目录无法解析，已跳过迁移: {error}")),
-        None => reina_path::get_default_savedata_backup_path(),
     }
 }
 
@@ -302,25 +259,25 @@ fn ensure_existing_directory(path: &Path) -> Result<(), PreparedMigrationError> 
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => Ok(()),
         Ok(metadata) if metadata.file_type().is_symlink() => {
-            Err(prepared_migration_warning(vec![migration_failure(
+            Err(prepared_migration_error(vec![migration_failure(
                 Some(path),
                 None,
                 "路径是符号链接，无法确认目录是否可访问",
             )]))
         }
-        Ok(_) => Err(prepared_migration_warning(vec![migration_failure(
+        Ok(_) => Err(prepared_migration_error(vec![migration_failure(
             Some(path),
             None,
             "路径存在但不是目录",
         )])),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            Err(prepared_migration_warning(vec![migration_failure(
+            Err(prepared_migration_error(vec![migration_failure(
                 Some(path),
                 None,
                 "目录不存在，已跳过旧备份迁移",
             )]))
         }
-        Err(error) => Err(prepared_migration_warning(vec![migration_failure(
+        Err(error) => Err(prepared_migration_error(vec![migration_failure(
             Some(path),
             None,
             format!("无法访问目录，已跳过旧备份迁移: {error}"),
@@ -365,7 +322,6 @@ fn configured_backup_path_for_message(configured_path: Option<&str>) -> Option<S
 fn resolve_configured_backup_root(configured_path: Option<&str>) -> Result<PathBuf, String> {
     match configured_path {
         Some(path) => reina_path::resolve_user_path(path)
-            .map(|path| path.join("backups"))
             .map_err(|error| format!("存档备份根目录解析失败: {error}")),
         None => reina_path::get_default_savedata_backup_path(),
     }
@@ -488,7 +444,7 @@ fn prepare_backup_migration(
         }
     };
     if matches!(source_state, SourceState::Missing) {
-        return Err(prepared_migration_warning(vec![migration_failure(
+        return Err(prepared_migration_error(vec![migration_failure(
             Some(source),
             None,
             if savedata_count > 0 {
@@ -513,38 +469,84 @@ fn prepare_backup_migration(
             )]));
         }
     };
-    if paths_overlap(&source_overlap, &target_overlap) {
+    let nested_wrapper = if paths_overlap(&source_overlap, &target_overlap) {
         if same_path(&source_overlap, &target_overlap) {
             return Ok(PreparedMigration::NoSource);
         }
-        return Err(prepared_migration_error(vec![migration_failure(
-            Some(source),
-            Some(target),
-            "新旧备份目录存在父子或符号链接重叠关系，已拒绝迁移",
-        )]));
-    }
+        if source_overlap
+            .parent()
+            .is_some_and(|parent| same_path(parent, &target_overlap))
+            && normalized_source
+                .parent()
+                .is_some_and(|parent| same_path(parent, &normalized_target))
+        {
+            ensure_direct_nested_source_is_only_entry(&normalized_target, &normalized_source)?;
+            Some(normalized_source.clone())
+        } else {
+            return Err(prepared_migration_error(vec![migration_failure(
+                Some(source),
+                Some(target),
+                "新旧备份目录存在不受支持的父子或符号链接重叠关系，已拒绝迁移",
+            )]));
+        }
+    } else {
+        None
+    };
 
-    match fs::symlink_metadata(target) {
-        Ok(metadata) => {
-            return Err(prepared_migration_error(vec![migration_failure(
-                Some(source),
-                Some(target),
-                if metadata.file_type().is_symlink() {
-                    "目标备份目录是符号链接，请先手动处理"
-                } else {
-                    "目标备份目录已存在，请先手动处理"
+    let target_existed = if nested_wrapper.is_some() {
+        false
+    } else {
+        match fs::symlink_metadata(target) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(prepared_migration_error(vec![migration_failure(
+                    Some(source),
+                    Some(target),
+                    "目标备份目录不能是符号链接",
+                )]));
+            }
+            Ok(metadata) if metadata.is_dir() => match fs::read_dir(target) {
+                Ok(mut entries) => match entries.next() {
+                    None => true,
+                    Some(Ok(_)) => {
+                        return Err(prepared_migration_error(vec![migration_failure(
+                            Some(source),
+                            Some(target),
+                            "目标备份目录不是空目录，请选择空目录",
+                        )]));
+                    }
+                    Some(Err(error)) => {
+                        return Err(prepared_migration_error(vec![migration_failure(
+                            Some(source),
+                            Some(target),
+                            format!("读取目标备份目录失败: {error}"),
+                        )]));
+                    }
                 },
-            )]));
+                Err(error) => {
+                    return Err(prepared_migration_error(vec![migration_failure(
+                        Some(source),
+                        Some(target),
+                        format!("无法检查目标备份目录是否为空: {error}"),
+                    )]));
+                }
+            },
+            Ok(_) => {
+                return Err(prepared_migration_error(vec![migration_failure(
+                    Some(source),
+                    Some(target),
+                    "目标备份路径存在但不是目录",
+                )]));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(error) => {
+                return Err(prepared_migration_error(vec![migration_failure(
+                    Some(source),
+                    Some(target),
+                    format!("无法检查目标备份目录: {error}"),
+                )]));
+            }
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => {
-            return Err(prepared_migration_error(vec![migration_failure(
-                Some(source),
-                Some(target),
-                format!("无法检查目标备份目录: {error}"),
-            )]));
-        }
-    }
+    };
 
     let Some(parent) = target.parent() else {
         return Err(prepared_migration_error(vec![migration_failure(
@@ -560,6 +562,16 @@ fn prepare_backup_migration(
             format!("无法创建目标父目录: {error}"),
         )]));
     }
+
+    if let Some(wrapper_path) = nested_wrapper {
+        let copied_entries = copy_nested_source_into_target(source, target, &wrapper_path)?;
+        return Ok(PreparedMigration::Ready {
+            old_path: source.to_path_buf(),
+            new_path: target.to_path_buf(),
+            target_commit: PreparedTargetCommit::FlattenedNestedRoot { copied_entries },
+        });
+    }
+
     let temporary_target = match temporary_migration_path(target) {
         Ok(path) => path,
         Err(error) => {
@@ -585,12 +597,34 @@ fn prepare_backup_migration(
         }
         return Err(prepared_migration_error(failures));
     }
+    if target_existed && let Err(error) = fs::remove_dir(target) {
+        let mut failures = vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("提交迁移前删除空目标目录失败: {error}"),
+        )];
+        if let Err(cleanup_error) = fs::remove_dir_all(&temporary_target) {
+            failures.push(migration_failure(
+                None,
+                Some(&temporary_target),
+                format!("清理迁移临时目录失败: {cleanup_error}"),
+            ));
+        }
+        return Err(prepared_migration_error(failures));
+    }
     if let Err(error) = fs::rename(&temporary_target, target) {
         let mut failures = vec![migration_failure(
             Some(source),
             Some(target),
             format!("临时目录切换到目标位置失败: {error}"),
         )];
+        if target_existed && let Err(restore_error) = fs::create_dir(target) {
+            failures.push(migration_failure(
+                None,
+                Some(target),
+                format!("恢复原空目标目录失败: {restore_error}"),
+            ));
+        }
         if let Err(cleanup_error) = fs::remove_dir_all(&temporary_target) {
             failures.push(migration_failure(
                 None,
@@ -603,44 +637,349 @@ fn prepare_backup_migration(
     Ok(PreparedMigration::Ready {
         old_path: source.to_path_buf(),
         new_path: target.to_path_buf(),
+        target_commit: PreparedTargetCommit::Replaced { target_existed },
     })
+}
+
+fn ensure_direct_nested_source_is_only_entry(
+    target: &Path,
+    source: &Path,
+) -> Result<(), PreparedMigrationError> {
+    let metadata = fs::symlink_metadata(target).map_err(|error| {
+        prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("无法检查嵌套备份目标目录: {error}"),
+        )])
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            "嵌套备份目标必须是真实目录",
+        )]));
+    }
+
+    let mut entries = fs::read_dir(target).map_err(|error| {
+        prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("无法读取嵌套备份目标目录: {error}"),
+        )])
+    })?;
+    let only_entry = match entries.next() {
+        Some(Ok(entry)) => entry,
+        Some(Err(error)) => {
+            return Err(prepared_migration_error(vec![migration_failure(
+                Some(source),
+                Some(target),
+                format!("读取嵌套备份目录项失败: {error}"),
+            )]));
+        }
+        None => {
+            return Err(prepared_migration_error(vec![migration_failure(
+                Some(source),
+                Some(target),
+                "嵌套备份目标目录没有包含旧备份根",
+            )]));
+        }
+    };
+    if let Some(extra_entry) = entries.next() {
+        let detail = match extra_entry {
+            Ok(entry) => format!("发现额外目录项: {}", entry.path().display()),
+            Err(error) => format!("读取额外目录项失败: {error}"),
+        };
+        return Err(prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("只有目标仅包含旧备份根目录时才能扁平迁移；{detail}"),
+        )]));
+    }
+
+    let entry_type = only_entry.file_type().map_err(|error| {
+        prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("读取嵌套备份目录类型失败: {error}"),
+        )])
+    })?;
+    if entry_type.is_symlink() || !entry_type.is_dir() {
+        return Err(prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            "目标中的唯一目录项不是可迁移的真实目录",
+        )]));
+    }
+
+    let actual_source = fs::canonicalize(only_entry.path()).map_err(|error| {
+        prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("解析目标中的旧备份根失败: {error}"),
+        )])
+    })?;
+    let expected_source = fs::canonicalize(source).map_err(|error| {
+        prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("解析旧备份根失败: {error}"),
+        )])
+    })?;
+    if !same_path(&actual_source, &expected_source) {
+        return Err(prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            "目标中的唯一目录项不是当前旧备份根",
+        )]));
+    }
+
+    Ok(())
+}
+
+fn copy_nested_source_into_target(
+    source: &Path,
+    target: &Path,
+    wrapper_path: &Path,
+) -> Result<Vec<OsString>, PreparedMigrationError> {
+    let entries = fs::read_dir(source).map_err(|error| {
+        prepared_migration_error(vec![migration_failure(
+            Some(source),
+            Some(target),
+            format!("读取嵌套备份根目录失败: {error}"),
+        )])
+    })?;
+    let mut copied_entries = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            prepared_migration_error(vec![migration_failure(
+                Some(source),
+                Some(target),
+                format!("读取嵌套备份目录项失败: {error}"),
+            )])
+        })?;
+        let entry_name = entry.file_name();
+        let target_path = target.join(&entry_name);
+        match fs::symlink_metadata(&target_path) {
+            Ok(_) => {
+                return Err(prepared_migration_error(vec![migration_failure(
+                    Some(&entry.path()),
+                    Some(&target_path),
+                    "扁平迁移目标出现同名目录项",
+                )]));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(prepared_migration_error(vec![migration_failure(
+                    Some(&entry.path()),
+                    Some(&target_path),
+                    format!("检查扁平迁移目标失败: {error}"),
+                )]));
+            }
+        }
+        copied_entries.push(entry_name);
+    }
+
+    let mut failures = Vec::new();
+    copy_dir_recursive(source, target, &mut failures);
+    if failures.is_empty() {
+        failures.extend(verify_nested_flatten_copy(source, target, wrapper_path));
+    }
+    if !failures.is_empty() {
+        cleanup_copied_entries(target, &copied_entries, &mut failures);
+        return Err(prepared_migration_error(failures));
+    }
+
+    Ok(copied_entries)
+}
+
+fn verify_nested_flatten_copy(
+    source: &Path,
+    target: &Path,
+    wrapper_path: &Path,
+) -> Vec<SavedataBackupMigrationFailure> {
+    let mut failures = Vec::new();
+    verify_source_tree(source, target, &mut failures);
+    let entries = match fs::read_dir(target) {
+        Ok(entries) => entries,
+        Err(error) => {
+            failures.push(migration_failure(
+                Some(source),
+                Some(target),
+                format!("验证扁平迁移目标目录失败: {error}"),
+            ));
+            return failures;
+        }
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                failures.push(migration_failure(
+                    Some(source),
+                    Some(target),
+                    format!("验证扁平迁移目标目录项失败: {error}"),
+                ));
+                continue;
+            }
+        };
+        let target_path = entry.path();
+        if same_path(&normalize_for_overlap(&target_path), wrapper_path) {
+            continue;
+        }
+        let source_path = source.join(entry.file_name());
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(error) => {
+                failures.push(migration_failure(
+                    Some(&source_path),
+                    Some(&target_path),
+                    format!("验证扁平迁移目标类型失败: {error}"),
+                ));
+                continue;
+            }
+        };
+        match fs::symlink_metadata(&source_path) {
+            Ok(metadata)
+                if file_type.is_dir()
+                    && metadata.is_dir()
+                    && !file_type.is_symlink()
+                    && !metadata.file_type().is_symlink() =>
+            {
+                verify_target_tree(&target_path, &source_path, &mut failures);
+            }
+            Ok(metadata)
+                if file_type.is_file()
+                    && metadata.is_file()
+                    && !file_type.is_symlink()
+                    && !metadata.file_type().is_symlink() => {}
+            Ok(_) => failures.push(migration_failure(
+                Some(&source_path),
+                Some(&target_path),
+                "扁平迁移目标中的目录项类型与源不一致",
+            )),
+            Err(error) => failures.push(migration_failure(
+                Some(&source_path),
+                Some(&target_path),
+                format!("扁平迁移目标包含源中不存在的目录项: {error}"),
+            )),
+        }
+    }
+    failures
+}
+
+fn cleanup_copied_entries(
+    target: &Path,
+    copied_entries: &[OsString],
+    failures: &mut Vec<SavedataBackupMigrationFailure>,
+) {
+    for entry_name in copied_entries {
+        let path = target.join(entry_name);
+        let result = match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+                fs::remove_dir_all(&path)
+            }
+            Ok(_) => fs::remove_file(&path),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => Err(error),
+        };
+        if let Err(error) = result {
+            failures.push(migration_failure(
+                None,
+                Some(&path),
+                format!("清理扁平迁移副本失败: {error}"),
+            ));
+        }
+    }
 }
 
 fn prepared_migration_error(
     failures: Vec<SavedataBackupMigrationFailure>,
 ) -> PreparedMigrationError {
-    PreparedMigrationError {
-        failures,
-        skip_migration: false,
-    }
-}
-
-fn prepared_migration_warning(
-    failures: Vec<SavedataBackupMigrationFailure>,
-) -> PreparedMigrationError {
-    PreparedMigrationError {
-        failures,
-        skip_migration: true,
-    }
+    PreparedMigrationError { failures }
 }
 
 fn remove_old_backup_directory(path: &Path) -> Result<(), std::io::Error> {
-    fs::remove_dir_all(path)?;
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    match fs::remove_dir(parent) {
-        Ok(()) => Ok(()),
-        Err(error)
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::NotFound | std::io::ErrorKind::DirectoryNotEmpty
-            ) =>
-        {
-            Ok(())
+    fs::remove_dir_all(path)
+}
+
+fn rollback_prepared_migration(
+    source: &Path,
+    target: &Path,
+    target_commit: &PreparedTargetCommit,
+) -> Vec<SavedataBackupMigrationFailure> {
+    match target_commit {
+        PreparedTargetCommit::Replaced { target_existed } => {
+            rollback_replaced_target(source, target, *target_existed)
         }
-        Err(error) => Err(error),
+        PreparedTargetCommit::FlattenedNestedRoot { copied_entries, .. } => {
+            rollback_flattened_nested_root(target, copied_entries)
+        }
     }
+}
+
+fn rollback_replaced_target(
+    source: &Path,
+    target: &Path,
+    target_existed: bool,
+) -> Vec<SavedataBackupMigrationFailure> {
+    let mut failures = Vec::new();
+    let rollback_path = match temporary_migration_path(target) {
+        Ok(path) => path,
+        Err(error) => {
+            failures.push(migration_failure(
+                Some(source),
+                Some(target),
+                format!("无法准备回滚目录，新备份副本保留在目标位置: {error}"),
+            ));
+            return failures;
+        }
+    };
+
+    if let Err(error) = fs::rename(target, &rollback_path) {
+        failures.push(migration_failure(
+            Some(source),
+            Some(target),
+            format!("无法移出已提交的新备份目录，副本保留在目标位置: {error}"),
+        ));
+        return failures;
+    }
+
+    if target_existed && let Err(error) = fs::create_dir(target) {
+        failures.push(migration_failure(
+            None,
+            Some(target),
+            format!("无法恢复迁移前的空目标目录: {error}"),
+        ));
+    }
+
+    let verification_failures = verify_copy(source, &rollback_path);
+    if verification_failures.is_empty() {
+        if let Err(error) = fs::remove_dir_all(&rollback_path) {
+            failures.push(migration_failure(
+                None,
+                Some(&rollback_path),
+                format!("删除已验证的回滚副本失败: {error}"),
+            ));
+        }
+    } else {
+        failures.push(migration_failure(
+            Some(source),
+            Some(&rollback_path),
+            "回滚副本与旧备份目录不一致，已保留回滚副本以避免数据丢失",
+        ));
+        failures.extend(verification_failures);
+    }
+
+    failures
+}
+
+fn rollback_flattened_nested_root(
+    target: &Path,
+    copied_entries: &[OsString],
+) -> Vec<SavedataBackupMigrationFailure> {
+    let mut failures = Vec::new();
+    cleanup_copied_entries(target, copied_entries, &mut failures);
+    failures
 }
 
 fn copy_dir_recursive(
@@ -1239,8 +1578,8 @@ mod tests {
     #[test]
     fn prepares_and_verifies_directory_copy() {
         let root = test_directory();
-        let source = root.join("old").join("backups");
-        let target = root.join("new").join("backups");
+        let source = root.join("old");
+        let target = root.join("new");
         fs::create_dir_all(source.join("game_1")).unwrap();
         fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
 
@@ -1251,6 +1590,154 @@ mod tests {
             fs::read(target.join("game_1").join("backup.7z")).unwrap(),
             b"backup"
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn replaces_an_existing_empty_target_with_verified_copy() {
+        let root = test_directory();
+        let source = root.join("old");
+        let target = root.join("new");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+        fs::create_dir_all(&target).unwrap();
+
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
+
+        assert!(matches!(
+            prepared,
+            PreparedMigration::Ready {
+                target_commit: PreparedTargetCommit::Replaced {
+                    target_existed: true
+                },
+                ..
+            }
+        ));
+        assert_eq!(
+            fs::read(target.join("game_1").join("backup.7z")).unwrap(),
+            b"backup"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn flattens_a_nested_backup_root_when_it_is_the_only_entry() {
+        let root = test_directory();
+        let target = root.join("configured");
+        let source = target.join("backups");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
+
+        assert!(matches!(
+            prepared,
+            PreparedMigration::Ready {
+                target_commit: PreparedTargetCommit::FlattenedNestedRoot { .. },
+                ..
+            }
+        ));
+        assert_eq!(
+            fs::read(target.join("game_1").join("backup.7z")).unwrap(),
+            b"backup"
+        );
+        assert_eq!(
+            fs::read(source.join("game_1").join("backup.7z")).unwrap(),
+            b"backup"
+        );
+
+        remove_old_backup_directory(&source).unwrap();
+        assert!(target.is_dir());
+        assert!(!source.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_nested_flatten_when_the_outer_directory_has_extra_entries() {
+        let root = test_directory();
+        let target = root.join("configured");
+        let source = target.join("backups");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(target.join("keep.txt"), b"keep").unwrap();
+
+        let error = prepare_backup_migration(&source, &target, 1).unwrap_err();
+
+        assert!(error.failures[0].message.contains("仅包含"));
+        assert_eq!(fs::read(target.join("keep.txt")).unwrap(), b"keep");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn flattens_an_arbitrarily_named_child_directory() {
+        let root = test_directory();
+        let target = root.join("configured");
+        let source = target.join("archive");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
+
+        assert!(matches!(
+            prepared,
+            PreparedMigration::Ready {
+                target_commit: PreparedTargetCommit::FlattenedNestedRoot { .. },
+                ..
+            }
+        ));
+        assert!(source.is_dir());
+        assert!(target.join("game_1").join("backup.7z").is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_a_multi_level_nested_source() {
+        let root = test_directory();
+        let target = root.join("configured");
+        let source = target.join("level_1").join("level_2");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+
+        let error = prepare_backup_migration(&source, &target, 1).unwrap_err();
+
+        assert!(error.failures[0].message.contains("不受支持"));
+        assert!(source.join("game_1").join("backup.7z").is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_a_non_empty_target() {
+        let root = test_directory();
+        let source = root.join("old");
+        let target = root.join("new");
+        fs::create_dir_all(&source).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("existing.txt"), b"existing").unwrap();
+
+        let error = prepare_backup_migration(&source, &target, 1).unwrap_err();
+
+        assert!(error.failures[0].message.contains("空目录"));
+        assert_eq!(fs::read(target.join("existing.txt")).unwrap(), b"existing");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rolls_back_a_nested_root_flatten() {
+        let root = test_directory();
+        let target = root.join("configured");
+        let source = target.join("backups");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
+        let PreparedMigration::Ready { target_commit, .. } = prepared else {
+            panic!("应准备原地扁平迁移");
+        };
+
+        let failures = rollback_prepared_migration(&source, &target, &target_commit);
+
+        assert!(failures.is_empty());
+        assert!(source.join("game_1").join("backup.7z").is_file());
+        assert!(!target.join("game_1").exists());
+        assert_eq!(fs::read_dir(&target).unwrap().count(), 1);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1274,7 +1761,7 @@ mod tests {
         let root = test_directory();
         fs::create_dir_all(&root).unwrap();
         let source = root.join("missing");
-        let target = root.join("new").join("backups");
+        let target = root.join("new");
 
         let error = prepare_backup_migration(&source, &target, 1).unwrap_err();
 
@@ -1311,15 +1798,43 @@ mod tests {
     }
 
     #[test]
-    fn removes_empty_configured_backup_parent() {
+    fn removes_old_backup_root_but_keeps_its_parent() {
         let root = test_directory();
         let configured_root = root.join("configured");
-        let backup_root = configured_root.join("backups");
-        fs::create_dir_all(&backup_root).unwrap();
+        fs::create_dir_all(configured_root.join("game_1")).unwrap();
 
-        remove_old_backup_directory(&backup_root).unwrap();
+        remove_old_backup_directory(&configured_root).unwrap();
 
         assert!(!configured_root.exists());
+        assert!(root.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rolls_back_to_the_original_empty_target() {
+        let root = test_directory();
+        let source = root.join("old");
+        let target = root.join("new");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+        fs::create_dir_all(&target).unwrap();
+        prepare_backup_migration(&source, &target, 1).unwrap();
+
+        let failures = rollback_prepared_migration(
+            &source,
+            &target,
+            &PreparedTargetCommit::Replaced {
+                target_existed: true,
+            },
+        );
+
+        assert!(failures.is_empty());
+        assert!(target.is_dir());
+        assert!(fs::read_dir(&target).unwrap().next().is_none());
+        assert_eq!(
+            fs::read(source.join("game_1").join("backup.7z")).unwrap(),
+            b"backup"
+        );
         fs::remove_dir_all(root).unwrap();
     }
 }
