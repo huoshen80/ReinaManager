@@ -81,6 +81,7 @@ enum PreparedMigration {
 enum PreparedTargetCommit {
     Replaced { target_existed: bool },
     FlattenedNestedRoot { copied_entries: Vec<OsString> },
+    ExistingVerifiedCopy,
 }
 
 #[derive(Debug)]
@@ -92,6 +93,11 @@ struct PreparedMigrationError {
 enum SourceState {
     Missing,
     Directory,
+}
+
+enum RequestedBackupRoot {
+    Resolved(PathBuf),
+    UndefinedVariable(String),
 }
 
 #[command]
@@ -110,18 +116,25 @@ pub async fn change_savedata_backup_root(
     let configured_new_path =
         (!configured_new_path.is_empty()).then(|| configured_new_path.to_string());
 
-    let new_backup_path = match resolve_configured_backup_root(configured_new_path.as_deref()) {
-        Ok(path) => path,
-        Err(error) if savedata_count == 0 => {
+    let new_backup_path = match resolve_requested_backup_root(configured_new_path.as_deref()) {
+        Ok(RequestedBackupRoot::Resolved(path)) => path,
+        Ok(RequestedBackupRoot::UndefinedVariable(variable)) if savedata_count == 0 => {
             return save_without_migration(
                 db.inner(),
                 settings.save_root_path.clone(),
                 configured_new_path,
-                error,
+                format!("存档备份根目录解析失败: 环境变量未定义: {variable}"),
             )
             .await;
         }
-        Err(error) => return Err(format!("存档备份目录迁移失败，配置未切换: {error}")),
+        Ok(RequestedBackupRoot::UndefinedVariable(variable)) => {
+            return Err(format!(
+                "存档备份目录迁移失败，配置未切换: 存档备份根目录解析失败: 环境变量未定义: {variable}"
+            ));
+        }
+        Err(error) => {
+            return Err(format!("存档备份目录迁移失败，配置未切换: {error}"));
+        }
     };
 
     let old_backup_path = if savedata_count == 0 {
@@ -141,29 +154,29 @@ pub async fn change_savedata_backup_root(
         let records_for_task = savedata_records;
         let prepared = tokio::task::spawn_blocking(move || {
             ensure_existing_directory(&source_path)?;
-            let stale_record_ids =
+            let missing_record_ids =
                 collect_missing_savedata_records(&source_path, &records_for_task)?;
             let prepared = prepare_backup_migration(&source_path, &target_path, savedata_count)?;
-            Ok::<_, PreparedMigrationError>((stale_record_ids, prepared))
+            Ok::<_, PreparedMigrationError>((missing_record_ids, prepared))
         })
         .await
         .map_err(|error| format!("准备存档备份目录迁移失败: {error}"))?;
         match prepared {
-            Ok((stale_record_ids, prepared)) => (stale_record_ids, prepared),
+            Ok((missing_record_ids, prepared)) => (missing_record_ids, prepared),
             Err(error) => return Err(format_migration_failures(error.failures)),
         }
     } else {
         (Vec::new(), PreparedMigration::NoSource)
     };
 
-    let (stale_record_ids, prepared) = prepared;
-    let clear_records = !stale_record_ids.is_empty();
-    let cleaned_record_count = stale_record_ids.len() as u64;
+    let (missing_record_ids, prepared) = prepared;
+    let clear_records = !missing_record_ids.is_empty();
+    let cleaned_record_count = missing_record_ids.len() as u64;
     let update_result = if clear_records {
         SettingsRepository::update_save_root_path_and_delete_savedata_records(
             db.inner(),
             configured_new_path.clone(),
-            &stale_record_ids,
+            &missing_record_ids,
         )
         .await
     } else {
@@ -211,7 +224,6 @@ pub async fn change_savedata_backup_root(
             configured_new_path.as_deref().unwrap_or("<default>")
         );
     }
-
     let PreparedMigration::Ready { old_path, .. } = prepared else {
         return Ok(completed_migration_result(
             settings.save_root_path,
@@ -324,6 +336,21 @@ fn resolve_configured_backup_root(configured_path: Option<&str>) -> Result<PathB
         Some(path) => reina_path::resolve_user_path(path)
             .map_err(|error| format!("存档备份根目录解析失败: {error}")),
         None => reina_path::get_default_savedata_backup_path(),
+    }
+}
+
+fn resolve_requested_backup_root(
+    configured_path: Option<&str>,
+) -> Result<RequestedBackupRoot, String> {
+    match configured_path {
+        Some(path) => match reina_path::resolve_user_path(path) {
+            Ok(path) => Ok(RequestedBackupRoot::Resolved(path)),
+            Err(reina_path::PathResolveError::UndefinedVariable(variable)) => {
+                Ok(RequestedBackupRoot::UndefinedVariable(variable))
+            }
+            Err(error) => Err(format!("存档备份根目录解析失败: {error}")),
+        },
+        None => reina_path::get_default_savedata_backup_path().map(RequestedBackupRoot::Resolved),
     }
 }
 
@@ -469,6 +496,7 @@ fn prepare_backup_migration(
             )]));
         }
     };
+    let mut existing_verified_copy = false;
     let nested_wrapper = if paths_overlap(&source_overlap, &target_overlap) {
         if same_path(&source_overlap, &target_overlap) {
             return Ok(PreparedMigration::NoSource);
@@ -480,7 +508,20 @@ fn prepare_backup_migration(
                 .parent()
                 .is_some_and(|parent| same_path(parent, &normalized_target))
         {
-            ensure_direct_nested_source_is_only_entry(&normalized_target, &normalized_source)?;
+            if let Err(error) =
+                ensure_direct_nested_source_is_only_entry(&normalized_target, &normalized_source)
+            {
+                let failures = verify_nested_flatten_copy(
+                    &normalized_source,
+                    &normalized_target,
+                    &normalized_source,
+                );
+                if failures.is_empty() {
+                    existing_verified_copy = true;
+                } else {
+                    return Err(error);
+                }
+            }
             Some(normalized_source.clone())
         } else {
             return Err(prepared_migration_error(vec![migration_failure(
@@ -508,11 +549,17 @@ fn prepare_backup_migration(
                 Ok(mut entries) => match entries.next() {
                     None => true,
                     Some(Ok(_)) => {
-                        return Err(prepared_migration_error(vec![migration_failure(
-                            Some(source),
-                            Some(target),
-                            "目标备份目录不是空目录，请选择空目录",
-                        )]));
+                        let failures = verify_copy(source, target);
+                        if failures.is_empty() {
+                            existing_verified_copy = true;
+                            false
+                        } else {
+                            return Err(prepared_migration_error(vec![migration_failure(
+                                Some(source),
+                                Some(target),
+                                "目标备份目录不是空目录，请选择空目录",
+                            )]));
+                        }
                     }
                     Some(Err(error)) => {
                         return Err(prepared_migration_error(vec![migration_failure(
@@ -561,6 +608,14 @@ fn prepare_backup_migration(
             Some(parent),
             format!("无法创建目标父目录: {error}"),
         )]));
+    }
+
+    if existing_verified_copy {
+        return Ok(PreparedMigration::Ready {
+            old_path: source.to_path_buf(),
+            new_path: target.to_path_buf(),
+            target_commit: PreparedTargetCommit::ExistingVerifiedCopy,
+        });
     }
 
     if let Some(wrapper_path) = nested_wrapper {
@@ -914,6 +969,7 @@ fn rollback_prepared_migration(
         PreparedTargetCommit::FlattenedNestedRoot { copied_entries, .. } => {
             rollback_flattened_nested_root(target, copied_entries)
         }
+        PreparedTargetCommit::ExistingVerifiedCopy => Vec::new(),
     }
 }
 
@@ -1621,6 +1677,28 @@ mod tests {
     }
 
     #[test]
+    fn resumes_when_target_is_already_a_verified_copy() {
+        let root = test_directory();
+        let source = root.join("old");
+        let target = root.join("new");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::create_dir_all(target.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+        fs::write(target.join("game_1").join("backup.7z"), b"backup").unwrap();
+
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
+
+        assert!(matches!(
+            prepared,
+            PreparedMigration::Ready {
+                target_commit: PreparedTargetCommit::ExistingVerifiedCopy,
+                ..
+            }
+        ));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn flattens_a_nested_backup_root_when_it_is_the_only_entry() {
         let root = test_directory();
         let target = root.join("configured");
@@ -1686,6 +1764,28 @@ mod tests {
         ));
         assert!(source.is_dir());
         assert!(target.join("game_1").join("backup.7z").is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn resumes_an_already_copied_nested_flatten() {
+        let root = test_directory();
+        let target = root.join("configured");
+        let source = target.join("archive");
+        fs::create_dir_all(source.join("game_1")).unwrap();
+        fs::create_dir_all(target.join("game_1")).unwrap();
+        fs::write(source.join("game_1").join("backup.7z"), b"backup").unwrap();
+        fs::write(target.join("game_1").join("backup.7z"), b"backup").unwrap();
+
+        let prepared = prepare_backup_migration(&source, &target, 1).unwrap();
+
+        assert!(matches!(
+            prepared,
+            PreparedMigration::Ready {
+                target_commit: PreparedTargetCommit::ExistingVerifiedCopy,
+                ..
+            }
+        ));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1770,7 +1870,26 @@ mod tests {
     }
 
     #[test]
-    fn collects_only_missing_savedata_records() {
+    fn rejects_invalid_requested_backup_root_syntax() {
+        assert!(resolve_requested_backup_root(Some("relative/path")).is_err());
+    }
+
+    #[test]
+    fn distinguishes_an_undefined_variable_from_invalid_paths() {
+        #[cfg(target_os = "windows")]
+        let path = r"%REINA_TEST_UNDEFINED_BACKUP_ROOT%\backups";
+        #[cfg(not(target_os = "windows"))]
+        let path = "$REINA_TEST_UNDEFINED_BACKUP_ROOT/backups";
+
+        assert!(matches!(
+            resolve_requested_backup_root(Some(path)),
+            Ok(RequestedBackupRoot::UndefinedVariable(variable))
+                if variable == "REINA_TEST_UNDEFINED_BACKUP_ROOT"
+        ));
+    }
+
+    #[test]
+    fn collects_missing_savedata_records_without_deleting_them() {
         let root = test_directory();
         fs::create_dir_all(root.join("game_1")).unwrap();
         fs::write(root.join("game_1").join("existing.7z"), b"backup").unwrap();
