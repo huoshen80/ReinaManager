@@ -33,7 +33,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { dirname } from "pathe";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PathInput } from "@/components/PathInput";
 import { useUserPathInspection } from "@/hooks/common/useUserPathInspection";
