@@ -28,7 +28,11 @@ export {
 	type TaskStatus,
 	taskService,
 } from "./installService";
-export type { RestoreBackupResult } from "./savedataService";
+export type {
+	RestoreBackupResult,
+	SavedataBackupDeleteResult,
+	SavedataBackupDeleteStatus,
+} from "./savedataService";
 export { savedataService } from "./savedataService";
 export type {
 	ProxyConfig,

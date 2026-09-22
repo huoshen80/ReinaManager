@@ -22,6 +22,16 @@ export interface RestoreBackupResult {
 	cleanup_warning: string | null;
 }
 
+export type SavedataBackupDeleteStatus =
+	| "deleted"
+	| "missing_file"
+	| "file_inaccessible";
+
+export interface SavedataBackupDeleteResult {
+	status: SavedataBackupDeleteStatus;
+	message: string | null;
+}
+
 class SavedataService extends BaseService {
 	/**
 	 * 创建存档备份
@@ -39,8 +49,17 @@ class SavedataService extends BaseService {
 	 * 删除备份文件和数据库记录（二合一）
 	 * @param backupId 备份记录ID
 	 */
-	async deleteBackup(backupId: number): Promise<void> {
-		return this.invoke<void>("delete_savedata_backup", { backupId });
+	async deleteBackup(backupId: number): Promise<SavedataBackupDeleteResult> {
+		return this.invoke<SavedataBackupDeleteResult>("delete_savedata_backup", {
+			backupId,
+		});
+	}
+
+	/**
+	 * 仅清除备份数据库记录。文件路径始终由后端根据备份 ID 读取和确认。
+	 */
+	async deleteBackupRecord(backupId: number): Promise<void> {
+		return this.invoke<void>("delete_savedata_backup_record", { backupId });
 	}
 
 	/**

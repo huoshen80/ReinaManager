@@ -40,6 +40,26 @@ pub struct SavedataBackupRootMigrationResult {
     pub cleaned_record_count: u64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SavedataBackupDeleteStatus {
+    Deleted,
+    MissingFile,
+    FileInaccessible,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SavedataBackupDeleteResult {
+    pub status: SavedataBackupDeleteStatus,
+    pub message: Option<String>,
+}
+
+#[derive(Debug)]
+enum BackupFileDeleteFailure {
+    MissingFile,
+    FileInaccessible(String),
+}
+
 pub(super) async fn acquire_savedata_backup_operation_lock() -> MutexGuard<'static, ()> {
     SAVEDATA_BACKUP_OPERATION_LOCK
         .get_or_init(|| Mutex::new(()))
@@ -1002,21 +1022,8 @@ async fn delete_backup_record(
     backup_file_path: &Path,
     backup_id: i32,
 ) -> Option<String> {
-    let backup_file_path = backup_file_path.to_path_buf();
-    let path_for_task = backup_file_path.clone();
-    let remove_result = tokio::task::spawn_blocking(move || fs::remove_file(&path_for_task)).await;
-    match remove_result {
-        Ok(Ok(())) => {}
-        Ok(Err(error)) => {
-            // 文件不存在或无法访问时保留数据库记录，避免丢失仍可能存在的备份线索。
-            return Some(format!(
-                "删除备份文件失败 {}，数据库记录未变更: {error}",
-                backup_file_path.display()
-            ));
-        }
-        Err(error) => {
-            return Some(format!("删除备份文件任务失败，数据库记录未变更: {error}"));
-        }
+    if let Err(error) = remove_backup_file(backup_file_path).await {
+        return Some(format_backup_file_delete_failure(backup_file_path, &error));
     }
     GamesRepository::delete_savedata_record(db, backup_id)
         .await
@@ -1024,8 +1031,120 @@ async fn delete_backup_record(
         .map(|error| format!("删除数据库记录失败 (ID: {backup_id}): {error}"))
 }
 
+async fn remove_backup_file(path: &Path) -> Result<(), BackupFileDeleteFailure> {
+    let path = path.to_path_buf();
+    tokio::task::spawn_blocking(move || match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(error) => Err(classify_backup_file_delete_error(&path, error)),
+    })
+    .await
+    .map_err(|error| BackupFileDeleteFailure::FileInaccessible(error.to_string()))?
+}
+
+fn classify_backup_file_delete_error(
+    path: &Path,
+    error: std::io::Error,
+) -> BackupFileDeleteFailure {
+    if error.kind() != std::io::ErrorKind::NotFound {
+        return BackupFileDeleteFailure::FileInaccessible(error.to_string());
+    }
+
+    let Some(parent) = path.parent() else {
+        return BackupFileDeleteFailure::MissingFile;
+    };
+    match fs::metadata(parent) {
+        Ok(metadata) if metadata.is_dir() => BackupFileDeleteFailure::MissingFile,
+        Ok(_) => BackupFileDeleteFailure::FileInaccessible("备份文件所在路径不是目录".to_string()),
+        Err(parent_error) => BackupFileDeleteFailure::FileInaccessible(format!(
+            "无法访问备份文件所在目录: {parent_error}"
+        )),
+    }
+}
+
+fn format_backup_file_delete_failure(path: &Path, failure: &BackupFileDeleteFailure) -> String {
+    match failure {
+        BackupFileDeleteFailure::MissingFile => {
+            format!("备份文件不存在: {}，数据库记录未变更", path.display())
+        }
+        BackupFileDeleteFailure::FileInaccessible(error) => format!(
+            "无法删除备份文件: {}，文件可能仍然存在，数据库记录未变更: {error}",
+            path.display()
+        ),
+    }
+}
+
+fn backup_file_delete_result(
+    path: &Path,
+    failure: BackupFileDeleteFailure,
+) -> SavedataBackupDeleteResult {
+    let (status, message) = match failure {
+        BackupFileDeleteFailure::MissingFile => (
+            SavedataBackupDeleteStatus::MissingFile,
+            Some(format!("备份文件不存在: {}", path.display())),
+        ),
+        BackupFileDeleteFailure::FileInaccessible(error) => (
+            SavedataBackupDeleteStatus::FileInaccessible,
+            Some(format!(
+                "无法删除备份文件: {}，文件可能仍然存在: {error}",
+                path.display()
+            )),
+        ),
+    };
+    SavedataBackupDeleteResult { status, message }
+}
+
 #[command]
 pub async fn delete_savedata_backup(
+    db: State<'_, DatabaseConnection>,
+    backup_id: i32,
+) -> Result<SavedataBackupDeleteResult, String> {
+    let _operation_guard = acquire_savedata_backup_operation_lock().await;
+    let record = GamesRepository::get_savedata_record_by_id(&db, backup_id)
+        .await
+        .map_err(|error| format!("获取备份记录失败: {error}"))?
+        .ok_or_else(|| "备份记录不存在".to_string())?;
+    let backup_root = match resolve_savedata_backup_root(&db).await {
+        Ok(path) => path,
+        Err(error) => {
+            log::warn!(
+                "存档备份文件无法解析，保留数据库记录 backup_id={} error={}",
+                backup_id,
+                error
+            );
+            return Ok(SavedataBackupDeleteResult {
+                status: SavedataBackupDeleteStatus::FileInaccessible,
+                message: Some(error),
+            });
+        }
+    };
+    let backup_path = backup_root
+        .join(format!("game_{}", record.game_id))
+        .join(&record.file);
+    if let Err(error) = remove_backup_file(&backup_path).await {
+        log::warn!(
+            "存档备份文件删除失败，保留数据库记录 backup_id={} game_id={} error={}",
+            backup_id,
+            record.game_id,
+            format_backup_file_delete_failure(&backup_path, &error)
+        );
+        return Ok(backup_file_delete_result(&backup_path, error));
+    }
+    if let Err(error) = GamesRepository::delete_savedata_record(&db, backup_id).await {
+        return Err(format!("删除数据库记录失败 (ID: {backup_id}): {error}"));
+    }
+    log::info!(
+        "存档备份删除成功 backup_id={} game_id={}",
+        backup_id,
+        record.game_id
+    );
+    Ok(SavedataBackupDeleteResult {
+        status: SavedataBackupDeleteStatus::Deleted,
+        message: None,
+    })
+}
+
+#[command]
+pub async fn delete_savedata_backup_record(
     db: State<'_, DatabaseConnection>,
     backup_id: i32,
 ) -> Result<(), String> {
@@ -1034,17 +1153,14 @@ pub async fn delete_savedata_backup(
         .await
         .map_err(|error| format!("获取备份记录失败: {error}"))?
         .ok_or_else(|| "备份记录不存在".to_string())?;
-    let backup_root = resolve_savedata_backup_root(&db).await?;
-    let backup_path = backup_root
-        .join(format!("game_{}", record.game_id))
-        .join(&record.file);
-    if let Some(error) = delete_backup_record(&db, &backup_path, backup_id).await {
-        return Err(error);
-    }
-    log::info!(
-        "存档备份删除成功 backup_id={} game_id={}",
+    GamesRepository::delete_savedata_record(&db, backup_id)
+        .await
+        .map_err(|error| format!("清除备份数据库记录失败 (ID: {backup_id}): {error}"))?;
+    log::warn!(
+        "用户确认仅清除存档备份数据库记录 backup_id={} game_id={} file={}",
         backup_id,
-        record.game_id
+        record.game_id,
+        record.file
     );
     Ok(())
 }

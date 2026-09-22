@@ -10,7 +10,7 @@ use backup::covers::backup_custom_covers;
 use backup::database::{backup_database, import_database, open_database_backup_folder};
 use backup::savedata::{
     change_savedata_backup_root, create_savedata_backup, delete_savedata_backup,
-    open_savedata_backup_folder, restore_savedata_backup,
+    delete_savedata_backup_record, open_savedata_backup_folder, restore_savedata_backup,
 };
 use database::*;
 use game::cover::custom::{delete_game_covers, import_clipboard_image_to_temp};
@@ -126,6 +126,7 @@ pub fn run() {
             copy_file,
             create_savedata_backup,
             delete_savedata_backup,
+            delete_savedata_backup_record,
             open_savedata_backup_folder,
             restore_savedata_backup,
             delete_file,

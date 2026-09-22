@@ -342,7 +342,6 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	};
 
 	return (
-		<Fragment>
 			<Dialog
 				open={open}
 				onClose={isSubmitting ? undefined : () => void handleClose()}
@@ -663,6 +662,5 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 					</Button>
 				</DialogActions>
 			</Dialog>
-		</Fragment>
 	);
 };

@@ -116,11 +116,28 @@ function useDeleteBackup() {
 
 	return useMutation({
 		mutationFn: async ({ backup }: DeleteBackupParams) => {
-			// 直接调用后端二合一接口，同时删除文件和数据库记录
-			await savedataService.deleteBackup(backup.id);
+			return savedataService.deleteBackup(backup.id);
 		},
 		onSettled: (_, __, variables) => {
 			// 无论成功失败都刷新备份列表
+			queryClient.invalidateQueries({
+				queryKey: saveDataKeys.backups(variables.gameId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: saveDataKeys.backupCount(variables.gameId),
+			});
+		},
+	});
+}
+
+function useDeleteBackupRecord() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async ({ backup }: DeleteBackupParams) => {
+			return savedataService.deleteBackupRecord(backup.id);
+		},
+		onSettled: (_, __, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: saveDataKeys.backups(variables.gameId),
 			});
@@ -152,6 +169,7 @@ export function useSaveDataResources(gameId: number) {
 
 	const createBackupMutation = useCreateBackup();
 	const deleteBackupMutation = useDeleteBackup();
+	const deleteBackupRecordMutation = useDeleteBackupRecord();
 	const restoreBackupMutation = useRestoreBackup();
 
 	return {
@@ -161,6 +179,7 @@ export function useSaveDataResources(gameId: number) {
 		// mutations
 		createBackupMutation,
 		deleteBackupMutation,
+		deleteBackupRecordMutation,
 		restoreBackupMutation,
 	};
 }

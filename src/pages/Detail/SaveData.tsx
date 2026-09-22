@@ -81,6 +81,7 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 		backupList,
 		createBackupMutation,
 		deleteBackupMutation,
+		deleteBackupRecordMutation,
 		restoreBackupMutation,
 	} = useSaveDataResources(gameId);
 
@@ -94,6 +95,13 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 	const [backupToDelete, setBackupToDelete] = useState<SavedataRecord | null>(
 		null,
 	);
+	const [recordCleanupDialogOpen, setRecordCleanupDialogOpen] = useState(false);
+	const [backupToCleanup, setBackupToCleanup] = useState<SavedataRecord | null>(
+		null,
+	);
+	const [recordCleanupStatus, setRecordCleanupStatus] = useState<
+		"missing_file" | "file_inaccessible" | null
+	>(null);
 	const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 	const [backupToRestore, setBackupToRestore] = useState<SavedataRecord | null>(
 		null,
@@ -228,28 +236,57 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 	// 删除备份
 	const handleDeleteBackup = async () => {
 		if (!backupToDelete) return;
-		deleteBackupMutation.mutate(
-			{
+		const backup = backupToDelete;
+		try {
+			const result = await deleteBackupMutation.mutateAsync({
 				gameId,
-				backup: backupToDelete,
-			},
-			{
-				onSuccess: () => {
-					snackbar.success(
-						t("pages.Detail.Backup.deleteSuccess", "备份删除成功"),
-					);
-				},
-				onError: (error) => {
-					snackbar.error(
-						`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${getUserErrorMessage(error, t)}`,
-					);
-				},
-				onSettled: () => {
-					setDeleteDialogOpen(false);
-					setBackupToDelete(null);
-				},
-			},
-		);
+				backup,
+			});
+			if (result.status === "deleted") {
+				snackbar.success(
+					t("pages.Detail.Backup.deleteSuccess", "备份删除成功"),
+				);
+			} else {
+				setBackupToCleanup(backup);
+				setRecordCleanupStatus(result.status);
+				setRecordCleanupDialogOpen(true);
+			}
+		} catch (error) {
+			snackbar.error(
+				`${t("pages.Detail.Backup.deleteFailed", "删除失败")}: ${getUserErrorMessage(error, t)}`,
+			);
+		} finally {
+			setDeleteDialogOpen(false);
+			setBackupToDelete(null);
+		}
+	};
+
+	const handleCleanupBackupRecord = async () => {
+		if (!backupToCleanup) return;
+		try {
+			await deleteBackupRecordMutation.mutateAsync({
+				gameId,
+				backup: backupToCleanup,
+			});
+			snackbar.success(
+				t("pages.Detail.Backup.recordCleanupSuccess", "备份记录已清除"),
+			);
+			setRecordCleanupDialogOpen(false);
+			setBackupToCleanup(null);
+			setRecordCleanupStatus(null);
+		} catch (error) {
+			snackbar.error(
+				`${t("pages.Detail.Backup.recordCleanupFailed", "清除备份记录失败")}: ${getUserErrorMessage(error, t)}`,
+			);
+		}
+	};
+
+	const closeRecordCleanupDialog = (open: boolean) => {
+		setRecordCleanupDialogOpen(open);
+		if (!open) {
+			setBackupToCleanup(null);
+			setRecordCleanupStatus(null);
+		}
 	};
 
 	// 打开恢复确认对话框
@@ -559,11 +596,13 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 													disabled={
 														createBackupMutation.isPending ||
 														restoreBackupMutation.isPending ||
-														deleteBackupMutation.isPending
+														deleteBackupMutation.isPending ||
+														deleteBackupRecordMutation.isPending
 													}
 													color="error"
 												>
-													{deleteBackupMutation.isPending ? (
+													{deleteBackupMutation.isPending ||
+													deleteBackupRecordMutation.isPending ? (
 														<CircularProgress size={24} color="error" />
 													) : (
 														<DeleteIcon />
@@ -632,6 +671,23 @@ function SaveDataContent({ selectedGame, gameId }: SaveDataContentProps) {
 						? `${t("pages.Detail.Backup.confirmDelete", "确定要删除备份")} "${backupToDelete.file}" ${t("pages.Detail.Backup.confirmDeleteSuffix", "吗？此操作不可撤销。")}`
 						: undefined
 				}
+			/>
+
+			<AlertConfirmBox
+				open={recordCleanupDialogOpen}
+				setOpen={closeRecordCleanupDialog}
+				onConfirm={handleCleanupBackupRecord}
+				isLoading={deleteBackupRecordMutation.isPending}
+				title={t("pages.Detail.Backup.recordCleanupTitle", "清除备份记录")}
+				message={
+					backupToCleanup
+						? recordCleanupStatus === "missing_file"
+							? `${t("pages.Detail.Backup.missingFileCleanupMessage", "备份文件不存在。是否只清除数据库记录？")} "${backupToCleanup.file}"`
+							: `${t("pages.Detail.Backup.inaccessibleFileCleanupMessage", "备份文件无法访问或删除，可能仍然存在。是否仍只清除数据库记录？")} "${backupToCleanup.file}"`
+						: undefined
+				}
+				confirmText={t("pages.Detail.Backup.clearRecord", "只清除记录")}
+				confirmColor="warning"
 			/>
 
 			{/* 恢复确认对话框 */}
