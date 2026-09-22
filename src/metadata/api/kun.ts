@@ -6,7 +6,6 @@
  * @copyright AGPL-3.0
  */
 
-import i18next from "i18next";
 import type { GameMetadataDraft, KunData } from "@/types";
 import { AppError } from "@/utils/errors";
 import { USER_AGENT } from "../constants";
@@ -28,13 +27,6 @@ const KUN_JSON_HEADERS = {
 	"User-Agent": USER_AGENT,
 } as const;
 
-export interface KunLanguage {
-	"en-us": string;
-	"ja-jp": string;
-	"zh-cn": string;
-	"zh-tw": string;
-}
-
 export interface GalgameDetailTag {
 	name: string;
 	galgame_count: number;
@@ -48,11 +40,12 @@ export interface GalgameOfficialItem {
 export interface GalgameDetailResponse {
 	id: number;
 	vndb_id: string;
-	name: KunLanguage;
+	name: string;
+	name_original?: string;
 	original_language?: string;
 	effective_banner_url?: string;
 	content_limit: "sfw" | "nsfw";
-	markdown: KunLanguage;
+	intro_text?: string;
 	age_limit: "all" | "r18";
 	alias: string[];
 	official: GalgameOfficialItem[];
@@ -62,7 +55,8 @@ export interface GalgameDetailResponse {
 
 export interface SearchResultGalgame {
 	id: number;
-	name: KunLanguage;
+	name: string;
+	name_original?: string;
 	effective_banner_url?: string;
 	release_date?: string | null;
 }
@@ -78,13 +72,9 @@ export interface KunPaginatedData<T> {
 	total: number;
 }
 
-type KunLocaleKey = keyof KunLanguage;
-
 interface KunFetchOptions extends MetadataRequestContext {
 	enrichVndb?: boolean;
 }
-
-const KUN_LOCALE_ORDER: KunLocaleKey[] = ["zh-cn", "ja-jp", "en-us", "zh-tw"];
 
 function normalizeKunText(value?: string): string | undefined {
 	if (typeof value !== "string" || !value.trim()) {
@@ -94,77 +84,12 @@ function normalizeKunText(value?: string): string | undefined {
 	return value.replace(/\\\r?\n/g, "\n").trim();
 }
 
-function isKunLocaleKey(language: string): language is KunLocaleKey {
-	return KUN_LOCALE_ORDER.includes(language as KunLocaleKey);
-}
-
-function toKunLocale(language: string): KunLocaleKey {
-	if (language === "zh-CN") {
-		return "zh-cn";
-	}
-	if (language === "zh-TW") {
-		return "zh-tw";
-	}
-	if (language === "ja-JP") {
-		return "ja-jp";
-	}
-	if (language === "en-US") {
-		return "en-us";
-	}
-
-	return "zh-cn";
-}
-
-function pickLocalizedText(
-	localized?: Partial<KunLanguage>,
-): string | undefined {
-	if (!localized) {
-		return undefined;
-	}
-
-	const preferred = toKunLocale(i18next.language);
-	const order: KunLocaleKey[] = [
-		preferred,
-		...KUN_LOCALE_ORDER.filter((k) => k !== preferred),
-	];
-
-	for (const key of order) {
-		const value = normalizeKunText(localized[key]);
-		if (value) {
-			return value;
-		}
-	}
-
-	return undefined;
-}
-
-function pickOriginalName(
-	localized: Partial<KunLanguage>,
-	originalLanguage?: string,
-): string | undefined {
-	const locale = originalLanguage?.trim().toLowerCase().replace("_", "-");
-	if (locale && isKunLocaleKey(locale)) {
-		const originalName = normalizeKunText(localized[locale]);
-		if (originalName) {
-			return originalName;
-		}
-	}
-
-	// 原语言缺失或对应标题为空时，保留原有的界面语言回退行为。
-	return pickLocalizedText(localized);
-}
-
-function extractAllTitles(localized?: Partial<KunLanguage>): string[] {
-	if (!localized) {
-		return [];
-	}
-
+function extractAllTitles(...titles: Array<string | undefined>): string[] {
 	return Array.from(
 		new Set(
-			Object.values(localized)
-				.filter((value): value is string => typeof value === "string")
-				.map((value) => value.trim())
-				.filter(Boolean),
+			titles
+				.map((title) => normalizeKunText(title))
+				.filter((title): title is string => Boolean(title)),
 		),
 	);
 }
@@ -234,17 +159,20 @@ const transformKunData = (
 	kunData: GalgameDetailResponse,
 	filterLevel: number,
 ): GameMetadataDraft => {
-	const summary = pickLocalizedText(kunData.markdown);
+	const name = normalizeKunText(kunData.name);
+	const originalName = normalizeKunText(kunData.name_original) ?? name;
 
 	const sourceData: KunData = {
 		image: kunData.effective_banner_url,
-		name: pickOriginalName(kunData.name, kunData.original_language),
-		name_cn: normalizeKunText(kunData.name?.["zh-cn"]),
-		all_titles: extractAllTitles(kunData.name),
+		name: originalName,
+		name_cn: name,
+		all_titles: extractAllTitles(originalName, name),
 		aliases: Array.from(
-			new Set((kunData.alias || []).map((alias) => alias.trim())),
+			new Set(
+				(kunData.alias || []).map((alias) => alias.trim()).filter(Boolean),
+			),
 		),
-		summary,
+		summary: normalizeKunText(kunData.intro_text),
 		tags: kunData.vndb_id
 			? undefined
 			: extractKunTags(kunData.tag, filterLevel),
@@ -390,7 +318,10 @@ export async function searchGalgame(
 		...createGameCandidate({
 			idType: "kun",
 			source: createSourceCandidateRecord("kun", String(item.id), {
-				name: pickLocalizedText(item.name),
+				name:
+					normalizeKunText(item.name_original) ?? normalizeKunText(item.name),
+				name_cn: normalizeKunText(item.name),
+				all_titles: extractAllTitles(item.name_original, item.name),
 				image: item.effective_banner_url,
 				date: item.release_date ?? undefined,
 			}),
