@@ -359,6 +359,7 @@ fn shortcut_launch_id(shortcut_app_id: u32) -> String {
 /// Steam 启动游戏时，reaper 进程命令行携带的是 32 位应用 ID：
 /// - 商店应用：AppId 即为启动 ID 本身（如 413150）
 /// - 非 Steam 快捷方式：启动 ID 为 `(shortcut appid << 32) | STEAM_SHORTCUT_MARKER`，AppId 是其高 32 位
+#[cfg(any(target_os = "linux", test))]
 pub fn steam_app_id_from_launch_id(launch_id: u64) -> Result<u32, String> {
     if launch_id == 0 {
         return Err("Steam 启动 ID 无效".to_string());

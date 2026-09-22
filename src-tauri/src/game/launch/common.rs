@@ -1,7 +1,10 @@
 use crate::database::dto::FullGameData;
 use crate::database::repository::games_repository::GamesRepository;
+#[cfg(target_os = "linux")]
 use crate::game::steam::steam_app_id_from_launch_id;
-use log::{info, warn};
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+use log::info;
+use log::warn;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -55,11 +58,12 @@ impl StopResult {
 
 pub struct ValidatedSteamLaunch {
     pub steam_launch_id: String,
+    #[cfg(target_os = "linux")]
     /// Steam 进程实际使用的 32 位 AppId
     ///
     /// 非 Steam 快捷方式的启动 ID 与 AppId 并不相同，Linux 侧靠它识别 reaper 进程。
     pub steam_app_id: u32,
-    #[allow(dead_code)]
+    #[cfg(target_os = "windows")]
     pub game_dir: String,
 }
 
@@ -115,7 +119,7 @@ pub fn validate_and_open_steam<R: Runtime>(
     app_handle: &AppHandle<R>,
     game_id: u32,
     steam_launch_id: Option<&str>,
-    game_dir: Option<&str>,
+    #[cfg(target_os = "windows")] game_dir: Option<&str>,
     args: Option<&[String]>,
 ) -> Result<ValidatedSteamLaunch, String> {
     let steam_launch_id_value = steam_launch_id
@@ -123,15 +127,20 @@ pub fn validate_and_open_steam<R: Runtime>(
         .and_then(|value| value.parse::<u64>().ok())
         .filter(|value| *value > 0)
         .ok_or_else(|| "Steam 启动 ID 无效，请重新关联 Steam 启动项".to_string())?;
+    #[cfg(target_os = "linux")]
     let steam_app_id = steam_app_id_from_launch_id(steam_launch_id_value)
         .map_err(|_| "Steam 启动 ID 无效，请重新关联 Steam 启动项".to_string())?;
     let steam_launch_id = steam_launch_id_value.to_string();
+
+    #[cfg(target_os = "windows")]
     let configured_game_dir = game_dir
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| "Steam 游戏监控目录未设置，请重新关联 Steam 启动项".to_string())?;
+    #[cfg(target_os = "windows")]
     let game_dir = reina_path::resolve_user_path(configured_game_dir)
         .map_err(|error| format!("Steam 游戏监控目录解析失败: {error}"))?;
+    #[cfg(target_os = "windows")]
     if !game_dir.is_dir() {
         return Err(format!(
             "Steam 游戏监控目录不存在，请重新关联 Steam 启动项: {}",
@@ -149,16 +158,24 @@ pub fn validate_and_open_steam<R: Runtime>(
         .open_url(&steam_uri, None::<&str>)
         .map_err(|error| format!("打开 Steam 启动项失败: {error}"))?;
 
+    #[cfg(target_os = "windows")]
     info!(
         "已请求 Steam 启动游戏 game_id={} steam_launch_id={} detection_dir={}",
         game_id,
         steam_launch_id,
         game_dir.display()
     );
+    #[cfg(target_os = "linux")]
+    info!(
+        "已请求 Steam 启动游戏 game_id={} steam_launch_id={} steam_app_id={}",
+        game_id, steam_launch_id, steam_app_id
+    );
 
     Ok(ValidatedSteamLaunch {
         steam_launch_id,
+        #[cfg(target_os = "linux")]
         steam_app_id,
+        #[cfg(target_os = "windows")]
         game_dir: game_dir.to_string_lossy().into_owned(),
     })
 }

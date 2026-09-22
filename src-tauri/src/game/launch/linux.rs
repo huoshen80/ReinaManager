@@ -61,7 +61,6 @@ async fn launch_game_inner<R: Runtime>(
             &app_handle,
             game_id,
             game.steam_launch_id.as_deref(),
-            game.localpath.as_deref(),
             args.as_deref(),
         )?;
 
