@@ -2,7 +2,7 @@
 	"app": {
 		"NAVIGATION": {
 			"collection": "收藏夾",
-			"gameLibrary": "遊戲倉庫 ",
+			"gameLibrary": "遊戲倉庫",
 			"home": "首頁",
 			"settings": "設定",
 			"stats": "統計"
@@ -301,16 +301,12 @@
 			},
 			"saveFieldError": "儲存{{field}}失敗：{{error}}",
 			"savePath": {
-				"cleanedRecords_one": "備份路徑已儲存，並清理了 {{count}} 筆失效備份記錄",
 				"cleanedRecords_other": "備份路徑已儲存，並清理了 {{count}} 筆失效備份記錄",
-				"skipMigrationWarning": "備份路徑已儲存，但未遷移舊備份：{{error}}。舊備份位置：{{path}}",
-				"missingRootConfirm": "清理記錄並切換",
-				"missingRootMessage": "舊備份目錄 {{path}} 不存在，但資料庫中仍有對應記錄。確認後將清理這些失效記錄，並切換到新的備份目錄。此操作無法復原。",
-				"missingRootTitle": "舊存檔備份目錄不存在",
 				"moveBackupWarning": "備份路徑已儲存，但舊備份目錄清理不完整：{{error}}",
 				"note": "設置遊戲存檔的備份根目錄，留空將使用預設路徑",
 				"pathPlaceholder": "遊戲存檔將預設備份至此目錄下",
 				"selectBtn": "選擇目錄",
+				"skipMigrationWarning": "備份路徑已儲存，但未遷移舊備份：{{error}}。舊備份位置：{{path}}",
 				"title": "遊戲存檔備份根目錄"
 			},
 			"selectFileError": "選擇文件失敗：{{error}}",

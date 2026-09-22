@@ -2,7 +2,7 @@
 	"app": {
 		"NAVIGATION": {
 			"collection": "コレクション",
-			"gameLibrary": "ゲームライブラリ ",
+			"gameLibrary": "ゲームライブラリ",
 			"home": "ホーム",
 			"settings": "設定",
 			"stats": "統計"
@@ -301,16 +301,12 @@
 			},
 			"saveFieldError": "{{field}}の保存に失敗しました：{{error}}",
 			"savePath": {
-				"cleanedRecords_one": "バックアップパスを保存し、無効なバックアップ記録を{{count}}件削除しました",
 				"cleanedRecords_other": "バックアップパスを保存し、無効なバックアップ記録を{{count}}件削除しました",
-				"skipMigrationWarning": "バックアップパスを保存しましたが、旧バックアップは移行されませんでした：{{error}}。旧バックアップの場所：{{path}}",
-				"missingRootConfirm": "記録を削除して切り替え",
-				"missingRootMessage": "旧バックアップディレクトリ {{path}} が見つかりませんが、データベースには対応する記録が残っています。確認すると、これらの無効な記録を削除して新しいバックアップディレクトリに切り替えます。この操作は取り消せません。",
-				"missingRootTitle": "旧セーブデータバックアップディレクトリが見つかりません",
 				"moveBackupWarning": "バックアップパスは保存されましたが、古いバックアップディレクトリを完全に削除できませんでした：{{error}}",
 				"note": "ゲームセーブデータのバックアップルートディレクトリを設定します。空のままにするとデフォルトパスが使用されます",
 				"pathPlaceholder": "ゲームセーブデータはデフォルトでこのディレクトリにバックアップされます",
 				"selectBtn": "ディレクトリを選択",
+				"skipMigrationWarning": "バックアップパスを保存しましたが、旧バックアップは移行されませんでした：{{error}}。旧バックアップの場所：{{path}}",
 				"title": "ゲームセーブバックアップルート"
 			},
 			"selectFileError": "ファイルの選択に失敗しました：{{error}}",

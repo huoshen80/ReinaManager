@@ -225,7 +225,7 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 								"备份路径已保存，但未迁移旧备份：{{error}}。旧备份位置：{{path}}",
 								{
 									error: migration.message,
-									path: migration.old_path ?? t("common.unknown", "未知路径"),
+									path: migration.old_path ?? t("common.unknown", "未知"),
 								},
 							),
 						);
@@ -342,325 +342,320 @@ export const PathSettingsModal: React.FC<PathSettingsModalProps> = ({
 	};
 
 	return (
-			<Dialog
-				open={open}
-				onClose={isSubmitting ? undefined : () => void handleClose()}
-				maxWidth="md"
-				fullWidth
-				PaperProps={{
-					sx: { minHeight: "60vh" },
-				}}
-			>
-				<DialogTitle>
-					{t("components.PathSettingsModal.title", "路径设置")}
-				</DialogTitle>
-				<DialogContent>
-					<Box className="space-y-6">
-						{inSettingsPage && (
-							<>
-								{/* 一键安装游戏目录设置 */}
-								<Box>
-									<InputLabel className="font-semibold mb-4">
-										{t(
-											"components.PathSettingsModal.installRootPath.title",
-											"游戏安装根目录",
-										)}
-									</InputLabel>
-									<Typography
-										variant="caption"
-										color="text.secondary"
-										className="block mb-3"
-									>
-										{t(
-											"components.PathSettingsModal.installRootPath.note",
-											"书音等来源的一键安装会把游戏解压到此目录",
-										)}
-									</Typography>
-									<PathInput
-										pathType="directory"
-										inspectionState={installRootInspection}
-										variant="outlined"
-										value={draft.installRootPath}
-										onChange={(value) => updateDraft("installRootPath", value)}
-										onBlur={() => void saveDraft(draft)}
-										onKeyDown={(event) =>
-											handlePathKeyDown(event, "installRootPath")
-										}
-										fullWidth
-										className="mb-2"
-										placeholder={t(
-											"components.PathSettingsModal.installRootPath.pathPlaceholder",
-											"游戏将默认装在这个目录下",
-										)}
-										disabled={isLoading}
-										size="small"
-										endAdornment={
-											<InputAdornment position="end">
-												<Tooltip
-													title={t(
-														"components.PathSettingsModal.installRootPath.selectBtn",
-														"选择目录",
-													)}
-												>
-													<IconButton
-														onMouseDown={(event) => event.preventDefault()}
-														onClick={() =>
-															handleSelectFolder("installRootPath")
-														}
-														disabled={isLoading}
-														edge="end"
-														size="small"
-													>
-														<FolderOpenIcon fontSize="small" />
-													</IconButton>
-												</Tooltip>
-											</InputAdornment>
-										}
-									/>
-								</Box>
-
-								{/* 游戏存档备份路径设置 */}
-								<Box>
-									<InputLabel className="font-semibold mb-4">
-										{t(
-											"components.PathSettingsModal.savePath.title",
-											"游戏存档备份根目录",
-										)}
-									</InputLabel>
-									<Typography
-										variant="caption"
-										color="text.secondary"
-										className="block mb-3"
-									>
-										{t(
-											"components.PathSettingsModal.savePath.note",
-											"设置游戏存档的备份根目录，留空将使用默认路径",
-										)}
-									</Typography>
-									<PathInput
-										pathType="directory"
-										inspectionState={savePathInspection}
-										variant="outlined"
-										value={draft.savePath}
-										onChange={(value) => updateDraft("savePath", value)}
-										onBlur={() => void saveDraft(draft)}
-										onKeyDown={(event) => handlePathKeyDown(event, "savePath")}
-										fullWidth
-										className="mb-2"
-										placeholder={t(
-											"components.PathSettingsModal.savePath.pathPlaceholder",
-											"游戏存档将默认备份到这个目录下",
-										)}
-										disabled={isLoading}
-										size="small"
-										endAdornment={
-											<InputAdornment position="end">
-												<Tooltip
-													title={t(
-														"components.PathSettingsModal.savePath.selectBtn",
-														"选择目录",
-													)}
-												>
-													<IconButton
-														onMouseDown={(event) => event.preventDefault()}
-														onClick={() => handleSelectFolder("savePath")}
-														disabled={isLoading}
-														edge="end"
-														size="small"
-													>
-														<FolderOpenIcon fontSize="small" />
-													</IconButton>
-												</Tooltip>
-											</InputAdornment>
-										}
-									/>
-								</Box>
-
-								{/* 数据库备份路径设置 */}
-								<Box>
-									<InputLabel className="font-semibold mb-4">
-										{t(
-											"components.PathSettingsModal.dbBackupPath.title",
-											"数据库备份根目录",
-										)}
-									</InputLabel>
-									<Typography
-										variant="caption"
-										color="text.secondary"
-										className="block mb-3"
-									>
-										{t(
-											"components.PathSettingsModal.dbBackupPath.note",
-											"设置数据库的备份根目录，留空将使用默认路径",
-										)}
-									</Typography>
-									<PathInput
-										pathType="directory"
-										inspectionState={dbBackupPathInspection}
-										variant="outlined"
-										value={draft.dbBackupPath}
-										onChange={(value) => updateDraft("dbBackupPath", value)}
-										onBlur={() => void saveDraft(draft)}
-										onKeyDown={(event) =>
-											handlePathKeyDown(event, "dbBackupPath")
-										}
-										fullWidth
-										className="mb-2"
-										placeholder={t(
-											"components.PathSettingsModal.dbBackupPath.pathPlaceholder",
-											"数据库将默认备份到这个目录下",
-										)}
-										disabled={isLoading}
-										size="small"
-										endAdornment={
-											<InputAdornment position="end">
-												<Tooltip
-													title={t(
-														"components.PathSettingsModal.dbBackupPath.selectBtn",
-														"选择目录",
-													)}
-												>
-													<IconButton
-														onMouseDown={(event) => event.preventDefault()}
-														onClick={() => handleSelectFolder("dbBackupPath")}
-														disabled={isLoading}
-														edge="end"
-														size="small"
-													>
-														<FolderOpenIcon fontSize="small" />
-													</IconButton>
-												</Tooltip>
-											</InputAdornment>
-										}
-									/>
-								</Box>
-							</>
-						)}
-
-						{/* LE转区软件路径设置 */}
-						<Box>
-							<InputLabel className="font-semibold mb-4">
-								{t(
-									"components.PathSettingsModal.lePath.title",
-									"LE转区软件路径",
-								)}
-							</InputLabel>
-							<Typography
-								variant="caption"
-								color="text.secondary"
-								className="block mb-3"
-							>
-								{t(
-									"components.PathSettingsModal.lePath.note",
-									"设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
-								)}
-							</Typography>
-							<PathInput
-								pathType="file"
-								inspectionState={lePathInspection}
-								variant="outlined"
-								value={draft.lePath}
-								onChange={(value) => updateDraft("lePath", value)}
-								onBlur={() => void saveDraft(draft)}
-								onKeyDown={(event) => handlePathKeyDown(event, "lePath")}
-								fullWidth
-								className="mb-2"
-								placeholder={t(
-									"components.PathSettingsModal.lePath.pathPlaceholder",
-									"选择名为 LEProc 的可执行程序",
-								)}
-								disabled={isLoading}
-								size="small"
-								endAdornment={
-									<InputAdornment position="end">
-										<Tooltip
-											title={t(
-												"components.PathSettingsModal.lePath.selectBtn",
-												"选择文件",
-											)}
-										>
-											<IconButton
-												onMouseDown={(event) => event.preventDefault()}
-												onClick={() => handleSelectExeFile("lePath")}
-												disabled={isLoading}
-												edge="end"
-												size="small"
+		<Dialog
+			open={open}
+			onClose={isSubmitting ? undefined : () => void handleClose()}
+			maxWidth="md"
+			fullWidth
+			PaperProps={{
+				sx: { minHeight: "60vh" },
+			}}
+		>
+			<DialogTitle>
+				{t("components.PathSettingsModal.title", "路径设置")}
+			</DialogTitle>
+			<DialogContent>
+				<Box className="space-y-6">
+					{inSettingsPage && (
+						<>
+							{/* 一键安装游戏目录设置 */}
+							<Box>
+								<InputLabel className="font-semibold mb-4">
+									{t(
+										"components.PathSettingsModal.installRootPath.title",
+										"游戏安装根目录",
+									)}
+								</InputLabel>
+								<Typography
+									variant="caption"
+									color="text.secondary"
+									className="block mb-3"
+								>
+									{t(
+										"components.PathSettingsModal.installRootPath.note",
+										"书音等来源的一键安装会把游戏解压到此目录",
+									)}
+								</Typography>
+								<PathInput
+									pathType="directory"
+									inspectionState={installRootInspection}
+									variant="outlined"
+									value={draft.installRootPath}
+									onChange={(value) => updateDraft("installRootPath", value)}
+									onBlur={() => void saveDraft(draft)}
+									onKeyDown={(event) =>
+										handlePathKeyDown(event, "installRootPath")
+									}
+									fullWidth
+									className="mb-2"
+									placeholder={t(
+										"components.PathSettingsModal.installRootPath.pathPlaceholder",
+										"游戏将默认装在这个目录下",
+									)}
+									disabled={isLoading}
+									size="small"
+									endAdornment={
+										<InputAdornment position="end">
+											<Tooltip
+												title={t(
+													"components.PathSettingsModal.installRootPath.selectBtn",
+													"选择目录",
+												)}
 											>
-												<FileOpenIcon fontSize="small" />
-											</IconButton>
-										</Tooltip>
-									</InputAdornment>
-								}
-							/>
-						</Box>
+												<IconButton
+													onMouseDown={(event) => event.preventDefault()}
+													onClick={() => handleSelectFolder("installRootPath")}
+													disabled={isLoading}
+													edge="end"
+													size="small"
+												>
+													<FolderOpenIcon fontSize="small" />
+												</IconButton>
+											</Tooltip>
+										</InputAdornment>
+									}
+								/>
+							</Box>
 
-						{/* Magpie软件路径设置 */}
-						<Box>
-							<InputLabel className="font-semibold mb-4">
-								{t(
-									"components.PathSettingsModal.magpiePath.title",
-									"Magpie软件路径",
-								)}
-							</InputLabel>
-							<Typography
-								variant="caption"
-								color="text.secondary"
-								className="block mb-3"
-							>
-								{t(
-									"components.PathSettingsModal.magpiePath.note",
-									"设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
-								)}
-							</Typography>
-							<PathInput
-								pathType="file"
-								inspectionState={magpiePathInspection}
-								variant="outlined"
-								value={draft.magpiePath}
-								onChange={(value) => updateDraft("magpiePath", value)}
-								onBlur={() => void saveDraft(draft)}
-								onKeyDown={(event) => handlePathKeyDown(event, "magpiePath")}
-								fullWidth
-								className="mb-2"
-								placeholder={t(
-									"components.PathSettingsModal.magpiePath.pathPlaceholder",
-									"选择名为 Magpie 的可执行程序",
-								)}
-								disabled={isLoading}
-								size="small"
-								endAdornment={
-									<InputAdornment position="end">
-										<Tooltip
-											title={t(
-												"components.PathSettingsModal.magpiePath.selectBtn",
-												"选择文件",
-											)}
-										>
-											<IconButton
-												onMouseDown={(event) => event.preventDefault()}
-												onClick={() => handleSelectExeFile("magpiePath")}
-												disabled={isLoading}
-												edge="end"
-												size="small"
+							{/* 游戏存档备份路径设置 */}
+							<Box>
+								<InputLabel className="font-semibold mb-4">
+									{t(
+										"components.PathSettingsModal.savePath.title",
+										"游戏存档备份根目录",
+									)}
+								</InputLabel>
+								<Typography
+									variant="caption"
+									color="text.secondary"
+									className="block mb-3"
+								>
+									{t(
+										"components.PathSettingsModal.savePath.note",
+										"设置游戏存档的备份根目录，留空将使用默认路径",
+									)}
+								</Typography>
+								<PathInput
+									pathType="directory"
+									inspectionState={savePathInspection}
+									variant="outlined"
+									value={draft.savePath}
+									onChange={(value) => updateDraft("savePath", value)}
+									onBlur={() => void saveDraft(draft)}
+									onKeyDown={(event) => handlePathKeyDown(event, "savePath")}
+									fullWidth
+									className="mb-2"
+									placeholder={t(
+										"components.PathSettingsModal.savePath.pathPlaceholder",
+										"游戏存档将默认备份到这个目录下",
+									)}
+									disabled={isLoading}
+									size="small"
+									endAdornment={
+										<InputAdornment position="end">
+											<Tooltip
+												title={t(
+													"components.PathSettingsModal.savePath.selectBtn",
+													"选择目录",
+												)}
 											>
-												<FileOpenIcon fontSize="small" />
-											</IconButton>
-										</Tooltip>
-									</InputAdornment>
-								}
-							/>
-						</Box>
+												<IconButton
+													onMouseDown={(event) => event.preventDefault()}
+													onClick={() => handleSelectFolder("savePath")}
+													disabled={isLoading}
+													edge="end"
+													size="small"
+												>
+													<FolderOpenIcon fontSize="small" />
+												</IconButton>
+											</Tooltip>
+										</InputAdornment>
+									}
+								/>
+							</Box>
+
+							{/* 数据库备份路径设置 */}
+							<Box>
+								<InputLabel className="font-semibold mb-4">
+									{t(
+										"components.PathSettingsModal.dbBackupPath.title",
+										"数据库备份根目录",
+									)}
+								</InputLabel>
+								<Typography
+									variant="caption"
+									color="text.secondary"
+									className="block mb-3"
+								>
+									{t(
+										"components.PathSettingsModal.dbBackupPath.note",
+										"设置数据库的备份根目录，留空将使用默认路径",
+									)}
+								</Typography>
+								<PathInput
+									pathType="directory"
+									inspectionState={dbBackupPathInspection}
+									variant="outlined"
+									value={draft.dbBackupPath}
+									onChange={(value) => updateDraft("dbBackupPath", value)}
+									onBlur={() => void saveDraft(draft)}
+									onKeyDown={(event) =>
+										handlePathKeyDown(event, "dbBackupPath")
+									}
+									fullWidth
+									className="mb-2"
+									placeholder={t(
+										"components.PathSettingsModal.dbBackupPath.pathPlaceholder",
+										"数据库将默认备份到这个目录下",
+									)}
+									disabled={isLoading}
+									size="small"
+									endAdornment={
+										<InputAdornment position="end">
+											<Tooltip
+												title={t(
+													"components.PathSettingsModal.dbBackupPath.selectBtn",
+													"选择目录",
+												)}
+											>
+												<IconButton
+													onMouseDown={(event) => event.preventDefault()}
+													onClick={() => handleSelectFolder("dbBackupPath")}
+													disabled={isLoading}
+													edge="end"
+													size="small"
+												>
+													<FolderOpenIcon fontSize="small" />
+												</IconButton>
+											</Tooltip>
+										</InputAdornment>
+									}
+								/>
+							</Box>
+						</>
+					)}
+
+					{/* LE转区软件路径设置 */}
+					<Box>
+						<InputLabel className="font-semibold mb-4">
+							{t("components.PathSettingsModal.lePath.title", "LE转区软件路径")}
+						</InputLabel>
+						<Typography
+							variant="caption"
+							color="text.secondary"
+							className="block mb-3"
+						>
+							{t(
+								"components.PathSettingsModal.lePath.note",
+								"设置LE转区软件的可执行文件路径，用于游戏启动时的转区功能",
+							)}
+						</Typography>
+						<PathInput
+							pathType="file"
+							inspectionState={lePathInspection}
+							variant="outlined"
+							value={draft.lePath}
+							onChange={(value) => updateDraft("lePath", value)}
+							onBlur={() => void saveDraft(draft)}
+							onKeyDown={(event) => handlePathKeyDown(event, "lePath")}
+							fullWidth
+							className="mb-2"
+							placeholder={t(
+								"components.PathSettingsModal.lePath.pathPlaceholder",
+								"选择名为 LEProc 的可执行程序",
+							)}
+							disabled={isLoading}
+							size="small"
+							endAdornment={
+								<InputAdornment position="end">
+									<Tooltip
+										title={t(
+											"components.PathSettingsModal.lePath.selectBtn",
+											"选择文件",
+										)}
+									>
+										<IconButton
+											onMouseDown={(event) => event.preventDefault()}
+											onClick={() => handleSelectExeFile("lePath")}
+											disabled={isLoading}
+											edge="end"
+											size="small"
+										>
+											<FileOpenIcon fontSize="small" />
+										</IconButton>
+									</Tooltip>
+								</InputAdornment>
+							}
+						/>
 					</Box>
-				</DialogContent>
-				<DialogActions>
-					<Button
-						onMouseDown={(event) => event.preventDefault()}
-						onClick={() => void handleClose()}
-						disabled={isSubmitting}
-					>
-						{t("components.PathSettingsModal.close", "关闭")}
-					</Button>
-				</DialogActions>
-			</Dialog>
+
+					{/* Magpie软件路径设置 */}
+					<Box>
+						<InputLabel className="font-semibold mb-4">
+							{t(
+								"components.PathSettingsModal.magpiePath.title",
+								"Magpie软件路径",
+							)}
+						</InputLabel>
+						<Typography
+							variant="caption"
+							color="text.secondary"
+							className="block mb-3"
+						>
+							{t(
+								"components.PathSettingsModal.magpiePath.note",
+								"设置Magpie软件的可执行文件路径，用于游戏画面的放大功能",
+							)}
+						</Typography>
+						<PathInput
+							pathType="file"
+							inspectionState={magpiePathInspection}
+							variant="outlined"
+							value={draft.magpiePath}
+							onChange={(value) => updateDraft("magpiePath", value)}
+							onBlur={() => void saveDraft(draft)}
+							onKeyDown={(event) => handlePathKeyDown(event, "magpiePath")}
+							fullWidth
+							className="mb-2"
+							placeholder={t(
+								"components.PathSettingsModal.magpiePath.pathPlaceholder",
+								"选择名为 Magpie 的可执行程序",
+							)}
+							disabled={isLoading}
+							size="small"
+							endAdornment={
+								<InputAdornment position="end">
+									<Tooltip
+										title={t(
+											"components.PathSettingsModal.magpiePath.selectBtn",
+											"选择文件",
+										)}
+									>
+										<IconButton
+											onMouseDown={(event) => event.preventDefault()}
+											onClick={() => handleSelectExeFile("magpiePath")}
+											disabled={isLoading}
+											edge="end"
+											size="small"
+										>
+											<FileOpenIcon fontSize="small" />
+										</IconButton>
+									</Tooltip>
+								</InputAdornment>
+							}
+						/>
+					</Box>
+				</Box>
+			</DialogContent>
+			<DialogActions>
+				<Button
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={() => void handleClose()}
+					disabled={isSubmitting}
+				>
+					{t("components.PathSettingsModal.close", "关闭")}
+				</Button>
+			</DialogActions>
+		</Dialog>
 	);
 };

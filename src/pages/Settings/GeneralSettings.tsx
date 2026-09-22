@@ -78,7 +78,7 @@ export const StartupPageSettings = () => {
 			>
 				<MenuItem value="home">{t("app.NAVIGATION.home", "主页")}</MenuItem>
 				<MenuItem value="libraries">
-					{t("app.NAVIGATION.gameLibrary", "游戏仓库 ")}
+					{t("app.NAVIGATION.gameLibrary", "游戏仓库")}
 				</MenuItem>
 				<MenuItem value="collection">
 					{t("app.NAVIGATION.collection", "收藏夹")}

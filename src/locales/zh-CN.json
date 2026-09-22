@@ -2,7 +2,7 @@
 	"app": {
 		"NAVIGATION": {
 			"collection": "收藏夹",
-			"gameLibrary": "游戏仓库 ",
+			"gameLibrary": "游戏仓库",
 			"home": "主页",
 			"settings": "设置",
 			"stats": "统计"
@@ -301,15 +301,12 @@
 			},
 			"saveFieldError": "保存{{field}}失败：{{error}}",
 			"savePath": {
-				"skipMigrationWarning": "备份路径已保存，但未迁移旧备份：{{error}}。旧备份位置：{{path}}",
 				"cleanedRecords": "备份路径已保存，并清理了 {{count}} 条失效备份记录",
-				"missingRootConfirm": "清理记录并切换",
-				"missingRootMessage": "旧备份目录 {{path}} 不存在，但数据库中仍有对应记录。确认后将清理这些失效记录，并切换到新的备份目录。此操作不可撤销。",
-				"missingRootTitle": "旧存档备份目录不存在",
 				"moveBackupWarning": "备份路径已保存，但旧备份目录清理不完整：{{error}}",
 				"note": "设置游戏存档的备份根目录，留空将使用默认路径",
 				"pathPlaceholder": "游戏存档将默认备份到这个目录下",
 				"selectBtn": "选择目录",
+				"skipMigrationWarning": "备份路径已保存，但未迁移旧备份：{{error}}。旧备份位置：{{path}}",
 				"title": "游戏存档备份根目录"
 			},
 			"selectFileError": "选择文件失败：{{error}}",

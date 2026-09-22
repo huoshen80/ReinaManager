@@ -2,7 +2,7 @@
 	"app": {
 		"NAVIGATION": {
 			"collection": "Collection",
-			"gameLibrary": "Game Library ",
+			"gameLibrary": "Game Library",
 			"home": "Home",
 			"settings": "Settings",
 			"stats": "Statistics"
@@ -313,14 +313,11 @@
 			"savePath": {
 				"cleanedRecords_one": "Backup path saved and {{count}} invalid backup record was cleaned up",
 				"cleanedRecords_other": "Backup path saved and {{count}} invalid backup records were cleaned up",
-				"skipMigrationWarning": "Backup path saved, but old backups were not migrated: {{error}}. Old backup location: {{path}}",
-				"missingRootConfirm": "Clean Records and Switch",
-				"missingRootMessage": "The old backup directory {{path}} does not exist, but corresponding records remain in the database. Confirm to remove these invalid records and switch to the new backup directory. This action cannot be undone.",
-				"missingRootTitle": "Old Save Backup Directory Missing",
 				"moveBackupWarning": "Backup path saved, but the old backup directory could not be fully cleaned up: {{error}}",
 				"note": "Set the root directory for game save backups. Leave empty to use the default path",
 				"pathPlaceholder": "Game saves will be backed up to this directory by default",
 				"selectBtn": "Select Directory",
+				"skipMigrationWarning": "Backup path saved, but old backups were not migrated: {{error}}. Old backup location: {{path}}",
 				"title": "Game Save Backup Root"
 			},
 			"selectFileError": "Failed to select file: {{error}}",
