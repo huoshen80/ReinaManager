@@ -20,6 +20,7 @@ import { CacheProvider } from "@emotion/react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { isTauri } from "@tauri-apps/api/core";
 import { queryClient } from "@/providers/queryClient";
+import { startAutoBackupScheduler } from "@/services/autoBackupScheduler";
 import { initPathCache } from "@/services/fs/pathCache";
 import { initTray } from "@/services/plugins/trayService";
 import { initializeStores, type StartupPage, useStore } from "./store/appStore";
@@ -57,6 +58,10 @@ document.addEventListener("keydown", (e) => {
 
 // 初始化全局状态后，挂载 React 应用
 initializeStores().then(async () => {
+	if (isTauri()) {
+		startAutoBackupScheduler();
+	}
+
 	const currentLocation = routers.state.location;
 	if (currentLocation.pathname === "/") {
 		const startupPath = STARTUP_PAGE_PATHS[useStore.getState().startupPage];

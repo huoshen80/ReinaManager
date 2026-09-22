@@ -5,7 +5,9 @@
 
 export { collectionService } from "./collectionService";
 export type {
-	BackupOptions,
+	AutoBackupRequest,
+	AutoBackupResult,
+	AutoBackupTrigger,
 	BackupResult,
 	ImportResult,
 	SteamLaunchTarget,

@@ -1,6 +1,7 @@
 use crate::backup::archive::create_7z_archive;
 use crate::backup::common::{
-    BackupOptions, BackupResult, cleanup_auto_backup_files, resolve_backup_dir,
+    BackupResult, acquire_database_backup_operation_lock, ensure_database_backup_available,
+    resolve_backup_dir,
 };
 use sea_orm::DatabaseConnection;
 use std::fs;
@@ -23,28 +24,24 @@ use tauri::{State, command};
 #[command]
 pub async fn backup_custom_covers(
     db: State<'_, DatabaseConnection>,
-    options: Option<BackupOptions>,
 ) -> Result<BackupResult, String> {
-    let options = options.unwrap_or_default();
-    let result = backup_custom_covers_archive(&db, options.auto).await?;
-
-    if options.auto
-        && let Some(max_auto_backups) = options.max_auto_backups
-    {
-        let backup_dir = resolve_backup_dir(&db).await?;
-        if let Err(e) =
-            cleanup_auto_backup_files(&backup_dir, "custom_covers_auto_", ".7z", max_auto_backups)
-        {
-            log::warn!("清理旧自定义封面自动备份失败: {}", e);
-        }
-    }
-
-    Ok(result)
+    let _operation_guard = acquire_database_backup_operation_lock().await;
+    ensure_database_backup_available()?;
+    backup_custom_covers_archive(&db).await
 }
 
-pub async fn backup_custom_covers_archive(
-    db: &DatabaseConnection,
-    auto: bool,
+pub async fn backup_custom_covers_archive(db: &DatabaseConnection) -> Result<BackupResult, String> {
+    let backup_dir = resolve_backup_dir(db).await?;
+    let archive_name = format!(
+        "custom_covers_{}.7z",
+        chrono::Local::now().format("%Y%m%d_%H%M%S")
+    );
+    backup_custom_covers_archive_to(&backup_dir, &archive_name)
+}
+
+pub(super) fn backup_custom_covers_archive_to(
+    backup_dir: &Path,
+    archive_name: &str,
 ) -> Result<BackupResult, String> {
     // 1. 获取封面根目录
     let covers_dir = reina_path::get_base_data_dir()?.join("covers");
@@ -81,24 +78,7 @@ pub async fn backup_custom_covers_archive(
     }
 
     // 4. 压缩为 7z 文件
-    let backup_dir = match resolve_backup_dir(db).await {
-        Ok(dir) => dir,
-        Err(e) => {
-            fs::remove_dir_all(&temp_dir).ok();
-            return Err(e);
-        }
-    };
-    let archive_prefix = if auto {
-        "custom_covers_auto"
-    } else {
-        "custom_covers"
-    };
-    let archive_name = format!(
-        "{}_{}.7z",
-        archive_prefix,
-        chrono::Local::now().format("%Y%m%d_%H%M%S")
-    );
-    let archive_path = backup_dir.join(&archive_name);
+    let archive_path = backup_dir.join(archive_name);
 
     let size = match create_7z_archive(&temp_dir, &archive_path) {
         Ok(size) => size,

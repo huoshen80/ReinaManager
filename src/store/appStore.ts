@@ -83,17 +83,23 @@ export interface AppState {
 	setSkipCloseRemind: (skip: boolean) => void;
 	setDefaultCloseAction: (action: "hide" | "close") => void;
 
-	// 退出时自动备份
+	// 数据库自动备份
+	scheduledBackupEnabled: boolean;
+	scheduledBackupIntervalHours: number;
 	autoBackupOnExit: boolean;
 	autoBackupIncludeCovers: boolean;
-	autoBackupMinIntervalHours: number;
+	exitBackupMinIntervalHours: number;
 	autoBackupRetentionCount: number;
 	autoBackupLastSuccessAt: number | null;
+	autoBackupLastScheduledAttemptAt: number | null;
 	autoBackupLastError: string | null;
+	setScheduledBackupEnabled: (enabled: boolean) => void;
+	setScheduledBackupIntervalHours: (hours: number) => void;
 	setAutoBackupOnExit: (enabled: boolean) => void;
 	setAutoBackupIncludeCovers: (enabled: boolean) => void;
-	setAutoBackupMinIntervalHours: (hours: number) => void;
+	setExitBackupMinIntervalHours: (hours: number) => void;
 	setAutoBackupRetentionCount: (count: number) => void;
+	setAutoBackupLastScheduledAttemptAt: (attemptAt: number) => void;
 	setAutoBackupLastResult: (
 		successAt: number | null,
 		error: string | null,
@@ -238,21 +244,32 @@ export const useStore = create<AppState>()(
 			setDefaultCloseAction: (action: "hide" | "close") =>
 				set({ defaultCloseAction: action }),
 
-			// 退出时自动备份
+			// 数据库自动备份
+			scheduledBackupEnabled: false,
+			scheduledBackupIntervalHours: 12,
 			autoBackupOnExit: false,
 			autoBackupIncludeCovers: false,
-			autoBackupMinIntervalHours: 6,
+			exitBackupMinIntervalHours: 6,
 			autoBackupRetentionCount: 7,
 			autoBackupLastSuccessAt: null,
+			autoBackupLastScheduledAttemptAt: null,
 			autoBackupLastError: null,
+			setScheduledBackupEnabled: (enabled: boolean) =>
+				set({ scheduledBackupEnabled: enabled }),
+			setScheduledBackupIntervalHours: (hours: number) => {
+				const nextHours = Number.isFinite(hours) ? hours : 1;
+				set({
+					scheduledBackupIntervalHours: Math.max(1, Math.floor(nextHours)),
+				});
+			},
 			setAutoBackupOnExit: (enabled: boolean) =>
 				set({ autoBackupOnExit: enabled }),
 			setAutoBackupIncludeCovers: (enabled: boolean) =>
 				set({ autoBackupIncludeCovers: enabled }),
-			setAutoBackupMinIntervalHours: (hours: number) => {
+			setExitBackupMinIntervalHours: (hours: number) => {
 				const nextHours = Number.isFinite(hours) ? hours : 0;
 				set({
-					autoBackupMinIntervalHours: Math.max(0, Math.floor(nextHours)),
+					exitBackupMinIntervalHours: Math.max(0, Math.floor(nextHours)),
 				});
 			},
 			setAutoBackupRetentionCount: (count: number) => {
@@ -261,6 +278,8 @@ export const useStore = create<AppState>()(
 					autoBackupRetentionCount: Math.max(1, Math.floor(nextCount)),
 				});
 			},
+			setAutoBackupLastScheduledAttemptAt: (attemptAt: number) =>
+				set({ autoBackupLastScheduledAttemptAt: attemptAt }),
 			setAutoBackupLastResult: (
 				successAt: number | null,
 				error: string | null,
@@ -557,10 +576,14 @@ export const useStore = create<AppState>()(
 				skipCloseRemind: state.skipCloseRemind,
 				defaultCloseAction: state.defaultCloseAction,
 				autoBackupOnExit: state.autoBackupOnExit,
+				scheduledBackupEnabled: state.scheduledBackupEnabled,
+				scheduledBackupIntervalHours: state.scheduledBackupIntervalHours,
 				autoBackupIncludeCovers: state.autoBackupIncludeCovers,
-				autoBackupMinIntervalHours: state.autoBackupMinIntervalHours,
+				exitBackupMinIntervalHours: state.exitBackupMinIntervalHours,
 				autoBackupRetentionCount: state.autoBackupRetentionCount,
 				autoBackupLastSuccessAt: state.autoBackupLastSuccessAt,
+				autoBackupLastScheduledAttemptAt:
+					state.autoBackupLastScheduledAttemptAt,
 				autoBackupLastError: state.autoBackupLastError,
 				// 数据来源选择
 				apiSource: state.apiSource,

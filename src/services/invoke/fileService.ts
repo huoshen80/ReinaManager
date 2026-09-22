@@ -12,15 +12,25 @@ export interface BackupResult {
 	message: string;
 }
 
-export interface BackupOptions {
-	auto?: boolean;
-	maxAutoBackups?: number;
-}
-
 export interface ImportResult {
 	success: boolean;
 	message: string;
 	backup_path: string | null;
+}
+
+export type AutoBackupTrigger = "scheduled" | "exit";
+
+export interface AutoBackupRequest {
+	trigger: AutoBackupTrigger;
+	includeCovers: boolean;
+	maxAutoBackups: number;
+}
+
+export interface AutoBackupResult {
+	batchId: string;
+	database: BackupResult;
+	covers: BackupResult | null;
+	warnings: string[];
 }
 
 export interface PortableModeResult {
@@ -199,10 +209,8 @@ class FileService extends BaseService {
 	/**
 	 * 备份数据库
 	 */
-	async backupDatabase(
-		options: BackupOptions | null = null,
-	): Promise<BackupResult> {
-		return this.invoke<BackupResult>("backup_database", { options });
+	async backupDatabase(): Promise<BackupResult> {
+		return this.invoke<BackupResult>("backup_database");
 	}
 
 	async openDatabaseBackupFolder(): Promise<void> {
@@ -212,10 +220,14 @@ class FileService extends BaseService {
 	/**
 	 * 备份自定义封面（仅自定义封面，不含云端缓存）
 	 */
-	async backupCustomCovers(
-		options: BackupOptions | null = null,
-	): Promise<BackupResult> {
-		return this.invoke<BackupResult>("backup_custom_covers", { options });
+	async backupCustomCovers(): Promise<BackupResult> {
+		return this.invoke<BackupResult>("backup_custom_covers");
+	}
+
+	async createAutoBackup(
+		request: AutoBackupRequest,
+	): Promise<AutoBackupResult> {
+		return this.invoke<AutoBackupResult>("create_auto_backup", { request });
 	}
 
 	/**

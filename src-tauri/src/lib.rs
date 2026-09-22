@@ -6,6 +6,7 @@ mod install;
 mod oauth;
 mod utils;
 
+use backup::automatic::create_auto_backup;
 use backup::covers::backup_custom_covers;
 use backup::database::{backup_database, import_database, open_database_backup_folder};
 use backup::savedata::{
@@ -134,6 +135,7 @@ pub fn run() {
             delete_game_covers,
             delete_cloud_cache,
             backup_database,
+            create_auto_backup,
             open_database_backup_folder,
             backup_custom_covers,
             import_database,

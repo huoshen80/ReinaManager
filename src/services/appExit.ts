@@ -3,6 +3,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { StateFlags, saveWindowState } from "@tauri-apps/plugin-window-state";
 import i18n from "i18next";
+import {
+	suspendAutoBackupScheduler,
+	waitForScheduledAutoBackup,
+} from "@/services/autoBackupScheduler";
 import { createAutoBackup } from "@/services/fs/dataMaintenance";
 import { useStore } from "@/store/appStore";
 import { useGamePlayStore } from "@/store/gamePlayStore";
@@ -49,21 +53,23 @@ export const getRunningGameCount = (): number => {
 };
 
 export const restartApp = async (): Promise<void> => {
+	suspendAutoBackupScheduler();
+	await waitForScheduledAutoBackup();
 	await invoke("restart_app");
 };
 
 function shouldRunAutoBackupOnExit(): boolean {
 	const {
 		autoBackupLastSuccessAt,
-		autoBackupMinIntervalHours,
 		autoBackupOnExit,
+		exitBackupMinIntervalHours,
 	} = useStore.getState();
 
 	if (!autoBackupOnExit) {
 		return false;
 	}
 
-	if (autoBackupMinIntervalHours <= 0) {
+	if (exitBackupMinIntervalHours <= 0) {
 		return true;
 	}
 
@@ -72,11 +78,14 @@ function shouldRunAutoBackupOnExit(): boolean {
 	}
 
 	return (
-		Date.now() - autoBackupLastSuccessAt >= autoBackupMinIntervalHours * HOUR_MS
+		Date.now() - autoBackupLastSuccessAt >= exitBackupMinIntervalHours * HOUR_MS
 	);
 }
 
 async function runAutoBackupOnExitIfNeeded(): Promise<void> {
+	suspendAutoBackupScheduler();
+	await waitForScheduledAutoBackup();
+
 	if (!shouldRunAutoBackupOnExit()) {
 		return;
 	}
@@ -90,8 +99,14 @@ async function runAutoBackupOnExitIfNeeded(): Promise<void> {
 			useStore.getState();
 
 		try {
-			await createAutoBackup(autoBackupIncludeCovers, autoBackupRetentionCount);
-			useStore.getState().setAutoBackupLastResult(Date.now(), null);
+			const result = await createAutoBackup(
+				"exit",
+				autoBackupIncludeCovers,
+				autoBackupRetentionCount,
+			);
+			const warning =
+				result.warnings.length > 0 ? result.warnings.join("；") : null;
+			useStore.getState().setAutoBackupLastResult(Date.now(), warning);
 		} catch (error) {
 			const message = toError(error, "自动备份失败").message;
 			console.error("退出时自动备份失败:", error);

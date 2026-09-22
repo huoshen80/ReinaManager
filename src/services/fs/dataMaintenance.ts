@@ -1,14 +1,11 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import {
+	type AutoBackupResult,
+	type AutoBackupTrigger,
 	type BackupResult,
 	fileService,
 	type ImportResult,
 } from "@/services/invoke";
-
-export interface AutoBackupResult {
-	database: BackupResult;
-	covers: BackupResult | null;
-}
 
 /**
  * 使用 VACUUM INTO 进行数据库热备份
@@ -56,21 +53,21 @@ export async function backupCustomCovers(): Promise<BackupResult> {
 }
 
 /**
- * 创建退出时自动备份。
+ * 创建自动备份批次。
  *
  * 后端会使用自动备份专用文件名，并只清理旧的自动备份文件。
  */
 export async function createAutoBackup(
+	trigger: AutoBackupTrigger,
 	includeCovers: boolean,
 	maxBackups: number,
 ): Promise<AutoBackupResult> {
 	try {
-		const options = { auto: true, maxAutoBackups: maxBackups };
-		const covers = includeCovers
-			? await fileService.backupCustomCovers(options)
-			: null;
-		const database = await fileService.backupDatabase(options);
-		const result = { database, covers };
+		const result = await fileService.createAutoBackup({
+			trigger,
+			includeCovers,
+			maxAutoBackups: maxBackups,
+		});
 		console.log(`自动备份完成: ${result.database.path}`);
 		return result;
 	} catch (error) {

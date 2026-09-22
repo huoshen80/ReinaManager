@@ -57,6 +57,8 @@ Rust command 负责。存档备份根目录变更使用专用 service，由后�
 
 `src/providers/queryClient.ts` 将本地事实默认视为长期 fresh，远程查询可使用单独的时效配置。Zustand `persist` 只保存选定偏好，并通过 `appStoreMigrations.ts` 迁移。不要将数据库实体复制到 Zustand 形成第二事实源。
 
+数据库定时备份由应用启动后初始化的单例调度服务负责，不依赖设置页面是否挂载。调度配置和最近执行结果保存在 Zustand；应用运行或驻留托盘期间到期后调用后端自动备份 command，启动时发现逾期则延迟约一分钟补做。正常退出会先等待正在执行的定时备份，再按独立的退出间隔决定是否执行冷备份。
+
 全库统计页复用 `useAllGameStatistics` 的共享 Query，并与 `GameIndex` 中的展示游戏按 ID 关联。概览、排行和趋势在页面私有纯函数中按日期范围派生；24 小时与星期分布通过独立 Query 将当前可见游戏 ID 和日期范围交给后端聚合。统计读取失败必须保留 Query 错误态，不能转换为空数据。
 
 ## 标准数据流
