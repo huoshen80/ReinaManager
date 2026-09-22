@@ -2,6 +2,7 @@ use super::archive::create_savedata_archive;
 use super::maintenance::{
     acquire_savedata_backup_operation_lock, cleanup_old_backups, resolve_savedata_backup_root,
 };
+use crate::backup::common::next_backup_filename as allocate_backup_filename;
 use crate::database::repository::games_repository::GamesRepository;
 use chrono::Utc;
 use sea_orm::DatabaseConnection;
@@ -131,23 +132,9 @@ fn next_backup_filename(
     game_id: i64,
     now: chrono::DateTime<Utc>,
 ) -> Result<String, String> {
-    let base = format!("savedata_v2_{}_{}", game_id, now.format("%Y%m%d_%H%M%S"));
-    for suffix in 0..1000 {
-        let filename = if suffix == 0 {
-            format!("{base}.7z")
-        } else {
-            format!("{base}_{suffix:03}.7z")
-        };
-        let path = backup_dir.join(&filename);
-        match fs::symlink_metadata(&path) {
-            Ok(_) => continue,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(filename);
-            }
-            Err(error) => return Err(format!("检查备份文件名是否冲突失败: {error}")),
-        }
-    }
-    Err("同一时间生成的备份文件过多，请稍后重试".to_string())
+    let prefix = format!("savedata_v2_{game_id}_");
+    let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
+    allocate_backup_filename(backup_dir, &prefix, &timestamp, ".7z")
 }
 
 async fn remove_failed_archive(path: &Path, error: String) -> String {

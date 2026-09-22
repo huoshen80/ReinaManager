@@ -1,6 +1,7 @@
 use crate::backup::common::{
     BackupResult, acquire_database_backup_operation_lock, cleanup_auto_backup_batches,
-    ensure_database_backup_available, mark_database_backup_unavailable, resolve_backup_dir,
+    ensure_database_backup_available, mark_database_backup_unavailable, next_backup_id,
+    resolve_backup_dir,
 };
 use crate::backup::covers::backup_custom_covers_archive_to;
 use crate::backup::database::{backup_database_file_to, copy_database_file_cold_to};
@@ -43,8 +44,16 @@ pub async fn create_auto_backup(
     let _operation_guard = acquire_database_backup_operation_lock().await;
     ensure_database_backup_available()?;
 
-    let batch_id = chrono::Local::now().format("%Y%m%d_%H%M%S_%3f").to_string();
     let backup_dir = resolve_backup_dir(&db).await?;
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+    let batch_id = next_backup_id(
+        &backup_dir,
+        &timestamp,
+        &[
+            ("reina_manager_auto_", ".db"),
+            ("custom_covers_auto_", ".7z"),
+        ],
+    )?;
     let cold_database_path = match request.trigger {
         AutoBackupTrigger::Scheduled => None,
         AutoBackupTrigger::Exit => Some(reina_path::get_db_path()?),

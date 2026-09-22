@@ -6,6 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, MutexGuard};
 
 const DATABASE_AUTO_PREFIX: &str = "reina_manager_auto_";
@@ -40,6 +41,86 @@ pub fn ensure_database_backup_available() -> Result<(), String> {
 
 pub fn mark_database_backup_unavailable() {
     DATABASE_BACKUP_AVAILABLE.store(false, Ordering::Release);
+}
+
+/// 为同一秒内创建的备份分配不会覆盖现有文件的编号。
+///
+/// `artifacts` 列出共享该编号的所有产物；任意一个产物已存在都会跳过该编号。
+pub fn next_backup_id(
+    backup_dir: &Path,
+    timestamp: &str,
+    artifacts: &[(&str, &str)],
+) -> Result<String, String> {
+    for suffix in 0..1000 {
+        let backup_id = if suffix == 0 {
+            timestamp.to_string()
+        } else {
+            format!("{timestamp}_{suffix:03}")
+        };
+        let mut occupied = false;
+        for (prefix, extension) in artifacts {
+            let candidate = backup_dir.join(format!("{prefix}{backup_id}{extension}"));
+            match fs::symlink_metadata(&candidate) {
+                Ok(_) => {
+                    occupied = true;
+                    break;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(format!(
+                        "检查备份文件名是否冲突失败 {}: {error}",
+                        candidate.display()
+                    ));
+                }
+            }
+        }
+        if !occupied {
+            return Ok(backup_id);
+        }
+    }
+    Err("同一时间生成的备份文件过多，请稍后重试".to_string())
+}
+
+pub fn next_backup_filename(
+    backup_dir: &Path,
+    prefix: &str,
+    timestamp: &str,
+    extension: &str,
+) -> Result<String, String> {
+    let backup_id = next_backup_id(backup_dir, timestamp, &[(prefix, extension)])?;
+    Ok(format!("{prefix}{backup_id}{extension}"))
+}
+
+/// 在目标文件同目录生成唯一临时路径，确保后续提交不依赖跨卷移动。
+pub fn temporary_sibling_path(target: &Path, marker: &str) -> Result<PathBuf, String> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| format!("目标文件缺少父目录: {}", target.display()))?;
+    let name = target
+        .file_name()
+        .ok_or_else(|| format!("目标文件缺少有效名称: {}", target.display()))?
+        .to_string_lossy();
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("获取临时文件时间失败: {error}"))?
+        .as_nanos();
+    for index in 0..1000_u32 {
+        let candidate = parent.join(format!(
+            ".{name}.{marker}-{}-{timestamp}-{index}",
+            std::process::id()
+        ));
+        match fs::symlink_metadata(&candidate) {
+            Ok(_) => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(candidate),
+            Err(error) => {
+                return Err(format!(
+                    "检查临时文件路径失败 {}: {error}",
+                    candidate.display()
+                ));
+            }
+        }
+    }
+    Err("无法生成唯一的临时文件路径".to_string())
 }
 
 pub async fn resolve_backup_dir(db: &DatabaseConnection) -> Result<PathBuf, String> {
@@ -123,7 +204,7 @@ fn extract_auto_backup_batch_id(file_name: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::cleanup_auto_backup_batches;
+    use super::{cleanup_auto_backup_batches, next_backup_filename, next_backup_id};
     use std::fs;
 
     #[test]
@@ -170,6 +251,55 @@ mod tests {
         );
         assert!(root.join("reina_manager_20250101_000000.db").exists());
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn allocates_one_id_for_every_artifact_in_a_batch() {
+        let root = std::env::temp_dir().join(format!(
+            "reina_backup_name_{}_{}",
+            std::process::id(),
+            chrono::Local::now()
+                .timestamp_nanos_opt()
+                .unwrap_or_default()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("custom_covers_auto_20260922_193000.7z"),
+            b"covers",
+        )
+        .unwrap();
+
+        let batch_id = next_backup_id(
+            &root,
+            "20260922_193000",
+            &[
+                ("reina_manager_auto_", ".db"),
+                ("custom_covers_auto_", ".7z"),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(batch_id, "20260922_193000_001");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn allocates_suffix_for_a_manual_backup_collision() {
+        let root = std::env::temp_dir().join(format!(
+            "reina_manual_backup_name_{}_{}",
+            std::process::id(),
+            chrono::Local::now()
+                .timestamp_nanos_opt()
+                .unwrap_or_default()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("reina_manager_20260922_193000.db"), b"db").unwrap();
+
+        let filename =
+            next_backup_filename(&root, "reina_manager_", "20260922_193000", ".db").unwrap();
+
+        assert_eq!(filename, "reina_manager_20260922_193000_001.db");
         fs::remove_dir_all(root).unwrap();
     }
 }

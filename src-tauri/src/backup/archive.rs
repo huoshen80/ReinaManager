@@ -1,6 +1,6 @@
 //! 通用 7z 压缩能力。
 
-use sevenz_rust2::{ArchiveWriter, encoder_options::ZstandardOptions};
+use sevenz_rust2::{ArchiveReader, ArchiveWriter, Password, encoder_options::ZstandardOptions};
 use std::fs;
 use std::path::Path;
 
@@ -19,4 +19,10 @@ pub fn create_7z_archive(
     writer.push_source_path(source_dir, |_| true)?;
     writer.finish()?;
     Ok(fs::metadata(archive_path)?.len())
+}
+
+/// 重新打开归档并读取头部，避免发布无法被解析的正式备份文件。
+pub fn verify_7z_archive(archive_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    ArchiveReader::open(archive_path, Password::empty())?;
+    Ok(())
 }
