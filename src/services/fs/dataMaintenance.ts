@@ -77,36 +77,21 @@ export async function createAutoBackup(
 }
 
 /**
- * 导入数据库文件（覆盖现有数据库）
- *
- * 流程：
- * 1. 读取备份目录配置
- * 2. 备份当前自定义封面
- * 3. 关闭当前数据库连接
- * 4. 冷备份当前数据库文件
- * 5. 清空封面目录，避免旧封面按自增 id 错配新数据库
- * 6. 用导入的数据库文件覆盖现有数据库
- *
- * 备份路径从数据库的 user 表中读取配置
- *
- * 注意：由于需要关闭并重新打开数据库连接，导入后需要重启应用以确保数据正确加载
- *
- * @returns Promise<ImportResult | null> 导入成功返回结果对象，取消返回 null
+ * 选择要导入的数据库文件。
  */
-export async function importDatabase(): Promise<ImportResult | null> {
-	// 打开文件选择对话框
-	const filePath = await open({
+export async function selectDatabaseImportFile(): Promise<string | null> {
+	return open({
 		filters: [{ name: "SQLite Database", extensions: ["db"] }],
 		multiple: false,
 		directory: false,
 	});
+}
 
-	if (!filePath) {
-		return null; // 用户取消
-	}
-
-	// 调用后端命令导入数据库
-	const result = await fileService.importDatabase(filePath);
-
-	return result;
+/**
+ * 使用指定数据库文件覆盖当前数据库。
+ * 后端会依次备份自定义封面、关闭连接、冷备份当前数据库、清空封面并覆盖数据库文件。
+ * 调用方必须在执行前完成重启许可确认，因为后端会关闭当前数据库连接。
+ */
+export async function importDatabase(filePath: string): Promise<ImportResult> {
+	return fileService.importDatabase(filePath);
 }

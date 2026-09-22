@@ -452,11 +452,25 @@
 				"message_other": "{{count}} games are still running. Exiting the app will not close them, but the recorded playtime for this session will be lost. Do you still want to exit?",
 				"title": "Exit Reminder"
 			},
+			"runningRestartDialog": {
+				"message_one": "{{count}} game is still running. Restarting the app will not close it, but the recorded playtime for this session will be lost. Do you still want to restart?",
+				"message_other": "{{count}} games are still running. Restarting the app will not close them, but the recorded playtime for this session will be lost. Do you still want to restart?",
+				"restartApp": "Restart Anyway",
+				"title": "Restart Reminder"
+			},
+			"runningUpdateDialog": {
+				"message_one": "{{count}} game is still running. Installing the update will restart the app without closing the game, and the recorded playtime for this session will be lost. Do you still want to update?",
+				"message_other": "{{count}} games are still running. Installing the update will restart the app without closing the games, and the recorded playtime for this session will be lost. Do you still want to update?",
+				"title": "Update Reminder",
+				"updateApp": "Update Anyway"
+			},
 			"UpdateModal": {
 				"cancel": "Cancel",
 				"changelog": "Changelog",
-				"checkFailed": "Failed to check for updates: {{error}}",
+				"downloaded": "The update has been downloaded and is ready to install and restart.",
 				"downloading": "Downloading update...",
+				"installAndRestart": "Install and Restart",
+				"installing": "Installing the update and preparing to restart...",
 				"manualUpdate": "Manual Update",
 				"newVersion": "New Version",
 				"portableWarning": "You are using the portable version, so automatic updates may not work. It is recommended to click \"Manual Update\" to download the latest archive and replace the current files (a complete overwrite is required).",

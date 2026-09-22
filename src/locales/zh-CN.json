@@ -435,11 +435,23 @@
 				"message": "当前仍有 {{count}} 个游戏正在运行。退出应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要退出应用吗？",
 				"title": "退出提醒"
 			},
+			"runningRestartDialog": {
+				"message": "当前仍有 {{count}} 个游戏正在运行。重启应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要重启应用吗？",
+				"restartApp": "仍然重启",
+				"title": "重启提醒"
+			},
+			"runningUpdateDialog": {
+				"message": "当前仍有 {{count}} 个游戏正在运行。安装更新会重启应用，但不会关闭这些游戏，并会丢失游戏时长记录。确定要继续更新吗？",
+				"title": "更新提醒",
+				"updateApp": "仍然更新"
+			},
 			"UpdateModal": {
 				"cancel": "取消",
 				"changelog": "更新说明",
-				"checkFailed": "检查更新失败：{{error}}",
+				"downloaded": "更新已下载，可以安装并重启应用。",
 				"downloading": "正在下载更新...",
+				"installAndRestart": "安装并重启",
+				"installing": "正在安装更新并准备重启...",
 				"manualUpdate": "手动更新",
 				"newVersion": "新版本",
 				"portableWarning": "您正在使用便携版，自动更新可能无法工作。建议点击“手动更新”下载最新版本的压缩包进行替换（需要完整覆盖）。",

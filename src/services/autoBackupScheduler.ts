@@ -126,6 +126,15 @@ export function suspendAutoBackupScheduler(): void {
 	clearScheduledTimer();
 }
 
+export function resumeAutoBackupScheduler(): void {
+	if (!schedulerSuspended) {
+		return;
+	}
+
+	schedulerSuspended = false;
+	scheduleNextBackup();
+}
+
 export async function waitForScheduledAutoBackup(): Promise<void> {
 	await scheduledBackupPromise;
 }

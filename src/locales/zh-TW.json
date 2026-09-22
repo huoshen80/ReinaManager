@@ -435,11 +435,23 @@
 				"message_other": "目前仍有 {{count}} 個遊戲正在執行。退出應用後不會關閉這些遊戲，但會遺失遊戲時長記錄。確定要退出應用嗎？",
 				"title": "退出提醒"
 			},
+			"runningRestartDialog": {
+				"message_other": "目前仍有 {{count}} 個遊戲正在執行。重新啟動應用後不會關閉這些遊戲，但會遺失遊戲時長記錄。確定要重新啟動應用嗎？",
+				"restartApp": "仍然重新啟動",
+				"title": "重新啟動提醒"
+			},
+			"runningUpdateDialog": {
+				"message_other": "目前仍有 {{count}} 個遊戲正在執行。安裝更新會重新啟動應用，但不會關閉這些遊戲，並會遺失遊戲時長記錄。確定要繼續更新嗎？",
+				"title": "更新提醒",
+				"updateApp": "仍然更新"
+			},
 			"UpdateModal": {
 				"cancel": "取消",
 				"changelog": "更新說明",
-				"checkFailed": "檢查更新失敗：{{error}}",
+				"downloaded": "更新已下載，可以安裝並重新啟動應用。",
 				"downloading": "正在下載更新...",
+				"installAndRestart": "安裝並重新啟動",
+				"installing": "正在安裝更新並準備重新啟動...",
 				"manualUpdate": "手動更新",
 				"newVersion": "新版本",
 				"portableWarning": "您正在使用免安裝版，自動更新可能無法運作。建議點擊「手動更新」下載最新版本的壓縮檔進行替換（需要完整覆蓋）。",

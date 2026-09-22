@@ -11,11 +11,17 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useRefreshSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
-import { restartApp } from "@/services/appExit";
+import {
+	type AppTerminationPermit,
+	releaseAppTermination,
+	requestAppTermination,
+	restartApp,
+} from "@/services/appExit";
 import {
 	backupCustomCovers,
 	backupDatabase,
 	importDatabase,
+	selectDatabaseImportFile,
 } from "@/services/fs/dataMaintenance";
 import { openDatabaseBackupFolder } from "@/services/fs/savedataBackup";
 import { useStore } from "@/store/appStore";
@@ -204,33 +210,48 @@ export const DatabaseBackupSettings = () => {
 
 	const handleImportDatabase = async () => {
 		setIsImporting(true);
+		let restartPermit: AppTerminationPermit | null = null;
 		try {
-			const result = await importDatabase();
-			if (result) {
-				if (result.success) {
-					refreshSettings();
-					snackbar.success(
-						t(
-							"pages.Settings.databaseBackup.importSuccess",
-							"数据库导入成功，已备份自定义封面并清空封面缓存，应用将自动重启",
-						),
-					);
-					// 延迟重启应用，让用户看到成功提示
-					setTimeout(async () => {
-						await restartApp();
-					}, 3000);
-				} else {
-					snackbar.error(
-						t(
-							"pages.Settings.databaseBackup.importError",
-							"数据库导入失败: {{error}}",
-							{
-								error: result.message,
-							},
-						),
-					);
-				}
+			const filePath = await selectDatabaseImportFile();
+			if (!filePath) {
+				return;
 			}
+
+			restartPermit = await requestAppTermination("restart");
+			if (!restartPermit) {
+				return;
+			}
+
+			const result = await importDatabase(filePath);
+			if (!result.success) {
+				snackbar.error(
+					t(
+						"pages.Settings.databaseBackup.importError",
+						"数据库导入失败: {{error}}",
+						{
+							error: result.message,
+						},
+					),
+				);
+				return;
+			}
+
+			refreshSettings();
+			snackbar.success(
+				t(
+					"pages.Settings.databaseBackup.importSuccess",
+					"数据库导入成功，已备份自定义封面并清空封面缓存，应用将自动重启",
+				),
+			);
+
+			const confirmedPermit = restartPermit;
+			restartPermit = null;
+			// 延迟重启应用，让用户看到成功提示。
+			setTimeout(() => {
+				void restartApp(confirmedPermit).catch((error) => {
+					console.error("数据库导入后重启应用失败:", error);
+				});
+			}, 3000);
 		} catch (error) {
 			const errorMessage = getUserErrorMessage(
 				error,
@@ -245,6 +266,7 @@ export const DatabaseBackupSettings = () => {
 				),
 			);
 		} finally {
+			releaseAppTermination(restartPermit);
 			setIsImporting(false);
 		}
 	};

@@ -24,12 +24,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useProxyImageUrlResolver } from "@/hooks/common/useProxyImageUrlResolver";
-import { snackbar } from "@/providers/snackBar";
-import { destroyCurrentWindow, getRunningGameCount } from "@/services/appExit";
+import { destroyCurrentWindow } from "@/services/appExit";
 import { fileService } from "@/services/invoke";
 import {
-	checkForUpdates,
-	downloadAndInstallUpdate,
+	downloadUpdate,
+	installDownloadedUpdate,
 	silentCheckForUpdates,
 	type UpdateProgress,
 } from "@/services/plugins/updateService";
@@ -51,13 +50,31 @@ interface UpdateModalProps {
 	update: Update | null;
 }
 
+type UpdatePhase = "idle" | "downloading" | "downloaded" | "installing";
+const releasedUpdates = new WeakSet<Update>();
+
+const releaseUpdate = async (update: Update): Promise<void> => {
+	if (releasedUpdates.has(update)) {
+		return;
+	}
+
+	releasedUpdates.add(update);
+	try {
+		await update.close();
+	} catch (error) {
+		releasedUpdates.delete(update);
+		console.error("Failed to release updater resources:", error);
+	}
+};
+
 const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 	const { t } = useTranslation();
 	const resolveImageUrl = useProxyImageUrlResolver();
-	const [isDownloading, setIsDownloading] = useState(false);
+	const [phase, setPhase] = useState<UpdatePhase>("idle");
 	const [progress, setProgress] = useState<UpdateProgress | null>(null);
 	const [downloadError, setDownloadError] = useState<string>("");
 	const [isPortable, setIsPortable] = useState(false);
+	const isBusy = phase === "downloading" || phase === "installing";
 
 	useEffect(() => {
 		if (open) {
@@ -66,6 +83,14 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 			});
 		}
 	}, [open]);
+
+	useEffect(() => {
+		return () => {
+			if (update) {
+				void releaseUpdate(update);
+			}
+		};
+	}, [update]);
 
 	const handleManualUpdate = async () => {
 		try {
@@ -134,31 +159,42 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 	const handleUpdate = async () => {
 		if (!update) return;
 
-		setIsDownloading(true);
 		setDownloadError("");
-		setProgress(null);
 
 		try {
-			await downloadAndInstallUpdate(update, {
-				onProgress: (progress) => {
-					setProgress(progress);
-				},
-				onDownloadComplete: () => {
-					// 下载完成，应用即将重启
-				},
-				onError: (error) => {
-					setDownloadError(getUserErrorMessage(error, t));
-					setIsDownloading(false);
-				},
-			});
+			if (phase !== "downloaded") {
+				setPhase("downloading");
+				setProgress(null);
+				await downloadUpdate(update, {
+					onProgress: (progress) => {
+						setProgress(progress);
+					},
+				});
+				setPhase("downloaded");
+			}
+
+			setPhase("installing");
+			const result = await installDownloadedUpdate(update);
+			if (result === "cancelled") {
+				setPhase("downloaded");
+			}
 		} catch (error) {
 			setDownloadError(getUserErrorMessage(error, t));
-			setIsDownloading(false);
+			setPhase((currentPhase) =>
+				currentPhase === "downloading" ? "idle" : "downloaded",
+			);
 		}
 	};
 
-	const handleCancel = () => {
-		if (!isDownloading) {
+	const handleCancel = async () => {
+		if (isBusy || !update) return;
+
+		try {
+			await releaseUpdate(update);
+		} finally {
+			setPhase("idle");
+			setProgress(null);
+			setDownloadError("");
 			onClose();
 		}
 	};
@@ -168,10 +204,10 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 	return (
 		<Dialog
 			open={open}
-			onClose={handleCancel}
+			onClose={() => void handleCancel()}
 			maxWidth="sm"
 			fullWidth
-			disableEscapeKeyDown={isDownloading}
+			disableEscapeKeyDown={isBusy}
 		>
 			<DialogTitle>
 				<Stack direction="row" alignItems="center" spacing={1}>
@@ -239,7 +275,7 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 					)}
 
 					{/* 下载进度 */}
-					{isDownloading && (
+					{phase === "downloading" && (
 						<Box>
 							<Typography variant="body2" color="text.secondary" gutterBottom>
 								{t(
@@ -265,6 +301,24 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 						</Box>
 					)}
 
+					{phase === "downloaded" && (
+						<Alert severity="info">
+							{t(
+								"components.Window.UpdateModal.downloaded",
+								"更新已下载，可以安装并重启应用。",
+							)}
+						</Alert>
+					)}
+
+					{phase === "installing" && (
+						<Alert severity="info">
+							{t(
+								"components.Window.UpdateModal.installing",
+								"正在安装更新并准备重启...",
+							)}
+						</Alert>
+					)}
+
 					{/* 错误信息 */}
 					{downloadError && (
 						<Box>
@@ -278,32 +332,48 @@ const UpdateModal: React.FC<UpdateModalProps> = ({ open, onClose, update }) => {
 
 			<DialogActions>
 				<Button
-					onClick={() => {
+					onClick={async () => {
 						useStore.getState().setSkippedUpdateVersion(update.version);
-						handleCancel();
+						await handleCancel();
 					}}
-					disabled={isDownloading}
+					disabled={isBusy}
 					color="inherit"
 					sx={{ mr: "auto" }}
 				>
 					{t("components.Window.UpdateModal.skipVersion", "跳过此版本")}
 				</Button>
-				<Button onClick={handleCancel} disabled={isDownloading} color="inherit">
+				<Button
+					onClick={() => void handleCancel()}
+					disabled={isBusy}
+					color="inherit"
+				>
 					{t("components.Window.UpdateModal.cancel", "取消")}
 				</Button>
 				<Button
-					onClick={handleUpdate}
-					disabled={isDownloading}
+					onClick={() => void handleUpdate()}
+					disabled={isBusy}
 					variant="contained"
-					startIcon={isDownloading ? <DownloadIcon /> : <UpdateIcon />}
+					startIcon={
+						phase === "downloading" ? <DownloadIcon /> : <UpdateIcon />
+					}
 				>
-					{isDownloading
+					{phase === "downloading"
 						? t("components.Window.UpdateModal.downloading", "正在下载更新...")
-						: t("components.Window.UpdateModal.update", "立即更新")}
+						: phase === "installing"
+							? t(
+									"components.Window.UpdateModal.installing",
+									"正在安装更新并准备重启...",
+								)
+							: phase === "downloaded"
+								? t(
+										"components.Window.UpdateModal.installAndRestart",
+										"安装并重启",
+									)
+								: t("components.Window.UpdateModal.update", "立即更新")}
 				</Button>
 				<Button
 					onClick={handleManualUpdate}
-					disabled={isDownloading}
+					disabled={isBusy}
 					variant="outlined"
 					color="primary"
 				>
@@ -336,7 +406,6 @@ const WindowsHandler: React.FC = () => {
 	);
 	const { t } = useTranslation();
 	const [open, setOpen] = useState(false);
-	const [runningExitOpen, setRunningExitOpen] = useState(false);
 
 	useEffect(() => {
 		const w = getCurrentWindow();
@@ -354,11 +423,7 @@ const WindowsHandler: React.FC = () => {
 				if (currentDefaultAction === "hide") {
 					w.hide();
 				} else {
-					if (getRunningGameCount() > 0) {
-						setRunningExitOpen(true);
-					} else {
-						await destroyCurrentWindow();
-					}
+					await destroyCurrentWindow();
 				}
 			} else {
 				setOpen(true);
@@ -374,35 +439,20 @@ const WindowsHandler: React.FC = () => {
 	// 应用启动时静默检查更新
 	useEffect(() => {
 		const performSilentUpdateCheck = async () => {
-			const result = await silentCheckForUpdates();
-			if (result.hasUpdate) {
+			const update = await silentCheckForUpdates();
+			if (update) {
 				const skippedVersion = useStore.getState().skippedUpdateVersion;
-				if (result.version === skippedVersion) {
+				if (update.version === skippedVersion) {
+					await update.close();
 					return;
 				}
-				// 检查到更新，立即显示提醒
-				checkForUpdates({
-					onUpdateFound: (update) => {
-						useStore.getState().setPendingUpdate(update);
-						useStore.getState().setShowUpdateModal(true);
-					},
-					onError: (error) => {
-						snackbar.warning(
-							t(
-								"components.Window.UpdateModal.checkFailed",
-								"检查更新失败：{{error}}",
-								{
-									error: getUserErrorMessage(error, t),
-								},
-							),
-						);
-					},
-				});
+				useStore.getState().setPendingUpdate(update);
+				useStore.getState().setShowUpdateModal(true);
 			}
 		};
 
 		performSilentUpdateCheck();
-	}, [t]);
+	}, []);
 
 	const handleCancel = () => {
 		setSkipCloseRemind(false);
@@ -416,19 +466,6 @@ const WindowsHandler: React.FC = () => {
 	const handleClose = async () => {
 		setDefaultCloseAction("close");
 		setOpen(false);
-
-		if (getRunningGameCount() > 0) {
-			setRunningExitOpen(true);
-			return;
-		}
-
-		await destroyCurrentWindow();
-	};
-	const handleCancelRunningExit = () => {
-		setRunningExitOpen(false);
-	};
-	const handleConfirmRunningExit = async () => {
-		setRunningExitOpen(false);
 		await destroyCurrentWindow();
 	};
 
@@ -468,31 +505,9 @@ const WindowsHandler: React.FC = () => {
 				</DialogActions>
 			</Dialog>
 
-			<Dialog open={runningExitOpen} onClose={handleCancelRunningExit}>
-				<DialogTitle>
-					{t("components.Window.runningExitDialog.title", "退出提醒")}
-				</DialogTitle>
-				<DialogContent>
-					<Typography variant="body1">
-						{t(
-							"components.Window.runningExitDialog.message",
-							"当前仍有 {{count}} 个游戏正在运行。退出应用后不会关闭这些游戏，但会丢失游戏时长记录。确定要退出应用吗？",
-							{ count: getRunningGameCount() },
-						)}
-					</Typography>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={handleCancelRunningExit}>
-						{t("common.cancel", "取消")}
-					</Button>
-					<Button onClick={() => handleConfirmRunningExit()} color="warning">
-						{t("components.Window.runningExitDialog.exitApp", "仍然退出")}
-					</Button>
-				</DialogActions>
-			</Dialog>
-
 			{/* 更新确认弹窗 */}
 			<UpdateModal
+				key={pendingUpdate?.version ?? "no-update"}
 				open={showUpdateModal}
 				onClose={() => {
 					setShowUpdateModal(false);
