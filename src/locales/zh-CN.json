@@ -122,7 +122,7 @@
 			"searchName": "搜索名称",
 			"selectExe": "请选择启动程序",
 			"selectFolderHint": "选择根文件夹后开始扫描",
-			"startScan": "开始扫描",
+			"selectRootFolder": "选择根文件夹",
 			"status": "状态",
 			"statusError": "错误",
 			"statusMatched": "已匹配",

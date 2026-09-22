@@ -126,7 +126,7 @@
 			"searchName": "Search Name",
 			"selectExe": "Select Executable",
 			"selectFolderHint": "Select a root folder to start scanning",
-			"startScan": "Start Scan",
+			"selectRootFolder": "Select Root Folder",
 			"status": "Status",
 			"statusError": "Error",
 			"statusMatched": "Matched",

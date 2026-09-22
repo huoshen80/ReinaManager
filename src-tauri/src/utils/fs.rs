@@ -226,8 +226,10 @@ pub async fn resolve_dropped_local_path(
     dropped_path: String,
 ) -> Result<DroppedLocalPathResult, String> {
     tokio::task::spawn_blocking(move || {
-        let path =
-            reina_path::resolve_user_path(&dropped_path).map_err(|error| error.to_string())?;
+        let path = PathBuf::from(&dropped_path);
+        if !path.is_absolute() {
+            return Err("拖拽路径必须是绝对路径".to_string());
+        }
         let metadata =
             fs::metadata(&path).map_err(|e| format!("无法读取路径 '{}': {}", dropped_path, e))?;
 

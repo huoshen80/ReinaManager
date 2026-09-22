@@ -122,7 +122,7 @@
 			"searchName": "搜尋名稱",
 			"selectExe": "請選擇啟動程式",
 			"selectFolderHint": "選擇根資料夾後開始掃描",
-			"startScan": "開始掃描",
+			"selectRootFolder": "選擇根資料夾",
 			"status": "狀態",
 			"statusError": "錯誤",
 			"statusMatched": "已匹配",

@@ -164,12 +164,17 @@ pub async fn import_database(
     source_path: String,
     db: State<'_, DatabaseConnection>,
 ) -> Result<ImportResult, String> {
-    let src_path = reina_path::resolve_user_path(&source_path)
-        .map_err(|error| format!("源数据库路径解析失败: {error}"))?;
+    let src_path = std::path::PathBuf::from(&source_path);
+    if !src_path.is_absolute() {
+        return Err("源数据库路径必须是绝对路径".to_string());
+    }
 
-    // 检查源文件是否存在
-    if !src_path.exists() {
-        return Err(format!("源数据库文件不存在: {}", source_path));
+    // 检查源路径确实是文件，避免把同名目录交给后续导入流程。
+    if !src_path.is_file() {
+        return Err(format!(
+            "源数据库文件不存在或不是文件: {}",
+            src_path.display()
+        ));
     }
 
     // 检查文件扩展名

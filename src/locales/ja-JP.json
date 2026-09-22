@@ -122,7 +122,7 @@
 			"searchName": "検索名",
 			"selectExe": "起動ファイルを選択",
 			"selectFolderHint": "ルートフォルダーを選択してスキャンを開始",
-			"startScan": "スキャン開始",
+			"selectRootFolder": "ルートフォルダーを選択",
 			"status": "状態",
 			"statusError": "エラー",
 			"statusMatched": "一致済み",

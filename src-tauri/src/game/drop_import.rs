@@ -159,19 +159,19 @@ fn resolve_paths_blocking(
     let mut issues = Vec::new();
     let path_bufs = paths
         .into_iter()
-        .filter_map(
-            |configured| match reina_path::resolve_user_path(&configured) {
-                Ok(path) => Some(path),
-                Err(error) => {
-                    issues.push(issue(
-                        Path::new(&configured),
-                        BulkImportPathIssueCode::ReadFailed,
-                        format!("路径解析失败：{error}"),
-                    ));
-                    None
-                }
-            },
-        )
+        .filter_map(|path| {
+            let path = PathBuf::from(path);
+            if path.is_absolute() {
+                Some(path)
+            } else {
+                issues.push(issue(
+                    &path,
+                    BulkImportPathIssueCode::UnsupportedPath,
+                    "拖拽路径必须是绝对路径",
+                ));
+                None
+            }
+        })
         .collect::<Vec<_>>();
     let shortcut_paths = path_bufs
         .iter()
@@ -394,5 +394,22 @@ mod tests {
             BulkImportPathIssueCode::UnsupportedPath
         );
         fs::remove_dir_all(root).expect("应能清理测试目录");
+    }
+
+    #[test]
+    fn variable_like_drag_path_is_not_expanded() {
+        #[cfg(windows)]
+        let path = r"%GAME_ROOT%\Title";
+        #[cfg(not(windows))]
+        let path = "$GAME_ROOT/Title";
+
+        let result = resolve_paths_blocking(vec![path.to_string()], HashSet::new(), HashSet::new());
+
+        assert!(result.candidates.is_empty());
+        assert_eq!(result.issues.len(), 1);
+        assert_eq!(
+            result.issues[0].code,
+            BulkImportPathIssueCode::UnsupportedPath
+        );
     }
 }

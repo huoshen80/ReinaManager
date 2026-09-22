@@ -6,7 +6,7 @@ use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use steamlocate::{Library, SteamDir};
 use tauri::{State, command};
 
@@ -781,8 +781,16 @@ pub async fn scan_steam_launch_targets(
 
 #[command]
 pub async fn resolve_steam_shortcut_file(path: String) -> Result<SteamLaunchTarget, String> {
-    let path = reina_path::resolve_user_path(&path)
-        .map_err(|error| format!("Steam 快捷方式路径解析失败: {error}"))?;
+    let path = PathBuf::from(&path);
+    if !path.is_absolute() {
+        return Err("Steam 快捷方式路径必须是绝对路径".to_string());
+    }
+    if !path.is_file() {
+        return Err(format!(
+            "Steam 快捷方式不存在或不是文件: {}",
+            path.display()
+        ));
+    }
     tokio::task::spawn_blocking(move || resolve_steam_shortcut_file_blocking(&path))
         .await
         .map_err(|error| format!("Steam 快捷方式解析任务异常: {error}"))?

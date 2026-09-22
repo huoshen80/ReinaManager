@@ -14,7 +14,6 @@ import {
 	FormControl,
 	FormControlLabel,
 	IconButton,
-	InputAdornment,
 	InputLabel,
 	MenuItem,
 	Popover,
@@ -28,7 +27,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { AlertBox } from "@/components/AlertBox";
-import { PathInput } from "@/components/PathInput";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
 import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAllSettings } from "@/hooks/queries/useSettings";
@@ -796,47 +794,36 @@ const BulkImportTab = ({
 							</Box>
 						) : (
 							<>
-								<PathInput
-									pathType="directory"
-									value={rootPath}
-									onChange={(value) => {
-										setRootPath(value);
-										setHasScanned(false);
-									}}
-									placeholder={t(
-										"components.BulkImportModal.noFolderSelected",
-										"选择或输入扫描根目录",
-									)}
-									disabled={loading}
-									size="small"
-									className="flex-[1_1_280px] min-w-0"
-									endAdornment={
-										<InputAdornment position="end">
-											<IconButton
-												onClick={() => void scanFolder()}
-												disabled={loading}
-												edge="end"
-												size="small"
-											>
-												<FolderOpenIcon />
-											</IconButton>
-										</InputAdornment>
-									}
-								/>
 								<Button
 									variant="contained"
-									onClick={() =>
-										void scanSelectedFolder(
-											rootPath,
-											scanMaxDepth,
-											scanMode,
-											scanFirstLevelExecutables,
+									startIcon={
+										isScanningGames ? (
+											<CircularProgress size={20} color="inherit" />
+										) : (
+											<FolderOpenIcon />
 										)
 									}
-									disabled={loading || !rootPath.trim()}
+									onClick={scanFolder}
+									disabled={loading}
+									className="shrink-0"
 								>
-									{t("components.BulkImportModal.startScan", "开始扫描")}
+									{t(
+										"components.BulkImportModal.selectRootFolder",
+										"选择根文件夹",
+									)}
 								</Button>
+								<Typography
+									variant="body2"
+									className="flex-[1_1_160px] min-w-0"
+									color={rootPath ? "text.primary" : "text.secondary"}
+									noWrap
+								>
+									{rootPath ||
+										t(
+											"components.BulkImportModal.noFolderSelected",
+											"未选择文件夹",
+										)}
+								</Typography>
 							</>
 						)}
 
