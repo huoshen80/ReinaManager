@@ -380,6 +380,8 @@ export interface UpdateSettingsParams {
 	installRootPath?: Nullable<string>;
 	lePath?: Nullable<string>;
 	magpiePath?: Nullable<string>;
+	defaultLeLaunch?: boolean;
+	defaultMagpie?: boolean;
 }
 
 /**

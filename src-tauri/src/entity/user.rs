@@ -50,6 +50,8 @@ pub struct Model {
     pub le_path: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub magpie_path: Option<String>,
+    pub default_le_launch: bool,
+    pub default_magpie: bool,
 }
 
 impl Model {

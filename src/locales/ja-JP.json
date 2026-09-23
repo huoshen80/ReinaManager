@@ -418,6 +418,12 @@
 			"themeLight": "ライト",
 			"themeSystem": "システムに従う"
 		},
+		"ToolIntegrationModal": {
+			"defaultEnabled": "新しいゲームで既定で有効にする",
+			"pathRequired": "既定で有効にする前に、ツールのパスを保存してください。",
+			"saveError": "ツール設定の保存に失敗しました：{{error}}",
+			"title": "ツール連携"
+		},
 		"Tray": {
 			"exit": "終了",
 			"open": "メインウィンドウを開く"
@@ -969,7 +975,7 @@
 				"title": "NSFWセット"
 			},
 			"pathSettings": {
-				"note": "ゲームセーブバックアップ、データベースバックアップ、LE地域ソフトウェア、Magpieソフトウェアなどのパスを設定します",
+				"note": "ゲームのインストール先、セーブデータとデータベースのバックアップ先を設定します。",
 				"openModal": "パス設定を開く",
 				"title": "パス設定"
 			},
@@ -991,7 +997,9 @@
 				"storage": "パスとバックアップ",
 				"storageDescription": "ローカルパスを設定し、データのバックアップと復元を実行します。",
 				"system": "システム",
-				"systemDescription": "起動、ログ、終了動作、時間計測モードを管理します。"
+				"systemDescription": "起動、ログ、終了動作、時間計測モードを管理します。",
+				"toolIntegration": "ツール連携",
+				"toolIntegrationDescription": "LE と Magpie のパスと新しいゲームの既定状態を設定します。"
 			},
 			"silentStartup": "サイレント起動",
 			"silentStartupDescription": "アプリを起動するたびにメインウィンドウを表示せず、システムトレイで実行します。",
@@ -1021,6 +1029,10 @@
 				"title": "ゲーム計時モード"
 			},
 			"tokenPlaceholder": "BGM TOKENを入力してください",
+			"toolIntegration": {
+				"openModal": "ツール連携設定を開く",
+				"title": "LE と Magpie"
+			},
 			"vndbData": {
 				"title": "VNDBデータ設定"
 			},

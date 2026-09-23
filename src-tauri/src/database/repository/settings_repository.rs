@@ -37,6 +37,8 @@ impl SettingsRepository {
                 install_root_path: Set(None),
                 le_path: Set(None),
                 magpie_path: Set(None),
+                default_le_launch: Set(false),
+                default_magpie: Set(false),
             };
 
             user.insert(db).await?;
@@ -87,7 +89,35 @@ impl SettingsRepository {
             .await?
             .ok_or(DbErr::RecordNotFound("User record not found".to_string()))?;
 
+        let has_le_path = data
+            .le_path
+            .as_ref()
+            .map(Option::as_deref)
+            .unwrap_or(user.le_path.as_deref())
+            .is_some();
+        let has_magpie_path = data
+            .magpie_path
+            .as_ref()
+            .map(Option::as_deref)
+            .unwrap_or(user.magpie_path.as_deref())
+            .is_some();
+        if data.default_le_launch == Some(true) && !has_le_path {
+            return Err(DbErr::Custom("请先设置 LE 转区软件路径".to_string()));
+        }
+        if data.default_magpie == Some(true) && !has_magpie_path {
+            return Err(DbErr::Custom("请先设置 Magpie 软件路径".to_string()));
+        }
         let mut active: user::ActiveModel = user.into();
+        if !has_le_path {
+            active.default_le_launch = Set(false);
+        } else if let Some(enabled) = data.default_le_launch {
+            active.default_le_launch = Set(enabled);
+        }
+        if !has_magpie_path {
+            active.default_magpie = Set(false);
+        } else if let Some(enabled) = data.default_magpie {
+            active.default_magpie = Set(enabled);
+        }
 
         if let Some(auth) = data.bgm_auth {
             active.bgm_auth = Set(auth);
@@ -173,5 +203,58 @@ impl SettingsRepository {
         }
         transaction.commit().await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::Database;
+
+    #[tokio::test]
+    async fn clearing_tool_path_disables_default_and_blocks_reenable() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        db.execute_unprepared(
+            "CREATE TABLE user (
+                id INTEGER PRIMARY KEY,
+                bgm_auth TEXT,
+                hikarinagi_auth TEXT,
+                vndb_token TEXT,
+                save_root_path TEXT,
+                db_backup_path TEXT,
+                install_root_path TEXT,
+                le_path TEXT,
+                magpie_path TEXT,
+                default_le_launch BOOLEAN NOT NULL DEFAULT 0,
+                default_magpie BOOLEAN NOT NULL DEFAULT 0
+            );
+            INSERT INTO user(id, le_path, default_le_launch)
+            VALUES (1, 'C:/LEProc.exe', 1);",
+        )
+        .await
+        .unwrap();
+
+        SettingsRepository::update_settings(
+            &db,
+            UpdateSettingsData {
+                le_path: Some(None),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let settings = SettingsRepository::get_all_settings(&db).await.unwrap();
+        assert_eq!(settings.le_path, None);
+        assert!(!settings.default_le_launch);
+
+        let error = SettingsRepository::update_settings(
+            &db,
+            UpdateSettingsData {
+                default_le_launch: Some(true),
+                ..Default::default()
+            },
+        )
+        .await;
+        assert!(error.is_err());
     }
 }

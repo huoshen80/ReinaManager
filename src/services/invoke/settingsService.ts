@@ -20,6 +20,8 @@ export interface UserSettings {
 	install_root_path?: string | null;
 	le_path?: string | null;
 	magpie_path?: string | null;
+	default_le_launch: boolean;
+	default_magpie: boolean;
 }
 
 export interface ProxyConfig {

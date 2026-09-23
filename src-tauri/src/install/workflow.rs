@@ -201,9 +201,13 @@ pub(crate) async fn import_installed_game(
     } else {
         metadata.localpath = Some(configured_install_path.clone());
         metadata.executable = executable_name.clone();
-        let game = GamesRepository::insert_aggregate(&transaction, metadata.cleaned(), now)
+        let defaults = GamesRepository::tool_launch_defaults(&transaction)
             .await
             .map_err(|error| TaskFailure::new("game_import_failed", error.to_string()))?;
+        let game =
+            GamesRepository::insert_aggregate(&transaction, metadata.cleaned(), now, defaults)
+                .await
+                .map_err(|error| TaskFailure::new("game_import_failed", error.to_string()))?;
         (game.id, true, None)
     };
 

@@ -434,6 +434,12 @@
 			"themeLight": "Light",
 			"themeSystem": "System"
 		},
+		"ToolIntegrationModal": {
+			"defaultEnabled": "Enable by default for new games",
+			"pathRequired": "Save the tool path before enabling this default.",
+			"saveError": "Failed to save tool settings: {{error}}",
+			"title": "Tool Integration"
+		},
 		"Tray": {
 			"exit": "Exit",
 			"open": "Open Main Window"
@@ -991,7 +997,7 @@
 				"title": "NSFW Settings"
 			},
 			"pathSettings": {
-				"note": "Configure paths for game save backups, database backups, LE region software, Magpie software, etc.",
+				"note": "Configure game installation, save backup, and database backup paths.",
 				"openModal": "Open Path Settings",
 				"title": "Path Settings"
 			},
@@ -1013,7 +1019,9 @@
 				"storage": "Paths & Backup",
 				"storageDescription": "Configure local paths, and run data backup or restore.",
 				"system": "System",
-				"systemDescription": "Manage startup, logs, close behavior, and time tracking mode."
+				"systemDescription": "Manage startup, logs, close behavior, and time tracking mode.",
+				"toolIntegration": "Tool Integration",
+				"toolIntegrationDescription": "Configure LE and Magpie paths and defaults for new games."
 			},
 			"silentStartup": "Silent Startup",
 			"silentStartupDescription": "Start without showing the main window and keep the app in the system tray on every launch.",
@@ -1043,6 +1051,10 @@
 				"title": "Game Time Tracking Mode"
 			},
 			"tokenPlaceholder": "Please enter your BGM TOKEN",
+			"toolIntegration": {
+				"openModal": "Open Tool Integration Settings",
+				"title": "LE and Magpie"
+			},
 			"vndbData": {
 				"title": "VNDB Data Settings"
 			},

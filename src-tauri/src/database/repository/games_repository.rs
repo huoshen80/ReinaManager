@@ -49,6 +49,12 @@ pub enum GameType {
 
 pub struct GamesRepository;
 
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ToolLaunchDefaults {
+    le_launch: bool,
+    magpie: bool,
+}
+
 impl GamesRepository {
     /// 缺省游戏状态：想玩 / WISH
     const DEFAULT_PLAY_STATUS: i32 = 1;
@@ -372,7 +378,23 @@ impl GamesRepository {
         Ok(updates)
     }
 
-    fn build_insert_active_model(game: &InsertGameData, now: i32) -> games::ActiveModel {
+    pub(crate) async fn tool_launch_defaults<C: ConnectionTrait>(
+        db: &C,
+    ) -> Result<ToolLaunchDefaults, DbErr> {
+        let settings = User::find_by_id(1).one(db).await?;
+        Ok(settings.map_or(ToolLaunchDefaults::default(), |settings| {
+            ToolLaunchDefaults {
+                le_launch: settings.default_le_launch,
+                magpie: settings.default_magpie,
+            }
+        }))
+    }
+
+    fn build_insert_active_model(
+        game: &InsertGameData,
+        now: i32,
+        defaults: ToolLaunchDefaults,
+    ) -> games::ActiveModel {
         games::ActiveModel {
             id: NotSet,
             id_type: Set(game.id_type.clone()),
@@ -385,8 +407,10 @@ impl GamesRepository {
             autosave: NotSet,
             maxbackups: NotSet,
             clear: Set(Some(game.clear.unwrap_or(Self::DEFAULT_PLAY_STATUS))),
-            le_launch: NotSet,
-            magpie: NotSet,
+            le_launch: Set(Some(
+                game.le_launch.unwrap_or(i32::from(defaults.le_launch)),
+            )),
+            magpie: Set(Some(game.magpie.unwrap_or(i32::from(defaults.magpie)))),
             custom_data: Set(game.custom_data.clone()),
             user_rating: NotSet,
             created_at: Set(Some(now)),
@@ -478,6 +502,7 @@ impl GamesRepository {
         db: &C,
         mut game: InsertGameData,
         now: i32,
+        defaults: ToolLaunchDefaults,
     ) -> Result<FullGameData, DbErr>
     where
         C: ConnectionTrait,
@@ -487,7 +512,7 @@ impl GamesRepository {
         Self::normalize_insert_launch_state(&mut game)?;
         Self::normalize_insert_date(&mut game);
 
-        let model = Self::build_insert_active_model(&game, now)
+        let model = Self::build_insert_active_model(&game, now, defaults)
             .insert(db)
             .await?;
         Self::upsert_sources(db, model.id, &game.sources).await?;
@@ -504,10 +529,12 @@ impl GamesRepository {
         game: InsertGameData,
     ) -> Result<FullGameData, DbErr> {
         let transaction = db.begin().await?;
+        let defaults = Self::tool_launch_defaults(&transaction).await?;
         let result = Self::insert_aggregate(
             &transaction,
             game.cleaned(),
             chrono::Utc::now().timestamp() as i32,
+            defaults,
         )
         .await?;
         transaction.commit().await?;
@@ -524,6 +551,10 @@ impl GamesRepository {
             Err(error) => return Self::build_batch_failure_result(total, error.to_string()),
         };
         let now = chrono::Utc::now().timestamp() as i32;
+        let defaults = match Self::tool_launch_defaults(&transaction).await {
+            Ok(defaults) => defaults,
+            Err(error) => return Self::build_batch_failure_result(total, error.to_string()),
+        };
         let mut ids = Vec::with_capacity(total);
         let mut inserted_games = Vec::with_capacity(total);
         let mut errors = Vec::new();
@@ -540,7 +571,7 @@ impl GamesRepository {
                 }
             };
 
-            match Self::insert_aggregate(&nested, game.cleaned(), now).await {
+            match Self::insert_aggregate(&nested, game.cleaned(), now, defaults).await {
                 Ok(result) => {
                     if let Err(error) = nested.commit().await {
                         errors.push(BatchOperationError {
@@ -1192,6 +1223,20 @@ mod tests {
                     file_size INTEGER NOT NULL,
                     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
                 );
+                CREATE TABLE user (
+                    id INTEGER PRIMARY KEY,
+                    bgm_auth TEXT,
+                    hikarinagi_auth TEXT,
+                    vndb_token TEXT,
+                    save_root_path TEXT,
+                    db_backup_path TEXT,
+                    install_root_path TEXT,
+                    le_path TEXT,
+                    magpie_path TEXT,
+                    default_le_launch BOOLEAN NOT NULL DEFAULT 0,
+                    default_magpie BOOLEAN NOT NULL DEFAULT 0
+                );
+                INSERT INTO user(id) VALUES (1);
                 "#,
             )
             .await
@@ -1254,6 +1299,32 @@ mod tests {
         assert_eq!(batch.games[0].le_launch, Some(0));
         assert_eq!(batch.games[0].magpie, Some(0));
         assert_eq!(batch.games[0].launch_type, "local");
+    }
+
+    #[tokio::test]
+    async fn applies_tool_defaults_and_respects_explicit_game_values() {
+        let database = setup_database().await;
+        database
+            .execute_unprepared(
+                "UPDATE user SET default_le_launch = 1, default_magpie = 1 WHERE id = 1",
+            )
+            .await
+            .unwrap();
+
+        let defaulted = GamesRepository::insert(&database, insert_data("custom", None, Vec::new()))
+            .await
+            .unwrap();
+        assert_eq!(defaulted.le_launch, Some(1));
+        assert_eq!(defaulted.magpie, Some(1));
+
+        let mut explicit = insert_data("custom", None, Vec::new());
+        explicit.le_launch = Some(0);
+        explicit.magpie = Some(0);
+        let batch = GamesRepository::insert_batch(&database, vec![explicit]).await;
+        assert_eq!(batch.success, 1);
+        assert_eq!(batch.games[0].le_launch, Some(0));
+        assert_eq!(batch.games[0].magpie, Some(0));
+        assert_eq!(defaulted.le_launch, Some(1));
     }
 
     #[tokio::test]

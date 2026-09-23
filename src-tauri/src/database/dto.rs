@@ -229,6 +229,8 @@ pub struct UpdateSettingsData {
     pub le_path: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option")]
     pub magpie_path: Option<Option<String>>,
+    pub default_le_launch: Option<bool>,
+    pub default_magpie: Option<bool>,
 }
 
 /// 清洗 UpdateSettingsData 中的空字符串

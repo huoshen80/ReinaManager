@@ -418,6 +418,12 @@
 			"themeLight": "浅色",
 			"themeSystem": "跟随系统"
 		},
+		"ToolIntegrationModal": {
+			"defaultEnabled": "新游戏默认启用",
+			"pathRequired": "请先保存软件路径，再开启默认选项。",
+			"saveError": "保存工具设置失败：{{error}}",
+			"title": "工具联动"
+		},
 		"Tray": {
 			"exit": "退出",
 			"open": "打开主窗口"
@@ -969,7 +975,7 @@
 				"title": "NSFW 设置"
 			},
 			"pathSettings": {
-				"note": "配置游戏存档备份、数据库备份、LE转区软件、Magpie软件等路径",
+				"note": "配置游戏安装、存档备份和数据库备份路径。",
 				"openModal": "打开路径设置",
 				"title": "路径设置"
 			},
@@ -991,7 +997,9 @@
 				"storage": "路径与备份",
 				"storageDescription": "配置本地路径，执行数据备份和恢复。",
 				"system": "系统",
-				"systemDescription": "管理启动、日志、关闭行为和计时模式。"
+				"systemDescription": "管理启动、日志、关闭行为和计时模式。",
+				"toolIntegration": "工具联动",
+				"toolIntegrationDescription": "配置 LE 转区和 Magpie 的路径及新游戏默认状态。"
 			},
 			"silentStartup": "静默启动",
 			"silentStartupDescription": "每次启动应用时不显示主窗口，应用将在系统托盘中运行。",
@@ -1021,6 +1029,10 @@
 				"title": "游戏计时模式"
 			},
 			"tokenPlaceholder": "请填写你的BGM TOKEN",
+			"toolIntegration": {
+				"openModal": "打开工具联动设置",
+				"title": "LE 转区与 Magpie"
+			},
 			"vndbData": {
 				"title": "VNDB 数据设置"
 			},

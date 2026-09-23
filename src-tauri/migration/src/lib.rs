@@ -21,6 +21,7 @@ mod m20260801_000017_add_tasks;
 mod m20260805_000018_hikarinagi_oauth;
 mod m20260809_000019_add_steam_launch;
 mod m20260922_000020_savedata_backup_root_semantics;
+mod m20260923_000021_tool_integration_defaults;
 
 pub struct Migrator;
 
@@ -48,6 +49,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260805_000018_hikarinagi_oauth::Migration),
             Box::new(m20260809_000019_add_steam_launch::Migration),
             Box::new(m20260922_000020_savedata_backup_root_semantics::Migration),
+            Box::new(m20260923_000021_tool_integration_defaults::Migration),
         ]
     }
 }

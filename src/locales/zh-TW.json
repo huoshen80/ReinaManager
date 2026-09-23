@@ -418,6 +418,12 @@
 			"themeLight": "淺色",
 			"themeSystem": "跟隨系統"
 		},
+		"ToolIntegrationModal": {
+			"defaultEnabled": "新遊戲預設啟用",
+			"pathRequired": "請先儲存軟體路徑，再啟用預設選項。",
+			"saveError": "儲存工具設定失敗：{{error}}",
+			"title": "工具聯動"
+		},
 		"Tray": {
 			"exit": "退出",
 			"open": "開啟主視窗"
@@ -969,7 +975,7 @@
 				"title": "NSFW設定"
 			},
 			"pathSettings": {
-				"note": "配置遊戲存檔備份、數據庫備份、LE轉區軟體、Magpie軟體等路徑",
+				"note": "設定遊戲安裝、存檔備份與資料庫備份路徑。",
 				"openModal": "打開路徑設置",
 				"title": "路徑設置"
 			},
@@ -991,7 +997,9 @@
 				"storage": "路徑與備份",
 				"storageDescription": "設定本地路徑，執行資料備份與還原。",
 				"system": "系統",
-				"systemDescription": "管理啟動、日誌、關閉行為與計時模式。"
+				"systemDescription": "管理啟動、日誌、關閉行為與計時模式。",
+				"toolIntegration": "工具聯動",
+				"toolIntegrationDescription": "設定 LE 轉區與 Magpie 的路徑及新遊戲預設狀態。"
 			},
 			"silentStartup": "靜默啟動",
 			"silentStartupDescription": "每次啟動應用程式時不顯示主視窗，應用程式會在系統匣中執行。",
@@ -1021,6 +1029,10 @@
 				"title": "遊戲計時模式"
 			},
 			"tokenPlaceholder": "請填寫你的BGM TOKEN",
+			"toolIntegration": {
+				"openModal": "開啟工具聯動設定",
+				"title": "LE 轉區與 Magpie"
+			},
 			"vndbData": {
 				"title": "VNDB資料設定"
 			},
