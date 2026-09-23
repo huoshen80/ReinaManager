@@ -67,6 +67,15 @@ function bgmCurrentUserProfileQueryOptions(token: string) {
 	});
 }
 
+function vndbCurrentUserProfileQueryOptions(token: string) {
+	return queryOptions({
+		queryKey: settingsKeys.vndbCurrentUserProfileByToken(token),
+		queryFn: () =>
+			fetchVndbCurrentUserProfile(token, getNetworkRequestContext()),
+		...remoteQueryOptions,
+	});
+}
+
 // ============================================================================
 // Fetch Functions - 非组件 ts 文件使用
 // ============================================================================
@@ -86,6 +95,13 @@ export function fetchBgmCurrentUserProfile(
 	return queryClient.fetchQuery(bgmCurrentUserProfileQueryOptions(token));
 }
 
+export function fetchVndbCurrentUserProfileCached(
+	queryClient: QueryClient,
+	token: string,
+) {
+	return queryClient.fetchQuery(vndbCurrentUserProfileQueryOptions(token));
+}
+
 // ============================================================================
 // Hooks - 组件使用
 // ============================================================================
@@ -98,11 +114,8 @@ export function useVndbCurrentUserProfile(options?: SettingsQueryOptions) {
 	const vndbToken = settings?.vndb_token ?? "";
 
 	return useQuery({
-		queryKey: settingsKeys.vndbCurrentUserProfileByToken(vndbToken),
-		queryFn: () =>
-			fetchVndbCurrentUserProfile(vndbToken, getNetworkRequestContext()),
+		...vndbCurrentUserProfileQueryOptions(vndbToken),
 		enabled: (options?.enabled ?? true) && Boolean(vndbToken),
-		...remoteQueryOptions,
 	});
 }
 

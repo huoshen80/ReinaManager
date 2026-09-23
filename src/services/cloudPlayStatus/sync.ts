@@ -1,3 +1,4 @@
+import { fetchVndbCurrentUserProfileCached } from "@/hooks/queries/useSettings";
 import { fetchUserCollection, updateUserCollection } from "@/metadata/api/bgm";
 import {
 	fetchHikarinagiGameRate,
@@ -11,6 +12,7 @@ import {
 	getAnySourceId,
 	type SourceIdentityPayload,
 } from "@/metadata/sourceRecord";
+import { queryClient } from "@/providers/queryClient";
 import { withBgmAuth } from "@/services/oauth/bgmAuthSession";
 import { withHikarinagiAuth } from "@/services/oauth/hikarinagiAuthSession";
 import { getNetworkRequestContext } from "@/services/requestContext";
@@ -61,11 +63,13 @@ async function resolveVndbPlayStatus(game: SourceIdentityPayload) {
 	try {
 		const token = await getVndbToken();
 		if (!token) return undefined;
+		const profile = await fetchVndbCurrentUserProfileCached(queryClient, token);
+		if (!profile?.permissions.includes("listread")) return undefined;
 
 		const collection = await fetchVndbUserCollection(
 			vndbId,
 			token,
-			undefined,
+			profile.id,
 			getNetworkRequestContext(),
 		);
 		return mapVndbCollectionToPlayStatus(collection);
@@ -160,6 +164,8 @@ async function syncPlayStatusToVndb(
 	try {
 		const token = await getVndbToken();
 		if (!token) return true;
+		const profile = await fetchVndbCurrentUserProfileCached(queryClient, token);
+		if (!profile?.permissions.includes("listwrite")) return true;
 
 		const targetLabelId = mapPlayStatusToVndbLabelId(newStatus);
 		if (!targetLabelId) return true;
@@ -190,7 +196,7 @@ async function syncPlayStatusToHikarinagi(
 
 	try {
 		return await withHikarinagiAuth(async (token) => {
-			if (!token) return false;
+			if (!token) return true;
 			return updateHikarinagiGameRate(
 				hikarinagiId,
 				{ status: mapPlayStatusToHikarinagiStatus(newStatus) },

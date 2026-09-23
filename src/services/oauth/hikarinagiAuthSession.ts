@@ -4,6 +4,7 @@ import { queryClient } from "@/providers/queryClient";
 import { snackbar } from "@/providers/snackBar";
 import { settingsService, type UserSettings } from "@/services/invoke";
 import {
+	isOAuthAuthExpired,
 	isOAuthAuthRefreshDue,
 	isRefreshCredentialError,
 	nowUnixSeconds,
@@ -96,9 +97,10 @@ async function getValidHikarinagiAuth() {
 	const auth = settings.hikarinagi_auth ?? null;
 
 	if (!auth?.access_token) return null;
-	if (!isHikarinagiAuthRefreshDue(auth)) return auth;
-
-	return refreshHikarinagiAuthSingleFlight(auth);
+	const validAuth = isHikarinagiAuthRefreshDue(auth)
+		? await refreshHikarinagiAuthSingleFlight(auth)
+		: auth;
+	return isOAuthAuthExpired(validAuth) ? null : validAuth;
 }
 
 export function isHikarinagiAuthExpiredError(error: unknown) {

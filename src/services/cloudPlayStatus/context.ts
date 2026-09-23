@@ -1,3 +1,4 @@
+import { fetchVndbCurrentUserProfileCached } from "@/hooks/queries/useSettings";
 import {
 	type BgmUserCollection,
 	fetchUserCollection,
@@ -8,11 +9,11 @@ import {
 	fetchHikarinagiRatesPage,
 } from "@/metadata/api/hikarinagi";
 import {
-	fetchVndbCurrentUserProfile,
 	fetchVndbUserCollection,
 	fetchVndbUserCollectionsPage,
 	type VndbUserCollectionItem,
 } from "@/metadata/api/vndb";
+import { queryClient } from "@/providers/queryClient";
 import { withBgmAuth } from "@/services/oauth/bgmAuthSession";
 import { withHikarinagiAuth } from "@/services/oauth/hikarinagiAuthSession";
 import { getNetworkRequestContext } from "@/services/requestContext";
@@ -253,10 +254,7 @@ async function createVndbPlayStatusMap(ids: Iterable<string>) {
 		const token = await getVndbToken();
 		if (!token) return undefined;
 
-		const profile = await fetchVndbCurrentUserProfile(
-			token,
-			getNetworkRequestContext(),
-		);
+		const profile = await fetchVndbCurrentUserProfileCached(queryClient, token);
 		const userId = profile?.id;
 		if (!userId || !profile.permissions.includes("listread")) {
 			return undefined;

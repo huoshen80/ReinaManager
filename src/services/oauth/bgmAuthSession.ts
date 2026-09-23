@@ -4,6 +4,7 @@ import { queryClient } from "@/providers/queryClient";
 import { snackbar } from "@/providers/snackBar";
 import { settingsService, type UserSettings } from "@/services/invoke";
 import {
+	isOAuthAuthExpired,
 	isOAuthAuthRefreshDue,
 	isRefreshCredentialError,
 	nowUnixSeconds,
@@ -91,9 +92,10 @@ async function getValidBgmAuth() {
 	const auth = settings.bgm_auth ?? null;
 
 	if (!auth?.access_token) return null;
-	if (!isBgmAuthRefreshDue(auth)) return auth;
-
-	return refreshBgmAuthSingleFlight(auth);
+	const validAuth = isBgmAuthRefreshDue(auth)
+		? await refreshBgmAuthSingleFlight(auth)
+		: auth;
+	return isOAuthAuthExpired(validAuth) ? null : validAuth;
 }
 
 async function getValidBgmAccessToken() {

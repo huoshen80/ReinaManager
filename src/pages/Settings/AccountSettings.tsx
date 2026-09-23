@@ -226,7 +226,6 @@ export const BgmProviderSection = () => {
 	const { t } = useTranslation();
 	const {
 		bgmAuth,
-		isSettingsLoading,
 		inputToken,
 		isOAuthLoading,
 		isCompletingAuth,
@@ -251,12 +250,6 @@ export const BgmProviderSection = () => {
 		);
 
 	const isConnected = Boolean(bgmAuth?.access_token);
-
-	useEffect(() => {
-		if (!isSettingsLoading && !isConnected && syncBgmCollection) {
-			setSyncBgmCollection(false);
-		}
-	}, [isConnected, isSettingsLoading, setSyncBgmCollection, syncBgmCollection]);
 
 	return (
 		<Paper
@@ -447,9 +440,8 @@ export const BgmProviderSection = () => {
 					</Typography>
 				</Box>
 				<Switch
-					checked={isConnected && syncBgmCollection}
+					checked={syncBgmCollection}
 					onChange={(e) => setSyncBgmCollection(e.target.checked)}
-					disabled={isSettingsLoading || !isConnected}
 					color="primary"
 				/>
 			</Stack>
@@ -539,7 +531,6 @@ export const HikarinagiProviderSection = () => {
 	const {
 		hikarinagiAuth,
 		hikarinagiProfile,
-		isSettingsLoading,
 		isOAuthLoading,
 		isSaving,
 		handleOAuthLogin,
@@ -560,17 +551,6 @@ export const HikarinagiProviderSection = () => {
 	);
 
 	const isConnected = Boolean(hikarinagiAuth?.access_token);
-
-	useEffect(() => {
-		if (!isSettingsLoading && !isConnected && syncHikarinagiCollection) {
-			setSyncHikarinagiCollection(false);
-		}
-	}, [
-		isConnected,
-		isSettingsLoading,
-		setSyncHikarinagiCollection,
-		syncHikarinagiCollection,
-	]);
 
 	return (
 		<Paper
@@ -689,9 +669,8 @@ export const HikarinagiProviderSection = () => {
 					</Typography>
 				</Box>
 				<Switch
-					checked={isConnected && syncHikarinagiCollection}
+					checked={syncHikarinagiCollection}
 					onChange={(e) => setSyncHikarinagiCollection(e.target.checked)}
-					disabled={isSettingsLoading || !isConnected}
 					color="primary"
 				/>
 			</Stack>
@@ -705,7 +684,7 @@ export const HikarinagiAuthSettings = HikarinagiProviderSection;
 
 export const VndbProviderSection = () => {
 	const { t } = useTranslation();
-	const { data: settings, isLoading: isSettingsLoading } = useAllSettings();
+	const { data: settings } = useAllSettings();
 	const vndbToken = settings?.vndb_token ?? "";
 	const { data: vndbProfile, isLoading: isVndbProfileLoading } =
 		useVndbCurrentUserProfile();
@@ -772,17 +751,6 @@ export const VndbProviderSection = () => {
 
 	const hasVndbToken = Boolean(vndbToken);
 	const isConnected = Boolean(hasVndbToken && vndbProfile);
-
-	useEffect(() => {
-		if (!isSettingsLoading && !hasVndbToken && syncVndbCollection) {
-			setSyncVndbCollection(false);
-		}
-	}, [
-		hasVndbToken,
-		isSettingsLoading,
-		setSyncVndbCollection,
-		syncVndbCollection,
-	]);
 
 	return (
 		<Paper
@@ -960,9 +928,8 @@ export const VndbProviderSection = () => {
 					</Typography>
 				</Box>
 				<Switch
-					checked={hasVndbToken && syncVndbCollection}
+					checked={syncVndbCollection}
 					onChange={(e) => setSyncVndbCollection(e.target.checked)}
-					disabled={isSettingsLoading || !hasVndbToken}
 					color="primary"
 				/>
 			</Stack>

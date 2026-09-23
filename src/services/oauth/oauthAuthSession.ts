@@ -12,6 +12,13 @@ export function nowUnixSeconds() {
 	return Math.floor(Date.now() / 1000);
 }
 
+export function isOAuthAuthExpired(
+	auth: OAuthAuth | null | undefined,
+	now = nowUnixSeconds(),
+) {
+	return auth?.expires_at != null && auth.expires_at <= now;
+}
+
 export function isOAuthAuthRefreshDue(
 	auth: OAuthAuth | null | undefined,
 	now = nowUnixSeconds(),
