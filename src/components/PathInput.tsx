@@ -67,9 +67,7 @@ export function PathInput({
 	const isInspectionCurrent = inspectedValue === value.trim();
 	const currentInspection = isInspectionCurrent ? inspection : null;
 	const currentError = isInspectionCurrent ? error : null;
-	const currentIsLoading = isInspectionCurrent
-		? isLoading
-		: Boolean(value.trim());
+	const currentIsLoading = isInspectionCurrent && isLoading;
 	const wrongType = Boolean(
 		currentInspection &&
 			currentInspection.kind !== "missing" &&

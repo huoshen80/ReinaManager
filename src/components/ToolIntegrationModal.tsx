@@ -26,6 +26,13 @@ import { getUserErrorMessage } from "@/utils/errors";
 export type ToolKind = "le" | "magpie";
 
 export type ToolPaths = Record<ToolKind, string>;
+type ToolSetting = { path: string; enabled: boolean };
+type ToolDraft = Record<ToolKind, ToolSetting>;
+type SaveController = {
+	queuedTools: Set<ToolKind>;
+	task: Promise<boolean> | null;
+	closing: boolean;
+};
 
 type ToolIntegrationModalProps = {
 	open: boolean;
@@ -33,7 +40,10 @@ type ToolIntegrationModalProps = {
 	focusTool?: ToolKind;
 };
 
-const EMPTY_PATHS: ToolPaths = { le: "", magpie: "" };
+const EMPTY_DRAFT: ToolDraft = {
+	le: { path: "", enabled: false },
+	magpie: { path: "", enabled: false },
+};
 
 export function ToolIntegrationModal({
 	open,
@@ -43,69 +53,139 @@ export function ToolIntegrationModal({
 	const { t } = useTranslation();
 	const { data: settings, isPending } = useAllSettings({ enabled: open });
 	const updateSettings = useUpdateSettings();
-	const [paths, setPaths] = useState<ToolPaths>(EMPTY_PATHS);
-	const [isSaving, setIsSaving] = useState(false);
-	const initializedRef = useRef(false);
-	const savedPathsRef = useRef<ToolPaths>(EMPTY_PATHS);
-	const savingRef = useRef(false);
-	const leInspection = useUserPathInspection(paths.le, open);
-	const magpieInspection = useUserPathInspection(paths.magpie, open);
+	const [draft, setDraft] = useState<ToolDraft>(EMPTY_DRAFT);
+	const [initialized, setInitialized] = useState(false);
+	const [isClosing, setIsClosing] = useState(false);
+	const draftRef = useRef<ToolDraft>(EMPTY_DRAFT);
+	const savedRef = useRef<ToolDraft>(EMPTY_DRAFT);
+	const saveControllerRef = useRef<SaveController>({
+		queuedTools: new Set<ToolKind>(),
+		task: null,
+		closing: false,
+	});
+	const leInspection = useUserPathInspection(draft.le.path);
+	const magpieInspection = useUserPathInspection(draft.magpie.path);
 
 	useEffect(() => {
 		if (!open) {
-			initializedRef.current = false;
+			setInitialized(false);
 			return;
 		}
-		if (!settings || initializedRef.current) return;
-		const nextPaths = {
-			le: settings.le_path ?? "",
-			magpie: settings.magpie_path ?? "",
+		if (!settings || initialized) return;
+		const nextDraft: ToolDraft = {
+			le: {
+				path: settings.le_path ?? "",
+				enabled: settings.default_le_launch,
+			},
+			magpie: {
+				path: settings.magpie_path ?? "",
+				enabled: settings.default_magpie,
+			},
 		};
-		setPaths(nextPaths);
-		savedPathsRef.current = nextPaths;
-		initializedRef.current = true;
-	}, [open, settings]);
+		setDraft(nextDraft);
+		draftRef.current = nextDraft;
+		savedRef.current = nextDraft;
+		setInitialized(true);
+	}, [open, settings, initialized]);
 
-	const savePath = async (tool: ToolKind, value: string) => {
-		const nextPath = value.trim();
-		const previousPath = savedPathsRef.current[tool];
-		if (nextPath === previousPath) return true;
-		if (savingRef.current) return false;
-		const updates: UpdateSettingsParams =
-			tool === "le"
-				? { lePath: nextPath || null }
-				: { magpiePath: nextPath || null };
-		try {
-			savingRef.current = true;
-			setIsSaving(true);
-			await updateSettings.mutateAsync(updates);
-			savedPathsRef.current = { ...savedPathsRef.current, [tool]: nextPath };
-			setPaths((current) => ({ ...current, [tool]: nextPath }));
-			return true;
-		} catch (error) {
-			setPaths((current) => ({ ...current, [tool]: previousPath }));
-			snackbar.error(
-				t(
-					"components.ToolIntegrationModal.saveError",
-					"保存工具设置失败：{{error}}",
-					{
-						error: getUserErrorMessage(error, t),
-					},
-				),
-			);
-			return false;
-		} finally {
-			savingRef.current = false;
-			setIsSaving(false);
+	const changeTool = (tool: ToolKind, changes: Partial<ToolSetting>) => {
+		const nextDraft = {
+			...draftRef.current,
+			[tool]: { ...draftRef.current[tool], ...changes },
+		};
+		draftRef.current = nextDraft;
+		setDraft(nextDraft);
+	};
+
+	const flushQueuedTools = async () => {
+		let succeeded = true;
+		const controller = saveControllerRef.current;
+		while (controller.queuedTools.size > 0) {
+			const tool = controller.queuedTools.values().next().value;
+			if (!tool) break;
+			controller.queuedTools.delete(tool);
+
+			const draftPath = draftRef.current[tool].path;
+			const nextPath = draftPath.trim();
+			const nextDefault = nextPath ? draftRef.current[tool].enabled : false;
+			if (!nextPath && draftRef.current[tool].enabled) {
+				changeTool(tool, { enabled: false });
+			}
+
+			const saved = savedRef.current[tool];
+			const updates: UpdateSettingsParams = {};
+			if (nextPath !== saved.path) {
+				if (tool === "le") updates.lePath = nextPath || null;
+				else updates.magpiePath = nextPath || null;
+			}
+			if (nextDefault !== saved.enabled) {
+				if (tool === "le") updates.defaultLeLaunch = nextDefault;
+				else updates.defaultMagpie = nextDefault;
+			}
+			if (Object.keys(updates).length === 0) continue;
+
+			try {
+				await updateSettings.mutateAsync(updates);
+				savedRef.current = {
+					...savedRef.current,
+					[tool]: { path: nextPath, enabled: nextDefault },
+				};
+				if (
+					draftRef.current[tool].path === draftPath &&
+					draftPath !== nextPath
+				) {
+					changeTool(tool, { path: nextPath });
+				}
+			} catch (error) {
+				succeeded = false;
+				if (draftRef.current[tool].path === draftPath) {
+					controller.queuedTools.delete(tool);
+					changeTool(tool, { enabled: savedRef.current[tool].enabled });
+				}
+				snackbar.error(
+					t(
+						"components.ToolIntegrationModal.saveError",
+						"保存工具设置失败：{{error}}",
+						{
+							error: getUserErrorMessage(error, t),
+						},
+					),
+				);
+			}
 		}
+		return succeeded;
+	};
+
+	const queueSave = (tool: ToolKind) => {
+		const controller = saveControllerRef.current;
+		controller.queuedTools.add(tool);
+		if (controller.task) return controller.task;
+		const nextPath = draftRef.current[tool].path.trim();
+		const nextDefault = nextPath ? draftRef.current[tool].enabled : false;
+		if (
+			controller.queuedTools.size === 1 &&
+			nextPath === savedRef.current[tool].path &&
+			nextDefault === savedRef.current[tool].enabled
+		) {
+			controller.queuedTools.delete(tool);
+			return Promise.resolve(true);
+		}
+		const task = Promise.resolve().then(flushQueuedTools);
+		controller.task = task;
+		void task.then(() => {
+			controller.task = null;
+		});
+		return task;
 	};
 
 	const selectPath = async (tool: ToolKind) => {
 		try {
-			const selected = await handleExeFile(dirname(paths[tool]));
+			const selected = await handleExeFile(
+				dirname(draftRef.current[tool].path),
+			);
 			if (selected) {
-				setPaths((current) => ({ ...current, [tool]: selected }));
-				await savePath(tool, selected);
+				changeTool(tool, { path: selected });
+				await queueSave(tool);
 			}
 		} catch (error) {
 			snackbar.error(
@@ -121,31 +201,27 @@ export function ToolIntegrationModal({
 	};
 
 	const setDefault = async (tool: ToolKind, enabled: boolean) => {
-		if (enabled && !savedPathsRef.current[tool]) return;
-		try {
-			await updateSettings.mutateAsync(
-				tool === "le"
-					? { defaultLeLaunch: enabled }
-					: { defaultMagpie: enabled },
-			);
-		} catch (error) {
-			snackbar.error(
-				t(
-					"components.ToolIntegrationModal.saveError",
-					"保存工具设置失败：{{error}}",
-					{
-						error: getUserErrorMessage(error, t),
-					},
-				),
-			);
-		}
+		if (enabled && !draftRef.current[tool].path.trim()) return;
+		changeTool(tool, { enabled });
+		await queueSave(tool);
 	};
 
 	const close = async () => {
-		if (savingRef.current) return;
-		if (!(await savePath("le", paths.le))) return;
-		if (!(await savePath("magpie", paths.magpie))) return;
-		onClose(savedPathsRef.current);
+		const controller = saveControllerRef.current;
+		if (controller.closing) return;
+		controller.closing = true;
+		setIsClosing(true);
+		try {
+			controller.queuedTools.add("le");
+			if (!(await queueSave("magpie"))) return;
+			onClose({
+				le: savedRef.current.le.path,
+				magpie: savedRef.current.magpie.path,
+			});
+		} finally {
+			controller.closing = false;
+			setIsClosing(false);
+		}
 	};
 
 	const pathKeyDown = (
@@ -158,21 +234,13 @@ export function ToolIntegrationModal({
 		}
 		if (event.key === "Escape") {
 			event.preventDefault();
-			setPaths((current) => ({
-				...current,
-				[tool]: savedPathsRef.current[tool],
-			}));
+			changeTool(tool, { path: savedRef.current[tool].path });
 		}
 	};
 
-	const isLoading = open && (isPending || !initializedRef.current);
+	const isLoading = open && (isPending || !initialized);
 	return (
-		<Dialog
-			open={open}
-			onClose={isSaving ? undefined : () => void close()}
-			maxWidth="md"
-			fullWidth
-		>
+		<Dialog open={open} onClose={() => void close()} maxWidth="md" fullWidth>
 			<DialogTitle>
 				{t("components.ToolIntegrationModal.title", "工具联动")}
 			</DialogTitle>
@@ -208,11 +276,9 @@ export function ToolIntegrationModal({
 									pathType="file"
 									inspectionState={isLe ? leInspection : magpieInspection}
 									variant="outlined"
-									value={paths[tool]}
-									onChange={(value) =>
-										setPaths((current) => ({ ...current, [tool]: value }))
-									}
-									onBlur={() => void savePath(tool, paths[tool])}
+									value={draft[tool].path}
+									onChange={(value) => changeTool(tool, { path: value })}
+									onBlur={() => void queueSave(tool)}
 									onKeyDown={(event) => pathKeyDown(event, tool)}
 									fullWidth
 									className="mb-2"
@@ -227,7 +293,7 @@ export function ToolIntegrationModal({
 													"选择名为 Magpie 的可执行程序",
 												)
 									}
-									disabled={isLoading || isSaving}
+									disabled={isLoading || isClosing}
 									autoFocus={focusTool === tool}
 									size="small"
 									endAdornment={
@@ -248,7 +314,7 @@ export function ToolIntegrationModal({
 												<IconButton
 													onMouseDown={(event) => event.preventDefault()}
 													onClick={() => void selectPath(tool)}
-													disabled={isLoading || isSaving}
+													disabled={isLoading || isClosing}
 													edge="end"
 													size="small"
 												>
@@ -261,20 +327,14 @@ export function ToolIntegrationModal({
 								<FormControlLabel
 									control={
 										<Switch
-											checked={
-												isLe
-													? Boolean(settings?.default_le_launch)
-													: Boolean(settings?.default_magpie)
-											}
+											checked={draft[tool].enabled}
 											onChange={(event) =>
 												void setDefault(tool, event.target.checked)
 											}
 											disabled={
 												isLoading ||
-												isSaving ||
-												updateSettings.isPending ||
-												!savedPathsRef.current[tool] ||
-												paths[tool].trim() !== savedPathsRef.current[tool]
+												isClosing ||
+												(!draft[tool].path.trim() && !draft[tool].enabled)
 											}
 										/>
 									}
@@ -283,7 +343,7 @@ export function ToolIntegrationModal({
 										"新游戏默认启用",
 									)}
 								/>
-								{!savedPathsRef.current[tool] && (
+								{!draft[tool].path.trim() && (
 									<Typography
 										variant="caption"
 										color="text.secondary"
@@ -304,7 +364,7 @@ export function ToolIntegrationModal({
 				<Button
 					onMouseDown={(event) => event.preventDefault()}
 					onClick={() => void close()}
-					disabled={isSaving}
+					disabled={isClosing}
 				>
 					{t("components.PathSettingsModal.close", "关闭")}
 				</Button>
