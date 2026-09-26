@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { gameKeys, useAllGames, useGameIdList } from "@/hooks/queries/useGames";
 import { useStore } from "@/store/appStore";
 import type { GameData } from "@/types";
-import { PlayStatus } from "@/types/collection";
+import { ALL_PLAY_STATUSES, PlayStatus } from "@/types/collection";
 import { getGameNsfwStatus } from "@/utils/game";
 import {
 	createSearchIndex,
@@ -120,10 +120,16 @@ export function useFilteredGamesFacade({
 			const game = index.displayById.get(id);
 			if (!game) continue;
 
-			if (
-				playStatusFilter !== "all" &&
-				(game.clear ?? PlayStatus.WISH) !== playStatusFilter
-			) {
+			const status = game.clear ?? PlayStatus.WISH;
+			if (Array.isArray(playStatusFilter)) {
+				if (
+					playStatusFilter.length > 0 &&
+					playStatusFilter.length < ALL_PLAY_STATUSES.length &&
+					!playStatusFilter.includes(status)
+				) {
+					continue;
+				}
+			} else if (playStatusFilter !== "all" && status !== playStatusFilter) {
 				continue;
 			}
 

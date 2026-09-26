@@ -5,6 +5,7 @@ import FilterAlt from "@mui/icons-material/FilterAlt";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import SortIcon from "@mui/icons-material/Sort";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -66,6 +67,8 @@ const gameSortOptions: Array<{ value: SortOption; labelKey: string }> = [
 ];
 
 const MAX_TAG_SUGGESTIONS = 8;
+const selectedStatusClassName =
+	"!bg-[var(--mui-palette-primary-main)] !text-[var(--mui-palette-primary-contrastText)] hover:!bg-[var(--mui-palette-primary-dark)]";
 
 interface GameFilterSortModalProps extends GameListScopeOptions {
 	mode?: "game";
@@ -235,7 +238,14 @@ function getActiveFilterCount(
 ): number {
 	let count = 0;
 	if (gameFilterType !== "all") count += 1;
-	if (playStatusFilter !== "all") count += 1;
+	if (
+		Array.isArray(playStatusFilter)
+			? playStatusFilter.length > 0 &&
+				playStatusFilter.length < ALL_PLAY_STATUSES.length
+			: playStatusFilter !== "all"
+	) {
+		count += 1;
+	}
 	if (tagFilters.length > 0) count += 1;
 	return count;
 }
@@ -279,6 +289,10 @@ function GameFilterSortModal({
 		showCardSortFieldOverlay,
 	}));
 	const [tagInput, setTagInput] = useState("");
+	const selectedStatuses = Array.isArray(draft.playStatusFilter)
+		? draft.playStatusFilter
+		: null;
+	const isMultiStatus = selectedStatuses !== null;
 	const activeFilterCount = getActiveFilterCount(
 		gameFilterType,
 		playStatusFilter,
@@ -346,6 +360,36 @@ function GameFilterSortModal({
 		event.preventDefault();
 		applyGameFilterSort(draft);
 		handleClose();
+	};
+
+	const handleInvertStatuses = () => {
+		setDraft((current) => {
+			const selected = current.playStatusFilter;
+			if (!Array.isArray(selected)) return current;
+			return {
+				...current,
+				playStatusFilter: ALL_PLAY_STATUSES.filter(
+					(status) => !selected.includes(status),
+				),
+			};
+		});
+	};
+
+	const handleStatusClick = (status: PlayStatus) => {
+		setDraft((current) => {
+			const selected = current.playStatusFilter;
+			if (!Array.isArray(selected)) {
+				return { ...current, playStatusFilter: status };
+			}
+			return {
+				...current,
+				playStatusFilter: ALL_PLAY_STATUSES.filter((candidate) =>
+					candidate === status
+						? !selected.includes(candidate)
+						: selected.includes(candidate),
+				),
+			};
+		});
 	};
 
 	const handleTagFiltersChange = (nextTags: string[]) => {
@@ -458,42 +502,81 @@ function GameFilterSortModal({
 								<Typography variant="caption" color="text.secondary">
 									{t("components.FilterSortModal.playStatusFilter", "游戏状态")}
 								</Typography>
+								<button
+									type="button"
+									role="switch"
+									aria-checked={isMultiStatus}
+									className="ml-auto h-5 flex items-center gap-1 border-0 bg-transparent p-0 text-12px text-[var(--mui-palette-text-secondary)] cursor-pointer hover:text-[var(--mui-palette-primary-main)]"
+									onClick={() =>
+										setDraft((current) => ({
+											...current,
+											playStatusFilter: Array.isArray(current.playStatusFilter)
+												? "all"
+												: [],
+										}))
+									}
+								>
+									{t("components.FilterSortModal.multiSelect", "多选")}
+									<span
+										aria-hidden="true"
+										className={`relative h-4 w-7 rounded-full transition-colors ${isMultiStatus ? "bg-[var(--mui-palette-primary-main)]" : "bg-[var(--mui-palette-action-disabledBackground)]"}`}
+									>
+										<span
+											className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${isMultiStatus ? "translate-x-3" : ""}`}
+										/>
+									</span>
+								</button>
 							</div>
 							<fieldset className="grid w-max grid-flow-col auto-cols-max gap-1.5 border-0 p-0 m-0">
 								<legend className="sr-only">
 									{t("components.FilterSortModal.playStatusFilter", "游戏状态")}
 								</legend>
-								<ToggleButton
-									size="small"
-									value="all"
-									selected={draft.playStatusFilter === "all"}
-									onClick={() =>
-										setDraft((current) => ({
-											...current,
-											playStatusFilter: "all",
-										}))
-									}
-									className="min-w-0 whitespace-nowrap px-2"
-								>
-									{t("components.FilterSortModal.allStatuses", "全部状态")}
-								</ToggleButton>
-								{ALL_PLAY_STATUSES.map((status: PlayStatus) => (
+								{isMultiStatus ? (
 									<ToggleButton
-										key={status}
+										type="button"
 										size="small"
-										value={status}
-										selected={draft.playStatusFilter === status}
+										value="invert"
+										onClick={handleInvertStatuses}
+										className="min-w-0 whitespace-nowrap px-2"
+									>
+										<SwapHorizIcon className="mr-0.5 !text-16px" />
+										{t("components.FilterSortModal.invertStatuses", "反选")}
+									</ToggleButton>
+								) : (
+									<ToggleButton
+										type="button"
+										size="small"
+										value="all"
+										selected={draft.playStatusFilter === "all"}
 										onClick={() =>
 											setDraft((current) => ({
 												...current,
-												playStatusFilter: status,
+												playStatusFilter: "all",
 											}))
 										}
-										className="min-w-0 whitespace-nowrap px-2"
+										className={`min-w-0 whitespace-nowrap px-2 ${draft.playStatusFilter === "all" ? selectedStatusClassName : ""}`}
 									>
-										{getPlayStatusLabel(t, status)}
+										{t("components.FilterSortModal.allStatuses", "全部状态")}
 									</ToggleButton>
-								))}
+								)}
+								{ALL_PLAY_STATUSES.map((status: PlayStatus) => {
+									const selected = selectedStatuses
+										? selectedStatuses.includes(status)
+										: draft.playStatusFilter === status;
+									return (
+										<ToggleButton
+											type="button"
+											key={status}
+											size="small"
+											value={status}
+											selected={selected}
+											onClick={() => handleStatusClick(status)}
+											className={`min-w-0 whitespace-nowrap px-2 ${selected ? selectedStatusClassName : ""}`}
+										>
+											{getPlayStatusLabel(t, status)}
+										</ToggleButton>
+									);
+								})}
 							</fieldset>
 						</div>
 						<div className="flex flex-col gap-2">

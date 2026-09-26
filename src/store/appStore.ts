@@ -408,9 +408,16 @@ export const useStore = create<AppState>()(
 			applyGameFilterSort: (config: GameFilterSortConfig) => {
 				const normalizedTags = normalizeTagFilters(config.tagFilters);
 				const current = get();
+				const currentStatus = current.playStatusFilter;
+				const nextStatus = config.playStatusFilter;
+				const sameStatus = Array.isArray(currentStatus)
+					? Array.isArray(nextStatus) &&
+						currentStatus.length === nextStatus.length &&
+						currentStatus.every((status, index) => status === nextStatus[index])
+					: currentStatus === nextStatus;
 				if (
 					current.gameFilterType === config.gameFilterType &&
-					current.playStatusFilter === config.playStatusFilter &&
+					sameStatus &&
 					current.sortOption === config.sortOption &&
 					current.sortOrder === config.sortOrder &&
 					current.showCardSortFieldOverlay ===

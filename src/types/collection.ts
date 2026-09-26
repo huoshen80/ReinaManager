@@ -68,7 +68,8 @@ export enum PlayStatus {
 	DROPPED = 5, // 弃坑
 }
 
-export type PlayStatusFilter = "all" | PlayStatus;
+/** 数组表示多选；空数组和全选都不限制状态，旧单选值保持兼容。 */
+export type PlayStatusFilter = "all" | PlayStatus | PlayStatus[];
 
 /**
  * 所有游戏状态列表（用于菜单渲染）
