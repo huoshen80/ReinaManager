@@ -33,6 +33,7 @@ import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataF
 import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
+import { isDeprecatedSource } from "@/metadata/constants";
 import type { GameRuntimeInsertOptions } from "@/metadata/data/metadata";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import {
@@ -156,6 +157,8 @@ const AddModal: React.FC = () => {
 	const [error, setError] = useState("");
 	const [customLoading, setCustomLoading] = useState(false);
 	const [addMode, setAddMode] = useState<AddGameMode>("mixed");
+	const isSourceDeprecated =
+		addMode === "single" && isDeprecatedSource(apiSource);
 	const [bulkApiSource, setBulkApiSource] = useState<SourceType>();
 	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
 	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
@@ -365,6 +368,7 @@ const AddModal: React.FC = () => {
 	 * - 单一数据源的名称搜索使用列表选择弹窗，并在选择后直接添加。
 	 */
 	const handleSubmit = async () => {
+		if (isSourceDeprecated) return;
 		if (isBusy) return;
 		const { controller, withAbort } = createAbortableRunner();
 		if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -620,7 +624,7 @@ const AddModal: React.FC = () => {
 						<Button
 							variant="contained"
 							onClick={handleSubmit}
-							disabled={formText === "" || isBusy}
+							disabled={formText === "" || isBusy || isSourceDeprecated}
 							startIcon={isBusy ? <CircularProgress size={20} /> : null}
 						>
 							{isBusy

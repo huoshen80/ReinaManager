@@ -25,6 +25,7 @@ import {
 	isHttpStatus,
 	toError,
 } from "@/utils/errors";
+import { isDeprecatedSource } from "../constants";
 import { resolveAutoSelectedSourceCandidate } from "../sourceAutoResolve";
 import {
 	getCandidateSourceData,
@@ -188,7 +189,10 @@ function getProvidedSourceIds(
  * @returns 返回按 source 分组的候选列表
  */
 export async function fetchMixedData(options: FetchMixedDataOptions) {
-	const { name, adapters } = options;
+	const { name } = options;
+	const adapters = options.adapters.filter(
+		(adapter) => !isDeprecatedSource(adapter.key),
+	);
 	const providedSourceIds = getProvidedSourceIds(options, adapters);
 	const providedIds = providedSourceIds.length;
 

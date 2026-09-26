@@ -9,10 +9,11 @@
 import type { apiSourceType, GameMetadataDraft, SourceType } from "@/types";
 import { AppError, toError } from "@/utils/errors";
 import { fetchMixedData } from "../api/mixed";
-import type {
-	MetadataRequestContext,
-	MetadataSourceOptions,
-	SourceIdMap,
+import {
+	assertSourceAvailable,
+	type MetadataRequestContext,
+	type MetadataSourceOptions,
+	type SourceIdMap,
 } from "../sourceAdapter";
 import { resolveAutoSelectedGameDraft } from "../sourceAutoResolve";
 import {
@@ -44,7 +45,6 @@ const mixedIdTypePriority: readonly SourceType[] = [
 	"bgm",
 	"hikarinagi",
 	"vndb",
-	"kun",
 	"ymgal",
 	"dlsite",
 	"erogamescape",
@@ -68,7 +68,7 @@ function getEnabledSourceIds(
 	const enabled = enabledSources ? new Set(enabledSources) : undefined;
 
 	return Object.fromEntries(
-		REGISTERED_SOURCE_KEYS.map((source) => {
+		MIXED_SOURCE_KEYS.map((source) => {
 			const id =
 				!enabled || enabled.has(source) ? getSourceId(sourceIds, source) : "";
 			return [source, id || undefined];
@@ -142,6 +142,7 @@ export class GameMetadataSession {
 	}
 
 	private getRuntimeAdapter(source: SourceType): RuntimeBoundSourceAdapter {
+		assertSourceAvailable(source);
 		return this.adapters[source] as RuntimeBoundSourceAdapter;
 	}
 
@@ -322,7 +323,7 @@ export class GameMetadataSession {
 	 * 处理“用户从搜索结果中选择一项”后的详情补全。
 	 * 规则：
 	 * - mixed 搜索：直接返回原数据
-	 * - 单源名称搜索：仅特定数据源（如 ymgal/kun）需要按 id 拉取完整详情
+	 * - 单源名称搜索：仅特定数据源需要按 id 拉取完整详情
 	 */
 	async resolveSourceCandidateSelection(params: {
 		candidate: SourceCandidate;
@@ -361,7 +362,7 @@ export class GameMetadataSession {
 
 	/**
 	 * Mixed 候选确认后的详情补全。
-	 * Kun 在 mixed 入口下不触发内部 VNDB 补全，避免抢占 VNDB 源选择权。
+	 * 仅补全在线源，历史废弃源的候选不能进入新获取链路。
 	 */
 	private async enrichMixedSourceSelection(
 		selection: MixedSourceSelection,
@@ -448,7 +449,7 @@ export class GameMetadataSession {
 	}): Promise<MetadataFetchResult> {
 		const { sourceIds, enabledSources } = params;
 		const enabledSourceIds = getEnabledSourceIds(sourceIds, enabledSources);
-		const providedSources = REGISTERED_SOURCE_KEYS.filter((source) =>
+		const providedSources = MIXED_SOURCE_KEYS.filter((source) =>
 			getSourceId(enabledSourceIds, source),
 		);
 

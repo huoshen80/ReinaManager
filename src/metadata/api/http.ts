@@ -223,7 +223,6 @@ function inferRateLimitSource(url: string): ApiRateLimitSource | undefined {
 		if (host === "api.bgm.tv") return "bgm";
 		if (host === "api.vndb.org") return "vndb";
 		if (host === "www.ymgal.games") return "ymgal";
-		if (host === "www.kungal.com") return "kun";
 		if (host === "www.dlsite.com") return "dlsite";
 		if (host === "erogamescape.org") return "erogamescape";
 		if (host === "www.hikarinagi.org") return "hikarinagi";
@@ -240,8 +239,6 @@ function getApiRateLimitErrorMessage(source: ApiRateLimitSource): string {
 			return "VNDB 请求过于频繁，短暂停顿后仍失败，请稍后重试";
 		case "ymgal":
 			return "YMGal 请求被限速，请稍后重试";
-		case "kun":
-			return "Kungal 请求被限速，请稍后重试";
 		case "dlsite":
 			return "DLsite 请求被限速，请稍后重试";
 		case "erogamescape":

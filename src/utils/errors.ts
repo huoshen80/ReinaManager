@@ -8,6 +8,7 @@ import type { TFunction } from "i18next";
 export type AppErrorCode =
 	| "tauri_invoke_failed"
 	| "unsupported_source"
+	| "deprecated_source"
 	| "invalid_game_id"
 	| "metadata_not_found"
 	| "mixed_sources_failed"
@@ -20,7 +21,6 @@ type ApiRateLimitSource =
 	| "bgm"
 	| "vndb"
 	| "ymgal"
-	| "kun"
 	| "dlsite"
 	| "erogamescape"
 	| "hikarinagi";
@@ -316,6 +316,11 @@ export function getUserErrorMessage(
 				return t("errors.invalidGameId", "游戏 ID 格式无效");
 			case "unsupported_source":
 				return t("errors.unsupportedSource", "不支持的数据源");
+			case "deprecated_source":
+				return t(
+					"errors.deprecatedSource",
+					"该数据源已废弃，已有数据仍可查看，但不能再搜索或更新。请选择其他可用数据源。",
+				);
 			case "mixed_sources_failed":
 				return t("errors.mixedSourcesFailed", "所有数据源请求均失败");
 			case "metadata_request_failed":

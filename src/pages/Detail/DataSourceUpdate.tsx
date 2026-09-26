@@ -2,6 +2,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import UpdateIcon from "@mui/icons-material/Update";
 import {
+	Alert,
 	Box,
 	Button,
 	CircularProgress,
@@ -20,7 +21,11 @@ import { useShallow } from "zustand/react/shallow";
 import GameSelectDialog from "@/components/AddModal/GameSelectDialog";
 import MixedSourceConfirmDialog from "@/components/AddModal/MixedSourceConfirmDialog";
 import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
-import { getRuntimeSourceAdapter, SEARCHABLE_SOURCE_KEYS } from "@/metadata";
+import {
+	getRuntimeSourceAdapter,
+	isDeprecatedSource,
+	REGISTERED_SOURCE_KEYS,
+} from "@/metadata";
 import {
 	fetchMetadataForUpdate,
 	type MetadataFetchResult,
@@ -58,7 +63,7 @@ type SourceIdState = Record<SourceType, string>;
 
 function getSourceIdState(game: GameData): SourceIdState {
 	return Object.fromEntries(
-		SEARCHABLE_SOURCE_KEYS.map((source) => {
+		REGISTERED_SOURCE_KEYS.map((source) => {
 			return [source, getSourceIdFromDisplay(game, source) || ""];
 		}),
 	) as SourceIdState;
@@ -99,8 +104,11 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 		);
 	const showMixedInputs = idType === "mixed";
 	const isSearchMode = dataSourceUpdateMode === "search";
+	const isSourceDeprecated = isDeprecatedSource(idType);
 	const searchSource: apiSourceType | null =
-		idType === "mixed" || isSourceType(idType) ? idType : null;
+		idType === "mixed" || (isSourceType(idType) && !isSourceDeprecated)
+			? idType
+			: null;
 	const metadataSearchFlow = useMetadataSearchFlow({
 		mixedEnabledSources,
 		t,
@@ -110,8 +118,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	const isBusy =
 		isLoading || isSwitching || metadataSearchFlow.isSearching || disabled;
 	const isMixedSourceEnabled = (source: SourceType) =>
-		mixedEnabledSources.includes(source);
-	const sourceInputs = SEARCHABLE_SOURCE_KEYS.map((source) => {
+		!isDeprecatedSource(source) && mixedEnabledSources.includes(source);
+	const sourceInputs = REGISTERED_SOURCE_KEYS.map((source) => {
 		const adapter = getRuntimeSourceAdapter(source);
 		return {
 			source,
@@ -121,8 +129,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 				setSourceIds((prev) => ({ ...prev, [source]: value })),
 		};
 	});
-	const selectableSources = SEARCHABLE_SOURCE_KEYS.filter((source) =>
-		Boolean(getSourceIdFromDisplay(selectedGame, source)),
+	const selectableSources = REGISTERED_SOURCE_KEYS.filter((source) =>
+		Boolean(getSourceIdFromDisplay(selectedGame, source) || source === idType),
 	);
 	const hasEnabledMixedSourceId = sourceInputs.some(
 		({ source, value }) => isMixedSourceEnabled(source) && Boolean(value),
@@ -130,7 +138,9 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 	const hasManualSourceId =
 		idType === "mixed"
 			? hasEnabledMixedSourceId
-			: isSourceType(idType) && Boolean(sourceIds[idType]);
+			: !isSourceDeprecated &&
+				isSourceType(idType) &&
+				Boolean(sourceIds[idType]);
 
 	const hasSelectedSourceData = (source: SourceType) => {
 		return Boolean(
@@ -170,6 +180,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 
 	// 获取并预览游戏数据
 	const handleFetchAndPreview = async () => {
+		if (isSourceDeprecated) return;
 		if (idType === "custom") {
 			snackbar.error(
 				t(
@@ -270,7 +281,15 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 							const adapter = getRuntimeSourceAdapter(source);
 							return (
 								<MenuItem key={source} value={source}>
-									{adapter.label}
+									{isDeprecatedSource(source)
+										? t(
+												"metadata.deprecatedSourceLabel",
+												"{{source}}（已废弃）",
+												{
+													source: adapter.label,
+												},
+											)
+										: adapter.label}
 								</MenuItem>
 							);
 						})}
@@ -308,6 +327,15 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 							)}
 				</Button>
 			</Box>
+
+			{isSourceDeprecated && (
+				<Alert severity="info">
+					{t(
+						"errors.deprecatedSource",
+						"该数据源已废弃，已有数据仍可查看，但不能再搜索或更新。请选择其他可用数据源。",
+					)}
+				</Alert>
+			)}
 
 			<ToggleButtonGroup
 				exclusive
@@ -352,7 +380,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 								handleSearchByName();
 							}
 						}}
-						disabled={isBusy}
+						disabled={isBusy || isSourceDeprecated}
 					/>
 					<Button
 						variant="contained"
@@ -384,6 +412,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 								variant="outlined"
 								fullWidth
 								value={value}
+								slotProps={{ input: { readOnly: isDeprecatedSource(source) } }}
 								onChange={(e) => setValue(e.target.value)}
 								disabled={isBusy}
 								required={idType === source}

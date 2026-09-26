@@ -22,6 +22,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
 	DEFAULT_MIXED_SOURCE_KEYS,
+	isDeprecatedSource,
 	MIXED_SOURCE_KEYS,
 	MIXED_SOURCE_MAX_COUNT,
 	MIXED_SOURCE_MIN_COUNT,
@@ -296,18 +297,23 @@ export const useStore = create<AppState>()(
 			},
 			mixedEnabledSources: [...DEFAULT_MIXED_SOURCE_KEYS],
 			toggleMixedSource: (source: SourceType) => {
+				if (!MIXED_SOURCE_KEYS.includes(source)) return;
 				set((state) => {
 					const current = state.mixedEnabledSources;
+					// 保留旧 Kungal 偏好供 v2 继承，但不占在线源的数量名额。
+					const deprecatedSources = current.filter(isDeprecatedSource);
 					const enabledAfterAdd = MIXED_SOURCE_KEYS.filter(
 						(item) => item === source || current.includes(item),
 					);
 					const nextSources = current.includes(source)
-						? current.filter((item) => item !== source)
+						? MIXED_SOURCE_KEYS.filter(
+								(item) => item !== source && current.includes(item),
+							)
 						: enabledAfterAdd;
 
 					return nextSources.length >= MIXED_SOURCE_MIN_COUNT &&
 						nextSources.length <= MIXED_SOURCE_MAX_COUNT
-						? { mixedEnabledSources: nextSources }
+						? { mixedEnabledSources: [...nextSources, ...deprecatedSources] }
 						: {};
 				});
 			},

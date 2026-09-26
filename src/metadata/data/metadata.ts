@@ -22,7 +22,8 @@ import {
 } from "@/utils/diff";
 import { getGameDisplayName, getGameNsfwStatus } from "@/utils/game";
 import { normalizeSteamLaunchId } from "@/utils/steam";
-import type { SourceIdMap } from "../sourceAdapter";
+import { isDeprecatedSource, SEARCHABLE_SOURCE_KEYS } from "../constants";
+import { assertSourceAvailable, type SourceIdMap } from "../sourceAdapter";
 import {
 	buildGameCandidateFromSourceSelection,
 	candidateSourcesToGameSources,
@@ -192,6 +193,7 @@ export async function fetchMetadataForUpdate({
 
 	let apiData: GameMetadataDraft;
 	if (isSourceType(idType)) {
+		assertSourceAvailable(idType);
 		const sourceId = sourceIds?.[idType];
 		if (!sourceId) {
 			throw new Error(
@@ -270,7 +272,13 @@ export function buildMetadataUpdatePayload(
 	gameData: GameMetadataDraft,
 	failedSources: readonly SourceType[] = [],
 ): UpdateGameParams {
-	const records = candidateSourcesToGameSources(gameData.sources);
+	if (gameData.id_type && isSourceType(gameData.id_type)) {
+		assertSourceAvailable(gameData.id_type);
+	}
+	// 网络更新不负责写入或移除废弃源，旧快照及其封面引用始终保留。
+	const records = candidateSourcesToGameSources(gameData.sources).filter(
+		(record) => !isDeprecatedSource(record.source),
+	);
 	const presentSources = new Set(records.map((record) => record.source));
 	const failedSourceSet = new Set(failedSources);
 	const sourceDate = getGameCandidateDate(gameData);
@@ -285,12 +293,12 @@ export function buildMetadataUpdatePayload(
 		updateData.upsert_sources = records.filter(
 			(record) => record.source === gameData.id_type,
 		);
-		updateData.remove_sources = REGISTERED_SOURCE_KEYS.filter(
+		updateData.remove_sources = SEARCHABLE_SOURCE_KEYS.filter(
 			(source) => source !== gameData.id_type && !failedSourceSet.has(source),
 		);
 	} else {
 		updateData.upsert_sources = records;
-		updateData.remove_sources = REGISTERED_SOURCE_KEYS.filter(
+		updateData.remove_sources = SEARCHABLE_SOURCE_KEYS.filter(
 			(source) => !presentSources.has(source) && !failedSourceSet.has(source),
 		);
 	}

@@ -1,6 +1,6 @@
 import {
 	DEFAULT_MIXED_SOURCE_KEYS,
-	MIXED_SOURCE_KEYS,
+	REGISTERED_SOURCE_KEYS,
 } from "@/metadata/constants";
 import type { SourceType } from "@/types";
 import { DefaultGroup } from "@/types/collection";
@@ -32,9 +32,12 @@ function normalizeMixedEnabledSources(
 	if (!sources) return [...DEFAULT_MIXED_SOURCE_KEYS];
 
 	const enabled = new Set(
-		sources.filter((source) => MIXED_SOURCE_KEYS.includes(source)),
+		sources.filter((source) => REGISTERED_SOURCE_KEYS.includes(source)),
 	);
-	const filtered = MIXED_SOURCE_KEYS.filter((source) => enabled.has(source));
+	// 老版本偏好仍保存废弃源；是否发起请求由在线源集合决定。
+	const filtered = REGISTERED_SOURCE_KEYS.filter((source) =>
+		enabled.has(source),
+	);
 	return filtered.length >= DEFAULT_MIXED_SOURCE_KEYS.length
 		? filtered
 		: [...DEFAULT_MIXED_SOURCE_KEYS];

@@ -2,7 +2,6 @@ export type ApiRateLimitSource =
 	| "bgm"
 	| "vndb"
 	| "ymgal"
-	| "kun"
 	| "dlsite"
 	| "erogamescape"
 	| "hikarinagi";
@@ -75,14 +74,6 @@ const API_RATE_LIMIT_POLICIES: Record<ApiRateLimitSource, ApiRateLimitPolicy> =
 			max429Retries: 0,
 			stopOn429: true,
 		},
-		kun: {
-			source: "kun",
-			minIntervalMs: 500,
-			defaultBackoffMs: 0,
-			maxBackoffMs: 0,
-			max429Retries: 0,
-			stopOn429: true,
-		},
 		dlsite: {
 			source: "dlsite",
 			minIntervalMs: 2000,
@@ -113,7 +104,6 @@ const rateLimitStates: Record<ApiRateLimitSource, ApiRateLimitState> = {
 	vndb: createInitialState(),
 	bgm: createInitialState(),
 	ymgal: createInitialState(),
-	kun: createInitialState(),
 	dlsite: createInitialState(),
 	erogamescape: createInitialState(),
 	hikarinagi: createInitialState(),

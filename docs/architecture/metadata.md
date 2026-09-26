@@ -19,6 +19,21 @@ src/metadata/
 
 当前注册源由 `SOURCE_ADAPTERS` 决定，包括 BGM、VNDB、YMGal、Kungal、DLsite、ErogameScape 和 Hikarinagi。不在文档中复制派生源列表；以 `sourceRegistry.ts` 和 `constants.ts` 为准。
 
+### 废弃源与历史兼容
+
+`constants.ts` 的 `DEPRECATED_SOURCE_KEYS` 将废弃源与在线源分开。注册表仍保留只读 Adapter，
+`SEARCHABLE_SOURCE_KEYS` 和 `MIXED_SOURCE_KEYS` 则只包含在线源。不要用在线源集合过滤历史展示、
+封面、简介或外链。详情页允许切换到已保存的废弃源，但不能搜索、修改其请求 ID 或刷新。
+
+旧 `kun` 为 Kungal v1，只保留历史类型、显示字段、ID 校验和旧外链；旧网络实现已经移除。
+服务层及旧 Adapter 均拒绝在线操作，mixed 请求过滤它。元数据更新 Payload 不覆盖或删除废弃源，
+避免刷新其他源时丢失旧数据及封面引用。
+
+持久化的 Kungal 单源和 mixed 偏好仍保留，不发起请求。单源选择中的旧值标为已废弃；
+mixed 设置只显示在线源，不展示废弃源的勾选项，数量约束也只计算在线源。
+旧偏好不占名额，停用后只有一个在线源的存量配置仍可使用该源。
+当前不迁移源偏好，不改写游戏的旧 `kun` ID、数据或封面来源。
+
 ## Adapter 边界
 
 `MetadataSourceAdapter<TData>` 将每个数据源统一为以下能力：

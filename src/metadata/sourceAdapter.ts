@@ -1,10 +1,26 @@
 import type { GameMetadataDraft, SourceType } from "@/types";
+import { AppError } from "@/utils/errors";
 import type { NetworkRequestContext } from "./api/http";
+import { isDeprecatedSource } from "./constants";
 import type { SourceCandidate, SourceDisplayFields } from "./sourceCandidate";
 
 export type SourceIdMap = Partial<Record<SourceType, string>>;
 
 export const DEFAULT_METADATA_SEARCH_LIMIT = 8;
+
+export function createDeprecatedSourceError(source: SourceType): AppError {
+	return new AppError({
+		code: "deprecated_source",
+		message: `Metadata source ${source} is deprecated`,
+		context: { source },
+	});
+}
+
+export function assertSourceAvailable(source: SourceType): void {
+	if (isDeprecatedSource(source)) {
+		throw createDeprecatedSourceError(source);
+	}
+}
 
 export interface MetadataRequestContext extends NetworkRequestContext {
 	spoilerLevel: number;

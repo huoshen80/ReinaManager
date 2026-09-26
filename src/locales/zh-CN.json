@@ -474,6 +474,7 @@
 		"authFailed": "认证失败，请检查凭证或权限",
 		"badRequest": "请求参数有误，请检查后重试",
 		"bgmRateLimited": "Bangumi 请求被限速，当前任务已停止，请 1 小时后手动重试",
+		"deprecatedSource": "该数据源已废弃，已有数据仍可查看，但不能再搜索或更新。请选择其他可用数据源。",
 		"invalidGameId": "游戏 ID 格式无效",
 		"invokeFailed": "应用内部调用失败，请稍后重试",
 		"metadataNotFound": "未找到对应的元数据",
@@ -536,6 +537,9 @@
 			"week": "周",
 			"weekPlayTime": "本周时长"
 		}
+	},
+	"metadata": {
+		"deprecatedSourceLabel": "{{source}}（已废弃）"
 	},
 	"pages": {
 		"Collection": {

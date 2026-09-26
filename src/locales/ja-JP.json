@@ -474,6 +474,7 @@
 		"authFailed": "認証に失敗しました。資格情報または権限を確認してください",
 		"badRequest": "リクエスト内容が不正です。確認して再試行してください",
 		"bgmRateLimited": "Bangumi のリクエストが制限されています。現在のタスクは停止しました。1時間後に手動で再試行してください",
+		"deprecatedSource": "このデータソースは廃止されました。保存済みのデータは引き続き表示できますが、検索や更新はできません。他の利用可能なデータソースを選択してください。",
 		"invalidGameId": "ゲーム ID の形式が不正です",
 		"invokeFailed": "アプリ内部コマンドの呼び出しに失敗しました。後でもう一度お試しください",
 		"metadataNotFound": "対応するメタデータが見つかりませんでした",
@@ -536,6 +537,9 @@
 			"week": "週",
 			"weekPlayTime": "今週"
 		}
+	},
+	"metadata": {
+		"deprecatedSourceLabel": "{{source}}（廃止済み）"
 	},
 	"pages": {
 		"Collection": {

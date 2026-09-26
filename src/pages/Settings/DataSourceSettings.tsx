@@ -40,7 +40,9 @@ export const MixedSearchSourceSettings = () => {
 			toggleMixedSource: s.toggleMixedSource,
 		})),
 	);
-	const enabledCount = mixedEnabledSources.length;
+	const enabledCount = MIXED_SOURCE_KEYS.filter((source) =>
+		mixedEnabledSources.includes(source),
+	).length;
 
 	return (
 		<SettingsGroup

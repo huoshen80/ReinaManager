@@ -1,68 +1,24 @@
-import type { GameMetadataDraft, KunData } from "@/types";
-import { fetchGalgameById, searchGalgame } from "../api/kun";
+import type { KunData } from "@/types";
 import {
-	DEFAULT_METADATA_SEARCH_LIMIT,
+	createDeprecatedSourceError,
 	type MetadataSourceAdapter,
 } from "../sourceAdapter";
-import {
-	createSourceCandidate,
-	getCandidateSourceData,
-	getCandidateSourceId,
-	mergeCandidateDetailData,
-	normalizeGameCandidateSources,
-	type SourceCandidate,
-	type SourceDisplayFields,
-	sourceCandidateToDraft,
-} from "../sourceCandidate";
+import type { SourceDisplayFields } from "../sourceCandidate";
 
-function toKunCandidate(game: GameMetadataDraft): SourceCandidate<KunData> {
-	const data = getCandidateSourceData<KunData>(game, "kun");
-	if (!data) {
-		throw new Error("Missing kun data in kun candidate");
-	}
-
-	return createSourceCandidate({
-		source: "kun",
-		externalId: getCandidateSourceId(game, "kun"),
-		data,
-		display: kunAdapter.toDisplayFields(data),
-	});
-}
+// Kungal v1 只保留历史数据读取；新版本使用独立的源键和获取链路。
+const rejectLegacyRequest = async (): Promise<never> => {
+	throw createDeprecatedSourceError("kun");
+};
 
 export const kunAdapter: MetadataSourceAdapter<KunData> = {
 	key: "kun",
-	label: "Kungal",
+	label: "Kungal v1",
 	iconUrl: "https://www.kungal.com/favicon.ico",
 	validateId: (id) => /^\d+$/.test(id),
 	getExternalUrl: (id) => `https://www.kungal.com/galgame/${id}`,
-	async fetchById(id, ctx) {
-		const game = await fetchGalgameById(id, {
-			...ctx,
-			enrichVndb: ctx.enrichCrossSource ?? true,
-		});
-		return normalizeGameCandidateSources(game, "kun");
-	},
-	async searchByName(name, ctx) {
-		const games = await searchGalgame(
-			name,
-			1,
-			ctx.limit ?? DEFAULT_METADATA_SEARCH_LIMIT,
-			false,
-			ctx,
-		);
-		return games.map(toKunCandidate);
-	},
-	async enrichOnSelect(candidate, ctx) {
-		if (!candidate.externalId) {
-			return sourceCandidateToDraft(candidate);
-		}
-
-		const game = await fetchGalgameById(candidate.externalId, {
-			...ctx,
-			enrichVndb: ctx.enrichCrossSource ?? true,
-		});
-		return mergeCandidateDetailData(candidate, game);
-	},
+	fetchById: rejectLegacyRequest,
+	searchByName: rejectLegacyRequest,
+	enrichOnSelect: rejectLegacyRequest,
 	toDisplayFields: (data): SourceDisplayFields => ({
 		image: data.image,
 		name: data.name,
