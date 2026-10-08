@@ -1,0 +1,197 @@
+name: SignPath Test (Windows x64)
+
+on:
+  push:
+    branches: [signpath-test]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: signpath-test-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-sign:
+    if: github.ref == 'refs/heads/signpath-test'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    # 独立测试不使用仅允许受保护分支的 TAURI_KEY 环境，配置说明见 docs/signpath.md。
+    env:
+      RUST_TARGET: x86_64-pc-windows-msvc
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+      CARGO_INCREMENTAL: 0
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
+
+    steps:
+      - name: Check signing configuration
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          foreach ($name in @('SIGNPATH_ORGANIZATION_ID', 'SIGNPATH_PROJECT_SLUG', 'SIGNPATH_API_TOKEN')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "缺少仓库级配置 $name，请按 docs/signpath.md 配置 Variables 和 Secrets。"
+            }
+          }
+          $organizationId = [guid]::Empty
+          if (-not [guid]::TryParse($env:SIGNPATH_ORGANIZATION_ID, [ref]$organizationId)) {
+            throw 'SIGNPATH_ORGANIZATION_ID 必须是 SignPath 后台显示的组织 UUID。'
+          }
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          shared-key: signpath-test-x86_64-pc-windows-msvc
+
+      - name: 7-Zip cache
+        uses: actions/cache@v6
+        with:
+          path: src-tauri/target/7zip
+          key: 7zip-${{ runner.os }}-x86_64-pc-windows-msvc-${{ hashFiles('src-tauri/build.rs') }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get version
+        id: version
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build unsigned application
+        env:
+          BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
+        # 先验证主程序 Authenticode 签名；不生成安装包或依赖更新私钥的 .sig。
+        run: >-
+          pnpm tauri build --ci --target x86_64-pc-windows-msvc --no-bundle
+          --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked
+
+      - name: Upload unsigned application
+        id: unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-signpath-unsigned
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/ReinaManager.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Submit test signing request
+        id: sign
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: test-signing
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          output-artifact-directory: signpath-output/signed
+
+      - name: Verify signed application
+        env:
+          SIGNPATH_REQUEST_ID: ${{ steps.sign.outputs.signing-request-id }}
+          SIGNPATH_REQUEST_URL: ${{ steps.sign.outputs.signing-request-web-url }}
+        run: |
+          $executable = 'signpath-output/signed/ReinaManager.exe'
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw '签名结果中缺少 ReinaManager.exe，请检查 Artifact Configuration 的 ZIP 结构。'
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $executable
+          if ($null -eq $signature.SignerCertificate -or $signature.SignatureType -ne 'Authenticode') {
+            throw 'SignPath 返回的主程序没有 Authenticode 签名。'
+          }
+          # 测试证书可能不在 runner 的信任链中；签名缺失、哈希不匹配等状态仍然失败。
+          if ($signature.Status.ToString() -notin @('Valid', 'NotTrusted')) {
+            throw "签名检查失败：$($signature.Status)，$($signature.StatusMessage)"
+          }
+          if ($signature.Status.ToString() -eq 'NotTrusted') {
+            Write-Warning '主程序已有签名，但 runner 不信任证书链；测试签名不等于正式证书信任验证。'
+          }
+          $report = [ordered]@{
+            repository = $env:GITHUB_REPOSITORY
+            commit = $env:GITHUB_SHA
+            branch = $env:GITHUB_REF_NAME
+            signingPolicy = 'test-signing'
+            signingRequestId = $env:SIGNPATH_REQUEST_ID
+            signingRequestUrl = $env:SIGNPATH_REQUEST_URL
+            signatureStatus = $signature.Status.ToString()
+            certificateSubject = $signature.SignerCertificate.Subject
+            certificateThumbprint = $signature.SignerCertificate.Thumbprint
+            timestampSubject = $signature.TimeStamperCertificate.Subject
+            unsignedSha256 = (Get-FileHash -LiteralPath "src-tauri/target/$env:RUST_TARGET/release/ReinaManager.exe" -Algorithm SHA256).Hash
+            signedSha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
+          }
+          $report | ConvertTo-Json | Set-Content -LiteralPath signpath-output/signature-report.json -Encoding utf8
+          @"
+          ## SignPath 测试签名
+
+          - 分支：$env:GITHUB_REF_NAME
+          - 提交：$env:GITHUB_SHA
+          - 策略：test-signing
+          - 签名请求：[$env:SIGNPATH_REQUEST_ID]($env:SIGNPATH_REQUEST_URL)
+          - 签名状态：$($signature.Status)
+          - 证书：$($signature.SignerCertificate.Subject)
+          - 证书指纹：$($signature.SignerCertificate.Thumbprint)
+          - 本次验证主程序签名和证书状态；启动行为需下载便携包后检查。
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Prepare signed portable application
+        run: |
+          $portableRoot = 'signpath-output/portable'
+          $sevenZip = 'src-tauri/target/7zip'
+          foreach ($relativePath in @('7z.exe', '7z.dll', 'Codecs/zstd.dll', 'Codecs/LICENSE', 'License.txt', 'NOTICE.md')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $sevenZip $relativePath) -PathType Leaf)) {
+              throw "便携包缺少内置 7-Zip 文件：$relativePath"
+            }
+          }
+          New-Item -ItemType Directory -Path "$portableRoot/tools" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$portableRoot/resources/data" -Force | Out-Null
+          Copy-Item -LiteralPath $sevenZip -Destination "$portableRoot/tools/7zip" -Recurse
+          Copy-Item -LiteralPath signpath-output/signed/ReinaManager.exe -Destination "$portableRoot/ReinaManager.exe"
+          Copy-Item -LiteralPath signpath-output/signature-report.json -Destination "$portableRoot/signature-report.json"
+          '该目录启用便携模式，数据库保存在本包内。此应用仅用于 SignPath 测试签名验证。' |
+            Set-Content -LiteralPath "$portableRoot/resources/data/readme.txt" -Encoding utf8
+
+      - name: Upload signed portable application
+        uses: actions/upload-artifact@v7
+        with:
+          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-signpath-test-portable
+          path: signpath-output/portable
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signature report
+        if: always() && steps.sign.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: signpath-test-signature-report
+          path: signpath-output/signature-report.json
+          if-no-files-found: warn
+          retention-days: 14

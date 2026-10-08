@@ -18,6 +18,7 @@
 | 修改 Tauri command、Rust 模块、数据库或原生能力 | [`architecture/backend.md`](architecture/backend.md) |
 | 修改游戏列表、`GameIndex` 或 Query 缓存 | [`architecture/game-library.md`](architecture/game-library.md) |
 | 修改外部元数据源、搜索或展示合并 | [`architecture/metadata.md`](architecture/metadata.md) |
+| 配置 SignPath 测试签名、查看签名产物和分支触发方式 | [`signpath.md`](signpath.md) |
 | 新增或修改国际化字符串 | [i18n Skill](../.agents/skills/i18n/SKILL.md) |
 | 由 AI 操作 WebView2、截图并诊断前端 | [cdp Skill](../.agents/skills/cdp/SKILL.md)，或调用 `/cdp` |
 | 在项目内复用隔离浏览器环境，验证交互、性能或回归 | [frontend-test Skill](../.agents/skills/frontend-test/SKILL.md) |
