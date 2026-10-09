@@ -67,6 +67,7 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
           shared-key: signpath-test-x86_64-pc-windows-msvc
+          cache-on-failure: true
 
       - name: 7-Zip cache
         uses: actions/cache@v6
@@ -117,6 +118,14 @@ jobs:
           wait-for-completion-timeout-in-seconds: 1800
           output-artifact-directory: signpath-output/signed
 
+      - name: Upload signed application
+        uses: actions/upload-artifact@v7
+        with:
+          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-attempt-${{ github.run_attempt }}-signpath-signed
+          path: signpath-output/signed/ReinaManager.exe
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Verify signed application
         env:
           SIGNPATH_REQUEST_ID: ${{ steps.sign.outputs.signing-request-id }}
@@ -130,12 +139,41 @@ jobs:
           if ($null -eq $signature.SignerCertificate -or $signature.SignatureType -ne 'Authenticode') {
             throw 'SignPath 返回的主程序没有 Authenticode 签名。'
           }
-          # 测试证书可能不在 runner 的信任链中；签名缺失、哈希不匹配等状态仍然失败。
-          if ($signature.Status.ToString() -notin @('Valid', 'NotTrusted')) {
-            throw "签名检查失败：$($signature.Status)，$($signature.StatusMessage)"
+          $initialStatus = $signature.Status.ToString()
+          $validatedSignature = $signature
+          $temporaryTrustAdded = $false
+          $verificationError = $null
+          $certificateStorePath = "Cert:\CurrentUser\Root\$($signature.SignerCertificate.Thumbprint)"
+          try {
+            if ($initialStatus -ne 'Valid') {
+              # Windows 也会将未受信任的自签名根返回为 UnknownError；不直接把该状态判为成功。
+              if ($initialStatus -notin @('NotTrusted', 'UnknownError')) {
+                throw "签名检查失败：$initialStatus，$($signature.StatusMessage)"
+              }
+              if ($signature.SignerCertificate.Subject -ne $signature.SignerCertificate.Issuer) {
+                throw '测试证书不是自签名证书，无法自动进行临时根信任验证。'
+              }
+              if (-not (Test-Path -LiteralPath $certificateStorePath)) {
+                $certificatePath = Join-Path $env:RUNNER_TEMP 'signpath-test-public.cer'
+                Export-Certificate -Cert $signature.SignerCertificate -FilePath $certificatePath -Type CERT | Out-Null
+                Import-Certificate -FilePath $certificatePath -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+                $temporaryTrustAdded = $true
+              }
+              $validatedSignature = Get-AuthenticodeSignature -LiteralPath $executable
+            }
+            if ($validatedSignature.Status.ToString() -ne 'Valid') {
+              throw "临时信任测试证书后的签名检查失败：$($validatedSignature.Status)，$($validatedSignature.StatusMessage)"
+            }
+          } catch {
+            $verificationError = $_.Exception.Message
+          } finally {
+            # 仅移除本步骤添加的根证书，保留 runner 原有的信任配置。
+            if ($temporaryTrustAdded) {
+              Remove-Item -LiteralPath $certificateStorePath
+            }
           }
-          if ($signature.Status.ToString() -eq 'NotTrusted') {
-            Write-Warning '主程序已有签名，但 runner 不信任证书链；测试签名不等于正式证书信任验证。'
+          if ($temporaryTrustAdded) {
+            Write-Warning '已临时信任自签名测试证书并重新验证，临时根证书已移除；这不代表用户系统信任此证书。'
           }
           $report = [ordered]@{
             repository = $env:GITHUB_REPOSITORY
@@ -144,7 +182,10 @@ jobs:
             signingPolicy = 'test-signing'
             signingRequestId = $env:SIGNPATH_REQUEST_ID
             signingRequestUrl = $env:SIGNPATH_REQUEST_URL
-            signatureStatus = $signature.Status.ToString()
+            signatureStatus = $initialStatus
+            signatureValidationStatus = $validatedSignature.Status.ToString()
+            temporaryTestCertificateTrust = $temporaryTrustAdded
+            verificationError = $verificationError
             certificateSubject = $signature.SignerCertificate.Subject
             certificateThumbprint = $signature.SignerCertificate.Thumbprint
             timestampSubject = $signature.TimeStamperCertificate.Subject
@@ -159,11 +200,16 @@ jobs:
           - 提交：$env:GITHUB_SHA
           - 策略：test-signing
           - 签名请求：[$env:SIGNPATH_REQUEST_ID]($env:SIGNPATH_REQUEST_URL)
-          - 签名状态：$($signature.Status)
+          - 原始签名状态：$initialStatus
+          - 签名验证状态：$($validatedSignature.Status)
+          - 是否使用临时测试证书信任：$temporaryTrustAdded
           - 证书：$($signature.SignerCertificate.Subject)
           - 证书指纹：$($signature.SignerCertificate.Thumbprint)
           - 本次验证主程序签名和证书状态；启动行为需下载便携包后检查。
           "@ >> $env:GITHUB_STEP_SUMMARY
+          if ($verificationError) {
+            throw $verificationError
+          }
 
       - name: Prepare signed portable application
         run: |

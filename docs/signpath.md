@@ -46,9 +46,13 @@ SignPath 后台还需将 GitHub.com Trusted Build System 关联到当前项目�
 
 签名通过后下载名称以 `signpath-test-portable` 结尾的 Artifact，解压并运行 `ReinaManager.exe`。同包中的 `signature-report.json` 和 workflow Summary 记录源码提交、签名请求、证书信息和文件哈希，可用于提交 SignPath 验证。
 
+SignPath 返回的主程序会先上传为名称以 `signpath-signed` 结尾的 Artifact，即使后续验证失败，也能保留签名结果用于诊断；该单文件产物不包含完整便携版资源。
+
 产物名称包含 `github.run_attempt`，同一运行的不同尝试分别保存，不会因为重跑时上传同名产物而冲突。GitHub 的 Re-run failed jobs 会从该 job 的第一步重新执行，不会从失败的签名步骤单独续跑。
 
-workflow 要求主程序存在 Authenticode 签名，且签名状态为 `Valid` 或 `NotTrusted`；缺失签名、哈希不匹配等状态会失败。测试证书可能没有受到 Windows 信任，因此 `NotTrusted` 会产生警告，本次测试不证明正式证书的信任链有效。程序启动和具体功能仍需下载后验证。
+workflow 要求主程序存在 Authenticode 签名。若签名因自签名测试证书不受信任而返回 `NotTrusted` 或 `UnknownError`，仅在临时 CI runner 的当前用户根证书存储中导入该证书的公钥，再要求 Authenticode 验证结果为 `Valid`，最后移除本步骤添加的证书。其他错误或重新验证失败仍会使 job 失败，不会直接放行 `UnknownError`。
+
+报告同时记录原始签名状态、验证状态及是否使用临时测试证书信任。本次验证不证明用户系统信任该证书，程序启动和具体功能仍需下载后验证。签名或验证阶段失败时仍保存 Rust 依赖缓存，避免后续测试重复冷编译。
 
 本测试只验证主程序签名。正式发布还需处理安装包签名，并在安装包最后一次修改后重新生成 Tauri 更新 `.sig` 和 `latest.json` 中的签名。
 
