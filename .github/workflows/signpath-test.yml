@@ -127,6 +127,7 @@ jobs:
           retention-days: 14
 
       - name: Verify signed application
+        timeout-minutes: 3
         env:
           SIGNPATH_REQUEST_ID: ${{ steps.sign.outputs.signing-request-id }}
           SIGNPATH_REQUEST_URL: ${{ steps.sign.outputs.signing-request-web-url }}
@@ -135,7 +136,9 @@ jobs:
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
             throw '签名结果中缺少 ReinaManager.exe，请检查 Artifact Configuration 的 ZIP 结构。'
           }
+          Write-Host '开始读取主程序 Authenticode 签名。'
           $signature = Get-AuthenticodeSignature -LiteralPath $executable
+          Write-Host "原始签名状态：$($signature.Status)，$($signature.StatusMessage)"
           if ($null -eq $signature.SignerCertificate -or $signature.SignatureType -ne 'Authenticode') {
             throw 'SignPath 返回的主程序没有 Authenticode 签名。'
           }
@@ -143,7 +146,9 @@ jobs:
           $validatedSignature = $signature
           $temporaryTrustAdded = $false
           $verificationError = $null
-          $certificateStorePath = "Cert:\CurrentUser\Root\$($signature.SignerCertificate.Thumbprint)"
+          # 当前用户根证书存储可能弹出原生确认窗口；托管 runner 有管理员权限，使用机器存储进行临时验证。
+          $certificateStore = 'Cert:\LocalMachine\Root'
+          $certificateStorePath = "$certificateStore\$($signature.SignerCertificate.Thumbprint)"
           try {
             if ($initialStatus -ne 'Valid') {
               # Windows 也会将未受信任的自签名根返回为 UnknownError；不直接把该状态判为成功。
@@ -155,11 +160,16 @@ jobs:
               }
               if (-not (Test-Path -LiteralPath $certificateStorePath)) {
                 $certificatePath = Join-Path $env:RUNNER_TEMP 'signpath-test-public.cer'
+                Write-Host "导出测试证书公钥：$($signature.SignerCertificate.Thumbprint)"
                 Export-Certificate -Cert $signature.SignerCertificate -FilePath $certificatePath -Type CERT | Out-Null
-                Import-Certificate -FilePath $certificatePath -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+                Write-Host "临时导入测试证书公钥到 $certificateStore。"
+                Import-Certificate -FilePath $certificatePath -CertStoreLocation $certificateStore -ErrorAction Stop | Out-Null
                 $temporaryTrustAdded = $true
+                Write-Host '测试证书公钥已导入。'
               }
+              Write-Host '重新验证主程序 Authenticode 签名。'
               $validatedSignature = Get-AuthenticodeSignature -LiteralPath $executable
+              Write-Host "重新验证结果：$($validatedSignature.Status)，$($validatedSignature.StatusMessage)"
             }
             if ($validatedSignature.Status.ToString() -ne 'Valid') {
               throw "临时信任测试证书后的签名检查失败：$($validatedSignature.Status)，$($validatedSignature.StatusMessage)"
@@ -169,7 +179,9 @@ jobs:
           } finally {
             # 仅移除本步骤添加的根证书，保留 runner 原有的信任配置。
             if ($temporaryTrustAdded) {
-              Remove-Item -LiteralPath $certificateStorePath
+              Write-Host '移除本步骤添加的测试根证书。'
+              Remove-Item -LiteralPath $certificateStorePath -ErrorAction Stop
+              Write-Host '测试根证书已移除。'
             }
           }
           if ($temporaryTrustAdded) {
@@ -185,6 +197,7 @@ jobs:
             signatureStatus = $initialStatus
             signatureValidationStatus = $validatedSignature.Status.ToString()
             temporaryTestCertificateTrust = $temporaryTrustAdded
+            testCertificateTrustStore = $certificateStore
             verificationError = $verificationError
             certificateSubject = $signature.SignerCertificate.Subject
             certificateThumbprint = $signature.SignerCertificate.Thumbprint
@@ -210,6 +223,7 @@ jobs:
           if ($verificationError) {
             throw $verificationError
           }
+          Write-Host '签名验证完成，报告已保存。'
 
       - name: Prepare signed portable application
         run: |

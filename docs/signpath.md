@@ -50,7 +50,9 @@ SignPath 返回的主程序会先上传为名称以 `signpath-signed` 结尾的 
 
 产物名称包含 `github.run_attempt`，同一运行的不同尝试分别保存，不会因为重跑时上传同名产物而冲突。GitHub 的 Re-run failed jobs 会从该 job 的第一步重新执行，不会从失败的签名步骤单独续跑。
 
-workflow 要求主程序存在 Authenticode 签名。若签名因自签名测试证书不受信任而返回 `NotTrusted` 或 `UnknownError`，仅在临时 CI runner 的当前用户根证书存储中导入该证书的公钥，再要求 Authenticode 验证结果为 `Valid`，最后移除本步骤添加的证书。其他错误或重新验证失败仍会使 job 失败，不会直接放行 `UnknownError`。
+workflow 要求主程序存在 Authenticode 签名。若签名因自签名测试证书不受信任而返回 `NotTrusted` 或 `UnknownError`，仅在临时 GitHub 托管 CI runner 的 `Cert:\LocalMachine\Root` 中导入该证书的公钥，再要求 Authenticode 验证结果为 `Valid`，最后移除本步骤添加的证书。托管 Windows runner 具备管理员权限；使用机器存储避免当前用户根证书存储的原生确认弹窗阻塞无人值守任务。其他错误或重新验证失败仍会使 job 失败，不会直接放行 `UnknownError`。
+
+验证步骤在读取签名、导入证书、重新验证和清理证书时分别输出进度日志，并设置 3 分钟超时，避免静默等待直到整个 job 超时。GitHub CLI 的完整 job 日志要等 job 结束后才能读取；运行中可展开 Actions 网页上的具体步骤查看实时输出。
 
 报告同时记录原始签名状态、验证状态及是否使用临时测试证书信任。本次验证不证明用户系统信任该证书，程序启动和具体功能仍需下载后验证。签名或验证阶段失败时仍保存 Rust 依赖缓存，避免后续测试重复冷编译。
 
