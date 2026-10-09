@@ -97,7 +97,8 @@ jobs:
         id: unsigned
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-signpath-unsigned
+          # 同一运行的重试保留独立产物，避免与之前的上传冲突。
+          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-attempt-${{ github.run_attempt }}-signpath-unsigned
           path: src-tauri/target/x86_64-pc-windows-msvc/release/ReinaManager.exe
           if-no-files-found: error
           retention-days: 14
@@ -184,7 +185,7 @@ jobs:
       - name: Upload signed portable application
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-signpath-test-portable
+          name: ReinaManager-${{ steps.version.outputs.version }}-win_x64-attempt-${{ github.run_attempt }}-signpath-test-portable
           path: signpath-output/portable
           if-no-files-found: error
           retention-days: 14
@@ -193,7 +194,7 @@ jobs:
         if: always() && steps.sign.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: signpath-test-signature-report
+          name: signpath-test-signature-report-attempt-${{ github.run_attempt }}
           path: signpath-output/signature-report.json
           if-no-files-found: warn
           retention-days: 14
