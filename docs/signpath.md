@@ -4,6 +4,10 @@
 
 ## GitHub 配置
 
+先安装 [SignPath GitHub App](https://github.com/apps/signpath)，并授权访问 `huoshen80/ReinaManager`。可以选择 Only select repositories，只勾选本仓库。若已经安装，检查安装是否被暂停、授权仓库列表是否包含本仓库。签名连接器进行 GitHub App 校验时，API Token 不能替代此项授权。
+
+SignPath 后台还需将 GitHub.com Trusted Build System 关联到当前项目。
+
 在仓库的 Settings → Secrets and variables → Actions 中配置仓库级值：
 
 | 类型 | 名称 | 内容 |
@@ -37,6 +41,8 @@
 ## 运行和验证
 
 将测试 workflow 提交并推送到 `signpath-test` 后，通过 Actions 中的 `SignPath Test (Windows x64)` 查看运行记录。首次触发使用 push，不依赖默认分支中的手动运行入口。
+
+若提交签名时出现 `Failed to retrieve GitHub App token`，先检查上面的 App 安装和仓库授权，再在原运行记录中选择 Re-run failed jobs。该错误发生在签名提交阶段，已上传的 unsigned Artifact 仍是未签名程序。
 
 签名通过后下载名称以 `signpath-test-portable` 结尾的 Artifact，解压并运行 `ReinaManager.exe`。同包中的 `signature-report.json` 和 workflow Summary 记录源码提交、签名请求、证书信息和文件哈希，可用于提交 SignPath 验证。
 
