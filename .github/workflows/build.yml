@@ -2,13 +2,17 @@ name: Build & Test Common
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "signpath-test"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
 
 jobs:
   build:
+    env:
+      RUST_TARGET: ${{ matrix.rust_target }}
+      SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
+      TAURI_CONFIG_ARGS: ''
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,8 +26,8 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
           - os: windows-latest
             rust_target: aarch64-pc-windows-msvc
-    # 主仓库可以访问 TAURI_KEY environment，fork PR 访问不到但不会失败
-    environment: ${{ (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request') && 'TAURI_KEY' || '' }}
+    # 测试分支仅使用临时更新密钥；main 与 PR 沿用原环境限制。
+    environment: ${{ github.ref != 'refs/heads/signpath-test' && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request') && 'TAURI_KEY' || '' }}
     permissions:
       contents: read
 
@@ -122,23 +126,30 @@ jobs:
           EOF
           fi
 
+      - name: Prepare temporary updater key for test branch
+        if: env.SIGNPATH_TEST_MODE == 'true'
+        shell: bash
+        run: node scripts/signpath-sign.cjs prepare
+
       - name: Build with Tauri Action
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_KEY_PASSWORD }}
           BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
           CARGO_INCREMENTAL: 0
         with:
           # 不在这里创建 GitHub release，仅构建
           args: >-
             --target ${{ matrix.rust_target }}
+            ${{ env.TAURI_CONFIG_ARGS }}
             --features tauri/devtools
             ${{
-              (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
-              && ''
-              || '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
+              github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name != github.repository
+              && '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
+              || ''
             }}
           tagName: ""
           releaseName: ""
@@ -203,9 +214,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
             echo "⚠️ Fork PR: Build completed WITHOUT signing"
-            echo "   The application will work normally but won't support auto-updates"
+            echo "   No updater signatures generated for distribution; valid published updates can still be received"
           else
-            echo "✅ Build completed with signing enabled and auto-update support"
+            echo "✅ Build completed with Tauri updater signatures"
           fi
 
       # Upload build artifacts for testings

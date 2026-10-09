@@ -5,6 +5,7 @@ permissions:
 
 on:
   push:
+    branches: ["signpath-test"]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -18,6 +19,16 @@ on:
         required: false
         default: false
         type: boolean
+      signing_probe_only:
+        description: 'Test branch only: build and collect inputs without requesting signatures'
+        required: false
+        default: false
+        type: boolean
+      windows_only:
+        description: 'Test branch only: skip unchanged Linux builds'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: release-${{ github.repository }}-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
@@ -27,10 +38,14 @@ jobs:
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
+    env:
+      SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
     outputs:
+      checkout_ref: ${{ steps.resolve_tag.outputs.CHECKOUT_REF }}
       release_tag: ${{ steps.resolve_tag.outputs.TAG }}
       release_id: ${{ steps.release.outputs.RELEASE_ID }}
       release_draft: ${{ steps.release.outputs.RELEASE_DRAFT }}
+      release_date: ${{ steps.release.outputs.RELEASE_DATE }}
       pure_changelog: ${{ steps.changelog_entry.outputs.content }}
       release_body: ${{ steps.combine.outputs.content }}
     permissions:
@@ -40,26 +55,51 @@ jobs:
         id: resolve_tag
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$SIGNPATH_TEST_MODE" = "true" ]; then
+            TAG="signpath-test-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            CHECKOUT_REF="$GITHUB_SHA"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag_name }}"
           else
             TAG="${{ github.ref_name }}"
           fi
           TAG="${TAG#refs/tags/}"
+          echo "CHECKOUT_REF=${CHECKOUT_REF:-$TAG}" >> "$GITHUB_OUTPUT"
           echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
           echo "Release tag is $TAG"
 
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.resolve_tag.outputs.TAG }}
+          ref: ${{ steps.resolve_tag.outputs.CHECKOUT_REF }}
           fetch-depth: 0
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Get application version
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Check batch signing configuration
+        env:
+          BATCH_CONFIGURATION: ${{ vars.SIGNPATH_BATCH_ARTIFACT_CONFIGURATION_SLUG }}
+          TEST_PUBLIC_KEY: ${{ vars.SIGNPATH_TEST_UPDATER_PUBLIC_KEY }}
+          TEST_PRIVATE_KEY: ${{ secrets.SIGNPATH_TEST_UPDATER_PRIVATE_KEY }}
+        run: |
+          if [ -z "$BATCH_CONFIGURATION" ]; then
+            echo "::error::批量实验需要独立 reina-batch 配置及 SIGNPATH_BATCH_ARTIFACT_CONFIGURATION_SLUG。"
+            exit 1
+          fi
+          if [ "$SIGNPATH_TEST_MODE" = "true" ] && { [ -z "$TEST_PUBLIC_KEY" ] || [ -z "$TEST_PRIVATE_KEY" ]; }; then
+            echo "::error::分阶段测试需要共享测试更新密钥；私钥必须保存在 GitHub Secret 中。"
+            exit 1
+          fi
       - name: Extract changelog entry from CHANGELOG.md
         id: changelog_entry
         shell: bash
         env:
-          VERSION: ${{ steps.resolve_tag.outputs.TAG }}
+          VERSION: ${{ env.SIGNPATH_TEST_MODE == 'true' && steps.version.outputs.VERSION || steps.resolve_tag.outputs.TAG }}
         run: |
           VERSION="${VERSION#v}"
           VERSION_REGEX="${VERSION//./\\.}"
@@ -88,24 +128,26 @@ jobs:
         id: cliff_links
         env:
           INCLUDE_DOWNLOAD_LINKS: "only"
+          RELEASE_TAG: ${{ steps.resolve_tag.outputs.TAG }}
+          RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
+          RELEASE_WINDOWS_ONLY: ${{ github.ref == 'refs/heads/signpath-test' && inputs.windows_only == true }}
         with:
           config: cliff.toml
-          args: --current --strip header
+          args: ${{ env.SIGNPATH_TEST_MODE == 'true' && format('--unreleased --tag v{0} --strip header', steps.version.outputs.VERSION) || '--current --strip header' }}
 
       - name: Combine full release body
         id: combine
         shell: bash
+        env:
+          CHANGELOG_TEXT: ${{ steps.changelog_entry.outputs.content }}
+          DOWNLOAD_LINKS: ${{ steps.cliff_links.outputs.content }}
         run: |
-          # 生成一个随机定界符，避免内容中含有 EOF 导致截断
-          EOF=$(openssl rand -hex 8)
+          # Markdown 通过环境变量传递，避免反引号、美元符号被 shell 执行。
+          DELIMITER="RELEASE_BODY_$(openssl rand -hex 8)"
           {
-            echo "content<<$EOF"
-            cat << INNER_EOF
-          ${{ steps.changelog_entry.outputs.content }}
-
-          ${{ steps.cliff_links.outputs.content }}
-          INNER_EOF
-            echo "$EOF"
+            echo "content<<$DELIMITER"
+            printf '%s\n\n%s\n' "$CHANGELOG_TEXT" "$DOWNLOAD_LINKS"
+            echo "$DELIMITER"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create or find Draft Release
@@ -114,7 +156,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.resolve_tag.outputs.TAG }}
-          RELEASE_BODY: ${{ steps.changelog_entry.outputs.content }}
+          RELEASE_BODY: ${{ steps.combine.outputs.content }}
         run: |
           RELEASE_DATA=$(
             gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
@@ -132,8 +174,9 @@ jobs:
                 -f tag_name="$RELEASE_TAG" \
                 -f name="$RELEASE_TAG" \
                 -f body="$RELEASE_BODY" \
+                -f target_commitish="$GITHUB_SHA" \
                 -F draft=true \
-                -F prerelease=false
+                -F prerelease="$SIGNPATH_TEST_MODE"
             )
 
             echo "已创建 Draft Release：$RELEASE_TAG"
@@ -156,8 +199,10 @@ jobs:
 
           echo "RELEASE_ID=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "RELEASE_DRAFT=$RELEASE_DRAFT" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_DATE=$(echo "$RELEASE_DATA" | jq -r '.created_at')" >> "$GITHUB_OUTPUT"
 
   build-linux:
+    if: github.ref != 'refs/heads/signpath-test' || inputs.windows_only != true
     name: Build Linux
     runs-on: ${{ matrix.os }}
     needs: prepare
@@ -170,12 +215,20 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
           - os: ubuntu-22.04-arm
             rust_target: aarch64-unknown-linux-gnu
-    environment: TAURI_KEY
+    environment: ${{ github.ref != 'refs/heads/signpath-test' && 'TAURI_KEY' || '' }}
+    timeout-minutes: 90
+    env:
+      RUST_TARGET: ${{ matrix.rust_target }}
+      SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
+      TAURI_CONFIG_ARGS: ''
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.release_tag }}
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
@@ -218,12 +271,17 @@ jobs:
           linker = "clang"
           rustflags = ["-C", "link-arg=-fuse-ld=mold"]
           EOF
+      - name: Prepare updater and Windows signing configuration
+        if: env.SIGNPATH_TEST_MODE == 'true' || (runner.os == 'Windows' && env.SIGNPATH_SIGNING_POLICY != '')
+        shell: bash
+        run: node scripts/signpath-sign.cjs prepare
+
       - name: Build and Upload to Draft Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_KEY_PASSWORD }}
           BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
           TAURI_UPDATER_ACTIVE: true
           CARGO_INCREMENTAL: 0
@@ -234,10 +292,15 @@ jobs:
           releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
           releaseDraft: ${{ needs.prepare.outputs.release_draft }}
           prerelease: false
-          includeUpdaterJson: true
+          includeUpdaterJson: false
           includeRelease: true
           tauriScript: pnpm tauri
-          args: --target ${{ matrix.rust_target }}
+          args: --target ${{ matrix.rust_target }} ${{ env.TAURI_CONFIG_ARGS }}
+
+      - name: Upload test updater public key
+        if: env.SIGNPATH_TEST_MODE == 'true'
+        shell: bash
+        run: gh release upload "$RELEASE_TAG" signpath-output/updater-public-key-*.txt --clobber
 
   build-windows:
     name: Build Windows
@@ -245,15 +308,28 @@ jobs:
     needs: prepare
     permissions:
       contents: write
+      actions: read
     strategy:
+      fail-fast: false
       matrix:
         rust_target: [ x86_64-pc-windows-msvc, aarch64-pc-windows-msvc ]
-    environment: TAURI_KEY
+    environment: ${{ github.ref != 'refs/heads/signpath-test' && 'TAURI_KEY' || '' }}
+    timeout-minutes: 90
+    env:
+      RUST_TARGET: ${{ matrix.rust_target }}
+      SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
+      SIGNPATH_PHASE: capture
+      SIGNPATH_TEST_UPDATER_PUBLIC_KEY: ${{ vars.SIGNPATH_TEST_UPDATER_PUBLIC_KEY }}
+      TAURI_CONFIG_ARGS: ''
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      SIGNPATH_SIGNING_POLICY: ${{ github.ref == 'refs/heads/signpath-test' && 'test-signing' || vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.prepare.outputs.release_tag }}
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
@@ -291,6 +367,81 @@ jobs:
           EOF
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Prepare updater and Windows signing configuration
+        if: env.SIGNPATH_TEST_MODE == 'true' || (runner.os == 'Windows' && env.SIGNPATH_SIGNING_POLICY != '')
+        shell: bash
+        run: node scripts/signpath-sign.cjs prepare
+
+      - name: Build unsigned Windows staging packages
+        shell: pwsh
+        env:
+          BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
+          CARGO_INCREMENTAL: 0
+        run: |
+          $short = if ($env:RUST_TARGET -eq 'x86_64-pc-windows-msvc') { 'win_x64' } else { 'win_arm64' }
+          pnpm tauri build --verbose --target $env:RUST_TARGET --config (Join-Path $env:RUNNER_TEMP "signpath-$short.tauri.json")
+      - name: Collect batch signing inputs
+        run: node scripts/signpath-sign.cjs collect-stage
+      - name: Upload unsigned Windows staging files
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-staging-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.rust_target }}
+          path: |
+            signpath-output/staging
+            !signpath-output/staging/**/captured/**
+          if-no-files-found: error
+          include-hidden-files: true
+
+  sign-windows:
+    name: Sign and package both Windows architectures
+    if: github.ref != 'refs/heads/signpath-test' || inputs.signing_probe_only != true
+    runs-on: windows-latest
+    needs: [prepare, build-windows]
+    permissions:
+      contents: write
+      actions: read
+    environment: ${{ github.ref != 'refs/heads/signpath-test' && 'TAURI_KEY' || '' }}
+    timeout-minutes: 120
+    env:
+      SIGNPATH_BATCH_MODE: 'true'
+      SIGNPATH_PHASE: restore
+      SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
+      SIGNPATH_TEST_UPDATER_PUBLIC_KEY: ${{ vars.SIGNPATH_TEST_UPDATER_PUBLIC_KEY }}
+      SIGNPATH_SIGNING_POLICY: ${{ github.ref == 'refs/heads/signpath-test' && 'test-signing' || vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+      SIGNPATH_BATCH_ARTIFACT_CONFIGURATION_SLUG: ${{ vars.SIGNPATH_BATCH_ARTIFACT_CONFIGURATION_SLUG }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ github.ref == 'refs/heads/signpath-test' && secrets.SIGNPATH_TEST_UPDATER_PRIVATE_KEY || secrets.TAURI_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ github.ref == 'refs/heads/signpath-test' && 'signpath-test-only' || secrets.TAURI_KEY_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+      - name: Install Cargo tools for bundle metadata
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install locked Tauri CLI only
+        shell: pwsh
+        run: |
+          $cli = Join-Path $env:RUNNER_TEMP 'signpath-tauri-cli'
+          New-Item -ItemType Directory -Path $cli -Force | Out-Null
+          '{"private":true}' | Set-Content -LiteralPath "$cli/package.json" -Encoding utf8
+          $cliVersion = node scripts/signpath-sign.cjs cli-version
+          if ($LASTEXITCODE -ne 0) { throw '读取 Tauri CLI 版本失败。' }
+          pnpm --dir $cli add --save-exact --ignore-scripts "@tauri-apps/cli@$cliVersion"
+          if ($LASTEXITCODE -ne 0) { throw '安装 Tauri CLI 失败。' }
+          "TAURI_CLI_MODULE=$cli/node_modules/@tauri-apps/cli/tauri.js" >> $env:GITHUB_ENV
+          "SIGNPATH_PWSH_PATH=$((Get-Command pwsh).Source)" >> $env:GITHUB_ENV
       - name: Get version
         id: get_version
         shell: bash
@@ -298,106 +449,287 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Version is $VERSION"
-      - name: Compute short target name
-        id: short
-        shell: bash
-        run: |
-          case "${{ matrix.rust_target }}" in
-            *x86_64-pc-windows*) SHORT=win_x64 ;;
-            *aarch64-pc-windows*) SHORT=win_arm64 ;;
-            *) SHORT=unknown ;;
-          esac
-          echo "SHORT=$SHORT" >> $GITHUB_OUTPUT
-      - name: Build and Upload to Draft Release
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
-          TAURI_UPDATER_ACTIVE: true
-          CARGO_INCREMENTAL: 0
+      - name: Resolve Windows staging artifacts across attempts
+        id: staging_artifacts
+        uses: actions/github-script@v8
         with:
-          releaseId: ${{ needs.prepare.outputs.release_id }}
-          tagName: ${{ needs.prepare.outputs.release_tag }}
-          releaseName: ${{ needs.prepare.outputs.release_tag }}
-          releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
-          releaseDraft: ${{ needs.prepare.outputs.release_draft }}
-          prerelease: false
-          includeUpdaterJson: true
-          includeRelease: true
-          tauriScript: pnpm tauri
-          args: --target ${{ matrix.rust_target }}
-      - name: Prepare portable package (Windows)
+          script: |
+            const { selectArtifacts } = require('./scripts/signpath-sign.cjs');
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              ...context.repo, run_id: context.runId, per_page: 100,
+            });
+            const selected = selectArtifacts(artifacts, `windows-staging-${context.runId}-`,
+              ['x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc'], Number(process.env.GITHUB_RUN_ATTEMPT));
+            for (const artifact of selected) core.info(`Using ${artifact.name} (${artifact.id})`);
+            core.setOutput('ids', selected.map(artifact => artifact.id).join(','));
+      - name: Download both Windows staging artifacts
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ steps.staging_artifacts.outputs.ids }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: signpath-output/staging
+      - name: Prepare eight inner executables for signing
+        run: node scripts/signpath-sign.cjs prepare-batch inner
+      - name: Upload unsigned inner
+        id: unsigned_inner
+        uses: actions/upload-artifact@v7
+        with:
+          name: signpath-inner-${{ github.run_id }}-${{ github.run_attempt }}-unsigned
+          path: signpath-output/unsigned-inner
+          if-no-files-found: error
+      - name: Sign eight inner executables
+        id: sign_inner
+        timeout-minutes: 40
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ env.SIGNPATH_SIGNING_POLICY }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_BATCH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned_inner.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          service-unavailable-timeout-in-seconds: 300
+          download-signed-artifact-timeout-in-seconds: 300
+          output-artifact-directory: signpath-output/signed-inner
+          parameters: |
+            version: ${{ toJSON(steps.get_version.outputs.VERSION) }}
+      - name: Accept signed inner and record hashes
+        env:
+          SIGNPATH_UNSIGNED_ARTIFACT_ID: ${{ steps.unsigned_inner.outputs.artifact-id }}
+          SIGNPATH_REQUEST_ID: ${{ steps.sign_inner.outputs.signing-request-id }}
+          SIGNPATH_REQUEST_URL: ${{ steps.sign_inner.outputs.signing-request-web-url }}
+        run: node scripts/signpath-sign.cjs accept-batch inner signpath-output/signed-inner
+      - name: Preserve signed inner files for diagnosis
+        if: always() && hashFiles('signpath-output/signing/batch-inner.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-signed-inner-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            signpath-output/staging/*/inner/*.exe
+            signpath-output/staging/*/signed-inner.json
+            signpath-output/staging/*/manifest.json
+          if-no-files-found: error
+      - name: Repackage both architectures with signed inner files
+        run: node scripts/signpath-sign.cjs repackage
+      - name: Prepare four installers for signing
+        run: node scripts/signpath-sign.cjs prepare-batch installers
+      - name: Upload unsigned installers
+        id: unsigned_installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: signpath-installers-${{ github.run_id }}-${{ github.run_attempt }}-unsigned
+          path: signpath-output/unsigned-installers
+          if-no-files-found: error
+      - name: Sign four installers
+        id: sign_installers
+        timeout-minutes: 40
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ env.SIGNPATH_SIGNING_POLICY }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_BATCH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned_installers.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          service-unavailable-timeout-in-seconds: 300
+          download-signed-artifact-timeout-in-seconds: 300
+          output-artifact-directory: signpath-output/signed-installers
+          parameters: |
+            version: ${{ toJSON(steps.get_version.outputs.VERSION) }}
+      - name: Accept signed installers and record hashes
+        env:
+          SIGNPATH_UNSIGNED_ARTIFACT_ID: ${{ steps.unsigned_installers.outputs.artifact-id }}
+          SIGNPATH_REQUEST_ID: ${{ steps.sign_installers.outputs.signing-request-id }}
+          SIGNPATH_REQUEST_URL: ${{ steps.sign_installers.outputs.signing-request-web-url }}
+        run: node scripts/signpath-sign.cjs accept-batch installers signpath-output/signed-installers
+      - name: Sign final installers for Tauri updater
+        run: node scripts/signpath-sign.cjs sign-bundles
+      - name: Prepare and verify both portable packages
         shell: pwsh
         run: |
-          $version = "${{ steps.get_version.outputs.VERSION }}"
-          $short = "${{ steps.short.outputs.SHORT }}"
-          $target = "${{ matrix.rust_target }}"
-          $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager_${version}_${short}"
-          $bundledRoot = "src-tauri/target/$target/release"
-          $bundledSevenZip = Join-Path $bundledRoot "tools/7zip"
-          $portableResources = Join-Path $portableRoot "resources"
-          $portableSevenZip = Join-Path $portableRoot "tools/7zip"
-          $resourcesDataDir = Join-Path $portableResources "data"
-          $zipPath = "src-tauri/target/$target/release/ReinaManager_${version}_${short}-portable.zip"
+          foreach ($target in @('x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc')) {
+            $env:RUST_TARGET = $target
+            $version = "${{ steps.get_version.outputs.VERSION }}"
+            $short = if ($target -eq "x86_64-pc-windows-msvc") { "win_x64" } else { "win_arm64" }
+            $portableRoot = "src-tauri/target/$target/release/portable/ReinaManager_${version}_${short}"
+            $bundledRoot = "src-tauri/target/$target/release"
+            # 仅重新打包不会重建运行时资源目录，便携版直接复用对应架构的已校验资源。
+            $bundledSevenZip = "signpath-output/staging/$target/resources"
+            $portableResources = Join-Path $portableRoot "resources"
+            $portableSevenZip = Join-Path $portableRoot "tools/7zip"
+            $resourcesDataDir = Join-Path $portableResources "data"
+            $zipPath = "src-tauri/target/$target/release/ReinaManager_${version}_${short}-portable.zip"
 
-          if (Test-Path $portableRoot) {
-            Remove-Item $portableRoot -Recurse -Force
-          }
-          if (Test-Path $zipPath) {
-            Remove-Item $zipPath -Force
-          }
-
-          if (-not (Test-Path $bundledRoot)) {
-            throw "Tauri 构建目录不存在: $bundledRoot"
-          }
-          if (-not (Test-Path $bundledSevenZip)) {
-            throw "Tauri 构建资源中缺少 7-Zip: $bundledSevenZip"
-          }
-          foreach ($relativePath in @("7z.exe", "7z.dll", "Codecs/zstd.dll", "Codecs/LICENSE")) {
-            if (-not (Test-Path -LiteralPath (Join-Path $bundledSevenZip $relativePath) -PathType Leaf)) {
-              throw "Tauri 构建资源中缺少 7-Zip 文件: $relativePath"
+            if (Test-Path $portableRoot) {
+              Remove-Item $portableRoot -Recurse -Force
             }
-          }
-
-          New-Item -ItemType Directory -Path $portableSevenZip -Force | Out-Null
-          Get-ChildItem -LiteralPath $bundledSevenZip -Force |
-            Copy-Item -Destination $portableSevenZip -Recurse -Force
-          if (-not (Test-Path $portableSevenZip)) {
-            throw "便携版资源中缺少 7-Zip: $portableSevenZip"
-          }
-          foreach ($relativePath in @("7z.exe", "7z.dll", "Codecs/zstd.dll", "Codecs/LICENSE")) {
-            if (-not (Test-Path -LiteralPath (Join-Path $portableSevenZip $relativePath) -PathType Leaf)) {
-              throw "便携版资源中缺少 7-Zip 文件: $relativePath"
+            if (Test-Path $zipPath) {
+              Remove-Item $zipPath -Force
             }
-          }
-          New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
-          @"
-          该文件夹为数据库文件夹，删除该文件夹则退出便携模式，反之则保持便携模式。
-          This folder stores the database. Deleting this folder exits portable mode; keeping it preserves portable mode.
+
+            if (-not (Test-Path $bundledRoot)) {
+              throw "Tauri 构建目录不存在: $bundledRoot"
+            }
+            if (-not (Test-Path $bundledSevenZip)) {
+              throw "Tauri 构建资源中缺少 7-Zip: $bundledSevenZip"
+            }
+            foreach ($relativePath in @("7z.exe", "7z.dll", "Codecs/zstd.dll", "Codecs/LICENSE")) {
+              if (-not (Test-Path -LiteralPath (Join-Path $bundledSevenZip $relativePath) -PathType Leaf)) {
+                throw "Tauri 构建资源中缺少 7-Zip 文件: $relativePath"
+              }
+            }
+
+            New-Item -ItemType Directory -Path $portableSevenZip -Force | Out-Null
+            Get-ChildItem -LiteralPath $bundledSevenZip -Force |
+              Copy-Item -Destination $portableSevenZip -Recurse -Force
+            if (-not (Test-Path $portableSevenZip)) {
+              throw "便携版资源中缺少 7-Zip: $portableSevenZip"
+            }
+            foreach ($relativePath in @("7z.exe", "7z.dll", "Codecs/zstd.dll", "Codecs/LICENSE")) {
+              if (-not (Test-Path -LiteralPath (Join-Path $portableSevenZip $relativePath) -PathType Leaf)) {
+                throw "便携版资源中缺少 7-Zip 文件: $relativePath"
+              }
+            }
+            New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
+            @"
+            该文件夹为数据库文件夹，删除该文件夹则退出便携模式，反之则保持便携模式。
+            This folder stores the database. Deleting this folder exits portable mode; keeping it preserves portable mode.
           "@ | Set-Content -Path (Join-Path $resourcesDataDir "readme.txt") -Encoding UTF8
-          Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
-          Compress-Archive -Path "$portableRoot/*" -DestinationPath $zipPath
-      - name: Upload portable package to Draft Release
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
+            $env:SIGNPATH_PORTABLE_ROOT = $portableRoot
+            Compress-Archive -Path "$portableRoot/*" -DestinationPath $zipPath
+            ./scripts/signpath-test.ps1 -Mode Collect
+          }
+      - name: Upload x86_64-pc-windows-msvc validation assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-validation-${{ github.run_id }}-${{ github.run_attempt }}-x86_64-pc-windows-msvc
+          path: signpath-output/assets/x86_64-pc-windows-msvc
+          if-no-files-found: error
+      - name: Upload aarch64-pc-windows-msvc validation assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-validation-${{ github.run_id }}-${{ github.run_attempt }}-aarch64-pc-windows-msvc
+          path: signpath-output/assets/aarch64-pc-windows-msvc
+          if-no-files-found: error
+      - name: Upload final Windows assets to Draft Release
+        shell: pwsh
         run: |
-          gh release upload "${{ needs.prepare.outputs.release_tag }}" \
-            "src-tauri/target/${{ matrix.rust_target }}/release/ReinaManager_${{ steps.get_version.outputs.VERSION }}_${{ steps.short.outputs.SHORT }}-portable.zip" \
-            --clobber
+          foreach ($target in @('x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc')) {
+            $files = @(Get-ChildItem -LiteralPath "signpath-output/assets/$target" -File | ForEach-Object FullName)
+            gh release upload $env:RELEASE_TAG @files --clobber
+            if ($LASTEXITCODE -ne 0) { throw "上传 $target 资产失败。" }
+          }
+      - name: Preserve signing diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: signpath-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}-batch
+          path: signpath-output/signing
+          if-no-files-found: ignore
+
+  verify-windows:
+    name: Verify Windows ${{ matrix.arch }} packages
+    needs: [prepare, sign-windows]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+          - arch: arm64
+            os: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
+    env:
+      RUST_TARGET: ${{ matrix.rust_target }}
+      SIGNPATH_BATCH_MODE: 'true'
+      SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
+      SIGNPATH_SIGNING_POLICY: ${{ github.ref == 'refs/heads/signpath-test' && 'test-signing' || vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Resolve Windows validation artifact across attempts
+        id: validation_artifact
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { selectArtifacts } = require('./scripts/signpath-sign.cjs');
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              ...context.repo, run_id: context.runId, per_page: 100,
+            });
+            const selected = selectArtifacts(artifacts, `windows-validation-${context.runId}-`,
+              [process.env.RUST_TARGET], Number(process.env.GITHUB_RUN_ATTEMPT));
+            core.info(`Using ${selected[0].name} (${selected[0].id})`);
+            core.setOutput('id', selected[0].id);
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ steps.validation_artifact.outputs.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: test-assets
+      - name: Verify installer payloads and updater signatures
+        timeout-minutes: 10
+        shell: pwsh
+        run: ./scripts/signpath-test.ps1 -Mode Validate -AssetsDirectory test-assets
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-verified-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.rust_target }}
+          path: test-assets
+          if-no-files-found: error
 
   finalize-release:
     name: Finalize Release
+    if: >-
+      ${{ !cancelled() && needs.prepare.result == 'success' && needs.sign-windows.result == 'success' &&
+          needs.verify-windows.result == 'success' && (needs.build-linux.result == 'success' ||
+          (github.ref == 'refs/heads/signpath-test' && inputs.windows_only == true && needs.build-linux.result == 'skipped')) }}
     runs-on: ubuntu-latest
-    needs: [prepare, build-linux, build-windows]
+    needs: [prepare, build-linux, sign-windows, verify-windows]
     permissions:
       contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Generate and verify final updater manifest
+        env:
+          RELEASE_DATE: ${{ needs.prepare.outputs.release_date }}
+          RELEASE_NOTES: ${{ needs.prepare.outputs.pure_changelog }}
+          SIGNPATH_BATCH_MODE: 'true'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          SIGNPATH_TEST_MODE: ${{ github.ref == 'refs/heads/signpath-test' }}
+          SIGNPATH_WINDOWS_ONLY: ${{ github.ref == 'refs/heads/signpath-test' && inputs.windows_only == true }}
+        run: |
+          gh release download "$RELEASE_TAG" --dir release-validation
+          node scripts/signpath-sign.cjs generate-updater release-validation
+          node scripts/signpath-sign.cjs verify-release release-validation
+          gh release upload "$RELEASE_TAG" release-validation/latest.json --clobber
+      - name: Keep test release as draft
+        if: github.ref == 'refs/heads/signpath-test'
+        env:
+          VALIDATION_SCOPE: ${{ inputs.windows_only == true && 'Windows 两架构' || '四平台' }}
+        run: echo "测试 Release 保持草稿；${VALIDATION_SCOPE}更新资产和签名已验证，尚未测试客户端联网升级。" >> "$GITHUB_STEP_SUMMARY"
       - name: Determine release type
         id: release-type
         shell: bash
@@ -409,6 +741,7 @@ jobs:
           fi
 
       - name: Publish Final Release
+        if: github.ref != 'refs/heads/signpath-test'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FULL_RELEASE_BODY: ${{ needs.prepare.outputs.release_body }}
@@ -434,7 +767,7 @@ jobs:
     needs: [prepare, finalize-release] # 等待 release 正式发布
     permissions:
       contents: write
-    if: needs.prepare.outputs.release_tag != ''
+    if: needs.prepare.outputs.release_tag != '' && github.ref != 'refs/heads/signpath-test'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

@@ -13,13 +13,13 @@ body = """
 {% set repo_url = "https://github.com/" ~ repo %}
 
 {% if get_env(name="INCLUDE_DOWNLOAD_LINKS", default="false") == "only" %}
-{% set clean_version = version | trim_start_matches(pat="v") %}
-{% set base_url = repo_url ~ "/releases/download/" ~ version ~ "/" %}
+{% set clean_version = get_env(name="RELEASE_VERSION", default=version | trim_start_matches(pat="v")) %}{% set release_tag = get_env(name="RELEASE_TAG", default=version) %}
+{% set base_url = repo_url ~ "/releases/download/" ~ release_tag ~ "/" %}
 {% set prefix = "ReinaManager_" ~ clean_version %}
 ---
 ### 📥 下载地址 (Download)
 
-![Downloads](https://img.shields.io/github/downloads/{{ repo }}/{{ version }}/total)
+![Downloads](https://img.shields.io/github/downloads/{{ repo }}/{{ release_tag }}/total)
 
 **Windows** (不支持 Win7)
 - [**64位 (x64)**]({{ base_url }}{{ prefix }}_x64_en-US.msi)
@@ -27,11 +27,11 @@ body = """
 - [**便携版 (x64)**]({{ base_url }}{{ prefix }}_win_x64-portable.zip)
 - [**便携版 (ARM64)**]({{ base_url }}{{ prefix }}_win_arm64-portable.zip)
 
-**Linux**
+{% if get_env(name="RELEASE_WINDOWS_ONLY", default="false") != "true" %}**Linux**
 - [**AppImage (x64)**]({{ base_url }}{{ prefix }}_amd64.AppImage)
 - [**Debian/Ubuntu (.deb x64)**]({{ base_url }}{{ prefix }}_amd64.deb)
 - [**AppImage (ARM64)**]({{ base_url }}{{ prefix }}_aarch64.AppImage)
-- [**Debian/Ubuntu (.deb ARM64)**]({{ base_url }}{{ prefix }}_arm64.deb)
+- [**Debian/Ubuntu (.deb ARM64)**]({{ base_url }}{{ prefix }}_arm64.deb){% endif %}
 
 {% else %}
 {% if version %}\

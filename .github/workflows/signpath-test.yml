@@ -1,8 +1,6 @@
 name: SignPath Test (Windows x64)
 
 on:
-  push:
-    branches: [signpath-test]
   workflow_dispatch:
 
 permissions:
