@@ -87,9 +87,11 @@ jobs:
         env:
           BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
         # 先验证主程序 Authenticode 签名；不生成安装包或依赖更新私钥的 .sig。
-        run: >-
-          pnpm tauri build --ci --target x86_64-pc-windows-msvc --no-bundle
-          --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked
+        run: |
+          # 使用配置文件，避免 Windows 下 pnpm 转发参数时丢失内联 JSON 的引号。
+          $configPath = Join-Path $env:RUNNER_TEMP 'signpath-test.tauri.json'
+          '{"bundle":{"createUpdaterArtifacts":false}}' | Set-Content -LiteralPath $configPath -Encoding utf8
+          pnpm tauri build --ci --target x86_64-pc-windows-msvc --no-bundle --config $configPath -- --locked
 
       - name: Upload unsigned application
         id: unsigned
