@@ -192,11 +192,9 @@ jobs:
             }
           }
           New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
-          @"
-          该文件夹为数据库文件夹，删除该文件夹则退出便携模式，反之则保持便携模式。
-          This folder stores the database. Deleting this folder exits portable mode; keeping it preserves portable mode.
-          "@ | Set-Content -Path (Join-Path $resourcesDataDir "readme.txt") -Encoding UTF8
           Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
+          # 先压缩以保留空的 resources/data，直接上传目录会丢失便携模式标识目录。
+          Compress-Archive -Path "$portableRoot/*" -DestinationPath "$portableRoot.zip" -Force
 
       # 显示构建状态
       - name: Build status
@@ -215,7 +213,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable
-          path: src-tauri/target/${{ matrix.rust_target }}/release/portable/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}
+          path: src-tauri/target/${{ matrix.rust_target }}/release/portable/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}.zip
           if-no-files-found: warn
 
       - name: Upload MSI Installer (Artifact)
