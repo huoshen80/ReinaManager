@@ -1,3 +1,99 @@
+## [0.32.0](https://github.com/huoshen80/ReinaManager/compare/v0.31.1...v0.32.0) (2026-10-15)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- 精简发布流程并修复构建中的更新签名 ([36830f7](https://github.com/huoshen80/ReinaManager/commit/36830f7a54c50fd455b307f8df7f6bd6717871c5))
+
+### ✨ 新功能
+
+- *(updater)* 提示旧安装目录中的程序副本 ([efc805b](https://github.com/huoshen80/ReinaManager/commit/efc805bfb6e62593932c5b9cb2ec175d80de1fd3))
+- *(settings)* 在关于页面添加社区链接 ([f8c4ff3](https://github.com/huoshen80/ReinaManager/commit/f8c4ff372163811b1a9ceb801e17fd8e8ce76b46))
+- *(metadata)* 接入 NextMoe 关联数据源 ([1504525](https://github.com/huoshen80/ReinaManager/commit/150452510a7e7cadf307d10e8518888d91ed60ab))
+- *(cloud)* 导入 Kun 收藏并同步状态 ([3d60f6f](https://github.com/huoshen80/ReinaManager/commit/3d60f6f1e70157181602af3cba979f9bfa6444a7))
+- *(review)* 统一云端评价和游玩时长推送 ([d08cdec](https://github.com/huoshen80/ReinaManager/commit/d08cdeca93bca10d3c67ec46e459ddfdc3ccb5aa))
+- *(review)* 说明不可用的推送目标 ([450c4aa](https://github.com/huoshen80/ReinaManager/commit/450c4aae1d78c525dd8eac1daba89001ec264599))
+
+### 🎨 样式
+
+- 将 PowerShell 换行符统一为 LF ([ad5237d](https://github.com/huoshen80/ReinaManager/commit/ad5237dcb7db40ade398907b3ee472bd4f179ba2))
+
+### 🐛 Bug 修复
+
+- *(updater)* 支持更新移动后的程序副本和便携版 ([51d9373](https://github.com/huoshen80/ReinaManager/commit/51d9373be6228833a774c12b93e7715a31209680))
+- *(logs)* 在启动诊断中包含版本号 ([d3a249f](https://github.com/huoshen80/ReinaManager/commit/d3a249fc1978365eac1e729a17e56b3d2d2e0fb5))
+- *(dialog)* 明确删除游戏的影响 ([5ddd510](https://github.com/huoshen80/ReinaManager/commit/5ddd510ea450ddfed84770a2bf06b62cf4cf0c85))
+- *(migration)* 避免重复创建升级备份 ([2a319d3](https://github.com/huoshen80/ReinaManager/commit/2a319d359f02170af2a0f90779c3e3f65852cd09))
+- *(bgm)* 清除已过期的持久化凭据 ([d0fbd4f](https://github.com/huoshen80/ReinaManager/commit/d0fbd4f5d2789432bad0050d6643fc9a53bd1621))
+- *(cloud)* 在导入时保留 Kun 评价 ([51702be](https://github.com/huoshen80/ReinaManager/commit/51702be6d2bb1bef951fef7bb5fb38daad94d177))
+- *(metadata)* 遵循数据源限流规则 ([70ce820](https://github.com/huoshen80/ReinaManager/commit/70ce820a7b95afa6e7e23bb153eaa58e7a9633da))
+- *(i18n)* 补充更新对话框的默认文案 ([0ec0697](https://github.com/huoshen80/ReinaManager/commit/0ec0697460323b9a5733bd0c60ddd29b1cbe3c39))
+- *(metadata)* 明确 Kungal 升级提示 ([2096395](https://github.com/huoshen80/ReinaManager/commit/2096395680a84a840b6535f1a9352c3bccb4ee1e))
+- *(dialog)* 移除封面预览的多余空白 ([ec27bd3](https://github.com/huoshen80/ReinaManager/commit/ec27bd348a34a1b69eacbac4fdded2872fe17e00))
+- *(metadata)* 支持 Playnite 导入来源 ([cec941f](https://github.com/huoshen80/ReinaManager/commit/cec941f09feb766e0a6e1b6a8b6409d27ded6156))
+
+### 📚 文档
+
+- 添加 Playnite 迁移支持 [skip ci] ([89c0c07](https://github.com/huoshen80/ReinaManager/commit/89c0c07d2971575109fbb565ef091b59329ca59e))
+- 保留长期有效的架构约定 ([257eb44](https://github.com/huoshen80/ReinaManager/commit/257eb444d02d38ccec112e2df70e934eeea3aa5e))
+
+### 🚜 重构
+
+- *(settings)* 移除冗长的提示 ([97d1425](https://github.com/huoshen80/ReinaManager/commit/97d1425e5cccd5e2921bfb93976c550f563bebcb))
+
+### 🧪 测试
+
+- *(backend)* 整理有效的后端测试 ([f49df94](https://github.com/huoshen80/ReinaManager/commit/f49df941aa7bb2afe9e29452c30d1caca3a5c592))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- Streamline release and fix build updater signing ([36830f7](https://github.com/huoshen80/ReinaManager/commit/36830f7a54c50fd455b307f8df7f6bd6717871c5))
+
+### ✨ Features
+
+- *(updater)* Warn about old install copies ([efc805b](https://github.com/huoshen80/ReinaManager/commit/efc805bfb6e62593932c5b9cb2ec175d80de1fd3))
+- *(settings)* Add community link to about section ([f8c4ff3](https://github.com/huoshen80/ReinaManager/commit/f8c4ff372163811b1a9ceb801e17fd8e8ce76b46))
+- *(metadata)* Integrate NextMoe linked sources ([1504525](https://github.com/huoshen80/ReinaManager/commit/150452510a7e7cadf307d10e8518888d91ed60ab))
+- *(cloud)* Import Kun collections and sync status ([3d60f6f](https://github.com/huoshen80/ReinaManager/commit/3d60f6f1e70157181602af3cba979f9bfa6444a7))
+- *(review)* Unify cloud review and playtime pushes ([d08cdec](https://github.com/huoshen80/ReinaManager/commit/d08cdeca93bca10d3c67ec46e459ddfdc3ccb5aa))
+- *(review)* Explain unavailable push targets ([450c4aa](https://github.com/huoshen80/ReinaManager/commit/450c4aae1d78c525dd8eac1daba89001ec264599))
+
+### 🎨 Styling
+
+- Unify PowerShell line endings as LF ([ad5237d](https://github.com/huoshen80/ReinaManager/commit/ad5237dcb7db40ade398907b3ee472bd4f179ba2))
+
+### 🐛 Bug Fixes
+
+- *(updater)* Update moved and portable copies ([51d9373](https://github.com/huoshen80/ReinaManager/commit/51d9373be6228833a774c12b93e7715a31209680))
+- *(logs)* Include version in startup diagnostics ([d3a249f](https://github.com/huoshen80/ReinaManager/commit/d3a249fc1978365eac1e729a17e56b3d2d2e0fb5))
+- *(dialog)* Clarify game deletion consequences ([5ddd510](https://github.com/huoshen80/ReinaManager/commit/5ddd510ea450ddfed84770a2bf06b62cf4cf0c85))
+- *(migration)* Avoid redundant upgrade backups ([2a319d3](https://github.com/huoshen80/ReinaManager/commit/2a319d359f02170af2a0f90779c3e3f65852cd09))
+- *(bgm)* Clear expired persisted credentials ([d0fbd4f](https://github.com/huoshen80/ReinaManager/commit/d0fbd4f5d2789432bad0050d6643fc9a53bd1621))
+- *(cloud)* Preserve Kun reviews during import ([51702be](https://github.com/huoshen80/ReinaManager/commit/51702be6d2bb1bef951fef7bb5fb38daad94d177))
+- *(metadata)* Respect source rate limits ([70ce820](https://github.com/huoshen80/ReinaManager/commit/70ce820a7b95afa6e7e23bb153eaa58e7a9633da))
+- *(i18n)* Add updater dialog defaults ([0ec0697](https://github.com/huoshen80/ReinaManager/commit/0ec0697460323b9a5733bd0c60ddd29b1cbe3c39))
+- *(metadata)* Clarify Kungal upgrade notice ([2096395](https://github.com/huoshen80/ReinaManager/commit/2096395680a84a840b6535f1a9352c3bccb4ee1e))
+- *(dialog)* Remove excess cover preview space ([ec27bd3](https://github.com/huoshen80/ReinaManager/commit/ec27bd348a34a1b69eacbac4fdded2872fe17e00))
+- *(metadata)* Support Playnite imports ([cec941f](https://github.com/huoshen80/ReinaManager/commit/cec941f09feb766e0a6e1b6a8b6409d27ded6156))
+
+### 📚 Documentation
+
+- Add Playnite migration support [skip ci] ([89c0c07](https://github.com/huoshen80/ReinaManager/commit/89c0c07d2971575109fbb565ef091b59329ca59e))
+- Retain lasting architecture contracts ([257eb44](https://github.com/huoshen80/ReinaManager/commit/257eb444d02d38ccec112e2df70e934eeea3aa5e))
+
+### 🚜 Refactor
+
+- *(settings)* Remove verbose expansion hint ([97d1425](https://github.com/huoshen80/ReinaManager/commit/97d1425e5cccd5e2921bfb93976c550f563bebcb))
+
+### 🧪 Testing
+
+- *(backend)* Consolidate meaningful coverage ([f49df94](https://github.com/huoshen80/ReinaManager/commit/f49df941aa7bb2afe9e29452c30d1caca3a5c592))
+
+
 ## [0.31.1](https://github.com/huoshen80/ReinaManager/compare/v0.31.0...v0.31.1) (2026-10-02)
 
 <details>
