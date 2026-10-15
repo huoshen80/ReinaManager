@@ -34,7 +34,12 @@ function buildErogameScapeOptions(
 			...EROGAMESCAPE_HEADERS,
 			...options.headers,
 		},
-		rateLimit: { source: "erogamescape" },
+		rateLimit: {
+			source: "erogamescape",
+			minIntervalMs: 3000,
+			defaultBackoffMs: 0,
+			maxRetries: 0,
+		},
 	};
 }
 

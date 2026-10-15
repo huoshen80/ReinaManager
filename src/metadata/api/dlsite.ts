@@ -1,6 +1,7 @@
 import i18n from "@/providers/i18n";
 import type { DlsiteData, GameMetadataDraft } from "@/types";
-import { AppError } from "@/utils/errors";
+import { isAbortError } from "@/utils/async";
+import { AppError, isApiRateLimitError } from "@/utils/errors";
 import {
 	createGameCandidate,
 	createSourceCandidateRecord,
@@ -70,7 +71,12 @@ function buildDlsiteOptions(
 			Cookie: `adultchecked=1; locale=${locale}`,
 			...options.headers,
 		},
-		rateLimit: { source: "dlsite" },
+		rateLimit: {
+			source: "dlsite",
+			minIntervalMs: 600,
+			defaultBackoffMs: 0,
+			maxRetries: 0,
+		},
 	};
 }
 
@@ -463,6 +469,7 @@ export async function fetchDlsiteById(
 	try {
 		info = await fetchProductInfo(normalizedId, context);
 	} catch (error) {
+		if (isApiRateLimitError(error) || isAbortError(error)) throw error;
 		infoError = error;
 	}
 
@@ -470,6 +477,7 @@ export async function fetchDlsiteById(
 	try {
 		doc = await fetchDocument(buildWorkUrl(normalizedId), context);
 	} catch (error) {
+		if (isApiRateLimitError(error) || isAbortError(error)) throw error;
 		if (!info) throw infoError ?? error;
 	}
 

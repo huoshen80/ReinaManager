@@ -17,7 +17,7 @@ export type AppErrorCode =
 	| "api_rate_limited"
 	| "metadata_request_failed";
 
-type ApiRateLimitSource =
+export type ApiRateLimitSource =
 	| "bgm"
 	| "vndb"
 	| "ymgal"
@@ -25,6 +25,24 @@ type ApiRateLimitSource =
 	| "erogamescape"
 	| "hikarinagi"
 	| "nextmoe";
+
+export interface ApiRateLimitInfo {
+	reason: "rate_limited" | "quota_exhausted";
+	status: "retrying" | "retry_exhausted" | "stopped";
+	// 保留时间依据，客户端估算不能被描述为服务端保证的恢复时间。
+	retryAt?: number;
+	retryAtSource?: "retry_after" | "rate_limit_reset" | "estimate";
+}
+
+const API_RATE_LIMIT_SOURCE_NAMES = {
+	bgm: "Bangumi",
+	vndb: "VNDB",
+	ymgal: "YMGal",
+	dlsite: "DLsite",
+	erogamescape: "ErogameScape",
+	hikarinagi: "Hikarinagi",
+	nextmoe: "Kungal (NextMoe)",
+} satisfies Record<ApiRateLimitSource, string>;
 
 interface AppErrorOptions {
 	code: AppErrorCode | string;
@@ -150,24 +168,32 @@ export class HttpResponseError extends AppError {
 	}
 }
 
-interface ApiRateLimitErrorOptions {
+interface ApiRateLimitErrorOptions extends ApiRateLimitInfo {
 	source: ApiRateLimitSource;
-	message: string;
+	message?: string;
 	retryAfterMs?: number;
 	backoffUntil?: number;
 	fatal?: boolean;
 	cause?: unknown;
 }
 
-export class ApiRateLimitError extends AppError {
+export class ApiRateLimitError extends AppError implements ApiRateLimitInfo {
 	source: ApiRateLimitSource;
+	reason: ApiRateLimitInfo["reason"];
+	status: ApiRateLimitInfo["status"];
+	retryAt?: number;
+	retryAtSource?: ApiRateLimitInfo["retryAtSource"];
 	retryAfterMs?: number;
 	backoffUntil?: number;
 	fatal: boolean;
 
 	constructor({
 		source,
-		message,
+		reason,
+		status,
+		retryAt,
+		retryAtSource,
+		message = `API request limited: ${source} (${reason}, ${status})`,
 		retryAfterMs,
 		backoffUntil,
 		fatal = false,
@@ -180,6 +206,10 @@ export class ApiRateLimitError extends AppError {
 			name: "ApiRateLimitError",
 		});
 		this.source = source;
+		this.reason = reason;
+		this.status = status;
+		this.retryAt = retryAt;
+		this.retryAtSource = retryAtSource;
 		this.retryAfterMs = retryAfterMs;
 		this.backoffUntil = backoffUntil;
 		this.fatal = fatal;
@@ -320,21 +350,55 @@ function getAppErrorDetailMessage(error: AppError): string {
 	return "";
 }
 
-function getRateLimitUserMessage(error: ApiRateLimitError, t: TFunction) {
-	switch (error.source) {
-		case "bgm":
-			return t(
-				"errors.bgmRateLimited",
-				"Bangumi 请求被限速，当前任务已停止，请 1 小时后手动重试",
-			);
-		case "vndb":
-			return t(
-				"errors.vndbRateLimited",
-				"VNDB 请求过于频繁，短暂停顿后仍失败，请稍后重试",
-			);
-		default:
-			return t("errors.requestRateLimited", "请求过于频繁，请稍后重试");
+export function getApiRateLimitMessage(
+	info: ApiRateLimitInfo & { source: ApiRateLimitSource },
+	t: TFunction,
+): string {
+	const options = { source: API_RATE_LIMIT_SOURCE_NAMES[info.source] };
+	let message: string;
+	if (info.reason === "quota_exhausted") {
+		message = t(
+			"errors.requestQuotaExhausted",
+			"{{source}} 请求配额已耗尽",
+			options,
+		);
+	} else if (info.status === "retrying") {
+		message = t(
+			"errors.rateLimitRetrying",
+			"{{source}} 请求受限，正在等待后重试",
+			options,
+		);
+	} else if (info.status === "retry_exhausted") {
+		message = t(
+			"errors.rateLimitRetryExhausted",
+			"{{source}} 请求受限，自动重试后仍未成功，请稍后重试",
+			options,
+		);
+	} else {
+		message = t(
+			"errors.sourceRateLimited",
+			"{{source}} 请求受限，请稍后重试",
+			options,
+		);
 	}
+
+	const remainingMs =
+		info.retryAt !== undefined ? info.retryAt - Date.now() : 0;
+	if (remainingMs > 0) {
+		if (info.retryAtSource === "estimate") {
+			return t(
+				"errors.rateLimitEstimatedRetryAfter",
+				"{{message}}；客户端预计冷却 {{seconds}} 秒后可再次尝试",
+				{ message, seconds: Math.ceil(remainingMs / 1000) },
+			);
+		}
+		return t(
+			"errors.rateLimitRetryAfter",
+			"{{message}}；服务端建议等待 {{seconds}} 秒后重试",
+			{ message, seconds: Math.ceil(remainingMs / 1000) },
+		);
+	}
+	return message;
 }
 
 export function getUserErrorMessage(
@@ -344,10 +408,13 @@ export function getUserErrorMessage(
 ): string {
 	const rateLimitError = getApiRateLimitError(error);
 	if (rateLimitError) {
-		return getRateLimitUserMessage(rateLimitError, t);
+		return getApiRateLimitMessage(rateLimitError, t);
 	}
 
 	if (error instanceof HttpResponseError) {
+		if (error.status === 429) {
+			return t("errors.requestRateLimited", "请求受限，请稍后重试");
+		}
 		if (error.status === 401) {
 			return t("errors.authFailed", "认证失败，请检查凭证或权限");
 		}
@@ -413,7 +480,7 @@ export function getUserErrorMessage(
 			case "metadata_request_failed":
 				return t("errors.metadataRequestFailed", "获取元数据失败，请稍后重试");
 			case "api_rate_limited":
-				return t("errors.requestRateLimited", "请求过于频繁，请稍后重试");
+				return t("errors.requestRateLimited", "请求受限，请稍后重试");
 			case "http_response_parse_failed":
 				return t("errors.responseParseFailed", "响应解析失败，请稍后重试");
 			case "tauri_invoke_failed":
@@ -448,6 +515,9 @@ export function getUserErrorMessage(
 		}
 	}
 
+	if (isHttpStatus(error, 429)) {
+		return t("errors.requestRateLimited", "请求受限，请稍后重试");
+	}
 	if (isHttpStatus(error, 401)) {
 		return t("errors.authFailed", "认证失败，请检查凭证或权限");
 	}

@@ -21,6 +21,11 @@ import http, {
 	type NetworkRequestContext,
 	type TauriHttpOptions,
 } from "./http";
+import { parseRateLimitSeconds, readApiResponseCode } from "./rateLimit";
+
+export interface NextmoeRequestContext extends NetworkRequestContext {
+	nextmoeUserId?: string;
+}
 
 const NEXTMOE_API_BASE_URL = "https://api.nextmoe.dev/v2/catalog";
 const NEXTMOE_USER_API_BASE_URL = "https://api.nextmoe.dev/v2/me";
@@ -40,11 +45,25 @@ const NEXTMOE_SOURCE_MAP: Partial<Record<string, SourceType>> = {
 const draftTagOrigins = new WeakMap<KunData, NextmoeWorkTag[]>();
 const draftRefOrigins = new WeakMap<KunData, SourceIdMap>();
 
-function buildNextmoeOptions(
+async function buildNextmoeOptions(
 	token: string | undefined,
-	context: NetworkRequestContext,
-): TauriHttpOptions {
+	context: NextmoeRequestContext,
+): Promise<TauriHttpOptions> {
 	const credential = token?.trim();
+	// 用户身份跨 Token 刷新保持不变；缺少用户信息时按凭据隔离，匿名按代理出口配置隔离。
+	// 只保存摘要作为额度标识，不在队列或日志中保存凭据原文。
+	const identity = credential
+		? context.nextmoeUserId
+			? `user:${context.nextmoeUserId}`
+			: `credential:${credential}`
+		: `anonymous:${context.proxyUrl?.trim() || "direct"}`;
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(identity),
+	);
+	const scope = [...new Uint8Array(digest)]
+		.map((byte) => byte.toString(16).padStart(2, "0"))
+		.join("");
 	return {
 		...context,
 		headers: {
@@ -52,8 +71,30 @@ function buildNextmoeOptions(
 			"User-Agent": USER_AGENT,
 			...(credential ? { Authorization: `Bearer ${credential}` } : {}),
 		},
-		// 匿名目录按 IP 限流，登录后使用用户额度；不在本地假定每日配额。
-		rateLimit: { source: "nextmoe", minIntervalMs: credential ? 600 : 1200 },
+		rateLimit: {
+			source: "nextmoe",
+			scope,
+			minIntervalMs: credential ? 400 : 800,
+			defaultBackoffMs: 60000,
+			maxBackoffMs: 60000,
+			maxRetries: 2,
+			classifyResponse: (status, body) =>
+				status === 429 && readApiResponseCode(body) === "QUOTA_EXCEEDED"
+					? "quota_exhausted"
+					: undefined,
+			getResetAfterMs: (headers, reason) => {
+				// 分钟 Reset 不能代表日配额恢复；日配额缺少 Retry-After 时保持未知。
+				if (reason === "quota_exhausted") return undefined;
+				const legacyReset = parseRateLimitSeconds(
+					headers.get("X-RateLimit-Reset"),
+				);
+				const reset =
+					/(?:^|,)\s*reset\s*=\s*(\d+(?:\.\d+)?)(?:\s*(?:,|$))/i.exec(
+						headers.get("RateLimit") ?? "",
+					);
+				return legacyReset ?? parseRateLimitSeconds(reset?.[1] ?? null);
+			},
+		},
 	};
 }
 
@@ -266,7 +307,7 @@ export async function fetchNextmoeById(
 	id: string,
 	token?: string,
 	spoilerLevel = 0,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<GameMetadataDraft> {
 	assertNextmoeWorkId(id);
 	const visited = new Set<string>();
@@ -280,7 +321,7 @@ export async function fetchNextmoeById(
 				await http.get<NextmoeWork>(
 					`${NEXTMOE_API_BASE_URL}/works/${currentId}`,
 					{
-						...buildNextmoeOptions(token, context),
+						...(await buildNextmoeOptions(token, context)),
 						params: {
 							include: NEXTMOE_DETAIL_INCLUDE,
 							fields: NEXTMOE_DETAIL_FIELDS,
@@ -333,7 +374,7 @@ export async function fetchNextmoeByName(
 	name: string,
 	token?: string,
 	limit = 8,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<GameMetadataDraft[]> {
 	const keyword = name.trim();
 	if (!keyword) return [];
@@ -343,7 +384,7 @@ export async function fetchNextmoeByName(
 			await http.get<NextmoeList<NextmoeWork>>(
 				`${NEXTMOE_API_BASE_URL}/works`,
 				{
-					...buildNextmoeOptions(token, context),
+					...(await buildNextmoeOptions(token, context)),
 					params: {
 						q: keyword,
 						nsfw: true,
@@ -364,7 +405,7 @@ export async function fetchNextmoeByName(
 export async function fetchNextmoeWorkPreviews(
 	ids: readonly string[],
 	token: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<GameMetadataDraft[]> {
 	ids.forEach(assertNextmoeWorkId);
 	const games: GameMetadataDraft[] = [];
@@ -373,7 +414,7 @@ export async function fetchNextmoeWorkPreviews(
 			await http.get<NextmoeList<NextmoeWork>>(
 				`${NEXTMOE_API_BASE_URL}/works`,
 				{
-					...buildNextmoeOptions(token, context),
+					...(await buildNextmoeOptions(token, context)),
 					params: {
 						ids: ids.slice(index, index + 100).join(","),
 						nsfw: true,
@@ -394,13 +435,13 @@ export async function fetchNextmoeWorkPreviews(
 export async function fetchNextmoeUserWorksPage(
 	token: string,
 	cursor?: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<NextmoeList<NextmoeUserWork>> {
 	return (
 		await http.get<NextmoeList<NextmoeUserWork>>(
 			`${NEXTMOE_USER_API_BASE_URL}/works`,
 			{
-				...buildNextmoeOptions(token, context),
+				...(await buildNextmoeOptions(token, context)),
 				params: { cursor, limit: 100, nsfw: true },
 			},
 		)
@@ -410,7 +451,7 @@ export async function fetchNextmoeUserWorksPage(
 export async function fetchNextmoeWorkStates(
 	ids: readonly string[],
 	token: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<NextmoeWorkState[]> {
 	ids.forEach(assertNextmoeWorkId);
 	const states: NextmoeWorkState[] = [];
@@ -419,7 +460,7 @@ export async function fetchNextmoeWorkStates(
 			await http.get<NextmoeList<NextmoeWorkState>>(
 				`${NEXTMOE_USER_API_BASE_URL}/work-states`,
 				{
-					...buildNextmoeOptions(token, context),
+					...(await buildNextmoeOptions(token, context)),
 					params: {
 						work_ids: ids.slice(index, index + 100).join(","),
 						nsfw: true,
@@ -435,14 +476,14 @@ export async function fetchNextmoeWorkStates(
 export async function fetchNextmoeWorkState(
 	id: string,
 	token: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<NextmoeWorkState | null> {
 	assertNextmoeWorkId(id);
 	try {
 		return (
 			await http.get<NextmoeWorkState>(
 				`${NEXTMOE_USER_API_BASE_URL}/work-states/${id}`,
-				buildNextmoeOptions(token, context),
+				await buildNextmoeOptions(token, context),
 			)
 		).data;
 	} catch (error) {
@@ -455,7 +496,7 @@ export async function updateNextmoeWorkState(
 	id: string,
 	state: NextmoePlayState,
 	token: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<boolean> {
 	assertNextmoeWorkId(id);
 	// PUT 未携带 completion 会清空远端值；本地没有该字段时先读取并保留它。
@@ -468,7 +509,7 @@ export async function updateNextmoeWorkState(
 			state,
 			...(previous?.completion ? { completion: previous.completion } : {}),
 		},
-		buildNextmoeOptions(token, context),
+		await buildNextmoeOptions(token, context),
 	);
 	return true;
 }
@@ -477,7 +518,7 @@ export async function updateNextmoePlaytime(
 	id: string,
 	minutes: number,
 	token: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<boolean> {
 	assertNextmoeWorkId(id);
 	if (!Number.isInteger(minutes) || minutes < 0 || minutes > 60000) {
@@ -490,7 +531,7 @@ export async function updateNextmoePlaytime(
 	await http.put(
 		`${NEXTMOE_USER_API_BASE_URL}/playtimes/${id}`,
 		{ minutes },
-		buildNextmoeOptions(token, context),
+		await buildNextmoeOptions(token, context),
 	);
 	return true;
 }
@@ -499,7 +540,7 @@ export async function updateNextmoeUserRating(
 	id: string,
 	rating: NextmoeRatingInput,
 	token: string,
-	context: NetworkRequestContext = {},
+	context: NextmoeRequestContext = {},
 ): Promise<boolean> {
 	assertNextmoeWorkId(id);
 	if (
@@ -519,7 +560,7 @@ export async function updateNextmoeUserRating(
 		});
 	}
 	const url = `${NEXTMOE_USER_API_BASE_URL}/ratings/${id}`;
-	const options = buildNextmoeOptions(token, context);
+	const options = await buildNextmoeOptions(token, context);
 	let previous: NextmoeUserRating | null;
 	try {
 		previous = (await http.get<NextmoeUserRating>(url, options)).data;

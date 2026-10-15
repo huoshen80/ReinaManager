@@ -26,6 +26,15 @@ import http, {
 	type NetworkRequestContext,
 	type TauriHttpOptions,
 } from "./http";
+import type { ApiRateLimitPolicy } from "./rateLimit";
+
+const VNDB_RATE_LIMIT = {
+	source: "vndb",
+	minIntervalMs: 1600,
+	defaultBackoffMs: 30000,
+	maxBackoffMs: 300000,
+	maxRetries: 2,
+} satisfies ApiRateLimitPolicy;
 
 const VNDB_API_BASE = "https://api.vndb.org/kana";
 const VNDB_JSON_HEADERS = {
@@ -46,7 +55,7 @@ function buildVndbRateLimitedOptions(
 		headers: {
 			...VNDB_JSON_HEADERS,
 		},
-		rateLimit: { source: "vndb" as const },
+		rateLimit: VNDB_RATE_LIMIT,
 	};
 }
 
@@ -60,7 +69,7 @@ function buildVndbRateLimitedAuthOptions(
 			...VNDB_JSON_HEADERS,
 			Authorization: `Token ${token}`,
 		},
-		rateLimit: { source: "vndb" as const },
+		rateLimit: VNDB_RATE_LIMIT,
 	};
 }
 

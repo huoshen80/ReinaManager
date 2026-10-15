@@ -122,7 +122,7 @@ function isNextmoeAuthRejected(error: unknown) {
 
 /** 用户数据必须保持登录身份，不能像公开目录一样退回匿名请求。 */
 export async function withNextmoeUserAuth<T>(
-	fn: (token: string) => Promise<T>,
+	fn: (token: string, auth: NextmoeAuth) => Promise<T>,
 ): Promise<T> {
 	const auth = await getNextmoeAuth();
 	if (!auth?.access_token) {
@@ -132,7 +132,7 @@ export async function withNextmoeUserAuth<T>(
 		});
 	}
 	try {
-		return await fn(auth.access_token);
+		return await fn(auth.access_token, auth);
 	} catch (error) {
 		if (!isHttpStatusFromHost(error, 401, "api.nextmoe.dev")) throw error;
 		const refreshed = await getNextmoeAuth({
@@ -146,7 +146,7 @@ export async function withNextmoeUserAuth<T>(
 				cause: error,
 			});
 		}
-		return fn(refreshed.access_token);
+		return fn(refreshed.access_token, refreshed);
 	}
 }
 

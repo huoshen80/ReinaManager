@@ -222,8 +222,11 @@ async function loadHikarinagiCollection(signal?: AbortSignal) {
 }
 
 async function loadKunCollection(signal?: AbortSignal) {
-	return withNextmoeUserAuth(async (token) => {
-		const context = getNetworkRequestContext(signal);
+	return withNextmoeUserAuth(async (token, auth) => {
+		const context = {
+			...getNetworkRequestContext(signal),
+			nextmoeUserId: auth.user_id ?? undefined,
+		};
 		const works = new Map<string, NextmoeUserWork>();
 		let cursor: string | undefined;
 		do {
@@ -302,7 +305,9 @@ export async function prepareCloudCollectionItems(
 		// Kun 主源保持用户身份，关联增强仍按实际目标来源鉴权。
 		authenticateSource: (target, task) =>
 			source === "kun" && target === "kun"
-				? withNextmoeUserAuth((nextmoeToken) => task({ nextmoeToken }))
+				? withNextmoeUserAuth((nextmoeToken, auth) =>
+						task({ nextmoeToken, nextmoeUserId: auth.user_id ?? undefined }),
+					)
 				: context.authenticateSource
 					? context.authenticateSource(target, task)
 					: task({}),

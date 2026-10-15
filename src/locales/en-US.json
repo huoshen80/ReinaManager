@@ -502,7 +502,6 @@
 	"errors": {
 		"authFailed": "Authentication failed. Please check your credentials or permissions",
 		"badRequest": "The request parameters are invalid. Please review and try again",
-		"bgmRateLimited": "Bangumi requests are rate limited. The current task has stopped. Please retry manually after 1 hour",
 		"deprecatedSource": "This source is deprecated. Existing data can still be viewed, but searching and updating are no longer available. Please select another available source.",
 		"invalidGameId": "The game ID format is invalid",
 		"invokeFailed": "The application command failed. Please try again later",
@@ -525,13 +524,18 @@
 		"pathVariableNonUnicode": "The environment variable is not valid text",
 		"pathVariableSyntax": "Invalid path variable syntax",
 		"pathVariableUndefined": "The path uses an undefined environment variable",
+		"rateLimitEstimatedRetryAfter": "{{message}}. The client estimates a cooldown of {{seconds}} seconds before another attempt",
+		"rateLimitRetryAfter": "{{message}}. The server recommends waiting {{seconds}} seconds before retrying",
+		"rateLimitRetryExhausted": "{{source}} requests are limited. Automatic retries were unsuccessful. Please try again later",
+		"rateLimitRetrying": "{{source}} requests are limited. Waiting before retrying",
 		"requestFailed": "The request failed. Please try again later",
-		"requestRateLimited": "Too many requests. Please try again later",
+		"requestQuotaExhausted": "The request quota for {{source}} has been exhausted",
+		"requestRateLimited": "Requests are limited. Please try again later",
 		"responseParseFailed": "Failed to parse the response. Please try again later",
+		"sourceRateLimited": "{{source}} requests are limited. Please try again later",
 		"unknownError": "Unknown error",
 		"unsupportedSource": "Unsupported data source",
-		"updatePlayStatusFailed": "Failed to update play status",
-		"vndbRateLimited": "VNDB requests are too frequent. The retry still failed after a short pause. Please try again later"
+		"updatePlayStatusFailed": "Failed to update play status"
 	},
 	"home": {
 		"activity": {

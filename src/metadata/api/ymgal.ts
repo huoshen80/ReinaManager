@@ -16,7 +16,13 @@
 // 注意认证失败重试机制未生效
 
 import type { GameMetadataDraft, YmgalData } from "@/types";
-import { AppError, isHttpStatus, toError } from "@/utils/errors";
+import { isAbortError } from "@/utils/async";
+import {
+	AppError,
+	isApiRateLimitError,
+	isHttpStatus,
+	toError,
+} from "@/utils/errors";
 import { USER_AGENT } from "../constants";
 import {
 	createGameCandidate,
@@ -28,6 +34,7 @@ import http, {
 	type NetworkRequestContext,
 	type TauriHttpOptions,
 } from "./http";
+import { readApiResponseCode } from "./rateLimit";
 
 /**
  * YMGal API 全局配置
@@ -57,7 +64,17 @@ function buildYmgalRateLimitedOptions(
 			"User-Agent": USER_AGENT,
 			...options.headers,
 		},
-		rateLimit: { source: "ymgal" },
+		rateLimit: {
+			source: "ymgal",
+			minIntervalMs: 500,
+			defaultBackoffMs: 60000,
+			maxBackoffMs: 60000,
+			maxRetries: 1,
+			classifyResponse: (status, body) =>
+				status === 200 && readApiResponseCode(body) === 429
+					? "rate_limited"
+					: undefined,
+		},
 	};
 }
 
@@ -219,7 +236,8 @@ async function fetchOrganizationName(
 		);
 		const org = data?.org;
 		return org?.chineseName || org?.name || undefined;
-	} catch {
+	} catch (error) {
+		if (isApiRateLimitError(error) || isAbortError(error)) throw error;
 		return undefined;
 	}
 }
@@ -365,7 +383,8 @@ export async function fetchYmByName(
 		try {
 			const detailedData = await fetchYmById(firstResultId, context);
 			return [detailedData];
-		} catch {
+		} catch (error) {
+			if (isApiRateLimitError(error) || isAbortError(error)) throw error;
 			return [results[0]];
 		}
 	}

@@ -131,7 +131,14 @@ function buildBgmRateLimitedOptions(
 	return {
 		...buildBgmAuthHeaders(token),
 		...context,
-		rateLimit: { source: "bgm" as const },
+		// 默认封禁时长仅用于保守冷却，响应中有恢复时间时优先遵守响应。
+		rateLimit: {
+			source: "bgm",
+			minIntervalMs: 250,
+			defaultBackoffMs: 3600000,
+			maxBackoffMs: 3600000,
+			maxRetries: 0,
+		},
 	};
 }
 

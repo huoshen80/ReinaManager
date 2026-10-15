@@ -18,6 +18,7 @@ import http, {
 	type NetworkRequestContext,
 	type TauriHttpOptions,
 } from "./http";
+import { parseRateLimitSeconds } from "./rateLimit";
 
 const HIKARINAGI_API_BASE_URL = "https://api.hikarinagi.org/v3";
 
@@ -140,7 +141,15 @@ function buildHikarinagiOptions(
 	return {
 		...context,
 		headers,
-		rateLimit: { source: "hikarinagi" },
+		rateLimit: {
+			source: "hikarinagi",
+			minIntervalMs: 250,
+			defaultBackoffMs: 60000,
+			maxBackoffMs: 120000,
+			maxRetries: 2,
+			getResetAfterMs: (headers) =>
+				parseRateLimitSeconds(headers.get("X-RateLimit-Reset")),
+		},
 	};
 }
 

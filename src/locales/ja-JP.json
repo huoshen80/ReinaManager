@@ -482,7 +482,6 @@
 	"errors": {
 		"authFailed": "認証に失敗しました。資格情報または権限を確認してください",
 		"badRequest": "リクエスト内容が不正です。確認して再試行してください",
-		"bgmRateLimited": "Bangumi のリクエストが制限されています。現在のタスクは停止しました。1時間後に手動で再試行してください",
 		"deprecatedSource": "このデータソースは廃止されました。保存済みのデータは引き続き表示できますが、検索や更新はできません。他の利用可能なデータソースを選択してください。",
 		"invalidGameId": "ゲーム ID の形式が不正です",
 		"invokeFailed": "アプリ内部コマンドの呼び出しに失敗しました。後でもう一度お試しください",
@@ -505,13 +504,18 @@
 		"pathVariableNonUnicode": "環境変数が有効なテキストではありません",
 		"pathVariableSyntax": "パス変数の構文が無効です",
 		"pathVariableUndefined": "未定義の環境変数がパスに含まれています",
+		"rateLimitEstimatedRetryAfter": "{{message}}。クライアントの推定では、{{seconds}} 秒待ってから再試行できます",
+		"rateLimitRetryAfter": "{{message}}。サーバーは {{seconds}} 秒待ってから再試行するよう案内しています",
+		"rateLimitRetryExhausted": "{{source}} のリクエストが制限されています。自動再試行でも成功しませんでした。時間をおいて再試行してください",
+		"rateLimitRetrying": "{{source}} のリクエストが制限されています。待機後に再試行します",
 		"requestFailed": "リクエストに失敗しました。後でもう一度お試しください",
-		"requestRateLimited": "リクエストが多すぎます。後でもう一度お試しください",
+		"requestQuotaExhausted": "{{source}} のリクエスト割り当てを使い切りました",
+		"requestRateLimited": "リクエストが制限されています。時間をおいて再試行してください",
 		"responseParseFailed": "レスポンスの解析に失敗しました。後でもう一度お試しください",
+		"sourceRateLimited": "{{source}} のリクエストが制限されています。時間をおいて再試行してください",
 		"unknownError": "不明なエラー",
 		"unsupportedSource": "サポートされていないデータソースです",
-		"updatePlayStatusFailed": "プレイ状態の更新に失敗しました",
-		"vndbRateLimited": "VNDB のリクエストが多すぎます。短時間待っても失敗したため、後でもう一度お試しください"
+		"updatePlayStatusFailed": "プレイ状態の更新に失敗しました"
 	},
 	"home": {
 		"activity": {

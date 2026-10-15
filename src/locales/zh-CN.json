@@ -482,7 +482,6 @@
 	"errors": {
 		"authFailed": "认证失败，请检查凭证或权限",
 		"badRequest": "请求参数有误，请检查后重试",
-		"bgmRateLimited": "Bangumi 请求被限速，当前任务已停止，请 1 小时后手动重试",
 		"deprecatedSource": "该数据源已废弃，已有数据仍可查看，但不能再搜索或更新。请选择其他可用数据源。",
 		"invalidGameId": "游戏 ID 格式无效",
 		"invokeFailed": "应用内部调用失败，请稍后重试",
@@ -505,13 +504,18 @@
 		"pathVariableNonUnicode": "环境变量不是有效文本",
 		"pathVariableSyntax": "路径变量语法无效",
 		"pathVariableUndefined": "路径使用了未定义的环境变量",
+		"rateLimitEstimatedRetryAfter": "{{message}}；客户端预计冷却 {{seconds}} 秒后可再次尝试",
+		"rateLimitRetryAfter": "{{message}}；服务端建议等待 {{seconds}} 秒后重试",
+		"rateLimitRetryExhausted": "{{source}} 请求受限，自动重试后仍未成功，请稍后重试",
+		"rateLimitRetrying": "{{source}} 请求受限，正在等待后重试",
 		"requestFailed": "请求失败，请稍后重试",
-		"requestRateLimited": "请求过于频繁，请稍后重试",
+		"requestQuotaExhausted": "{{source}} 请求配额已耗尽",
+		"requestRateLimited": "请求受限，请稍后重试",
 		"responseParseFailed": "响应解析失败，请稍后重试",
+		"sourceRateLimited": "{{source}} 请求受限，请稍后重试",
 		"unknownError": "未知错误",
 		"unsupportedSource": "不支持的数据源",
-		"updatePlayStatusFailed": "更新游戏状态失败",
-		"vndbRateLimited": "VNDB 请求过于频繁，短暂停顿后仍失败，请稍后重试"
+		"updatePlayStatusFailed": "更新游戏状态失败"
 	},
 	"home": {
 		"activity": {

@@ -205,7 +205,7 @@ export async function pushGameUserReviewToKun(
 			message: "当前游戏没有 Kungal ID",
 		});
 	}
-	return withNextmoeUserAuth((token) =>
+	return withNextmoeUserAuth((token, auth) =>
 		updateNextmoeUserRating(
 			kunId,
 			{
@@ -215,7 +215,10 @@ export async function pushGameUserReviewToKun(
 				spoiler_level: payload.kunSpoiler ? "serious" : "none",
 			},
 			token,
-			getNetworkRequestContext(),
+			{
+				...getNetworkRequestContext(),
+				nextmoeUserId: auth.user_id ?? undefined,
+			},
 		),
 	);
 }
@@ -231,8 +234,11 @@ export async function pushGamePlaytimeToKun(
 			message: "当前游戏没有 Kungal ID",
 		});
 	}
-	return withNextmoeUserAuth((token) =>
-		updateNextmoePlaytime(kunId, minutes, token, getNetworkRequestContext()),
+	return withNextmoeUserAuth((token, auth) =>
+		updateNextmoePlaytime(kunId, minutes, token, {
+			...getNetworkRequestContext(),
+			nextmoeUserId: auth.user_id ?? undefined,
+		}),
 	);
 }
 

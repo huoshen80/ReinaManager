@@ -381,12 +381,11 @@ async function createKunPlayStatusMap(ids: Iterable<string>) {
 	const uniqueIds = [...new Set(ids)].filter(Boolean);
 	if (uniqueIds.length === 0) return new Map<string, PlayStatus>();
 	try {
-		return await withNextmoeUserAuth(async (token) => {
-			const states = await fetchNextmoeWorkStates(
-				uniqueIds,
-				token,
-				getNetworkRequestContext(),
-			);
+		return await withNextmoeUserAuth(async (token, auth) => {
+			const states = await fetchNextmoeWorkStates(uniqueIds, token, {
+				...getNetworkRequestContext(),
+				nextmoeUserId: auth.user_id ?? undefined,
+			});
 			const statusMap = new Map<string, PlayStatus>();
 			for (const item of states) {
 				const status = mapNextmoeStateToPlayStatus(item.state);

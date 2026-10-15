@@ -110,8 +110,11 @@ async function resolveKunPlayStatus(game: SourceIdentityPayload) {
 	const kunId = getAnySourceId(game, "kun");
 	if (!kunId) return undefined;
 	try {
-		const state = await withNextmoeUserAuth((token) =>
-			fetchNextmoeWorkState(kunId, token, getNetworkRequestContext()),
+		const state = await withNextmoeUserAuth((token, auth) =>
+			fetchNextmoeWorkState(kunId, token, {
+				...getNetworkRequestContext(),
+				nextmoeUserId: auth.user_id ?? undefined,
+			}),
 		);
 		return mapNextmoeStateToPlayStatus(state?.state);
 	} catch (error) {
@@ -246,12 +249,15 @@ async function syncPlayStatusToKun(
 	const kunId = getAnySourceId(game, "kun");
 	if (!kunId) return true;
 	try {
-		return await withNextmoeUserAuth((token) =>
+		return await withNextmoeUserAuth((token, auth) =>
 			updateNextmoeWorkState(
 				kunId,
 				mapPlayStatusToNextmoeState(newStatus),
 				token,
-				getNetworkRequestContext(),
+				{
+					...getNetworkRequestContext(),
+					nextmoeUserId: auth.user_id ?? undefined,
+				},
 			),
 		);
 	} catch (error) {

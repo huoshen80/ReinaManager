@@ -24,7 +24,9 @@ export function withSourceMetadataAuth<T>(
 				return task({ hikarinagiToken });
 			});
 		case "kun":
-			return withNextmoeAuth((nextmoeToken) => task({ nextmoeToken }));
+			return withNextmoeAuth((nextmoeToken, auth) =>
+				task({ nextmoeToken, nextmoeUserId: auth?.user_id ?? undefined }),
+			);
 		default:
 			return task({});
 	}

@@ -24,9 +24,10 @@ import {
 } from "@/utils/errors";
 import {
 	type ApiRateLimitedRequestOptions,
-	type ApiRateLimitSource,
+	createApiRateLimitRequest,
 	handleApiRateLimited,
 	markApiRequestSucceeded,
+	readApiResponseCode,
 	scheduleApiRequest,
 } from "./rateLimit";
 
@@ -106,8 +107,9 @@ async function requestTauriHttp<T>(
 	data?: unknown,
 ): Promise<TauriHttpResponse<T>> {
 	const fullUrl = buildUrlWithParams(url, options?.params);
-	const rateLimitSource =
-		options?.rateLimit?.source ?? inferRateLimitSource(url);
+	const rateLimitRequest = options?.rateLimit
+		? createApiRateLimitRequest(options.rateLimit)
+		: undefined;
 
 	const fetchResponse = () => {
 		const proxyUrl = options?.proxyUrl?.trim();
@@ -158,124 +160,89 @@ async function requestTauriHttp<T>(
 		});
 	};
 
-	let response: Response;
 	let attempt = 0;
-	try {
-		while (true) {
-			response = rateLimitSource
-				? await scheduleApiRequest(
-						rateLimitSource,
-						fetchResponse,
-						options?.signal,
-						options?.rateLimit?.minIntervalMs,
-					)
-				: await fetchResponse();
-
-			if (response.status !== 429 || !rateLimitSource) {
-				break;
-			}
-
-			let quotaExceeded = false;
-			if (rateLimitSource === "nextmoe") {
-				// 日配额耗尽与分钟限流都返回 429，但只有分钟限流适合短暂退避重试。
-				const problem: unknown = await response.json().catch(() => null);
-				quotaExceeded =
-					typeof problem === "object" &&
-					problem !== null &&
-					"code" in problem &&
-					problem.code === "QUOTA_EXCEEDED";
-			}
-			const handling = handleApiRateLimited(
-				rateLimitSource,
-				response.headers,
-				attempt,
-				quotaExceeded,
-			);
-			if (!handling.shouldRetry) {
-				throw new ApiRateLimitError({
-					source: rateLimitSource,
-					message: getApiRateLimitErrorMessage(rateLimitSource),
-					retryAfterMs: handling.retryAfterMs,
-					backoffUntil: handling.backoffUntil,
-					fatal: handling.fatal,
-				});
-			}
-			attempt += 1;
+	const executeAttempt = async (): Promise<TauriHttpResponse<T>> => {
+		const response = await fetchResponse();
+		let parsedData: T | undefined;
+		let errorBody: unknown;
+		if (response.ok) {
+			parsedData =
+				options?.responseType === "text"
+					? ((await response.text()) as T)
+					: await parseTauriResponse<T>(response, method, fullUrl);
+		} else {
+			errorBody = await response.json().catch(() => undefined);
 		}
-	} catch (error) {
-		if (import.meta.env.DEV) {
-			console.error(`[TauriHTTP Failed] ${method} ${fullUrl}`, error);
+		if (rateLimitRequest) {
+			const policy = rateLimitRequest.options;
+			const body = response.ok ? parsedData : errorBody;
+			const reason =
+				policy.classifyResponse?.(response.status, body) ??
+				(response.status === 429 ? "rate_limited" : undefined);
+			if (reason) {
+				const handling = handleApiRateLimited(
+					rateLimitRequest,
+					response.headers,
+					attempt,
+					reason,
+				);
+				if (import.meta.env.DEV) {
+					console.warn("[TauriHTTP Rate Limited]", {
+						source: policy.source,
+						responseStatus: response.status,
+						responseCode: readApiResponseCode(body),
+						retryAfter: response.headers.get("Retry-After"),
+						rateLimit: response.headers.get("RateLimit"),
+						rateLimitReset: response.headers.get("X-RateLimit-Reset"),
+						rateLimitPolicy: response.headers.get("RateLimit-Policy"),
+						reason,
+						status: handling.status,
+						attempt,
+						retryAt: handling.retryAt,
+						retryAtSource: handling.retryAtSource,
+						backoffUntil: handling.backoffUntil,
+					});
+				}
+				throw new ApiRateLimitError({ source: policy.source, ...handling });
+			}
 		}
-		throw error;
-	}
-
-	if (!response.ok) {
-		if (import.meta.env.DEV) {
-			console.error(
-				`[TauriHTTP Error] ${method} ${fullUrl} ${response.status}`,
-				response.statusText,
-			);
+		if (!response.ok) {
+			throw new HttpResponseError({
+				method,
+				url: fullUrl,
+				status: response.status,
+				statusText: response.statusText,
+				body: errorBody,
+			});
 		}
-		throw new HttpResponseError({
-			method,
-			url: fullUrl,
+		if (rateLimitRequest) markApiRequestSucceeded(rateLimitRequest);
+		if (import.meta.env.DEV) console.log("[TauriHTTP Response]", parsedData);
+		return {
+			data: parsedData as T,
 			status: response.status,
 			statusText: response.statusText,
-			body: await response.json().catch(() => undefined),
-		});
-	}
-	if (rateLimitSource) {
-		markApiRequestSucceeded(rateLimitSource);
-	}
-
-	const parsedData =
-		options?.responseType === "text"
-			? ((await response.text()) as T)
-			: await parseTauriResponse<T>(response, method, fullUrl);
-
-	if (import.meta.env.DEV) {
-		console.log(`[TauriHTTP Response] ${method} ${fullUrl}`, parsedData);
-	}
-
-	return {
-		data: parsedData,
-		status: response.status,
-		statusText: response.statusText,
-		headers: Array.from(response.headers.entries()),
+			headers: Array.from(response.headers.entries()),
+		};
 	};
-}
 
-function inferRateLimitSource(url: string): ApiRateLimitSource | undefined {
-	try {
-		const host = new URL(url).host;
-		if (host === "api.bgm.tv") return "bgm";
-		if (host === "api.vndb.org") return "vndb";
-		if (host === "www.ymgal.games") return "ymgal";
-		if (host === "www.dlsite.com") return "dlsite";
-		if (host === "erogamescape.org") return "erogamescape";
-		if (host === "www.hikarinagi.org") return "hikarinagi";
-		if (host === "api.nextmoe.dev") return "nextmoe";
-	} catch {
-		return undefined;
-	}
-}
-
-function getApiRateLimitErrorMessage(source: ApiRateLimitSource): string {
-	switch (source) {
-		case "bgm":
-			return "Bangumi 请求被限速，当前任务已停止，请 1 小时后手动重试";
-		case "vndb":
-			return "VNDB 请求过于频繁，短暂停顿后仍失败，请稍后重试";
-		case "ymgal":
-			return "YMGal 请求被限速，请稍后重试";
-		case "dlsite":
-			return "DLsite 请求被限速，请稍后重试";
-		case "erogamescape":
-			return "ErogameScape 请求被限速，请稍后重试";
-		case "hikarinagi":
-			return "Hikarinagi 请求被限速，请稍后重试";
-		case "nextmoe":
-			return "Kungal 请求被限速，请稍后重试";
+	while (true) {
+		try {
+			return rateLimitRequest
+				? await scheduleApiRequest(
+						rateLimitRequest,
+						executeAttempt,
+						options?.signal,
+					)
+				: await executeAttempt();
+		} catch (error) {
+			if (error instanceof ApiRateLimitError && error.status === "retrying") {
+				attempt += 1;
+				continue;
+			}
+			if (import.meta.env.DEV)
+				console.error("[TauriHTTP Failed]", method, error);
+			throw error;
+		}
 	}
 }
 

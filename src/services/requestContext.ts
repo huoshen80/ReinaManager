@@ -19,6 +19,7 @@ export function getMetadataRequestContext(
 		bgmToken?: string;
 		hikarinagiToken?: string;
 		nextmoeToken?: string;
+		nextmoeUserId?: string;
 		signal?: AbortSignal;
 	} = {},
 ): MetadataRequestContext {
@@ -31,6 +32,7 @@ export function getMetadataRequestContext(
 		bgmToken: options.bgmToken,
 		hikarinagiToken: options.hikarinagiToken,
 		nextmoeToken: options.nextmoeToken,
+		nextmoeUserId: options.nextmoeUserId,
 		autoExpandSources: [
 			...(state.kunAutoExpand ? ["kun" as const] : []),
 			...(state.hikarinagiAutoExpand ? ["hikarinagi" as const] : []),
@@ -45,6 +47,7 @@ export function createMetadataSession(
 		bgmToken?: string;
 		hikarinagiToken?: string;
 		nextmoeToken?: string;
+		nextmoeUserId?: string;
 		signal?: AbortSignal;
 	} = {},
 ): GameMetadataSession {

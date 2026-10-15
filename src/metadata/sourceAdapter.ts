@@ -10,6 +10,7 @@ export interface MetadataAuthTokens {
 	bgmToken?: string;
 	hikarinagiToken?: string;
 	nextmoeToken?: string;
+	nextmoeUserId?: string;
 }
 
 export const DEFAULT_METADATA_SEARCH_LIMIT = 8;

@@ -482,7 +482,6 @@
 	"errors": {
 		"authFailed": "認證失敗，請檢查憑證或權限",
 		"badRequest": "請求參數有誤，請檢查後再試",
-		"bgmRateLimited": "Bangumi 請求被限速，當前任務已停止，請 1 小時後手動重試",
 		"deprecatedSource": "此資料來源已廢棄，既有資料仍可檢視，但無法再搜尋或更新。請選擇其他可用的資料來源。",
 		"invalidGameId": "遊戲 ID 格式無效",
 		"invokeFailed": "應用內部呼叫失敗，請稍後再試",
@@ -505,13 +504,18 @@
 		"pathVariableNonUnicode": "環境變數不是有效文字",
 		"pathVariableSyntax": "路徑變數語法無效",
 		"pathVariableUndefined": "路徑使用了未定義的環境變數",
+		"rateLimitEstimatedRetryAfter": "{{message}}；用戶端預計冷卻 {{seconds}} 秒後可再次嘗試",
+		"rateLimitRetryAfter": "{{message}}；伺服器建議等待 {{seconds}} 秒後重試",
+		"rateLimitRetryExhausted": "{{source}} 請求受限，自動重試後仍未成功，請稍後再試",
+		"rateLimitRetrying": "{{source}} 請求受限，正在等待後重試",
 		"requestFailed": "請求失敗，請稍後再試",
-		"requestRateLimited": "請求過於頻繁，請稍後再試",
+		"requestQuotaExhausted": "{{source}} 請求配額已耗盡",
+		"requestRateLimited": "請求受限，請稍後再試",
 		"responseParseFailed": "回應解析失敗，請稍後再試",
+		"sourceRateLimited": "{{source}} 請求受限，請稍後再試",
 		"unknownError": "未知錯誤",
 		"unsupportedSource": "不支援的資料來源",
-		"updatePlayStatusFailed": "更新遊戲狀態失敗",
-		"vndbRateLimited": "VNDB 請求過於頻繁，短暫停頓後仍失敗，請稍後再試"
+		"updatePlayStatusFailed": "更新遊戲狀態失敗"
 	},
 	"home": {
 		"activity": {
