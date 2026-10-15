@@ -135,6 +135,7 @@ export const installDownloadedUpdate = async (
 				: await ask(
 						i18n.t(
 							"components.Window.UpdateModal.previousInstallationMessage",
+							"检测到另一份 ReinaManager：\n{{previousDirectory}}\n\n本次更新使用的是：\n{{currentDirectory}}\n\n请确认另一份程序是否还需要，清理前检查其中的用户数据。",
 							{
 								previousDirectory: notice.previousDirectory,
 								currentDirectory: notice.currentDirectory,
@@ -143,12 +144,14 @@ export const installDownloadedUpdate = async (
 						{
 							title: i18n.t(
 								"components.Window.UpdateModal.previousInstallationTitle",
+								"发现旧目录中的程序",
 							),
 							kind: "warning",
 							okLabel: i18n.t(
 								"components.Window.UpdateModal.acknowledgeAndUpdate",
+								"知道了，继续更新",
 							),
-							cancelLabel: i18n.t("common.cancel"),
+							cancelLabel: i18n.t("common.cancel", "取消"),
 						},
 					);
 			if (!accepted) return "cancelled";
