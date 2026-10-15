@@ -136,9 +136,10 @@ jobs:
             --target ${{ matrix.rust_target }}
             --features tauri/devtools
             ${{
-              (github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request')
-              && ''
-              || '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
+              github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name != github.repository
+              && '-c ''{"bundle": {"createUpdaterArtifacts": false}}'''
+              || ''
             }}
           tagName: ""
           releaseName: ""
@@ -202,10 +203,10 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-            echo "⚠️ Fork PR: Build completed WITHOUT signing"
-            echo "   The application will work normally but won't support auto-updates"
+            echo "⚠️ Fork PR: Build completed without Tauri updater signatures"
+            echo "   Valid published updates can still be received"
           else
-            echo "✅ Build completed with signing enabled and auto-update support"
+            echo "✅ Build completed with Tauri updater signatures"
           fi
 
       # Upload build artifacts for testings

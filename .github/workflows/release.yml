@@ -39,11 +39,13 @@ jobs:
       - name: Resolve release tag
         id: resolve_tag
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag_name }}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
           else
-            TAG="${{ github.ref_name }}"
+            TAG="$GITHUB_REF_NAME"
           fi
           TAG="${TAG#refs/tags/}"
           echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
@@ -95,16 +97,15 @@ jobs:
       - name: Combine full release body
         id: combine
         shell: bash
+        env:
+          CHANGELOG_TEXT: ${{ steps.changelog_entry.outputs.content }}
+          DOWNLOAD_LINKS: ${{ steps.cliff_links.outputs.content }}
         run: |
           # 生成一个随机定界符，避免内容中含有 EOF 导致截断
           EOF=$(openssl rand -hex 8)
           {
             echo "content<<$EOF"
-            cat << INNER_EOF
-          ${{ steps.changelog_entry.outputs.content }}
-
-          ${{ steps.cliff_links.outputs.content }}
-          INNER_EOF
+            printf '%s\n\n%s\n' "$CHANGELOG_TEXT" "$DOWNLOAD_LINKS"
             echo "$EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -114,7 +115,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.resolve_tag.outputs.TAG }}
-          RELEASE_BODY: ${{ steps.changelog_entry.outputs.content }}
+          RELEASE_BODY: ${{ steps.combine.outputs.content }}
         run: |
           RELEASE_DATA=$(
             gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
@@ -231,10 +232,10 @@ jobs:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: ${{ needs.prepare.outputs.release_tag }}
-          releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
+          releaseBody: ${{ needs.prepare.outputs.release_body }}
           releaseDraft: ${{ needs.prepare.outputs.release_draft }}
           prerelease: false
-          includeUpdaterJson: true
+          includeUpdaterJson: false
           includeRelease: true
           tauriScript: pnpm tauri
           args: --target ${{ matrix.rust_target }}
@@ -321,10 +322,10 @@ jobs:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           tagName: ${{ needs.prepare.outputs.release_tag }}
           releaseName: ${{ needs.prepare.outputs.release_tag }}
-          releaseBody: ${{ needs.prepare.outputs.pure_changelog }}
+          releaseBody: ${{ needs.prepare.outputs.release_body }}
           releaseDraft: ${{ needs.prepare.outputs.release_draft }}
           prerelease: false
-          includeUpdaterJson: true
+          includeUpdaterJson: false
           includeRelease: true
           tauriScript: pnpm tauri
           args: --target ${{ matrix.rust_target }}
@@ -397,12 +398,35 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Generate final updater manifest
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          RELEASE_NOTES: ${{ needs.prepare.outputs.pure_changelog }}
+        run: |
+          ASSET_DIR="$RUNNER_TEMP/release-assets"
+          mkdir -p "$ASSET_DIR"
+          gh release download "$RELEASE_TAG" --pattern '*.sig' --dir "$ASSET_DIR"
+          node scripts/release-updater.cjs "$ASSET_DIR"
+          gh release upload "$RELEASE_TAG" "$ASSET_DIR/latest.json" --clobber
 
       - name: Determine release type
         id: release-type
         shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          if [[ "${{ needs.prepare.outputs.release_tag }}" == *"alpha"* ]] || [[ "${{ needs.prepare.outputs.release_tag }}" == *"beta"* ]] || [[ "${{ needs.prepare.outputs.release_tag }}" == *"rc"* ]] || [[ "${{ needs.prepare.outputs.release_tag }}" == *"pre"* ]] || [[ "${{ github.event.inputs.prerelease }}" == "true" ]]; then
+          if [[ "$RELEASE_TAG" == *"alpha"* ]] || [[ "$RELEASE_TAG" == *"beta"* ]] || [[ "$RELEASE_TAG" == *"rc"* ]] || [[ "$RELEASE_TAG" == *"pre"* ]] || [[ "$INPUT_PRERELEASE" == "true" ]]; then
             echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
           else
             echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
@@ -412,18 +436,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FULL_RELEASE_BODY: ${{ needs.prepare.outputs.release_body }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          IS_PRERELEASE: ${{ steps.release-type.outputs.IS_PRERELEASE }}
         run: |
           # 1. 将包含下载链接的完整内容写入临时文件
-          echo "$FULL_RELEASE_BODY" > full_release_notes.md
+          printf '%s\n' "$FULL_RELEASE_BODY" > full_release_notes.md
 
           # 2. 判断是否添加 prerelease 标签
           PRERELEASE_FLAG=""
-          if [ "${{ steps.release-type.outputs.IS_PRERELEASE }}" == "true" ]; then
+          if [ "$IS_PRERELEASE" == "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
 
           # 3. 强制覆写 Release 正文，并解除草稿状态
-          gh release edit "${{ needs.prepare.outputs.release_tag }}" \
+          gh release edit "$RELEASE_TAG" \
             --draft=false \
             --notes-file full_release_notes.md \
             $PRERELEASE_FLAG
