@@ -322,7 +322,7 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 				<Alert severity="info">
 					{t(
 						"pages.Detail.DataSourceUpdate.unboundKunData",
-						"Kungal 已切换为 NextMoe，旧编号已解绑，已有数据仍可查看和切换显示。更新时请按名称重新选择条目或填写新的 NextMoe ID；采用不含 Kungal 的新结果会移除旧 Kungal 数据。",
+						"Kungal 数据源已升级，旧 ID 已解绑，已有数据仍可查看。通过名称搜索或新版 ID 更新后，旧数据将被替换或移除。",
 					)}
 				</Alert>
 			)}

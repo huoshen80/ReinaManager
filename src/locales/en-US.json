@@ -712,7 +712,7 @@
 				"sourceSwitchUnavailable": "This game has no local data for that source, so only the display source cannot be switched.",
 				"switchDisplaySource": "Switch display source",
 				"switchingSource": "Switching...",
-				"unboundKunData": "Kungal now uses NextMoe. Legacy IDs have been unlinked, but saved data can still be viewed and selected for display. To update, select the entry again by name or enter its new NextMoe ID. Applying a new result without Kungal removes the old Kungal data.",
+				"unboundKunData": "The Kungal data source has been upgraded and old IDs have been unlinked. Saved data remains viewable. Updating by name search or an ID from the new version will replace or remove the old data.",
 				"updateFromSource": "Update from data source"
 			},
 			"deleteGameSession": "Delete Record",

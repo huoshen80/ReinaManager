@@ -690,7 +690,7 @@
 				"sourceSwitchUnavailable": "このゲームには選択したデータソースのローカルデータがないため、表示ソースだけを切り替えられません。",
 				"switchDisplaySource": "表示ソースを切替",
 				"switchingSource": "切り替え中...",
-				"unboundKunData": "Kungal は NextMoe に切り替わりました。旧 ID の紐付けは解除されていますが、保存済みデータの閲覧と表示ソースの切り替えは可能です。更新するには名前で項目を選び直すか、新しい NextMoe ID を入力してください。Kungal を含まない新しい結果を適用すると、旧 Kungal データは削除されます。",
+				"unboundKunData": "Kungal データソースが更新され、旧 ID の紐付けは解除されました。保存済みのデータは引き続き閲覧できます。名前での検索または新バージョンの ID でデータを更新すると、旧データは置き換えられるか削除されます。",
 				"updateFromSource": "データソースから更新"
 			},
 			"deleteGameSession": "記録を削除",

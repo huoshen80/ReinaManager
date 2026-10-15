@@ -690,7 +690,7 @@
 				"sourceSwitchUnavailable": "当前游戏没有该数据源的本地数据，无法仅切换显示源。",
 				"switchDisplaySource": "切换显示源",
 				"switchingSource": "正在切换...",
-				"unboundKunData": "Kungal 已切换为 NextMoe，旧编号已解绑，已有数据仍可查看和切换显示。更新时请按名称重新选择条目或填写新的 NextMoe ID；采用不含 Kungal 的新结果会移除旧 Kungal 数据。",
+				"unboundKunData": "Kungal 数据源已升级，旧 ID 已解绑，已有数据仍可查看。通过名称搜索或新版 ID 更新后，旧数据将被替换或移除。",
 				"updateFromSource": "从数据源更新数据"
 			},
 			"deleteGameSession": "删除记录",
