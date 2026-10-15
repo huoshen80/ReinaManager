@@ -264,12 +264,13 @@ Function PageLeaveReinstall
   ${IfThen} $ReinaPortableMode = 1 ${|} Return ${|}
   ${NSD_GetState} $R2 $R1
 
-  ${If} $WixMode = 1
-    Goto reinst_uninstall
-  ${EndIf}
-
+  ; 应用内更新只更新目标目录，不以卸载登记的旧 MSI 为前置条件。
   ${If} $UpdateMode = 1
     Goto reinst_done
+  ${EndIf}
+
+  ${If} $WixMode = 1
+    Goto reinst_uninstall
   ${EndIf}
 
   ${If} $R0 = 0
