@@ -148,7 +148,8 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 			!idType ||
 			idType === selectedGame.id_type ||
 			idType === "custom" ||
-			idType === "Whitecloud"
+			idType === "Whitecloud" ||
+			idType === "Playnite"
 		) {
 			return false;
 		}
@@ -280,9 +281,9 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 								Custom
 							</MenuItem>
 						) : null}
-						{idType === "Whitecloud" ? (
-							<MenuItem value="Whitecloud" disabled>
-								Whitecloud
+						{idType === "Whitecloud" || idType === "Playnite" ? (
+							<MenuItem value={idType} disabled>
+								{idType}
 							</MenuItem>
 						) : null}
 					</Select>

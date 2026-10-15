@@ -261,7 +261,7 @@ export function isSourceType(value: string): value is SourceType {
 /**
  * 数据源 ID 类型
  */
-export type IdType = apiSourceType | "custom" | "Whitecloud";
+export type IdType = apiSourceType | "custom" | "Whitecloud" | "Playnite";
 
 interface GameRuntimePayload {
 	localpath?: Nullable<string>;

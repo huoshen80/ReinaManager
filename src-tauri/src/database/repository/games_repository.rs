@@ -875,7 +875,8 @@ impl GamesRepository {
             GameType::IsCustom => query.filter(
                 Condition::any()
                     .add(games::Column::IdType.eq("custom"))
-                    .add(games::Column::IdType.eq("Whitecloud")),
+                    .add(games::Column::IdType.eq("Whitecloud"))
+                    .add(games::Column::IdType.eq("Playnite")),
             ),
         }
     }
@@ -989,7 +990,7 @@ impl GamesRepository {
             GameType::All => "",
             GameType::Local => "WHERE g.localpath IS NOT NULL",
             GameType::Online => "WHERE g.localpath IS NULL",
-            GameType::IsCustom => "WHERE g.id_type IN ('custom', 'Whitecloud')",
+            GameType::IsCustom => "WHERE g.id_type IN ('custom', 'Whitecloud', 'Playnite')",
         };
         let sql = format!(
             r#"
@@ -1074,8 +1075,10 @@ impl GamesRepository {
         };
 
         let name = if entry.sources.contains_key(entry.id_type.as_str())
-            && !matches!(entry.id_type.as_str(), "mixed" | "custom" | "Whitecloud")
-        {
+            && !matches!(
+                entry.id_type.as_str(),
+                "mixed" | "custom" | "Whitecloud" | "Playnite"
+            ) {
             source_name(&entry.id_type)
         } else {
             Self::MIXED_BASIC_SOURCE_PRIORITY

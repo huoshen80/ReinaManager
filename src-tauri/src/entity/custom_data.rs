@@ -25,7 +25,7 @@ pub enum SourceType {
 ///
 /// 用于用户自定义的游戏数据，包括：
 /// - 手动添加的游戏
-/// - 从 Whitecloud 等其他来源导入的游戏
+/// - 从 Whitecloud、Playnite 等其他来源导入的游戏
 /// - 用户自定义的名称和封面
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, FromJsonQueryResult)]
 #[serde(default)]

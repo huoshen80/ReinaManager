@@ -113,6 +113,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 
 			case "custom":
 			case "Whitecloud":
+			case "Playnite":
 				if (custom_data) applyCustomSourceDisplay(baseData, custom_data);
 				break;
 
