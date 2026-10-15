@@ -277,7 +277,7 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 			setOpen={setOpen}
 			title={title}
 			maxWidth={
-				viewGameSources.length === 3
+				viewGameSources.length >= 3
 					? "md"
 					: viewGameSources.length === 1
 						? "xs"
@@ -290,9 +290,7 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 							{warningMessage}
 						</Typography>
 					)}
-					<Box
-						className={`grid gap-4 w-fit max-w-full ${viewGameSources.length === 3 ? "grid-cols-3" : viewGameSources.length >= 2 ? "grid-cols-2" : "grid-cols-1"}`}
-					>
+					<Box className="flex items-start gap-4 w-fit max-w-full">
 						{viewGameSources.map((source) => (
 							<Box
 								key={source.key}
@@ -313,7 +311,7 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 								<SmartImage
 									src={source.image}
 									alt={source.alt}
-									className="block w-full h-64 object-contain object-left-top rounded"
+									className="block w-auto h-auto max-w-full max-h-64 rounded"
 								/>
 							</Box>
 						))}
