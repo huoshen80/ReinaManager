@@ -159,7 +159,9 @@ function PushTargetRow({
 						<Checkbox
 							size="small"
 							checked={target.selected}
-							disabled={disabled || target.availability !== "ready"}
+							disabled={
+								disabled || !target.id || target.availability !== "ready"
+							}
 							onChange={(event) => onSelect(event.target.checked)}
 						/>
 					}
@@ -170,6 +172,24 @@ function PushTargetRow({
 					}
 				/>
 				<Box className="flex flex-wrap items-center gap-2" aria-live="polite">
+					{!target.id ? (
+						<Tooltip
+							title={t("pages.Detail.Review.missingSourceIdHint", {
+								source: getRuntimeSourceAdapter(target.source).label,
+								defaultValue:
+									"当前游戏尚未关联 {{source}} ID，请先在游戏编辑页补充对应 ID",
+							})}
+						>
+							<Typography
+								component="span"
+								variant="caption"
+								color="textSecondary"
+								tabIndex={0}
+							>
+								{t("pages.Detail.Review.missingSourceId", "未关联 ID")}
+							</Typography>
+						</Tooltip>
+					) : null}
 					{pending ? (
 						<>
 							<CircularProgress size={14} />
@@ -300,13 +320,12 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 		data: nextmoeAuth,
 		isLoading: isNextmoeAuthLoading,
 		isError: isNextmoeAuthError,
-	} = useNextmoeAuth({ enabled: Boolean(kunId) });
-	const hasVndbId = Boolean(vndbId);
+	} = useNextmoeAuth();
 	const {
 		data: vndbProfile,
 		isLoading: isVndbProfileLoading,
 		isError: isVndbProfileError,
-	} = useVndbCurrentUserProfile({ enabled: hasVndbId });
+	} = useVndbCurrentUserProfile();
 	const [ratingInput, setRatingInput] = useState(() =>
 		formatRating(selectedGame.custom_data?.user_rating),
 	);
@@ -474,14 +493,13 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 					: undefined,
 		},
 	];
-	const targets: PushTarget[] = targetConfigs
-		.filter((target) => Boolean(target.id))
-		.map((target) => ({
-			...target,
-			selected:
-				target.availability === "ready" &&
-				(sourceSelection[target.source] ?? true),
-		}));
+	const targets: PushTarget[] = targetConfigs.map((target) => ({
+		...target,
+		selected:
+			Boolean(target.id) &&
+			target.availability === "ready" &&
+			(sourceSelection[target.source] ?? true),
+	}));
 	const selectedSources = new Set(
 		targets.filter((target) => target.selected).map((target) => target.source),
 	);
@@ -492,7 +510,7 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 				(source === "kun" && pushKunPlaytime),
 		),
 	);
-	const hasPushTarget = targets.length > 0;
+	const hasPushTarget = targets.some((target) => Boolean(target.id));
 	const shouldPushHikarinagiPlaytime =
 		selectedSources.has("hikarinagi") && pushHikarinagiPlaytime;
 	const shouldPushKunPlaytime = selectedSources.has("kun") && pushKunPlaytime;
@@ -702,122 +720,114 @@ export const Review: React.FC<ReviewProps> = ({ selectedGame }) => {
 									</Button>
 								) : null}
 							</Box>
-							{hasPushTarget ? (
-								<Typography
-									variant="body2"
-									color="textSecondary"
-									className="mt-1"
-								>
-									{t(
-										"pages.Detail.Review.cloudPushHelperText",
-										"将当前评分和评价同步到所选站点",
-									)}
-								</Typography>
-							) : null}
+							<Typography
+								variant="body2"
+								color="textSecondary"
+								className="mt-1"
+							>
+								{t(
+									"pages.Detail.Review.cloudPushHelperText",
+									"将当前评分和评价同步到所选站点",
+								)}
+							</Typography>
 						</Box>
-						{hasPushTarget ? (
-							<>
-								<Box component="ul" className="m-0 p-0">
-									{targets.map((target) => (
-										<PushTargetRow
-											key={target.source}
-											target={target}
-											results={pushResults.filter(
-												(result) => result.source === target.source,
-											)}
-											pending={pushingSources.includes(target.source)}
-											disabled={isPushing}
-											onSelect={(selected) =>
-												setSourceSelection((previous) => ({
-													...previous,
-													[target.source]: selected,
-												}))
-											}
-										/>
-									))}
-								</Box>
-								{showPlaytimeInputs ? (
-									<Box className="mt-4 border-0 border-t border-solid border-[var(--mui-palette-divider)] pt-4">
-										<Box className="mb-3">
-											<Typography variant="subtitle2">
-												{t("pages.Detail.totalPlayTime", "累计总时长")}
-											</Typography>
-											<Typography variant="caption" color="textSecondary">
-												{t(
-													"pages.Detail.Review.sharedPlaytimeHint",
-													"用于已开启时长推送的站点",
-												)}
-											</Typography>
-										</Box>
-										<Box className="flex flex-col gap-3 sm:flex-row">
-											<TextField
-												label={t("pages.Detail.sessionDurationHours", "小时")}
-												type="number"
-												size="small"
-												value={playtimeHoursInput}
-												disabled={isPushing}
-												onChange={(event) => {
-													setPlaytimeHoursInput(event.target.value);
-													setPlaytimeInitializedGameId(selectedGame.id);
-												}}
-												inputProps={{ min: 0, step: 1 }}
-												className="w-full sm:w-35"
-											/>
-											<TextField
-												label={t(
-													"pages.Detail.sessionDurationMinutePart",
-													"分钟",
-												)}
-												type="number"
-												size="small"
-												value={playtimeMinutesInput}
-												disabled={isPushing}
-												onChange={(event) => {
-													setPlaytimeMinutesInput(event.target.value);
-													setPlaytimeInitializedGameId(selectedGame.id);
-												}}
-												inputProps={{ min: 0, max: 59, step: 1 }}
-												className="w-full sm:w-35"
-											/>
-										</Box>
-									</Box>
-								) : null}
-								<Box className="mt-5">
-									<Button
-										variant="contained"
-										fullWidth
-										startIcon={
-											isPushing ? (
-												<CircularProgress size={16} color="inherit" />
-											) : (
-												<CloudUploadIcon />
-											)
-										}
-										disabled={
-											isPushing ||
-											updateGameMutation.isPending ||
-											ratingError ||
-											pushSources.size === 0
-										}
-										onClick={handlePush}
-									>
-										{isPushing
-											? t("pages.Detail.Review.pushing", "推送中...")
-											: t("pages.Detail.Review.pushToSites", {
-													count: pushSources.size,
-													defaultValue: "推送到 {{count}} 个站点",
-												})}
-									</Button>
-								</Box>
-							</>
-						) : (
+						{!hasPushTarget ? (
 							<Alert severity="info">
 								{t(
 									"pages.Detail.Review.noPushTargets",
 									"当前游戏没有支持评价推送的关联 ID",
 								)}
 							</Alert>
-						)}
+						) : null}
+						<Box component="ul" className="m-0 p-0">
+							{targets.map((target) => (
+								<PushTargetRow
+									key={target.source}
+									target={target}
+									results={pushResults.filter(
+										(result) => result.source === target.source,
+									)}
+									pending={pushingSources.includes(target.source)}
+									disabled={isPushing}
+									onSelect={(selected) =>
+										setSourceSelection((previous) => ({
+											...previous,
+											[target.source]: selected,
+										}))
+									}
+								/>
+							))}
+						</Box>
+						{showPlaytimeInputs ? (
+							<Box className="mt-4 border-0 border-t border-solid border-[var(--mui-palette-divider)] pt-4">
+								<Box className="mb-3">
+									<Typography variant="subtitle2">
+										{t("pages.Detail.totalPlayTime", "累计总时长")}
+									</Typography>
+									<Typography variant="caption" color="textSecondary">
+										{t(
+											"pages.Detail.Review.sharedPlaytimeHint",
+											"用于已开启时长推送的站点",
+										)}
+									</Typography>
+								</Box>
+								<Box className="flex flex-col gap-3 sm:flex-row">
+									<TextField
+										label={t("pages.Detail.sessionDurationHours", "小时")}
+										type="number"
+										size="small"
+										value={playtimeHoursInput}
+										disabled={isPushing}
+										onChange={(event) => {
+											setPlaytimeHoursInput(event.target.value);
+											setPlaytimeInitializedGameId(selectedGame.id);
+										}}
+										inputProps={{ min: 0, step: 1 }}
+										className="w-full sm:w-35"
+									/>
+									<TextField
+										label={t("pages.Detail.sessionDurationMinutePart", "分钟")}
+										type="number"
+										size="small"
+										value={playtimeMinutesInput}
+										disabled={isPushing}
+										onChange={(event) => {
+											setPlaytimeMinutesInput(event.target.value);
+											setPlaytimeInitializedGameId(selectedGame.id);
+										}}
+										inputProps={{ min: 0, max: 59, step: 1 }}
+										className="w-full sm:w-35"
+									/>
+								</Box>
+							</Box>
+						) : null}
+						<Box className="mt-5">
+							<Button
+								variant="contained"
+								fullWidth
+								startIcon={
+									isPushing ? (
+										<CircularProgress size={16} color="inherit" />
+									) : (
+										<CloudUploadIcon />
+									)
+								}
+								disabled={
+									isPushing ||
+									updateGameMutation.isPending ||
+									ratingError ||
+									pushSources.size === 0
+								}
+								onClick={handlePush}
+							>
+								{isPushing
+									? t("pages.Detail.Review.pushing", "推送中...")
+									: t("pages.Detail.Review.pushToSites", {
+											count: pushSources.size,
+											defaultValue: "推送到 {{count}} 个站点",
+										})}
+							</Button>
+						</Box>
 					</CardContent>
 				</Card>
 			</Stack>

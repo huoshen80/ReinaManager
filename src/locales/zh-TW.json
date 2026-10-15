@@ -799,6 +799,8 @@
 				"containsSpoilers": "包含劇透",
 				"localReview": "本地評價",
 				"loginToPush": "請先在帳號設定中登入該站點",
+				"missingSourceId": "未關聯 ID",
+				"missingSourceIdHint": "目前遊戲尚未關聯 {{source}} ID，請先在遊戲編輯頁補充對應 ID",
 				"myRating": "我的評分",
 				"myReview": "我的評價",
 				"noPushTargets": "目前遊戲沒有支援評價推送的關聯 ID",

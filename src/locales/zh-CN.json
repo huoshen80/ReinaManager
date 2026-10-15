@@ -799,6 +799,8 @@
 				"containsSpoilers": "包含剧透",
 				"localReview": "本地评价",
 				"loginToPush": "请先在账号设置中登录该站点",
+				"missingSourceId": "未关联 ID",
+				"missingSourceIdHint": "当前游戏尚未关联 {{source}} ID，请先在游戏编辑页补充对应 ID",
 				"myRating": "我的评分",
 				"myReview": "我的评价",
 				"noPushTargets": "当前游戏没有支持评价推送的关联 ID",

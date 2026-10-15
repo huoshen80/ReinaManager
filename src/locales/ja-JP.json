@@ -799,6 +799,8 @@
 				"containsSpoilers": "ネタバレを含む",
 				"localReview": "ローカル評価",
 				"loginToPush": "アカウント設定でこのサイトにログインしてください",
+				"missingSourceId": "ID 未連携",
+				"missingSourceIdHint": "このゲームには {{source}} ID が連携されていません。ゲーム編集ページで対応する ID を追加してください",
 				"myRating": "自分の評価",
 				"myReview": "自分のレビュー",
 				"noPushTargets": "このゲームには評価を送信できる連携先の ID がありません",

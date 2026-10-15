@@ -821,6 +821,8 @@
 				"containsSpoilers": "Contains Spoilers",
 				"localReview": "Local Review",
 				"loginToPush": "Sign in to this site in account settings first",
+				"missingSourceId": "No linked ID",
+				"missingSourceIdHint": "This game has no linked {{source}} ID. Add the ID on the game editing page first",
 				"myRating": "My Rating",
 				"myReview": "My Review",
 				"noPushTargets": "This game has no linked IDs that support review push",
