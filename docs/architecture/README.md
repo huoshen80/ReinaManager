@@ -54,7 +54,7 @@ src-tauri/
 
 ## 启动边界
 
-后端入口 [`src-tauri/src/lib.rs`](../../src-tauri/src/lib.rs) 在访问数据前固定运行环境，完成数据库迁移后恢复持久化任务。数据库连接或 schema 迁移失败会停止启动。开发与正式环境的数据隔离由 `reina-path` 统一管理。
+后端入口 [`src-tauri/src/lib.rs`](../../src-tauri/src/lib.rs) 在访问数据前固定运行环境，并组装插件与 commands；[`lifecycle.rs`](../../src-tauri/src/lifecycle.rs) 负责启动和退出编排，完成数据库迁移后恢复持久化任务，再创建主窗口加载前端。数据库连接或 schema 迁移失败时，通过原生提示告知用户，确认后退出；旧版封面迁移失败只提示并记录日志，允许继续启动。开发与正式环境的数据隔离由 `reina-path` 统一管理。
 
 前端入口 [`src/main.tsx`](../../src/main.tsx) 在挂载前完成首屏所需的状态和资源路径初始化；托盘、游戏会话监听和自动备份由应用级逻辑初始化，不依赖具体页面。
 

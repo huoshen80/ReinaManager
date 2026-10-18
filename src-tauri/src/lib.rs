@@ -3,6 +3,7 @@ mod database;
 mod entity;
 mod game;
 mod install;
+mod lifecycle;
 mod oauth;
 mod utils;
 
@@ -21,13 +22,11 @@ use game::launch::{launch_game, stop_game};
 use game::scan::scan_directory_for_games;
 use game::steam::{resolve_steam_shortcut_file, scan_steam_launch_targets};
 use install::protocol::{
-    InstallProtocolState, setup_install_protocol, take_pending_install_rejections,
-    take_pending_install_requests,
+    InstallProtocolState, take_pending_install_rejections, take_pending_install_requests,
 };
 use install::{
     TaskRuntimeState, cancel_task, complete_game_install_task, create_game_install_task,
-    delete_task, fail_game_install_metadata, list_tasks, pause_task, recover_interrupted_tasks,
-    resume_pending_tasks, resume_task, retry_task,
+    delete_task, fail_game_install_metadata, list_tasks, pause_task, resume_task, retry_task,
 };
 use oauth::{
     bgm_auth::{
@@ -44,8 +43,6 @@ use oauth::{
     },
 };
 use tauri::Manager;
-use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
-use tauri_plugin_store::StoreExt;
 use utils::{
     fs::{
         copy_file, delete_file, inspect_user_path, is_portable_mode, open_directory,
@@ -53,21 +50,10 @@ use utils::{
     },
     http::{get_system_proxy_status, update_proxy_config},
     image::register_image_proxy_protocol,
-    legacy_migration::run_startup_migrations,
     logs::{get_reina_log_level, set_reina_log_level},
     runtime::{configure_runtime, is_development},
     updater::{check_app_update, inspect_update_installation},
 };
-
-#[cfg(target_os = "windows")]
-use utils::http::{SystemProxyMonitor, start_system_proxy_monitor};
-#[cfg(target_os = "windows")]
-use utils::zoom::listen_to_webview_zoom;
-
-const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
-const LOG_KEEP_FILE_COUNT: usize = 7;
-const SETTINGS_STORE_PATH: &str = "settings.json";
-const SILENT_STARTUP_STORE_KEY: &str = "silent_startup";
 
 #[tauri::command]
 fn restart_app(app: tauri::AppHandle) {
@@ -227,165 +213,8 @@ pub fn run() {
             count_games_in_group,
             get_categories_with_count,
         ])
-        .setup(|app| {
-            let silent_startup = match app.store(SETTINGS_STORE_PATH) {
-                Ok(store) => store
-                    .get(SILENT_STARTUP_STORE_KEY)
-                    .and_then(|value| value.as_bool())
-                    .unwrap_or(false),
-                Err(error) => {
-                    eprintln!("读取静默启动设置失败: {error}");
-                    false
-                }
-            };
-
-            if let Some(window) = app.get_webview_window("main") {
-                #[cfg(target_os = "windows")]
-                if let Err(error) = listen_to_webview_zoom(&window) {
-                    eprintln!("监听 WebView 缩放失败: {error}");
-                }
-
-                if !silent_startup {
-                    let _ = window.show();
-                }
-
-                // 仅在调试模式下自动打开开发者工具
-                #[cfg(debug_assertions)]
-                window.open_devtools();
-            }
-
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Debug)
-                        .level_for("reqwest::connect", log::LevelFilter::Warn)
-                        .level_for("hyper", log::LevelFilter::Warn)
-                        .level_for("hyper_util", log::LevelFilter::Warn)
-                        .level_for("h2", log::LevelFilter::Warn)
-                        .max_file_size(LOG_MAX_FILE_SIZE)
-                        .rotation_strategy(RotationStrategy::KeepSome(LOG_KEEP_FILE_COUNT))
-                        .targets([
-                            Target::new(TargetKind::LogDir {
-                                // set custom log file name for debug
-                                file_name: Some("debug".into()),
-                            }),
-                            Target::new(TargetKind::Stdout),
-                        ])
-                        .build(),
-                )?;
-            } else {
-                // 设置初始日志级别为 Info（运行时可通过命令调整）
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .timezone_strategy(TimezoneStrategy::UseLocal)
-                        .level(log::LevelFilter::Debug)
-                        .level_for("reqwest::connect", log::LevelFilter::Warn)
-                        .level_for("hyper", log::LevelFilter::Warn)
-                        .level_for("hyper_util", log::LevelFilter::Warn)
-                        .level_for("h2", log::LevelFilter::Warn)
-                        .max_file_size(LOG_MAX_FILE_SIZE)
-                        .rotation_strategy(RotationStrategy::KeepSome(LOG_KEEP_FILE_COUNT))
-                        .build(),
-                )?;
-                // 发布版默认保持 Info，但保留本会话临时升到 Debug 的能力。
-                log::set_max_level(log::LevelFilter::Info);
-            }
-
-            // 日志插件初始化后再注册协议，确保注册失败信息能够写入日志。
-            setup_install_protocol(app);
-
-            #[cfg(target_os = "windows")]
-            match start_system_proxy_monitor(Some(app.handle().clone())) {
-                Ok(monitor) => {
-                    app.manage(monitor);
-                    log::debug!("Windows 系统代理监听已启动");
-                }
-                Err(error) => log::warn!("Windows 系统代理监听启动失败: {error}"),
-            }
-
-            let startup_context = format!(
-                "version={} os={} arch={} mode={} silent_startup={}",
-                app.package_info().version,
-                std::env::consts::OS,
-                std::env::consts::ARCH,
-                if reina_path::is_portable_mode() { "portable" } else { "standard" },
-                silent_startup,
-            );
-            // 文件迁移与数据库迁移执行不同操作，结果统一写入后面的启动摘要。
-            let file_migration_summary = match run_startup_migrations() {
-                Ok(result) if result.executed == 0 => "file_migration=skipped".to_string(),
-                Ok(result) => format!(
-                    "file_migration=completed executed={} skipped={} moved={} replaced={} removed_legacy={}",
-                    result.executed,
-                    result.skipped,
-                    result.migrated_files,
-                    result.replaced_files,
-                    result.removed_legacy_files,
-                ),
-                Err(err) => {
-                    log::error!("旧版文件迁移失败: {err}");
-                    "file_migration=failed".to_string()
-                }
-            };
-            let startup_context = format!("{startup_context} {file_migration_summary}");
-
-            // 执行 SeaORM 数据库迁移并注册到状态管理
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::block_on(async move {
-                match db::establish_connection().await {
-                    Ok(conn) => {
-                        log::debug!("数据库连接建立成功");
-
-                        // 执行数据库迁移
-                        match migration::migrate_database(&conn, env!("CARGO_PKG_VERSION")).await {
-                            Ok(_) => log::info!(
-                                "启动初始化完成: {startup_context} database_migration=completed"
-                            ),
-                            Err(e) => {
-                                log::error!("数据库迁移失败: {startup_context} error={e}");
-                                panic!("数据库迁移失败，已停止启动: {}", e);
-                            }
-                        }
-
-                        // 将数据库连接注册到 Tauri 状态管理
-                        app_handle.manage(conn.clone());
-
-                        match recover_interrupted_tasks(&conn).await {
-                            Ok(task_ids) => resume_pending_tasks(&app_handle, &conn, task_ids),
-                            Err(error) => log::error!("恢复中断任务失败: {error}"),
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("无法建立数据库连接: {startup_context} error={e}");
-                        panic!("数据库初始化失败: {}", e);
-                    }
-                }
-            });
-            Ok(())
-        })
+        .setup(lifecycle::setup)
         .build(context)
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            // 监听应用退出事件
-            if let tauri::RunEvent::Exit = event {
-                #[cfg(target_os = "windows")]
-                if let Some(monitor) = app_handle.try_state::<SystemProxyMonitor>() {
-                    monitor.shutdown();
-                }
-
-                // 同步获取并关闭数据库连接
-                if let Some(conn_state) = app_handle.try_state::<sea_orm::DatabaseConnection>() {
-                    let conn = conn_state.inner().clone();
-
-                    // 使用 block_on 确保数据库连接在应用退出前完全关闭
-                    tauri::async_runtime::block_on(async {
-                        match db::close_connection(conn).await {
-                            Ok(_) => log::info!("数据库连接已成功关闭"),
-                            Err(e) => log::error!("关闭数据库连接时出错: {}", e),
-                        }
-                    });
-                }
-            }
-        });
+        .run(lifecycle::on_event);
 }

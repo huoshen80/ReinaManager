@@ -2,7 +2,7 @@
 
 ## 入口与职责
 
-`src-tauri/src/lib.rs` 组合协议、插件、共享状态与 commands；启动顺序见[架构总览](README.md#启动边界)。退出时等待数据库连接关闭。
+`src-tauri/src/lib.rs` 组合协议、插件、共享状态与 commands；`lifecycle.rs` 编排启动初始化、主窗口创建、启动提示与退出清理。启动顺序见[架构总览](README.md#启动边界)。退出时等待数据库连接关闭。
 
 | 模块 | 职责 |
 | --- | --- |

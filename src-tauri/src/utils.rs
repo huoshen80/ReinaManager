@@ -1,6 +1,7 @@
 #[cfg(target_os = "windows")]
 pub mod command_ext;
 
+pub mod dialog;
 pub mod fs;
 pub mod http;
 pub mod image;
