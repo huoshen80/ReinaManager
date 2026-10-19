@@ -62,9 +62,23 @@ const EMPTY_PROCESS_TIMEOUT_SECS: u64 = 60;
 /// 等待监控会话注册的最长时间（秒）
 const SESSION_REGISTRATION_TIMEOUT_SECS: u64 = 10;
 
+/// 未知前台进程的路径查询失败后，最多额外重试的次数。
+const MAX_FOREGROUND_PATH_QUERY_RETRIES: u32 = 2;
+
+/// 前台进程路径查询失败后的重试间隔（秒）。
+const FOREGROUND_PATH_QUERY_RETRY_INTERVAL_SECS: u64 = 1;
+
 // ============================================================================
 // 数据结构定义
 // ============================================================================
+
+/// 仅缓存当前前台 PID 的查询状态，避免持续查询无关或无法访问的进程。
+#[derive(Default)]
+struct ForegroundProcessCache {
+    last_pid: Option<u32>,
+    path_query_failures: u32,
+    last_path_query_at: Option<Instant>,
+}
 
 /// 活跃的监控会话信息
 pub struct ActiveSession {
@@ -615,7 +629,7 @@ fn start_foreground_hook(
     tokio::task::spawn_blocking(move || {
         debug!("前台窗口 Hook 线程已启动");
 
-        let mut last_pid = None;
+        let mut foreground_cache = ForegroundProcessCache::default();
 
         // 双重路径预处理：原始路径 + 真实物理规范化路径（如果可获取）
         let canonical_game_dir = std::fs::canonicalize(&game_directory)
@@ -632,7 +646,7 @@ fn start_foreground_hook(
                 &candidate_pids,
                 &game_directory,
                 canonical_game_dir.as_deref(),
-                &mut last_pid,
+                &mut foreground_cache,
                 get_foreground_pid(),
             );
         }
@@ -661,19 +675,22 @@ fn update_foreground_state(
     candidate_pids: &RwLock<HashSet<u32>>,
     game_directory: &str,
     canonical_game_dir: Option<&str>,
-    last_pid: &mut Option<u32>,
+    foreground_cache: &mut ForegroundProcessCache,
     foreground_pid: Option<u32>,
 ) {
     let Some(new_pid) = foreground_pid else {
         // 无有效窗口时同时失效 PID 缓存，确保同一 PID 恢复后会重新判断。
-        *last_pid = None;
+        *foreground_cache = ForegroundProcessCache::default();
         state.write().is_foreground = false;
         return;
     };
 
     // 候选集会被主监控循环更新，因此必须先检查候选集，再按 PID 去重。
     if candidate_pids.read().contains(&new_pid) {
-        *last_pid = Some(new_pid);
+        *foreground_cache = ForegroundProcessCache {
+            last_pid: Some(new_pid),
+            ..Default::default()
+        };
         let mut session_state = state.write();
         session_state.is_foreground = true;
         session_state.mark_started();
@@ -684,13 +701,29 @@ fn update_foreground_state(
         return;
     }
 
-    // 未知 PID 仅在变化时执行较重的进程路径查询。
-    if *last_pid == Some(new_pid) {
-        return;
+    // 成功查询过的 PID 继续去重；查询失败时允许有限次重试，避免临时失败导致持续漏计。
+    if foreground_cache.last_pid == Some(new_pid) {
+        if foreground_cache.path_query_failures == 0
+            || foreground_cache.path_query_failures > MAX_FOREGROUND_PATH_QUERY_RETRIES
+            || foreground_cache
+                .last_path_query_at
+                .is_some_and(|last_query_at| {
+                    last_query_at.elapsed()
+                        < Duration::from_secs(FOREGROUND_PATH_QUERY_RETRY_INTERVAL_SECS)
+                })
+        {
+            return;
+        }
+    } else {
+        *foreground_cache = ForegroundProcessCache {
+            last_pid: Some(new_pid),
+            ..Default::default()
+        };
     }
-    *last_pid = Some(new_pid);
 
     if let Some(exe_path) = get_process_executable_path(new_pid) {
+        foreground_cache.path_query_failures = 0;
+        foreground_cache.last_path_query_at = None;
         let exe_path_str = exe_path.to_string_lossy();
         let mut matches = is_sub_path_ignore_case(&exe_path_str, game_directory);
         if !matches && let Some(canonical_game_dir) = canonical_game_dir {
@@ -710,6 +743,9 @@ fn update_foreground_state(
             session_state.mark_started();
             return;
         }
+    } else {
+        foreground_cache.path_query_failures += 1;
+        foreground_cache.last_path_query_at = Some(Instant::now());
     }
 
     state.write().is_foreground = false;
@@ -998,7 +1034,7 @@ mod tests {
     fn same_pid_recovers_after_foreground_becomes_unavailable() {
         let state = RwLock::new(MonitorState::new(123));
         let candidate_pids = RwLock::new(HashSet::from([123]));
-        let mut last_pid = None;
+        let mut foreground_cache = ForegroundProcessCache::default();
 
         assert!(!state.read().has_started);
 
@@ -1007,7 +1043,7 @@ mod tests {
             &candidate_pids,
             "C:\\Games\\Example",
             None,
-            &mut last_pid,
+            &mut foreground_cache,
             Some(123),
         );
         assert!(state.read().is_foreground);
@@ -1018,19 +1054,19 @@ mod tests {
             &candidate_pids,
             "C:\\Games\\Example",
             None,
-            &mut last_pid,
+            &mut foreground_cache,
             None,
         );
         assert!(!state.read().is_foreground);
         assert!(state.read().has_started);
-        assert_eq!(last_pid, None);
+        assert_eq!(foreground_cache.last_pid, None);
 
         update_foreground_state(
             &state,
             &candidate_pids,
             "C:\\Games\\Example",
             None,
-            &mut last_pid,
+            &mut foreground_cache,
             Some(123),
         );
         assert!(state.read().is_foreground);
@@ -1041,7 +1077,10 @@ mod tests {
         let state = RwLock::new(MonitorState::new(1));
         let candidate_pids = RwLock::new(HashSet::new());
         // 模拟该 PID 已按非游戏进程处理，但随后被主监控循环加入候选集。
-        let mut last_pid = Some(123);
+        let mut foreground_cache = ForegroundProcessCache {
+            last_pid: Some(123),
+            ..Default::default()
+        };
         candidate_pids.write().insert(123);
 
         update_foreground_state(
@@ -1049,7 +1088,7 @@ mod tests {
             &candidate_pids,
             "C:\\Games\\Example",
             None,
-            &mut last_pid,
+            &mut foreground_cache,
             Some(123),
         );
 
