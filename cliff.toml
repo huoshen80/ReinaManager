@@ -32,6 +32,7 @@ body = """
 - [**Debian/Ubuntu (.deb x64)**]({{ base_url }}{{ prefix }}_amd64.deb)
 - [**AppImage (ARM64)**]({{ base_url }}{{ prefix }}_aarch64.AppImage)
 - [**Debian/Ubuntu (.deb ARM64)**]({{ base_url }}{{ prefix }}_arm64.deb)
+- [**Arch Linux（AUR，社区维护 / Community maintained）**](https://aur.archlinux.org/packages/reinamanager-bin)
 
 {% else %}
 {% if version %}\
