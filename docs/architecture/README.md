@@ -1,6 +1,6 @@
 # 架构总览
 
-ReinaManager 是由 React 前端与 Rust 后端组成的 Tauri 2 桌面应用。
+ReinaManager 是由 React 前端与 Rust 后端组成的桌面应用。`spike/linux-cef` 实验分支使用 Tauri 3 alpha，Linux 采用 CEF，Windows 采用 Wry/WebView2；正式发行仍由主分支维护。
 
 ## 系统边界
 

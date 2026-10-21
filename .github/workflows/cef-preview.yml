@@ -1,0 +1,263 @@
+name: CEF Preview
+
+on:
+  push:
+    branches: ["spike/linux-cef"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cef-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_BUILD_JOBS: 2
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # 预览优先缩短冷构建；仍保留 release 模式的资源路径和条件编译行为。
+  CARGO_PROFILE_RELEASE_LTO: "false"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 16
+  CARGO_PROFILE_RELEASE_OPT_LEVEL: 1
+
+jobs:
+  linux-cef:
+    name: Linux x64 CEF deb (Ubuntu 24.04)
+    if: github.ref == 'refs/heads/spike/linux-cef'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CEF_PATH: ${{ github.workspace }}/.cef-cache
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          shared-key: cef-preview-fast-linux-x64
+
+      - name: Cache CEF distribution
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CEF_PATH }}
+          key: cef-preview-linux-x64-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Cache bundled 7-Zip
+        uses: actions/cache@v6
+        with:
+          path: src-tauri/target/7zip
+          key: 7zip-Linux-x86_64-unknown-linux-gnu-${{ hashFiles('src-tauri/build.rs') }}
+
+      # CEF 使用 GTK4；不安装 WebKit，以便尽早发现依赖错误地启用了 Wry。
+      - name: Install Linux build and CEF runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake ninja-build pkg-config curl file patchelf xdg-utils xvfb dbus-x11 xauth xdotool \
+            libgtk-4-dev libssl-dev librsvg2-dev libxdo-dev \
+            libasound2-dev libatk1.0-dev libcups2-dev libdrm-dev libgbm-dev \
+            libnss3-dev libx11-dev libxcb1-dev libxcomposite-dev libxdamage-dev \
+            libxext-dev libxfixes-dev libxrandr-dev libxkbcommon-dev
+
+      - name: Install project dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CEF Debian preview
+        env:
+          BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
+        run: pnpm tauri build --ci --target x86_64-unknown-linux-gnu --bundles deb -- --locked
+
+      # 通过真正安装检查打包后的权限和动态库，而不是只检查 Cargo 输出目录。
+      - name: Verify Debian package and CEF sandbox
+        shell: bash
+        run: |
+          shopt -s nullglob
+          packages=(src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb)
+          test "${#packages[@]}" -eq 1
+          deb="${packages[0]}"
+          dpkg-deb --info "$deb"
+          dependencies=$(dpkg-deb --field "$deb" Depends)
+          if [[ "$dependencies" == *webkit* ]]; then
+            echo "CEF 预览包不应依赖 WebKitGTK"
+            exit 1
+          fi
+          sudo apt-get install -y "$PWD/$deb"
+          package_name=$(dpkg-deb --field "$deb" Package)
+          mapfile -t app_binaries < <(dpkg-query -L "$package_name" | grep '^/usr/bin/[^/]*$')
+          test "${#app_binaries[@]}" -eq 1
+          test -x "${app_binaries[0]}"
+          printf 'CEF_PREVIEW_BINARY=%s\n' "${app_binaries[0]}" >> "$GITHUB_ENV"
+          mapfile -t sandboxes < <(dpkg-query -L "$package_name" | grep '/chrome-sandbox$')
+          test "${#sandboxes[@]}" -eq 1
+          sandbox="${sandboxes[0]}"
+          test "$(stat -c '%u:%g:%a' "$sandbox")" = '0:0:4755'
+          cef_library="$(dirname "$sandbox")/libcef.so"
+          test -f "$cef_library"
+          ldd "$cef_library" > "$RUNNER_TEMP/cef-ldd.txt"
+          cat "$RUNNER_TEMP/cef-ldd.txt"
+          if grep -q 'not found' "$RUNNER_TEMP/cef-ldd.txt"; then
+            exit 1
+          fi
+          mapfile -t seven_zip < <(dpkg-query -L "$package_name" | grep '/tools/7zip/7zz$')
+          test "${#seven_zip[@]}" -eq 1
+          test -x "${seven_zip[0]}"
+          "${seven_zip[0]}" i > "$RUNNER_TEMP/7zip-info.txt"
+          sha256sum "$deb" > "${deb}.sha256"
+
+      # 确认主窗口可见并持续存活；输入、焦点和显卡兼容性仍需用户桌面验证。
+      - name: Smoke test installed CEF preview under Xvfb
+        shell: bash
+        env:
+          GDK_BACKEND: x11
+          LIBGL_ALWAYS_SOFTWARE: 1
+        run: |
+          set +e
+          timeout --signal=TERM --kill-after=5s 40s \
+            dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' \
+            bash <<'SMOKE' > "$RUNNER_TEMP/cef-startup.log" 2>&1
+          "$CEF_PREVIEW_BINARY" &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              wait "$app_pid"
+              exit $?
+            fi
+            if xdotool search --onlyvisible --name '^ReinaManager CEF Preview' >/dev/null; then
+              echo 'CEF_PREVIEW_MAIN_WINDOW_VISIBLE'
+              wait "$app_pid"
+              exit $?
+            fi
+            sleep 1
+          done
+          echo 'CEF 主窗口未在 30 秒内显示'
+          exit 1
+          SMOKE
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/cef-startup.log"
+          if [ "$status" -ne 124 ]; then
+            echo "CEF 主进程应持续运行至 40 秒超时，实际退出码: $status"
+            exit 1
+          fi
+          grep -q '^CEF_PREVIEW_MAIN_WINDOW_VISIBLE$' "$RUNNER_TEMP/cef-startup.log"
+          if grep -Ei 'panicked at|segmentation fault|No usable sandbox|error while loading shared libraries|FATAL:' "$RUNNER_TEMP/cef-startup.log"; then
+            exit 1
+          fi
+
+      - name: Upload Linux startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ReinaManager-cef-preview-linux-x64-diagnostics-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/cef-startup.log
+            ${{ runner.temp }}/cef-ldd.txt
+            ${{ runner.temp }}/7zip-info.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Debian preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: ReinaManager-cef-preview-linux-x64-deb-${{ github.run_number }}
+          path: |
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  windows-wry:
+    name: Windows x64 Wry preview
+    if: github.ref == 'refs/heads/spike/linux-cef'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6.1.0
+        with:
+          run_install: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          shared-key: cef-preview-fast-windows-x64
+
+      - name: Cache bundled 7-Zip
+        uses: actions/cache@v6
+        with:
+          path: src-tauri/target/7zip
+          key: 7zip-Windows-x86_64-pc-windows-msvc-${{ hashFiles('src-tauri/build.rs') }}
+
+      - name: Install project dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 首轮只验证 Wry 编译并提供解压运行的包，跳过正式安装器和签名流程。
+      - name: Build Wry preview
+        env:
+          BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
+        run: pnpm tauri build --ci --target x86_64-pc-windows-msvc --no-bundle -- --locked
+
+      - name: Package Windows preview with resources
+        shell: pwsh
+        run: |
+          $buildRoot = Join-Path $PWD 'src-tauri/target/x86_64-pc-windows-msvc/release'
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'ReinaManager-cef-preview-windows-x64'
+          $sevenZipRoot = Join-Path $buildRoot 'tools/7zip'
+          foreach ($relativePath in @('7z.exe', '7z.dll', 'Codecs/zstd.dll', 'Codecs/LICENSE')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $sevenZipRoot $relativePath) -PathType Leaf)) {
+              throw "缺少 7-Zip 资源: $relativePath"
+            }
+          }
+          New-Item -ItemType Directory -Path (Join-Path $packageRoot 'tools') | Out-Null
+          Copy-Item -LiteralPath $sevenZipRoot -Destination (Join-Path $packageRoot 'tools/7zip') -Recurse
+          Copy-Item -LiteralPath (Join-Path $buildRoot 'ReinaManager.exe') -Destination $packageRoot
+          $archivePath = Join-Path $env:RUNNER_TEMP 'ReinaManager-cef-preview-windows-x64.zip'
+          Compress-Archive -Path (Join-Path $packageRoot '*') -DestinationPath $archivePath
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  ReinaManager-cef-preview-windows-x64.zip" | Set-Content -LiteralPath "$archivePath.sha256" -Encoding utf8
+
+      - name: Upload Windows Wry preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: ReinaManager-cef-preview-windows-x64-wry-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/ReinaManager-cef-preview-windows-x64.zip
+            ${{ runner.temp }}/ReinaManager-cef-preview-windows-x64.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

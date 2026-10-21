@@ -34,6 +34,8 @@ schema 由 `src-tauri/migration` 顺序迁移，入口统一管理迁移备份�
 
 `utils/runtime.rs` 在访问数据和初始化插件前固定环境，进程内不能切换。开发与正式环境由运行模式决定，与构建优化级别无关。
 
+`spike/linux-cef` 的开发和发行构建均固定使用实验环境，应用标识、插件存储及业务数据与正式版、普通开发版隔离。实验包忽略便携目录，沿用开发模式对更新及开机启动的限制，也不注册或消费正式版安装协议；前端现有 `isDevelopment()` 同样对实验包返回 true。实验构建入口为 [CEF Preview 工作流](../../.github/workflows/cef-preview.yml)，只上传测试产物，不发布正式版本。
+
 `reina-path` 统一路径策略：
 
 | 环境 | 业务数据根目录 |
