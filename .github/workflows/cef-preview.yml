@@ -54,9 +54,11 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           shared-key: cef-preview-fast-linux-x64
+          cache-on-failure: true
 
       - name: Cache CEF distribution
-        uses: actions/cache@v6
+        id: cef-cache
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.CEF_PATH }}
           key: cef-preview-linux-x64-${{ hashFiles('src-tauri/Cargo.lock') }}
@@ -81,10 +83,23 @@ jobs:
       - name: Install project dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build CEF Debian preview
+      - name: Build CEF preview
         env:
           BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
-        run: node node_modules/@tauri-apps/cli/tauri.js build --ci --target x86_64-unknown-linux-gnu --bundles deb -- --locked
+        run: node node_modules/@tauri-apps/cli/tauri.js build --ci --target x86_64-unknown-linux-gnu --no-bundle -- --locked
+
+      # CEF 154 已移除独立 ANGLE 文件，alpha CLI 仍强制复制旧的 so。
+      - name: Package CEF Debian preview
+        run: |
+          node node_modules/@tauri-apps/cli/tauri.js bundle --ci --target x86_64-unknown-linux-gnu --bundles deb --config '{"bundle":{"cef":{"embed":false}}}'
+          python3 scripts/package-cef-deb.py
+
+      - name: Save CEF distribution after build
+        if: always() && steps.cef-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.CEF_PATH }}
+          key: cef-preview-linux-x64-${{ hashFiles('src-tauri/Cargo.lock') }}
 
       # 通过真正安装检查打包后的权限和动态库，而不是只检查 Cargo 输出目录。
       - name: Verify Debian package and CEF sandbox
@@ -216,6 +231,7 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           shared-key: cef-preview-fast-windows-x64
+          cache-on-failure: true
 
       - name: Cache bundled 7-Zip
         uses: actions/cache@v6
@@ -237,7 +253,8 @@ jobs:
         run: |
           $buildRoot = Join-Path $PWD 'src-tauri/target/x86_64-pc-windows-msvc/release'
           $packageRoot = Join-Path $env:RUNNER_TEMP 'ReinaManager-cef-preview-windows-x64'
-          $sevenZipRoot = Join-Path $buildRoot 'tools/7zip'
+          $sevenZipRoot = Join-Path $PWD 'src-tauri/target/7zip'
+          $binaryName = (Get-Content -Raw -LiteralPath 'src-tauri/tauri.conf.json' | ConvertFrom-Json).mainBinaryName
           foreach ($relativePath in @('7z.exe', '7z.dll', 'Codecs/zstd.dll', 'Codecs/LICENSE')) {
             if (-not (Test-Path -LiteralPath (Join-Path $sevenZipRoot $relativePath) -PathType Leaf)) {
               throw "缺少 7-Zip 资源: $relativePath"
@@ -245,7 +262,7 @@ jobs:
           }
           New-Item -ItemType Directory -Path (Join-Path $packageRoot 'tools') | Out-Null
           Copy-Item -LiteralPath $sevenZipRoot -Destination (Join-Path $packageRoot 'tools/7zip') -Recurse
-          Copy-Item -LiteralPath (Join-Path $buildRoot 'ReinaManager.exe') -Destination $packageRoot
+          Copy-Item -LiteralPath (Join-Path $buildRoot "$binaryName.exe") -Destination $packageRoot
           $archivePath = Join-Path $env:RUNNER_TEMP 'ReinaManager-cef-preview-windows-x64.zip'
           Compress-Archive -Path (Join-Path $packageRoot '*') -DestinationPath $archivePath
           $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()

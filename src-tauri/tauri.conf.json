@@ -1,6 +1,7 @@
 {
 	"$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
 	"productName": "ReinaManager CEF Preview",
+	"mainBinaryName": "ReinaManagerCEFPreview",
 	"version": "../package.json",
 	"identifier": "com.reinamanager.cef-preview",
 	"build": {
