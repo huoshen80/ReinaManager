@@ -84,7 +84,7 @@ jobs:
       - name: Build CEF Debian preview
         env:
           BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
-        run: pnpm tauri build --ci --target x86_64-unknown-linux-gnu --bundles deb -- --locked
+        run: node node_modules/@tauri-apps/cli/tauri.js build --ci --target x86_64-unknown-linux-gnu --bundles deb -- --locked
 
       # 通过真正安装检查打包后的权限和动态库，而不是只检查 Cargo 输出目录。
       - name: Verify Debian package and CEF sandbox
@@ -230,7 +230,7 @@ jobs:
       - name: Build Wry preview
         env:
           BGM_APP_SECRET: ${{ secrets.BGM_APP_SECRET }}
-        run: pnpm tauri build --ci --target x86_64-pc-windows-msvc --no-bundle -- --locked
+        run: node node_modules/@tauri-apps/cli/tauri.js build --ci --target x86_64-pc-windows-msvc --no-bundle -- --locked
 
       - name: Package Windows preview with resources
         shell: pwsh
