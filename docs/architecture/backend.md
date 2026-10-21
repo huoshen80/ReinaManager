@@ -15,6 +15,8 @@
 
 安装下载引擎位于独立 crate `src-tauri/reina-download`，由 `install/download.rs` 接入。Windows、Linux 的游戏启动与监控分别实现；当前没有 macOS 对应实现。
 
+Linux 本地游戏启动保留用户原有的显示后端选择，不继承 CEF 为应用界面设定的 X11 强制值。
+
 ## 数据库边界
 
 ```text

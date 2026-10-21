@@ -2,6 +2,8 @@
 
 ReinaManager 是由 React 前端与 Rust 后端组成的桌面应用。`spike/linux-cef` 实验分支使用 Tauri 3 alpha，Linux 采用 CEF，Windows 采用 Wry/WebView2；正式发行仍由主分支维护。
 
+实验分支的 Linux 界面固定使用 X11，Wayland 会话依赖 XWayland，目前不支持原生 Wayland。
+
 ## 系统边界
 
 ```mermaid

@@ -202,6 +202,7 @@ async fn spawn_in_scope(
 
     let mut command = tokio::process::Command::new(exec_path);
     command.args(exec_args).current_dir(game_dir);
+    crate::utils::runtime::restore_child_gdk_backend(command.as_std_mut());
 
     // 两个通道都由闭包以可变引用使用，exec 后 fd 会被 CLOEXEC 自动关闭
     let mut gate_child = gate_child;

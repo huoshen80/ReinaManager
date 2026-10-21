@@ -194,7 +194,10 @@ pub async fn open_directory(dir_path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "linux")]
     {
-        let result = Command::new("xdg-open").arg(&open_path).spawn();
+        let mut command = Command::new("xdg-open");
+        command.arg(&open_path);
+        crate::utils::runtime::restore_child_gdk_backend(&mut command);
+        let result = command.spawn();
 
         match result {
             Ok(_) => Ok(()),
