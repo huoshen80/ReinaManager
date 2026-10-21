@@ -1,8 +1,8 @@
 {
 	"$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-	"productName": "ReinaManager",
+	"productName": "ReinaManager CEF Preview",
 	"version": "../package.json",
-	"identifier": "com.reinamanager.dev",
+	"identifier": "com.reinamanager.cef-preview",
 	"build": {
 		"frontendDist": "../dist",
 		"devUrl": "http://localhost:5173",
@@ -14,7 +14,7 @@
 		"windows": [
 			{
 				"create": false,
-				"title": "ReinaManager Ciallo～(∠・ω< )⌒★",
+				"title": "ReinaManager CEF Preview",
 				"width": 1200,
 				"height": 740,
 				"minWidth": 1024,
@@ -42,7 +42,7 @@
 		"resources": {
 			"target/7zip/": "tools/7zip"
 		},
-		"createUpdaterArtifacts": true,
+		"createUpdaterArtifacts": false,
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",
@@ -54,8 +54,12 @@
 		"publisher": "huoshen80",
 		"windows": {
 			"wix": {
-				"fragmentPaths": ["windows/update-path.wxs"],
-				"componentGroupRefs": ["ReinaUpdatePath"]
+				"fragmentPaths": [
+					"windows/update-path.wxs"
+				],
+				"componentGroupRefs": [
+					"ReinaUpdatePath"
+				]
 			},
 			"nsis": {
 				"template": "windows/installer.nsi",
@@ -71,22 +75,5 @@
 			}
 		}
 	},
-	"plugins": {
-		"deep-link": {
-			"desktop": {
-				"schemes": [
-					"reinamanager"
-				]
-			}
-		},
-		"updater": {
-		"endpoints": [
-				"https://gh.huoshen80.top/github.com/huoshen80/ReinaManager/releases/latest/download/latest.json",
-				"https://gh.huoshen80.me/github.com/huoshen80/ReinaManager/releases/latest/download/latest.json",
-				"https://github.com/huoshen80/ReinaManager/releases/latest/download/latest.json"
-      ],
-			"dialog": true,
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI0MzZDRDk1QzdDMTU3OTgKUldTWVY4SEhsYzAySktqTVVKdVRjWFBJbnRubGx6cWROeHloc3dpZ252MGVtSUI0REVIaEUzYnQK"
-		}
-	}
+	"plugins": {}
 }

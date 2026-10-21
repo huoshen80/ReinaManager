@@ -16,7 +16,7 @@ import {
 	Typography,
 } from "@mui/material";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { open as openUrl } from "@tauri-apps/plugin-shell";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Update } from "@tauri-apps/plugin-updater";
 import parse, { domToReact, Element } from "html-react-parser";
 import { marked } from "marked";

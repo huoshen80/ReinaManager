@@ -18,7 +18,7 @@ import {
 	Typography,
 } from "@mui/material";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { open as openUrl } from "@tauri-apps/plugin-shell";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PathInput } from "@/components/PathInput";

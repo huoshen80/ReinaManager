@@ -1,3 +1,5 @@
+import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
+
 const tauriPlatform = import.meta.env.TAURI_ENV_PLATFORM as string | undefined;
 export const isWindowsPlatform =
 	tauriPlatform === "windows" ||
@@ -8,10 +10,15 @@ export function buildTauriProtocolUrl(
 	path: string,
 	params: URLSearchParams,
 ): string {
-	const base = isWindowsPlatform
-		? `http://${protocol}.localhost`
-		: `${protocol}://localhost`;
-	const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-	const query = params.toString();
-	return `${base}${normalizedPath}${query ? `?${query}` : ""}`;
+	// 协议格式由运行时决定，Linux CEF 与系统 WebView 的格式不同。
+	const base = isTauri()
+		? convertFileSrc("", protocol)
+		: isWindowsPlatform
+			? `http://${protocol}.localhost/`
+			: `${protocol}://localhost/`;
+	const url = new URL(base);
+	// 只用转换结果的基址，避免 convertFileSrc 将路由分隔符和查询参数编码进文件名。
+	url.pathname = path.startsWith("/") ? path : `/${path}`;
+	url.search = params.toString();
+	return url.toString();
 }

@@ -202,6 +202,10 @@ pub fn take_pending_install_rejections(
 }
 
 pub fn setup_install_protocol(app: &App) {
+    // 实验包不注册、消费正式版安装协议，避免覆盖系统关联或启动下载任务。
+    if reina_path::runtime_environment() == reina_path::RuntimeEnvironment::Preview {
+        return;
+    }
     let handle = app.handle().clone();
     app.deep_link().on_open_url(move |event| {
         for url in event.urls() {

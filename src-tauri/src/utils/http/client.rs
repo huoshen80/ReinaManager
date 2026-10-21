@@ -1,7 +1,7 @@
+use reqwest::{Client, NoProxy, Proxy};
 use serde::Deserialize;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
-use tauri_plugin_http::reqwest::{Client, NoProxy, Proxy};
 
 const GLOBAL_USER_AGENT: &str = concat!(
     "huoshen80/ReinaManager/",
@@ -115,7 +115,7 @@ fn build_client(
         builder = builder.timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS));
     }
     if !follow_redirects {
-        builder = builder.redirect(tauri_plugin_http::reqwest::redirect::Policy::none());
+        builder = builder.redirect(reqwest::redirect::Policy::none());
     }
     if !proxy_url.is_empty() {
         let proxy = Proxy::all(proxy_url)

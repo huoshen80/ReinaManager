@@ -65,28 +65,32 @@ pub fn run() {
     let mut context = tauri::generate_context!();
     configure_runtime(&mut context);
 
-    let builder =
-        register_image_proxy_protocol(register_game_cover_protocol(tauri::Builder::default()))
-            // 单实例插件必须最先注册，第二实例传入的深链接才能稳定转交给主实例。
-            .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.unminimize();
-                    let _ = window.set_focus();
-                }
-            }))
-            .manage(InstallProtocolState::default())
-            .manage(TaskRuntimeState::default())
-            .plugin(tauri_plugin_store::Builder::new().build())
-            .plugin(
-                tauri_plugin_window_state::Builder::new()
-                    .with_state_flags(
-                        tauri_plugin_window_state::StateFlags::all()
-                            .difference(tauri_plugin_window_state::StateFlags::VISIBLE),
-                    )
-                    .build(),
-            )
-            .plugin(tauri_plugin_deep_link::init());
+    #[cfg(target_os = "linux")]
+    let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
+    #[cfg(not(target_os = "linux"))]
+    let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
+
+    let builder = register_image_proxy_protocol(register_game_cover_protocol(builder))
+        // 单实例插件必须最先注册，第二实例传入的深链接才能稳定转交给主实例。
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .manage(InstallProtocolState::default())
+        .manage(TaskRuntimeState::default())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        .difference(tauri_plugin_window_state::StateFlags::VISIBLE),
+                )
+                .build(),
+        )
+        .plugin(tauri_plugin_deep_link::init());
 
     // 开发版不注册会修改正式安装或系统启动项的插件，前端也同步禁用入口。
     let builder = if is_development() {
@@ -102,7 +106,6 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![

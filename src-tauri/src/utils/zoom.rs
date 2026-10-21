@@ -1,4 +1,5 @@
 use tauri::{Emitter, WebviewWindow};
+use tauri_runtime_wry::WebviewWryExt;
 use webview2_com::{
     AcceleratorKeyPressedEventHandler,
     Microsoft::Web::WebView2::Win32::COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN,
@@ -14,7 +15,7 @@ const MAX_ZOOM_FACTOR: f64 = 1.5;
 pub fn listen_to_webview_zoom(window: &WebviewWindow) -> tauri::Result<()> {
     let window_for_event = window.clone();
     let window_for_reset = window.clone();
-    window.with_webview(move |webview| {
+    window.with_wry_webview(move |webview| {
         let callback = ZoomFactorChangedEventHandler::create(Box::new(move |sender, _| {
             if let Some(controller) = sender {
                 let mut factor = 0.0;

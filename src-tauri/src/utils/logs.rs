@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 
-const LOG_MAX_FILE_SIZE: u128 = 1_000_000;
+const LOG_MAX_FILE_SIZE: u64 = 1_000_000;
 const LOG_KEEP_FILE_COUNT: usize = 7;
 
 pub async fn open_log_directory(app: &tauri::AppHandle) -> Result<(), String> {

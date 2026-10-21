@@ -168,13 +168,21 @@ async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(
 
 fn create_main_window(app: &App, silent_startup: bool) -> tauri::Result<()> {
     // 数据库就绪后才加载前端，避免启动失败时仍执行依赖数据库的请求。
-    let window =
-        tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?.build()?;
+    let builder = tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?;
+    // CEF 隐藏创建后再显示可能丢失键盘焦点，普通启动直接创建可见窗口。
+    #[cfg(target_os = "linux")]
+    let builder = builder.visible(!silent_startup);
+    let window = builder.build()?;
+    log::debug!(
+        "主窗口创建完成: label={} silent_startup={silent_startup}",
+        window.label()
+    );
 
     #[cfg(target_os = "windows")]
     if let Err(error) = listen_to_webview_zoom(&window) {
         log::warn!("监听 WebView 缩放失败: {error}");
     }
+    #[cfg(not(target_os = "linux"))]
     if !silent_startup {
         let _ = window.show();
     }

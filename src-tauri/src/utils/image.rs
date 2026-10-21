@@ -3,7 +3,6 @@ use std::path::Path;
 use std::time::Duration;
 
 use tauri::http::{Response, StatusCode};
-use tauri_plugin_http::reqwest;
 
 use crate::utils::http::get_client;
 

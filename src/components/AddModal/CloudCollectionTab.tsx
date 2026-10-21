@@ -21,7 +21,7 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
-import { open as openurl } from "@tauri-apps/plugin-shell";
+import { openUrl as openurl } from "@tauri-apps/plugin-opener";
 import {
 	useCallback,
 	useDeferredValue,

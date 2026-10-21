@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { open as openurl } from "@tauri-apps/plugin-shell";
+import { openUrl as openurl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAllSettings, useUpdateSettings } from "@/hooks/queries/useSettings";

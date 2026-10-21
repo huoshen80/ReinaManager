@@ -7,7 +7,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import pkg from "@pkg";
-import { open as openurl } from "@tauri-apps/plugin-shell";
+import { openUrl as openurl } from "@tauri-apps/plugin-opener";
 import type React from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";

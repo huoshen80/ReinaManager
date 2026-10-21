@@ -51,7 +51,7 @@ import { useColorScheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { open as openurl } from "@tauri-apps/plugin-shell";
+import { openUrl as openurl } from "@tauri-apps/plugin-opener";
 import type { MouseEvent } from "react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

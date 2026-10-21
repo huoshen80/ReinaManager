@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RuntimeEnvironment {
     Development,
+    Preview,
     Production,
 }
 
@@ -16,12 +17,14 @@ impl RuntimeEnvironment {
     }
 
     pub const fn is_development(self) -> bool {
-        matches!(self, Self::Development)
+        // 实验发行包沿用开发版的隔离及系统集成限制，不能因 release 优化而访问正式数据。
+        matches!(self, Self::Development | Self::Preview)
     }
 
     pub const fn identifier(self) -> &'static str {
         match self {
             Self::Development => "com.reinamanager.dev.debug",
+            Self::Preview => "com.reinamanager.cef-preview",
             // 保留已发布版本的标识，避免正式版用户的数据位置发生变化。
             Self::Production => "com.reinamanager.dev",
         }
