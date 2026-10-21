@@ -59,6 +59,7 @@ def main() -> None:
         control_path = root / "DEBIAN/control"
         control = control_path.read_text()
         additional = [
+            "libgtk-4-1 (>= 4.14)",
             "libnss3", "libnspr4", "libasound2t64", "libatk1.0-0t64",
             "libatk-bridge2.0-0t64", "libcups2t64", "libdrm2", "libgbm1",
             "libx11-6", "libxcb1", "libxcomposite1", "libxdamage1", "libxext6",
@@ -66,6 +67,8 @@ def main() -> None:
         ]
         match = re.search(r"^Depends: (.*)$", control, re.MULTILINE)
         depends = match.group(1).split(", ") if match else []
+        # alpha CLI 把非 Wry 运行时按 GTK3 处理；CEF 的真实依赖是 GTK4。
+        depends = [item for item in depends if not re.match(r"libgtk-3-0(?:\s|$)", item)]
         depends.extend(name for name in additional if name not in depends)
         line = f"Depends: {', '.join(depends)}"
         control = re.sub(r"^Depends: .*$", line, control, flags=re.MULTILINE) if match else control + line + "\n"

@@ -115,6 +115,11 @@ jobs:
             echo "CEF 预览包不应依赖 WebKitGTK"
             exit 1
           fi
+          [[ "$dependencies" == *'libgtk-4-1 (>= 4.14)'* ]]
+          if [[ "$dependencies" == *libgtk-3-0* ]]; then
+            echo "CEF 预览包不应声明旧的 GTK3 运行时"
+            exit 1
+          fi
           sudo apt-get install -y "$PWD/$deb"
           package_name=$(dpkg-deb --field "$deb" Package)
           mapfile -t app_binaries < <(dpkg-query -L "$package_name" | grep '^/usr/bin/[^/]*$')
@@ -136,7 +141,7 @@ jobs:
           test "${#seven_zip[@]}" -eq 1
           test -x "${seven_zip[0]}"
           "${seven_zip[0]}" i > "$RUNNER_TEMP/7zip-info.txt"
-          sha256sum "$deb" > "${deb}.sha256"
+          (cd "$(dirname "$deb")" && sha256sum "$(basename "$deb")") > "${deb}.sha256"
 
       # 确认主窗口可见并持续存活；输入、焦点和显卡兼容性仍需用户桌面验证。
       - name: Smoke test installed CEF preview under Xvfb
