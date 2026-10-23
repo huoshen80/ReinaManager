@@ -26,4 +26,4 @@ features = [
 ]
 
 [dev-dependencies]
-tokio = { version = "1.53.3", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread"] }

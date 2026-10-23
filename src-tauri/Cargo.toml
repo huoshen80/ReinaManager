@@ -18,14 +18,14 @@ name = "reina_manager_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "~2.7.3", features = [] }
+tauri-build = { version = "~2.7.4", features = [] }
 dotenvy = "0.15.7"
-sevenz-rust2 = { version = "0.24.0", default-features = false, features = ["util"] }
+sevenz-rust2 = { version = "0.24.1", default-features = false, features = ["util"] }
 sha2 = "0.11.1"
 tar = "0.4.46"
-ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
+ureq = { version = "3.5.0", default-features = false, features = ["rustls"] }
 xz2 = "0.1.7"
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 
 [dependencies]
 # Serialization & logging
@@ -35,7 +35,7 @@ steamlocate = "2.1.1"
 log = "0.4.34"
 
 # Tauri core and plugins
-tauri = { version = "~2.12.4", features = ["protocol-asset", "tray-icon"] }
+tauri = { version = "~2.12.5", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-autostart = "~2.7.0"
 tauri-plugin-dialog = { version = "~2.8.3", features = [
     "xdg-portal",
@@ -58,11 +58,11 @@ tauri-plugin-store = "~2.5.0"
 
 # System / utilities
 base64 = "0.23.1"
-arboard = { version = "3.6.1", default-features = false, features = [
+arboard = { version = "3.7.0", default-features = false, features = [
     "image-data",
     "wayland-data-control",
 ] }
-sevenz-rust2 = { version = "0.24.0", default-features = false, features = [
+sevenz-rust2 = { version = "0.24.1", default-features = false, features = [
     "compress",
     "util",
     "zstd",
@@ -74,7 +74,7 @@ blake3 = "1.8.7"
 reina-download = { path = "reina-download" }
 
 # Async runtime / DB
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "time", "sync", "fs", "io-util", "net", "process"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "time", "sync", "fs", "io-util", "net", "process"] }
 sea-orm = { version = "2.0.4", default-features = false, features = [
     "sqlx-sqlite",
     "runtime-tokio",
