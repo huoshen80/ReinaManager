@@ -25,6 +25,7 @@
 		"changePlayStatus": "Change Play Status",
 		"close": "Close",
 		"confirm": "Confirm",
+		"lastPlayedLoadFailed": "Failed to read recently played records",
 		"retry": "Retry",
 		"saving": "Saving...",
 		"today": "Today",

@@ -119,9 +119,9 @@ export const Home: React.FC = () => {
 	});
 	const lastPlayedMap = lastPlayedQuery.data ?? EMPTY_LAST_PLAYED;
 	const automaticFocusGame = useMemo(() => {
-		if (lastPlayedQuery.isLoading && runningGameIds.size === 0) return null;
+		if (!lastPlayedQuery.data && runningGameIds.size === 0) return null;
 		return getFocusGame(visibleGames, lastPlayedMap, runningGameIds);
-	}, [visibleGames, lastPlayedMap, lastPlayedQuery.isLoading, runningGameIds]);
+	}, [visibleGames, lastPlayedMap, lastPlayedQuery.data, runningGameIds]);
 	const focusGame = useMemo(
 		() =>
 			visibleGames.find((game) => game.id === selectedFocusGameId) ??
@@ -288,6 +288,10 @@ export const Home: React.FC = () => {
 							totalPlayTime={focusStatsQuery.data?.totalMinutes}
 							recentGames={recentGames}
 							lastPlayedMap={lastPlayedMap}
+							lastPlayedLoaded={lastPlayedQuery.data !== undefined}
+							lastPlayedError={lastPlayedQuery.isError}
+							lastPlayedFetching={lastPlayedQuery.isFetching}
+							onRetryLastPlayed={() => void lastPlayedQuery.refetch()}
 							replaceNsfwCover={nsfwCoverReplace}
 							isStopping={isStopping}
 							onLaunch={(game) => void launchGame(game)}

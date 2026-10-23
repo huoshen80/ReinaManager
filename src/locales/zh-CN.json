@@ -25,6 +25,7 @@
 		"changePlayStatus": "修改游戏状态",
 		"close": "关闭",
 		"confirm": "确认",
+		"lastPlayedLoadFailed": "最近游玩记录读取失败",
 		"retry": "重试",
 		"saving": "保存中...",
 		"today": "今天",

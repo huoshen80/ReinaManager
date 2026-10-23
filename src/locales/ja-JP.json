@@ -25,6 +25,7 @@
 		"changePlayStatus": "プレイ状態を変更",
 		"close": "閉じる",
 		"confirm": "確認",
+		"lastPlayedLoadFailed": "最近のプレイ記録を読み込めませんでした",
 		"retry": "再試行",
 		"saving": "保存中...",
 		"today": "今日",

@@ -1,3 +1,4 @@
+import { Alert, Button } from "@mui/material";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -179,7 +180,9 @@ export function useCardsController({
 				game,
 				displayName: getGameDisplayName(game),
 				sortFieldOverlay:
-					shouldShowCardSortFieldOverlay && sortOption !== "manual"
+					shouldShowCardSortFieldOverlay &&
+					sortOption !== "manual" &&
+					(sortOption !== "lastplayed" || lastPlayedQuery.data !== undefined)
 						? getCardSortFieldOverlay({
 								game,
 								sortOption,
@@ -225,6 +228,24 @@ export function useCardsController({
 
 	const controls = (
 		<>
+			{shouldLoadLastPlayed && lastPlayedQuery.isError ? (
+				<Alert
+					severity="error"
+					className="mb-3"
+					action={
+						<Button
+							color="inherit"
+							size="small"
+							disabled={lastPlayedQuery.isFetching}
+							onClick={() => void lastPlayedQuery.refetch()}
+						>
+							{t("common.retry", "重试")}
+						</Button>
+					}
+				>
+					{t("common.lastPlayedLoadFailed", "最近游玩记录读取失败")}
+				</Alert>
+			) : null}
 			{canUseBatchMode && (
 				<CardsBatchBar
 					batchMode={batchMode}

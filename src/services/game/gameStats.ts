@@ -68,21 +68,16 @@ export async function getAllGameStatistics(): Promise<
 }
 
 export async function getAllGameLastPlayed(): Promise<Map<number, number>> {
-	try {
-		const lastPlayedList = await statsService.getAllGameLastPlayed();
-		const lastPlayedMap = new Map<number, number>();
+	const lastPlayedList = await statsService.getAllGameLastPlayed();
+	const lastPlayedMap = new Map<number, number>();
 
-		for (const item of lastPlayedList) {
-			if (item.last_played) {
-				lastPlayedMap.set(item.game_id, item.last_played);
-			}
+	for (const item of lastPlayedList) {
+		if (item.last_played) {
+			lastPlayedMap.set(item.game_id, item.last_played);
 		}
-
-		return lastPlayedMap;
-	} catch (error) {
-		console.error("获取所有游戏最近游玩时间失败:", error);
-		return new Map();
 	}
+
+	return lastPlayedMap;
 }
 
 // 获取全局最近游玩会话记录

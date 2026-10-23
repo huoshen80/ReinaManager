@@ -3,6 +3,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 import {
+	Alert,
 	Box,
 	Button,
 	ButtonBase,
@@ -37,6 +38,10 @@ interface FocusGamePanelProps {
 	totalPlayTime?: number;
 	recentGames: GameData[];
 	lastPlayedMap: ReadonlyMap<number, number>;
+	lastPlayedLoaded: boolean;
+	lastPlayedError: boolean;
+	lastPlayedFetching: boolean;
+	onRetryLastPlayed: () => void;
 	replaceNsfwCover: boolean;
 	isStopping: boolean;
 	onLaunch: (game: GameData) => void;
@@ -73,6 +78,10 @@ export function FocusGamePanel({
 	totalPlayTime,
 	recentGames,
 	lastPlayedMap,
+	lastPlayedLoaded,
+	lastPlayedError,
+	lastPlayedFetching,
+	onRetryLastPlayed,
 	replaceNsfwCover,
 	isStopping,
 	onLaunch,
@@ -115,6 +124,24 @@ export function FocusGamePanel({
 			variant="outlined"
 			className="relative h-full min-h-0 overflow-hidden !bg-[var(--mui-palette-grey-900)] !text-white"
 		>
+			{lastPlayedError ? (
+				<Alert
+					severity="error"
+					className="absolute left-3 right-3 top-3 z-2"
+					action={
+						<Button
+							color="inherit"
+							size="small"
+							disabled={lastPlayedFetching}
+							onClick={onRetryLastPlayed}
+						>
+							{t("common.retry", "重试")}
+						</Button>
+					}
+				>
+					{t("common.lastPlayedLoadFailed", "最近游玩记录读取失败")}
+				</Alert>
+			) : null}
 			{game ? (
 				<>
 					<Box
@@ -159,7 +186,9 @@ export function FocusGamePanel({
 								: "linear-gradient(90deg, rgba(7, 13, 27, .94) 0%, rgba(7, 13, 27, .76) 42%, rgba(7, 13, 27, .18) 76%, rgba(7, 13, 27, .32) 100%)",
 						}}
 					/>
-					<Box className="relative z-1 h-full flex flex-col p-5">
+					<Box
+						className={`relative z-1 h-full flex flex-col p-5 ${lastPlayedError ? "pt-18" : ""}`}
+					>
 						<Chip
 							label={
 								isRunning
@@ -183,6 +212,8 @@ export function FocusGamePanel({
 						<Box className="mt-2">
 							{isRunning && realTimeState ? (
 								<RunningGameTimer {...realTimeState} />
+							) : !lastPlayedLoaded ? (
+								<Skeleton width={180} />
 							) : (
 								<Typography className="text-[rgba(255,255,255,.78)]">
 									{lastPlayed
@@ -289,7 +320,7 @@ export function FocusGamePanel({
 						) : null}
 					</Box>
 				</>
-			) : (
+			) : lastPlayedError ? null : (
 				<Skeleton variant="rectangular" width="100%" height="100%" />
 			)}
 		</Paper>
