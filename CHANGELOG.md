@@ -1,3 +1,40 @@
+## [0.32.1](https://github.com/huoshen80/ReinaManager/compare/v0.32.0...v0.32.1) (2026-10-24)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- *(portable)* 移除模式切换说明 ([52ae618](https://github.com/huoshen80/ReinaManager/commit/52ae618d0d22bf1e46972957db3fef01b408fec1))
+- *(release)* 添加社区 AUR 二进制包链接[skip ci] ([4d2c944](https://github.com/huoshen80/ReinaManager/commit/4d2c9440bdbd088a73e1c4abf95a7b9ae35dc31c))
+
+### 🐛 Bug 修复
+
+- *(updater)* 使用 NSIS 更新时跳过旧 MSI 卸载 ([b677457](https://github.com/huoshen80/ReinaManager/commit/b67745785a54e657542366c1033c901f87819fe8))
+- *(startup)* 显示初始化失败提示 [skip ci] ([97de1ac](https://github.com/huoshen80/ReinaManager/commit/97de1ac4bd7f6eedb9198560e5df21ea71a4f636))
+- *(monitor)* 重试失败的前台进程路径查询 ([a7c290d](https://github.com/huoshen80/ReinaManager/commit/a7c290d3ee7cd97a1ffbc137350f12a10f94f65a))
+- *(stats)* 使所有最近游玩排序缓存失效 ([aeb6615](https://github.com/huoshen80/ReinaManager/commit/aeb6615ce5d59901870b5479703b3b258ac784a3))
+- *(stats)* 最近游玩记录读取失败时保留已有数据 ([e28cfb4](https://github.com/huoshen80/ReinaManager/commit/e28cfb4ef86027ba47db692489045d96af84baa9))
+- *(backup)* 保护数据库导入过程中的原有数据 ([5c5bddc](https://github.com/huoshen80/ReinaManager/commit/5c5bddc523fab87737ac689c9832b2dc4063030e))
+- *(backup)* 明确数据库导入和恢复提示 ([0b89acc](https://github.com/huoshen80/ReinaManager/commit/0b89accab29803f79685efea7f557449993b717b))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(portable)* Remove mode-switching instructions ([52ae618](https://github.com/huoshen80/ReinaManager/commit/52ae618d0d22bf1e46972957db3fef01b408fec1))
+- *(release)* Link community AUR binary package[skip ci] ([4d2c944](https://github.com/huoshen80/ReinaManager/commit/4d2c9440bdbd088a73e1c4abf95a7b9ae35dc31c))
+
+### 🐛 Bug Fixes
+
+- *(updater)* Skip old MSI uninstall during NSIS updates ([b677457](https://github.com/huoshen80/ReinaManager/commit/b67745785a54e657542366c1033c901f87819fe8))
+- *(startup)* Surface initialization failures [skip ci] ([97de1ac](https://github.com/huoshen80/ReinaManager/commit/97de1ac4bd7f6eedb9198560e5df21ea71a4f636))
+- *(monitor)* Retry failed foreground path queries ([a7c290d](https://github.com/huoshen80/ReinaManager/commit/a7c290d3ee7cd97a1ffbc137350f12a10f94f65a))
+- *(stats)* Invalidate all last-played sort caches ([aeb6615](https://github.com/huoshen80/ReinaManager/commit/aeb6615ce5d59901870b5479703b3b258ac784a3))
+- *(stats)* Preserve data on last-played read errors ([e28cfb4](https://github.com/huoshen80/ReinaManager/commit/e28cfb4ef86027ba47db692489045d96af84baa9))
+- *(backup)* Preserve data during database imports ([5c5bddc](https://github.com/huoshen80/ReinaManager/commit/5c5bddc523fab87737ac689c9832b2dc4063030e))
+- *(backup)* Clarify import recovery messages ([0b89acc](https://github.com/huoshen80/ReinaManager/commit/0b89accab29803f79685efea7f557449993b717b))
+
 ## [0.32.0](https://github.com/huoshen80/ReinaManager/compare/v0.31.1...v0.32.0) (2026-10-15)
 
 <details>
