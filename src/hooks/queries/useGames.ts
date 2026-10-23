@@ -70,6 +70,14 @@ export const gameKeys = {
 	bgmIds: () => [...gameKeys.all, "bgmIds"] as const,
 };
 
+export function invalidateLastPlayedGameLists(queryClient: QueryClient) {
+	// 收藏和主库共享排序查询；未显示的类型、语言和方向也必须在下次读取时刷新。
+	return queryClient.invalidateQueries({
+		queryKey: [...gameKeys.idLists(), { sortOption: "lastplayed" }],
+		refetchType: "active",
+	});
+}
+
 function useAllGames() {
 	return useQuery({
 		queryKey: gameKeys.all,

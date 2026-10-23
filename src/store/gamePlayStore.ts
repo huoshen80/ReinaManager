@@ -19,7 +19,7 @@
  */
 
 import { create } from "zustand";
-import { gameKeys } from "@/hooks/queries/useGames";
+import { invalidateLastPlayedGameLists } from "@/hooks/queries/useGames";
 import { settingsKeys } from "@/hooks/queries/useSettings";
 import { queryClient } from "@/providers/queryClient";
 import {
@@ -260,13 +260,11 @@ export const useGamePlayStore = create<GamePlayState>((set, get) => ({
 				},
 				// 会话结束回调
 				async (gameId, { recorded }) => {
-					// 先清除运行状态；只有最近游玩排序依赖本次结算结果。
+					// 先清除运行状态，再让所有最近游玩排序缓存反映成功记录的会话。
 					set((state) => removeGameRuntimeState(state, gameId));
 
-					if (recorded && useStore.getState().sortOption === "lastplayed") {
-						await queryClient.invalidateQueries({
-							queryKey: gameKeys.idLists(),
-						});
+					if (recorded) {
+						await invalidateLastPlayedGameLists(queryClient);
 					}
 				},
 			);
