@@ -102,7 +102,7 @@ export async function importDatabase(filePath: string): Promise<ImportResult> {
 	const confirmed = await ask(
 		i18n.t(
 			"pages.Settings.databaseBackup.continueWithoutBackupMessage",
-			"导入前备份失败：{{error}}\n\n是否跳过失败的备份并继续导入？本次替换仍会保留旧数据库和封面用于回滚。",
+			"导入前备份失败：{{error}}\n\n是否跳过失败的备份并继续导入？",
 			{ error: result.message },
 		),
 		{

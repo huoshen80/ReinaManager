@@ -183,16 +183,13 @@ async fn import_database_at_paths(
         return Err("源数据库路径必须是绝对路径".into());
     }
     if !source.is_file() {
-        return Err(format!(
-            "源数据库文件不存在或不是文件: {}",
-            source.display()
-        ));
+        return Err("请选择有效的数据库文件".into());
     }
     if source.extension().and_then(|extension| extension.to_str()) != Some("db") {
         return Err("无效的数据库文件，请选择 .db 文件".into());
     }
-    if fs::canonicalize(source).map_err(|error| error.to_string())?
-        == fs::canonicalize(target).map_err(|error| error.to_string())?
+    if fs::canonicalize(source).map_err(|error| import_error("无法访问待导入数据库", error))?
+        == fs::canonicalize(target).map_err(|error| import_error("无法访问当前数据库", error))?
     {
         return Err("不能导入当前正在使用的数据库文件".into());
     }
@@ -204,7 +201,8 @@ async fn import_database_at_paths(
     let covers_rollback = temporary_sibling_path(covers, "reina-before-import")?;
     let preparation = async {
         ensure_database_logs_flushed(source)?;
-        copy_file_fully(source, &staged)?;
+        copy_file_fully(source, &staged)
+            .map_err(|error| import_error("复制数据库失败，请检查磁盘空间和访问权限", error))?;
         validate_and_migrate_import(&staged).await
     }
     .await;
@@ -218,10 +216,10 @@ async fn import_database_at_paths(
     let mut backup_errors = Vec::new();
     match backup_database_file(db).await {
         Ok(result) => backup_path = result.path,
-        Err(error) => backup_errors.push(format!("旧数据库备份失败: {error}")),
+        Err(error) => backup_errors.push(import_error("旧数据库备份失败", error)),
     }
     if let Err(error) = backup_custom_covers_archive(db).await {
-        backup_errors.push(format!("自定义封面备份失败: {error}"));
+        backup_errors.push(import_error("自定义封面备份失败", error));
     }
     if !backup_errors.is_empty() && !allow_backup_failure {
         fs::remove_file(&staged).ok();
@@ -245,7 +243,7 @@ async fn import_database_at_paths(
     if let Err(error) = close_connection(db.clone()).await {
         fs::remove_file(&staged).ok();
         return Ok(import_failure(
-            format!("关闭数据库连接失败: {error}"),
+            import_error("关闭数据库失败，旧数据未改动", error),
             backup_path,
             None,
         ));
@@ -255,19 +253,19 @@ async fn import_database_at_paths(
     match commit {
         Ok(()) => {
             // 保留同卷旧库和封面，直到用户确认新库可用后仍可手动找回。
+            log::info!(
+                "导入成功，旧数据库保留在 {}，旧封面目录（如存在）保留在 {}",
+                rollback.display(),
+                covers_rollback.display()
+            );
             let warning = if backup_errors.is_empty() {
                 None
             } else {
-                Some(format!(
-                    "{}；旧库保留在 {}，旧封面保留在 {}",
-                    backup_errors.join("；"),
-                    rollback.display(),
-                    covers_rollback.display()
-                ))
+                Some("已跳过失败的常规备份，旧数据库和封面已保留".into())
             };
             Ok(ImportResult {
                 success: true,
-                message: "数据库导入成功，旧数据库和封面已保留，应用将自动重启".into(),
+                message: "数据库导入成功".into(),
                 backup_path: backup_path.or_else(|| Some(rollback.to_string_lossy().into_owned())),
                 requires_backup_confirmation: false,
                 restart_required: true,
@@ -287,6 +285,12 @@ async fn import_database_at_paths(
             ))
         }
     }
+}
+
+// 界面只显示简短原因，底层错误和路径保留在日志中供排查。
+fn import_error(message: &str, error: impl std::fmt::Display) -> String {
+    log::error!("{message}: {error}");
+    message.to_owned()
 }
 
 fn import_failure(
@@ -312,11 +316,11 @@ async fn checkpoint_database(db: &DatabaseConnection) -> Result<(), String> {
             "PRAGMA wal_checkpoint(TRUNCATE)",
         ))
         .await
-        .map_err(|error| format!("数据库写入落盘失败，已停止导入: {error}"))?
+        .map_err(|error| import_error("保存当前数据库失败，请稍后重试", error))?
         .ok_or("无法检查数据库写入落盘状态")?;
     let busy = row
         .try_get::<i32>("", "busy")
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| import_error("无法检查当前数据库的保存状态", error))?;
     if busy != 0 {
         return Err("数据库仍被其他连接写入，已停止导入，请稍后重试".into());
     }
@@ -325,7 +329,7 @@ async fn checkpoint_database(db: &DatabaseConnection) -> Result<(), String> {
 
 async fn validate_and_migrate_import(path: &Path) -> Result<(), String> {
     if fs::metadata(path)
-        .map_err(|error| format!("读取导入数据库文件失败: {error}"))?
+        .map_err(|error| import_error("无法读取待导入数据库", error))?
         .len()
         == 0
     {
@@ -339,7 +343,7 @@ async fn validate_and_migrate_import(path: &Path) -> Result<(), String> {
         .sqlx_logging(false);
     let connection = Database::connect(options)
         .await
-        .map_err(|error| format!("无法读取导入数据库: {error}"))?;
+        .map_err(|error| import_error("无法打开待导入数据库，请确认文件有效", error))?;
     let result = async {
         verify_import_integrity(&connection).await?;
         // 只检查各代库共有的最小业务结构，避免空库进入新用户建表分支；允许没有游戏记录。
@@ -349,19 +353,19 @@ async fn validate_and_migrate_import(path: &Path) -> Result<(), String> {
                 "SELECT games.id, games.id_type, user.id FROM games, user LIMIT 0",
             ))
             .await
-            .map_err(|error| format!("导入数据库缺少已有业务结构，已停止导入: {error}"))?;
+            .map_err(|error| import_error("数据库缺少业务结构，无法导入", error))?;
         // 只读迁移状态检查会拒绝本程序不认识的迁移，旧版本缺少迁移则正常补齐。
         Migrator::get_pending_migrations_read_only(&connection)
             .await
-            .map_err(|error| format!("数据库结构版本不兼容，可能来自较新版本的应用: {error}"))?;
+            .map_err(|error| import_error("数据库结构版本不兼容，请尝试更新应用", error))?;
         connection
             .execute_unprepared("PRAGMA foreign_keys = ON")
             .await
-            .map_err(|error| format!("启用导入数据库外键失败: {error}"))?;
+            .map_err(|error| import_error("无法启用数据库关联检查", error))?;
         // 迁移的输入本来就是副本，失败时直接丢弃；不能读取源库配置另建常规备份。
         Migrator::up(&connection, None)
             .await
-            .map_err(|error| format!("导入数据库迁移失败，原数据库未修改: {error}"))?;
+            .map_err(|error| import_error("数据库迁移失败，旧数据未改动", error))?;
         verify_import_integrity(&connection).await?;
         // integrity_check 不检查外键，启用外键约束也不会追查已有的孤立记录。
         if connection
@@ -370,28 +374,28 @@ async fn validate_and_migrate_import(path: &Path) -> Result<(), String> {
                 "PRAGMA foreign_key_check",
             ))
             .await
-            .map_err(|error| format!("导入数据库外键检查失败: {error}"))?
+            .map_err(|error| import_error("数据库外键检查失败，无法导入", error))?
             .is_some()
         {
-            return Err("导入数据库外键检查失败，存在引用缺失的数据，原数据库未修改".into());
+            return Err("数据库外键检查失败，存在引用缺失的数据".into());
         }
         connection
             .execute_unprepared("PRAGMA journal_mode = DELETE")
             .await
-            .map_err(|error| format!("提交导入数据库日志失败: {error}"))?;
+            .map_err(|error| import_error("无法保存升级后的数据库", error))?;
         Ok(())
     }
     .await;
     let close = connection
         .close()
         .await
-        .map_err(|error| format!("关闭导入临时数据库失败: {error}"));
+        .map_err(|error| import_error("关闭临时数据库失败", error));
     result.and(close)?;
     fs::OpenOptions::new()
         .write(true)
         .open(path)
         .and_then(|file| file.sync_all())
-        .map_err(|error| format!("同步导入临时数据库失败: {error}"))
+        .map_err(|error| import_error("保存临时数据库失败，请检查磁盘空间和访问权限", error))
 }
 
 async fn verify_import_integrity(connection: &DatabaseConnection) -> Result<(), String> {
@@ -401,16 +405,17 @@ async fn verify_import_integrity(connection: &DatabaseConnection) -> Result<(), 
             "PRAGMA integrity_check",
         ))
         .await
-        .map_err(|error| format!("导入数据库完整性检查失败: {error}"))?;
+        .map_err(|error| import_error("数据库完整性检查失败，无法导入", error))?;
     if rows.len() == 1
         && rows[0]
             .try_get::<String>("", "integrity_check")
-            .map_err(|error| error.to_string())?
+            .map_err(|error| import_error("无法读取数据库完整性检查结果", error))?
             == "ok"
     {
         Ok(())
     } else {
-        Err("导入数据库完整性检查失败，原数据库未修改".into())
+        log::error!("数据库完整性检查失败: {rows:?}");
+        Err("数据库完整性检查失败，文件可能已损坏".into())
     }
 }
 
@@ -427,14 +432,14 @@ fn ensure_database_logs_flushed(path: &Path) -> Result<(), String> {
         let log_path = PathBuf::from(log_name);
         match fs::metadata(&log_path) {
             Ok(metadata) if metadata.len() != 0 => {
-                return Err(format!(
-                    "数据库仍有未清理的事务日志，请正常关闭使用该数据库的程序或先导出备份后重试: {}",
-                    log_path.display()
+                return Err(import_error(
+                    "数据库仍有事务日志，请正常关闭使用该数据库的程序后重试",
+                    log_path.display(),
                 ));
             }
             Ok(_) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(format!("检查数据库事务日志失败: {error}")),
+            Err(error) => return Err(import_error("无法检查数据库事务日志", error)),
         }
     }
     Ok(())
@@ -473,17 +478,17 @@ fn commit_import_files_with(
         ensure_target_does_not_exist(rollback, "回滚数据库")?;
         ensure_target_does_not_exist(covers_rollback, "回滚封面")?;
         rename(target, rollback)
-            .map_err(|error| format!("保留旧数据库失败，已停止导入: {error}"))?;
+            .map_err(|error| import_error("无法保留旧数据库，已停止导入", error))?;
         old_moved = true;
         ensure_target_does_not_exist(target, "正式数据库")?;
-        rename(staged, target).map_err(|error| format!("替换数据库失败: {error}"))?;
+        rename(staged, target).map_err(|error| import_error("替换数据库失败", error))?;
         new_moved = true;
         // 封面最后处理，整目录改名而不删除，保留旧库 ID 对应的所有封面。
         match fs::symlink_metadata(covers) {
             Ok(_) => rename(covers, covers_rollback)
-                .map_err(|error| format!("保留旧封面失败: {error}"))?,
+                .map_err(|error| import_error("无法保留旧封面", error))?,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(format!("检查封面目录失败: {error}")),
+            Err(error) => return Err(import_error("无法读取封面目录", error)),
         }
         Ok(())
     })();
@@ -504,16 +509,27 @@ fn commit_import_files_with(
         })();
         return Err(match recovery {
             Ok(()) => ImportCommitError {
-                message: format!("{message}；原数据库已保留，请重启恢复使用"),
+                message: format!(
+                    "{message}。{}",
+                    if old_moved {
+                        "已回滚到旧数据。"
+                    } else {
+                        "旧数据未改动。"
+                    }
+                ),
                 recovery_path: None,
             },
-            Err(error) => ImportCommitError {
-                message: format!(
-                    "{message}；{error}；请勿继续操作，旧数据库保留在 {}",
-                    rollback.display()
-                ),
-                recovery_path: Some(rollback.to_path_buf()),
-            },
+            Err(error) => {
+                log::error!(
+                    "{message}；回滚失败: {error}；旧数据库位置: {}；封面位置: {}",
+                    rollback.display(),
+                    covers.display()
+                );
+                ImportCommitError {
+                    message: "自动回滚未完成，需手动恢复旧数据".into(),
+                    recovery_path: Some(rollback.to_path_buf()),
+                }
+            }
         });
     }
     Ok(())

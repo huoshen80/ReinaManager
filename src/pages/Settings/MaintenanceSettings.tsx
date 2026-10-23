@@ -232,7 +232,7 @@ export const DatabaseBackupSettings = () => {
 				await message(
 					t(
 						"pages.Settings.databaseBackup.restartAfterImportFailure",
-						"导入未完成，需要重启应用以恢复数据库连接。\n\n{{error}}",
+						"{{error}}\n\n确认后重启应用。",
 						{ error: failureMessage },
 					),
 					{
@@ -251,7 +251,7 @@ export const DatabaseBackupSettings = () => {
 			setImportRecovery({
 				message: t(
 					"pages.Settings.databaseBackup.importRestartFailed",
-					"数据库连接已关闭，但应用重启失败。请重试重启，或关闭应用后重新打开。",
+					"应用重启失败。请重试重启，或关闭应用后重新打开。",
 				),
 				canRestart: true,
 			});
@@ -278,21 +278,13 @@ export const DatabaseBackupSettings = () => {
 			}
 			setNeedsRestart(result.restart_required || result.recovery_path !== null);
 			if (!result.success) {
-				snackbar.error(
-					t(
-						"pages.Settings.databaseBackup.importError",
-						"数据库导入失败: {{error}}",
-						{
-							error: result.message,
-						},
-					),
-				);
+				console.error("数据库导入失败:", result);
 				if (result.recovery_path) {
 					setImportRecovery({
 						message: t(
 							"pages.Settings.databaseBackup.manualRecovery",
-							"自动回滚未完成，请关闭应用后恢复保留的数据，不要直接重新导入。\n\n恢复位置：{{path}}\n\n{{error}}",
-							{ path: result.recovery_path, error: result.message },
+							"自动回滚未完成，请关闭应用后手动恢复旧的数据库和封面，不要直接重新导入。\n\n旧数据位置：{{path}}",
+							{ path: result.recovery_path },
 						),
 						canRestart: false,
 					});
@@ -300,18 +292,31 @@ export const DatabaseBackupSettings = () => {
 					const confirmedPermit = restartPermit;
 					restartPermit = null;
 					await restartAfterImport(confirmedPermit, result.message);
+				} else {
+					snackbar.error(
+						t(
+							"pages.Settings.databaseBackup.importError",
+							"数据库导入失败: {{error}}",
+							{ error: result.message },
+						),
+					);
 				}
 				return;
 			}
 
 			snackbar.success(
-				t(
-					"pages.Settings.databaseBackup.importSuccess",
-					"数据库导入成功，已保留原数据库和封面，应用将自动重启",
-				),
+				result.warning
+					? t(
+							"pages.Settings.databaseBackup.importSuccessWithoutBackup",
+							"数据库导入成功，旧数据已保留，应用将自动重启",
+						)
+					: t(
+							"pages.Settings.databaseBackup.importSuccess",
+							"数据库导入成功，旧数据库和自定义封面已备份，应用将自动重启",
+						),
 			);
 			if (result.warning) {
-				snackbar.warning(result.warning);
+				console.warn("数据库导入提示:", result.warning);
 			}
 
 			const confirmedPermit = restartPermit;
@@ -344,7 +349,7 @@ export const DatabaseBackupSettings = () => {
 			title={t("pages.Settings.databaseBackup.title", "数据备份与恢复")}
 			description={t(
 				"pages.Settings.databaseBackup.restoreWarning",
-				"导入会先校验数据库并升级旧版结构，备份失败时由您决定是否继续。替换时保留原数据库和封面，失败时尝试回滚，成功后自动重启。",
+				"恢复数据库会备份自定义封面和旧数据库，恢复成功会清空封面并重启软件，失败时会尝试回滚数据。",
 			)}
 		>
 			<Dialog open={importRecovery !== null} disableEscapeKeyDown>
