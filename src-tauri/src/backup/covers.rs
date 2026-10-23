@@ -136,19 +136,6 @@ fn ensure_archive_target_absent(path: &Path) -> Result<(), String> {
     }
 }
 
-pub fn delete_all_covers_dir() -> Result<(), String> {
-    let covers_dir = reina_path::get_base_data_dir()?.join("covers");
-
-    if !covers_dir.exists() {
-        return Ok(());
-    }
-
-    fs::remove_dir_all(&covers_dir)
-        .map_err(|error| format!("无法删除封面目录 {}: {error}", covers_dir.display()))?;
-
-    Ok(())
-}
-
 /// 扫描 covers 目录并将自定义封面文件复制到临时目录
 ///
 /// 只复制匹配 `cover_{game_id}_*` 模式的文件，跳过云端缓存（`cloud_*`）。

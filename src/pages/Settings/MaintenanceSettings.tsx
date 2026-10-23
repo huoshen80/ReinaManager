@@ -2,10 +2,20 @@ import BackupIcon from "@mui/icons-material/Backup";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ImageIcon from "@mui/icons-material/Image";
 import RestoreIcon from "@mui/icons-material/Restore";
-import { CircularProgress, Switch, TextField, Typography } from "@mui/material";
+import {
+	CircularProgress,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
+	Switch,
+	TextField,
+	Typography,
+} from "@mui/material";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
+import { message } from "@tauri-apps/plugin-dialog";
 import { type ChangeEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -34,6 +44,11 @@ export const DatabaseBackupSettings = () => {
 	const [isBackingUp, setIsBackingUp] = useState(false);
 	const [isBackingCovers, setIsBackingCovers] = useState(false);
 	const [isImporting, setIsImporting] = useState(false);
+	const [needsRestart, setNeedsRestart] = useState(false);
+	const [importRecovery, setImportRecovery] = useState<{
+		message: string;
+		canRestart: boolean;
+	} | null>(null);
 	const {
 		autoBackupIncludeCovers,
 		autoBackupLastError,
@@ -208,6 +223,41 @@ export const DatabaseBackupSettings = () => {
 		}
 	};
 
+	const restartAfterImport = async (
+		permit?: AppTerminationPermit,
+		failureMessage?: string,
+	) => {
+		if (failureMessage) {
+			try {
+				await message(
+					t(
+						"pages.Settings.databaseBackup.restartAfterImportFailure",
+						"导入未完成，需要重启应用以恢复数据库连接。\n\n{{error}}",
+						{ error: failureMessage },
+					),
+					{
+						title: t("pages.Settings.databaseBackup.importFailed", "导入失败"),
+						kind: "error",
+					},
+				);
+			} catch (error) {
+				console.error("显示数据库导入恢复提醒失败:", error);
+			}
+		}
+		try {
+			await restartApp(permit);
+		} catch (error) {
+			console.error("数据库导入后重启应用失败:", error);
+			setImportRecovery({
+				message: t(
+					"pages.Settings.databaseBackup.importRestartFailed",
+					"数据库连接已关闭，但应用重启失败。请重试重启，或关闭应用后重新打开。",
+				),
+				canRestart: true,
+			});
+		}
+	};
+
 	const handleImportDatabase = async () => {
 		setIsImporting(true);
 		let restartPermit: AppTerminationPermit | null = null;
@@ -223,6 +273,10 @@ export const DatabaseBackupSettings = () => {
 			}
 
 			const result = await importDatabase(filePath);
+			if (result.requires_backup_confirmation) {
+				return;
+			}
+			setNeedsRestart(result.restart_required || result.recovery_path !== null);
 			if (!result.success) {
 				snackbar.error(
 					t(
@@ -233,24 +287,38 @@ export const DatabaseBackupSettings = () => {
 						},
 					),
 				);
+				if (result.recovery_path) {
+					setImportRecovery({
+						message: t(
+							"pages.Settings.databaseBackup.manualRecovery",
+							"自动回滚未完成，请关闭应用后恢复保留的数据，不要直接重新导入。\n\n恢复位置：{{path}}\n\n{{error}}",
+							{ path: result.recovery_path, error: result.message },
+						),
+						canRestart: false,
+					});
+				} else if (result.restart_required) {
+					const confirmedPermit = restartPermit;
+					restartPermit = null;
+					await restartAfterImport(confirmedPermit, result.message);
+				}
 				return;
 			}
 
-			refreshSettings();
 			snackbar.success(
 				t(
 					"pages.Settings.databaseBackup.importSuccess",
-					"数据库导入成功，已备份自定义封面并清空封面缓存，应用将自动重启",
+					"数据库导入成功，已保留原数据库和封面，应用将自动重启",
 				),
 			);
+			if (result.warning) {
+				snackbar.warning(result.warning);
+			}
 
 			const confirmedPermit = restartPermit;
 			restartPermit = null;
 			// 延迟重启应用，让用户看到成功提示。
 			setTimeout(() => {
-				void restartApp(confirmedPermit).catch((error) => {
-					console.error("数据库导入后重启应用失败:", error);
-				});
+				void restartAfterImport(confirmedPermit);
 			}, 3000);
 		} catch (error) {
 			const errorMessage = getUserErrorMessage(
@@ -276,9 +344,26 @@ export const DatabaseBackupSettings = () => {
 			title={t("pages.Settings.databaseBackup.title", "数据备份与恢复")}
 			description={t(
 				"pages.Settings.databaseBackup.restoreWarning",
-				"恢复数据库将覆盖现有数据，并会先备份自定义封面、清空封面缓存以避免封面错配。导入后应用将自动重启。",
+				"导入会先校验数据库并升级旧版结构，备份失败时由您决定是否继续。替换时保留原数据库和封面，失败时尝试回滚，成功后自动重启。",
 			)}
 		>
+			<Dialog open={importRecovery !== null} disableEscapeKeyDown>
+				<DialogTitle>
+					{t("pages.Settings.databaseBackup.recoveryTitle", "数据库恢复提醒")}
+				</DialogTitle>
+				<DialogContent>
+					<Typography className="whitespace-pre-wrap break-all">
+						{importRecovery?.message}
+					</Typography>
+				</DialogContent>
+				{importRecovery?.canRestart && (
+					<DialogActions>
+						<Button onClick={() => void restartAfterImport()}>
+							{t("pages.Settings.databaseBackup.restartNow", "重启应用")}
+						</Button>
+					</DialogActions>
+				)}
+			</Dialog>
 			<Stack
 				direction="row"
 				spacing={2}
@@ -290,7 +375,7 @@ export const DatabaseBackupSettings = () => {
 					variant="contained"
 					color="primary"
 					onClick={handleBackupDatabase}
-					disabled={isBackingUp}
+					disabled={isBackingUp || isImporting || needsRestart}
 					startIcon={
 						isBackingUp ? (
 							<CircularProgress size={16} color="inherit" />
@@ -309,7 +394,7 @@ export const DatabaseBackupSettings = () => {
 					variant="outlined"
 					color="primary"
 					onClick={handleBackupCustomCovers}
-					disabled={isBackingCovers}
+					disabled={isBackingCovers || isImporting || needsRestart}
 					startIcon={
 						isBackingCovers ? (
 							<CircularProgress size={16} color="inherit" />
@@ -338,7 +423,9 @@ export const DatabaseBackupSettings = () => {
 					variant="outlined"
 					color="warning"
 					onClick={handleImportDatabase}
-					disabled={isImporting}
+					disabled={
+						isImporting || isBackingUp || isBackingCovers || needsRestart
+					}
 					startIcon={
 						isImporting ? (
 							<CircularProgress size={16} color="inherit" />

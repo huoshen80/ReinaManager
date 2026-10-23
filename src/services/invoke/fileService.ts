@@ -16,6 +16,10 @@ export interface ImportResult {
 	success: boolean;
 	message: string;
 	backup_path: string | null;
+	requires_backup_confirmation: boolean;
+	restart_required: boolean;
+	recovery_path: string | null;
+	warning: string | null;
 }
 
 export type AutoBackupTrigger = "scheduled" | "exit";
@@ -233,8 +237,14 @@ class FileService extends BaseService {
 	/**
 	 * 导入数据库
 	 */
-	async importDatabase(sourcePath: string): Promise<ImportResult> {
-		return this.invoke<ImportResult>("import_database", { sourcePath });
+	async importDatabase(
+		sourcePath: string,
+		allowBackupFailure = false,
+	): Promise<ImportResult> {
+		return this.invoke<ImportResult>("import_database", {
+			sourcePath,
+			allowBackupFailure,
+		});
 	}
 }
 

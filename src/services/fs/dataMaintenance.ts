@@ -1,4 +1,5 @@
-import { open } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
+import i18n from "i18next";
 import {
 	type AutoBackupResult,
 	type AutoBackupTrigger,
@@ -89,9 +90,34 @@ export async function selectDatabaseImportFile(): Promise<string | null> {
 
 /**
  * 使用指定数据库文件覆盖当前数据库。
- * 后端会依次备份自定义封面、关闭连接、冷备份当前数据库、清空封面并覆盖数据库文件。
- * 调用方必须在执行前完成重启许可确认，因为后端会关闭当前数据库连接。
+ * 后端先验证并迁移临时库，备份失败时保持旧库可用，仅在用户确认后重试。
+ * 调用方须预先取得重启许可，并按结果处理关闭连接后的恢复重启。
  */
 export async function importDatabase(filePath: string): Promise<ImportResult> {
-	return fileService.importDatabase(filePath);
+	const result = await fileService.importDatabase(filePath);
+	if (!result.requires_backup_confirmation) {
+		return result;
+	}
+
+	const confirmed = await ask(
+		i18n.t(
+			"pages.Settings.databaseBackup.continueWithoutBackupMessage",
+			"导入前备份失败：{{error}}\n\n是否跳过失败的备份并继续导入？本次替换仍会保留旧数据库和封面用于回滚。",
+			{ error: result.message },
+		),
+		{
+			title: i18n.t(
+				"pages.Settings.databaseBackup.continueWithoutBackupTitle",
+				"导入前备份失败",
+			),
+			kind: "warning",
+			okLabel: i18n.t(
+				"pages.Settings.databaseBackup.continueWithoutBackup",
+				"跳过备份并继续",
+			),
+			cancelLabel: i18n.t("common.cancel", "取消"),
+		},
+	);
+
+	return confirmed ? fileService.importDatabase(filePath, true) : result;
 }
