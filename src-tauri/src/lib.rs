@@ -62,6 +62,18 @@ fn restart_app(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        // NVIDIA 专有驱动上的 WebKitGTK DMABUF 渲染器会导致界面卡顿甚至卡死。
+        // 这里只在用户未显式设置时启用官方兼容开关，避免覆盖手动调优。
+        // 必须在 GTK 初始化前执行，set_var 不能与其他线程并发调用。
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+            && std::fs::metadata("/proc/driver/nvidia/version").is_ok()
+        {
+            unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+        }
+    }
+
     let mut context = tauri::generate_context!();
     configure_runtime(&mut context);
 
