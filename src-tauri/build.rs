@@ -41,6 +41,7 @@ struct SevenZipPackage {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=icons/icon.ico");
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is required"));
     let _ = dotenvy::from_path(manifest_dir.join("../.env"));
