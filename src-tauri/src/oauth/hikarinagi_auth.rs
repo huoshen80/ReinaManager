@@ -22,9 +22,9 @@ const HIKARINAGI_CALLBACK_PATH: &str = "/callback/hikarinagi";
 const HIKARINAGI_CALLBACK_TIMEOUT: Duration = Duration::from_secs(300);
 const HIKARINAGI_AUTHORIZATION_ENDPOINT: &str = "https://id.hikarinagi.org/oidc/auth";
 const HIKARINAGI_TOKEN_ENDPOINT: &str = "https://id.hikarinagi.org/oidc/token";
-// 生产接口上线且本应用获准后追加 catalog:sync；旧授权需重新登录，不能由刷新隐式提权。
+// 新增权限后旧授权需重新登录，不能由刷新隐式提权。
 const HIKARINAGI_SCOPES: &str =
-    "openid user:read catalog:full status:read status:write offline_access";
+    "openid user:read catalog:full catalog:sync status:read status:write offline_access";
 
 #[derive(Debug, Deserialize)]
 struct HikarinagiTokenResponse {
