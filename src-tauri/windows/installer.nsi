@@ -421,9 +421,7 @@ Function .onInit
     ${OrIf} $R0 == $INSTDIR
       Goto reina_portable_invalid
     ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
-      Goto reina_portable_invalid
-    ${EndIf}
+    ; 便携目录由数据目录识别；旧 EXE 可能已改名，仍按标准名称写入并启动新版。
     ${IfNot} ${FileExists} "$INSTDIR\resources\data\."
       Goto reina_portable_invalid
     ${EndIf}
