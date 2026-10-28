@@ -389,6 +389,8 @@ jobs:
     name: Finalize Release
     runs-on: ubuntu-latest
     needs: [prepare, build-linux, build-windows]
+    outputs:
+      is_prerelease: ${{ steps.release-type.outputs.IS_PRERELEASE }}
     permissions:
       contents: write
     steps:
@@ -486,3 +488,37 @@ jobs:
 
           gh release upload $TAG_NAME "latest.json" --clobber
           echo "Successfully updated latest.json with CDN URLs"
+
+  rebuild-docs:
+    name: Rebuild documentation downloads
+    runs-on: ubuntu-latest
+    needs: [prepare, finalize-release, update_cdn_urls]
+    if: needs.finalize-release.outputs.is_prerelease == 'false'
+    steps:
+      - name: Check latest stable release
+        id: latest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        run: |
+          LATEST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          if [ "$LATEST_TAG" = "$RELEASE_TAG" ]; then
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "跳过文档重建：$RELEASE_TAG 不是最新正式版 $LATEST_TAG"
+          fi
+
+      - name: Trigger Cloudflare Pages deployment
+        if: steps.latest.outputs.rebuild == 'true'
+        shell: bash
+        env:
+          DEPLOY_HOOK: ${{ secrets.DOCS_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::请配置文档站的 DOCS_DEPLOY_HOOK Secret"
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            --request POST --output /dev/null "$DEPLOY_HOOK"
