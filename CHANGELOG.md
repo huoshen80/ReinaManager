@@ -1,3 +1,37 @@
+## [0.32.2](https://github.com/huoshen80/ReinaManager/compare/v0.32.1...v0.32.2) (2026-10-28)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- *(release)* 上传资源后重新构建文档 ([b41dc0e](https://github.com/huoshen80/ReinaManager/commit/b41dc0eebe447a5faa3b3d4016be99862ad4af9a))
+- *(release)* 推荐使用 NSIS 安装包 ([2fb8d67](https://github.com/huoshen80/ReinaManager/commit/2fb8d679372e1f4951978330a1a23624f59ec21a))
+
+### ✨ 新功能
+
+- *(auth)* 请求 Hikarinagi 目录同步权限 ([ab18c28](https://github.com/huoshen80/ReinaManager/commit/ab18c286e893112b2b07ad41f205e8f96d63bb97))
+
+### 🐛 Bug 修复
+
+- *(icons)* 重新生成资源并跟踪变更 ([d4d04db](https://github.com/huoshen80/ReinaManager/commit/d4d04db1f050c227e899c5b15b182c21dbdbb719))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Rebuild docs after asset uploads ([b41dc0e](https://github.com/huoshen80/ReinaManager/commit/b41dc0eebe447a5faa3b3d4016be99862ad4af9a))
+- *(release)* Recommend NSIS installers ([2fb8d67](https://github.com/huoshen80/ReinaManager/commit/2fb8d679372e1f4951978330a1a23624f59ec21a))
+
+### ✨ Features
+
+- *(auth)* Request Hikarinagi catalog sync scope ([ab18c28](https://github.com/huoshen80/ReinaManager/commit/ab18c286e893112b2b07ad41f205e8f96d63bb97))
+
+### 🐛 Bug Fixes
+
+- *(icons)* Regenerate assets and track changes ([d4d04db](https://github.com/huoshen80/ReinaManager/commit/d4d04db1f050c227e899c5b15b182c21dbdbb719))
+
+
 ## [0.32.1](https://github.com/huoshen80/ReinaManager/compare/v0.32.0...v0.32.1) (2026-10-24)
 
 <details>
