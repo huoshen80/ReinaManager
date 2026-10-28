@@ -22,8 +22,8 @@ body = """
 ![Downloads](https://img.shields.io/github/downloads/{{ repo }}/{{ version }}/total)
 
 **Windows** (不支持 Win7)
-- [**64位 (x64)**]({{ base_url }}{{ prefix }}_x64_en-US.msi)
-- [**ARM64**]({{ base_url }}{{ prefix }}_arm64_en-US.msi)
+- [**安装版 (x64)**]({{ base_url }}{{ prefix }}_x64-setup.exe)
+- [**安装版 (ARM64)**]({{ base_url }}{{ prefix }}_arm64-setup.exe)
 - [**便携版 (x64)**]({{ base_url }}{{ prefix }}_win_x64-portable.zip)
 - [**便携版 (ARM64)**]({{ base_url }}{{ prefix }}_win_arm64-portable.zip)
 
