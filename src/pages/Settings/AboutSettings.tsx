@@ -17,8 +17,7 @@ import { useStore } from "@/store/appStore";
 import { getUserErrorMessage } from "@/utils/errors";
 
 const COMMUNITY_GROUP_NUMBER = "556984160";
-const COMMUNITY_GROUP_URL =
-	"https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=KHB4Pm2fmtyWv3OklLNxDxkjIKtiwMBj&authKey=2KeSnTCv%2By6ORWuEOYEZx9q63pRrCKkQRK8VqpaOiGZUS1zZ%2BNVmCbRkN3F2lpc7&noverify=0&group_code=556984160";
+const COMMUNITY_GROUP_URL = "https://qm.qq.com/q/lnCUkVjTpu";
 
 export const AboutSection: React.FC = () => {
 	const { t } = useTranslation();
