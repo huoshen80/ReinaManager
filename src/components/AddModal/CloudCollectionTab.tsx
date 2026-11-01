@@ -452,6 +452,13 @@ export default function CloudCollectionTab({
 
 	const progressValue =
 		progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
+	const progressLabel =
+		phase === "preparing"
+			? t(
+					"components.CloudCollectionImport.fetchingDetails",
+					"正在获取完整元数据",
+				)
+			: t("components.CloudCollectionImport.writingGames", "正在写入游戏库");
 
 	return (
 		<>
@@ -546,7 +553,7 @@ export default function CloudCollectionTab({
 						direction="row"
 						spacing={1}
 						alignItems="center"
-						flexWrap="wrap"
+						className="min-h-9"
 					>
 						<Button
 							size="small"
@@ -562,45 +569,44 @@ export default function CloudCollectionTab({
 						>
 							{t("components.CloudCollectionImport.clearVisible", "清空")}
 						</Button>
-						<Typography variant="body2" color="text.secondary">
+						<Typography variant="body2" color="text.secondary" noWrap>
 							{t("components.CloudCollectionImport.selectionSummary", {
 								defaultValue: "已选择 {{selected}} / {{total}}",
 								selected: selectedCount,
 								total: items.length,
 							})}
 						</Typography>
-					</Stack>
-
-					{(phase === "preparing" || phase === "importing") && (
-						<Box>
-							<Stack
-								direction="row"
-								justifyContent="space-between"
-								className="mb-1"
-							>
-								<Typography variant="caption">
-									{phase === "preparing"
-										? t(
-												"components.CloudCollectionImport.fetchingDetails",
-												"正在获取完整元数据",
-											)
-										: t(
-												"components.CloudCollectionImport.writingGames",
-												"正在写入游戏库",
-											)}
-								</Typography>
-								<Typography variant="caption">
-									{progress.completed}/{progress.total}
-								</Typography>
-							</Stack>
-							<LinearProgress
-								variant={
-									phase === "importing" ? "indeterminate" : "determinate"
-								}
-								value={progressValue}
-							/>
+						<Box className="min-w-0 flex-1">
+							{(phase === "preparing" || phase === "importing") && (
+								<Box className="ml-auto w-64 max-w-full">
+									<Stack
+										direction="row"
+										justifyContent="space-between"
+										className="mb-1"
+									>
+										<Typography variant="caption" noWrap>
+											{progressLabel}
+										</Typography>
+										{phase === "preparing" && (
+											<Typography
+												variant="caption"
+												className="shrink-0 tabular-nums"
+											>
+												{progress.completed}/{progress.total}
+											</Typography>
+										)}
+									</Stack>
+									<LinearProgress
+										variant={
+											phase === "importing" ? "indeterminate" : "determinate"
+										}
+										value={progressValue}
+										aria-label={progressLabel}
+									/>
+								</Box>
+							)}
 						</Box>
-					)}
+					</Stack>
 
 					{summary && (
 						<Alert severity={getImportSummarySeverity(summary)}>
