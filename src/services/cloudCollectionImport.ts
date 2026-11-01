@@ -334,8 +334,6 @@ export async function prepareCloudCollectionItems(
 			metadata = (await session.completeSingleSource(metadata, source)).data;
 		}
 		signal.throwIfAborted();
-		// 增强可能带回新的间接关联，仍需再检查一次并记录最终身份。
-		if (isDuplicate(metadata)) return { item, duplicate: true };
 		for (const key of getGameIdentityKeys(metadata)) queuedIds.add(key);
 		return { item, metadata: withPersonalData(metadata, item) };
 	};
