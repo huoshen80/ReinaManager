@@ -15,6 +15,7 @@ import {
 	FormControlLabel,
 	IconButton,
 	InputLabel,
+	LinearProgress,
 	MenuItem,
 	Popover,
 	Select,
@@ -28,26 +29,27 @@ import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { AlertBox } from "@/components/AlertBox";
 import {
-	type BulkImportDuplicateGroup,
 	type BulkImportMode,
 	useBulkGameAddActions,
 } from "@/hooks/features/games/useGameMetadataFacade";
 import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAllSettings } from "@/hooks/queries/useSettings";
 import { getRuntimeSourceAdapter, SEARCHABLE_SOURCE_KEYS } from "@/metadata";
+import { GameMetadataSession } from "@/metadata/data/gameMetadataService";
 import type { MetadataFetchResult } from "@/metadata/data/metadata";
 import { snackbar } from "@/providers/snackBar";
 import { handleFolder, normalizeDirectoryPath } from "@/services/fs/fileDialog";
 import { fileService } from "@/services/invoke";
 import { isBgmAuthExpiredError } from "@/services/oauth/bgmAuthSession";
 import { isHikarinagiAuthExpiredError } from "@/services/oauth/hikarinagiAuthSession";
-import { createMetadataSession } from "@/services/requestContext";
+import { getMetadataRequestContext } from "@/services/requestContext";
 import { useStore } from "@/store/appStore";
 import type { GameDirectoryScanMode, GameScanMode, SourceType } from "@/types";
 import { createAbortableRunner, isAbortError } from "@/utils/async";
 import { getUserErrorMessage, isApiRateLimitError } from "@/utils/errors";
 import BulkImportResultTable, {
 	type BulkImportItem,
+	isBulkExpansionPending,
 	type VisibleBulkImportItem,
 } from "./BulkImportResultTable";
 import GameSelectDialog from "./GameSelectDialog";
@@ -103,46 +105,7 @@ function isMetadataCandidate(item: BulkImportItem): boolean {
 }
 
 function isMatchedImportItem(item: BulkImportItem): boolean {
-	return isMetadataCandidate(item) && item.importOutcome?.kind !== "duplicate";
-}
-
-function invalidateBulkDuplicates(
-	items: BulkImportItem[],
-	keys: ReadonlySet<string>,
-): BulkImportItem[] {
-	// 每个共享组只过滤一次；替换引用而不修改旧组，保持上一次渲染的快照完整。
-	const updatedGroups = new Map<
-		BulkImportDuplicateGroup,
-		BulkImportDuplicateGroup | null
-	>();
-	return items.map((item) => {
-		const outcome = item.importOutcome;
-		if (outcome?.kind !== "duplicate") return item;
-		if (keys.has(item.key)) return { ...item, importOutcome: undefined };
-		let changed = false;
-		const groups = outcome.groups.flatMap((group) => {
-			if (!updatedGroups.has(group)) {
-				const itemKeys = group.itemKeys.filter((key) => !keys.has(key));
-				updatedGroups.set(
-					group,
-					itemKeys.length < 2
-						? null
-						: itemKeys.length === group.itemKeys.length
-							? group
-							: { ...group, itemKeys },
-				);
-			}
-			const updated = updatedGroups.get(group);
-			if (updated !== group) changed = true;
-			return updated ? [updated] : [];
-		});
-		if (!changed) return item;
-		return {
-			...item,
-			importOutcome:
-				outcome.inLibrary || groups.length ? { ...outcome, groups } : undefined,
-		};
-	});
+	return isMetadataCandidate(item) && !item.duplicate;
 }
 
 function getBulkItemIdentities(item: BulkImportItem): string[] {
@@ -200,8 +163,32 @@ const BulkImportTab = ({
 	const editSearchAbortControllerRef = useRef<AbortController | null>(null);
 	const matchAbortControllerRef = useRef<AbortController | null>(null);
 	const itemsRef = useRef(items);
+	const [matchProgress, setMatchProgress] = useState<{
+		phase: "primary" | "expansion";
+		completed: number;
+		total: number;
+	} | null>(null);
 	const processingDropBatchIdRef = useRef<number | null>(null);
 	const loading = isMatchingMetadata || isScanningGames || isAddingGames;
+	const checkDuplicates = useCallback(
+		(candidates: BulkImportItem[]): BulkImportItem[] => {
+			const duplicates = new Map(
+				findBulkImportDuplicates(candidates.filter(isMetadataCandidate)).map(
+					(duplicate) => [duplicate.itemKey, duplicate],
+				),
+			);
+			return candidates.map((item) => ({
+				...item,
+				duplicate: duplicates.get(item.key),
+			}));
+		},
+		[findBulkImportDuplicates],
+	);
+	// 判重只在主源完成、用户修改候选和入库时执行；长任务通过引用读取最新库内身份。
+	const checkDuplicatesRef = useRef(checkDuplicates);
+	useEffect(() => {
+		checkDuplicatesRef.current = checkDuplicates;
+	}, [checkDuplicates]);
 	const visibleItems = useMemo(
 		() => items.filter(isVisibleBulkImportItem),
 		[items],
@@ -229,10 +216,7 @@ const BulkImportTab = ({
 			if (!editItemKey) return;
 
 			setItems((prevItems) => {
-				const nextItems = invalidateBulkDuplicates(
-					prevItems,
-					new Set([editItemKey]),
-				);
+				const nextItems = [...prevItems];
 				const itemIndex = nextItems.findIndex(
 					(item) => item.key === editItemKey,
 				);
@@ -242,12 +226,13 @@ const BulkImportTab = ({
 						name: editName,
 						matchedData: result.data,
 						failedSources: result.failedSources,
+						pendingExpansionSource: undefined,
 						status: "matched",
 						importMode: "metadata",
 						importOutcome: undefined,
 					};
 				}
-				return nextItems;
+				return checkDuplicatesRef.current(nextItems);
 			});
 			setEditItemKey(null);
 		},
@@ -520,6 +505,7 @@ const BulkImportTab = ({
 	};
 
 	const handleMatchMetadata = async () => {
+		if (loading) return;
 		if (matchAbortControllerRef.current) {
 			matchAbortControllerRef.current.abort();
 		}
@@ -528,34 +514,48 @@ const BulkImportTab = ({
 		matchAbortControllerRef.current = controller;
 
 		setIsMatchingMetadata(true);
-		const nextItems = items.map((item) => ({ ...item }));
+		let nextItems = items.map((item) => ({ ...item }));
+		let duplicatesChecked = false;
+		const context = getMetadataRequestContext({ signal: controller.signal });
+		const session = new GameMetadataSession(context);
+		const shouldExpand = context.autoExpandSources?.includes(bulkApiSource);
+		const primaryKeys = new Set(
+			nextItems
+				.filter(
+					(item) =>
+						isVisibleBulkImportItem(item) &&
+						item.importMode !== "custom" &&
+						(item.status === "pending" || item.status === "not found"),
+				)
+				.map((item) => item.key),
+		);
+		let completed = 0;
+		setMatchProgress({ phase: "primary", completed, total: primaryKeys.size });
 
 		try {
 			for (let index = 0; index < nextItems.length; index++) {
 				if (controller.signal.aborted) {
-					break;
+					return;
 				}
 
-				if (
-					nextItems[index].importMode === "custom" ||
-					(nextItems[index].status !== "pending" &&
-						nextItems[index].status !== "not found")
-				) {
+				if (!primaryKeys.has(nextItems[index].key)) {
 					continue;
 				}
+				nextItems[index] = { ...nextItems[index] };
 
 				try {
 					const result = await withAbort(
-						createMetadataSession({
-							signal: controller.signal,
-						}).searchBestMatchResult({
+						session.searchBestMatchResult({
 							query: nextItems[index].name,
 							source: bulkApiSource,
+							expand: false,
 						}),
 					);
 
 					nextItems[index].matchedData = result?.data;
 					nextItems[index].failedSources = result?.failedSources;
+					nextItems[index].pendingExpansionSource =
+						result && shouldExpand ? bulkApiSource : undefined;
 					if (result) {
 						nextItems[index].status = "matched";
 						nextItems[index].importOutcome = undefined;
@@ -564,17 +564,17 @@ const BulkImportTab = ({
 					}
 				} catch (error) {
 					if (isAbortError(error)) {
-						break;
+						return;
 					}
 					if (isBgmAuthExpiredError(error)) {
-						break;
+						return;
 					}
 					if (isHikarinagiAuthExpiredError(error)) {
-						break;
+						return;
 					}
 					if (isApiRateLimitError(error)) {
 						snackbar.warning(getUserErrorMessage(error, t));
-						break;
+						return;
 					}
 
 					snackbar.warning(
@@ -583,22 +583,104 @@ const BulkImportTab = ({
 					nextItems[index].status = "not found";
 					nextItems[index].matchedData = undefined;
 					nextItems[index].failedSources = undefined;
+					nextItems[index].pendingExpansionSource = undefined;
 				}
 
-				setItems([...nextItems]);
+				setMatchProgress({
+					phase: "primary",
+					completed: ++completed,
+					total: primaryKeys.size,
+				});
+			}
+
+			// 整批主源身份齐备后再决定增强对象，避免按顺序抢占同批共享身份。
+			nextItems = checkDuplicatesRef.current(nextItems);
+			duplicatesChecked = true;
+			const expansionKeys = new Set(
+				nextItems
+					.filter(
+						(item) => isMatchedImportItem(item) && item.pendingExpansionSource,
+					)
+					.map((item) => item.key),
+			);
+			completed = 0;
+			setMatchProgress({
+				phase: "expansion",
+				completed,
+				total: expansionKeys.size,
+			});
+			for (let index = 0; index < nextItems.length; index++) {
+				if (controller.signal.aborted) return;
+				if (!expansionKeys.has(nextItems[index].key)) continue;
+				const item = nextItems[index];
+				if (
+					isMatchedImportItem(item) &&
+					item.matchedData &&
+					item.pendingExpansionSource
+				) {
+					try {
+						const result = await withAbort(
+							session.completeSingleSource(
+								item.matchedData,
+								item.pendingExpansionSource,
+							),
+						);
+						nextItems[index] = {
+							...item,
+							matchedData: result.data,
+							failedSources: result.failedSources,
+							pendingExpansionSource: result.failedSources.length
+								? item.pendingExpansionSource
+								: undefined,
+						};
+					} catch (error) {
+						if (
+							isAbortError(error) ||
+							isBgmAuthExpiredError(error) ||
+							isHikarinagiAuthExpiredError(error)
+						)
+							return;
+						snackbar.warning(`${item.name}: ${getUserErrorMessage(error, t)}`);
+						if (isApiRateLimitError(error)) return;
+					}
+				}
+				setMatchProgress({
+					phase: "expansion",
+					completed: ++completed,
+					total: expansionKeys.size,
+				});
 			}
 		} finally {
 			if (matchAbortControllerRef.current === controller) {
 				matchAbortControllerRef.current = null;
+				// 正常完成和中断都一次性展示已取得的结果；主源中途退出时补做判重。
+				const results = duplicatesChecked
+					? nextItems
+					: checkDuplicatesRef.current(nextItems);
+				itemsRef.current = results;
+				setItems(results);
+				setIsMatchingMetadata(false);
+				setMatchProgress(null);
+				const pendingCount = results.filter(isBulkExpansionPending).length;
+				if (pendingCount > 0) {
+					snackbar.warning(
+						t(
+							"components.BulkImportModal.expansionPendingSummary",
+							"{{total}} 项关联资料待补全，已置顶。可再次匹配，或按已有资料直接导入。",
+							{ total: pendingCount },
+						),
+					);
+				}
 			}
-			setIsMatchingMetadata(false);
 		}
 	};
 
 	const importBulkItems = async (mode: BulkImportMode) => {
 		if (loading) return;
+		// 入库前使用最新的库内身份重新确认候选，避免沿用匹配时的重复状态。
+		let nextItems = checkDuplicatesRef.current(items);
 		const requestedKeys = new Set(
-			items
+			nextItems
 				.filter(
 					(item) =>
 						isVisibleBulkImportItem(item) &&
@@ -608,45 +690,23 @@ const BulkImportTab = ({
 				)
 				.map((item) => item.key),
 		);
-		if (requestedKeys.size === 0) return;
-		let nextItems = items.map((item) => ({ ...item }));
-		let skipped = 0;
-		if (mode === "metadata") {
-			// 旧重复项也参与比较，但本次只提交点击时计入“已匹配”的行。
-			const candidates = nextItems.filter(isMetadataCandidate);
-			const duplicatesByKey = new Map(
-				findBulkImportDuplicates(candidates).map((result) => [
-					result.itemKey,
-					result,
-				]),
-			);
-			nextItems = nextItems.map((item) => {
-				if (!isMetadataCandidate(item)) return item;
-				const duplicate = duplicatesByKey.get(item.key);
-				if (duplicate) {
-					if (requestedKeys.delete(item.key)) skipped++;
-					return {
-						...item,
-						importOutcome: {
-							kind: "duplicate",
-							inLibrary: duplicate.inLibrary,
-							groups: duplicate.groups,
-						},
-					};
-				}
-				return item.importOutcome?.kind === "duplicate"
-					? { ...item, importOutcome: undefined }
-					: item;
-			});
-		} else {
-			// 自定义提交放弃使用匹配身份，其关联的旧冲突也随之失效；失败仍按自定义重试。
-			nextItems = invalidateBulkDuplicates(nextItems, requestedKeys);
+		if (requestedKeys.size === 0) {
+			setItems(nextItems);
+			return;
 		}
+		const skipped =
+			mode === "metadata"
+				? nextItems.filter(
+						(item) => isVisibleBulkImportItem(item) && item.duplicate,
+					).length
+				: 0;
 		const submitted = nextItems
 			.filter((item) => requestedKeys.has(item.key))
 			.map((item) => ({
 				...item,
 				importMode: mode,
+				pendingExpansionSource:
+					mode === "custom" ? undefined : item.pendingExpansionSource,
 				importOutcome: undefined,
 			}));
 		const submittedByKey = new Map(submitted.map((item) => [item.key, item]));
@@ -721,7 +781,9 @@ const BulkImportTab = ({
 				failed = submitted.length;
 			}
 		}
-		setItems(nextItems.filter(isVisibleBulkImportItem));
+		setItems(
+			checkDuplicatesRef.current(nextItems.filter(isVisibleBulkImportItem)),
+		);
 		const summary = t(
 			"components.BulkImportModal.importOutcomeSummary",
 			"成功 {{success}} 项、跳过重复 {{skipped}} 项、失败 {{failed}} 项",
@@ -772,10 +834,7 @@ const BulkImportTab = ({
 
 	const handleDeleteItem = useCallback((key: string) => {
 		setItems((prev) =>
-			invalidateBulkDuplicates(
-				prev.filter((item) => item.key !== key),
-				new Set([key]),
-			),
+			checkDuplicatesRef.current(prev.filter((item) => item.key !== key)),
 		);
 	}, []);
 
@@ -1059,15 +1118,81 @@ const BulkImportTab = ({
 						</Stack>
 					</Popover>
 
-					<BulkImportResultTable
-						items={visibleItems}
-						loading={loading}
-						emptyMessage={emptyMessage}
-						onDeleteItem={handleDeleteItem}
-						onEditItem={handleEditItem}
-						onExecutableChange={handleExecutableChange}
-						onOpenDirectory={handleOpenDirectory}
-					/>
+					<Box
+						className="relative flex flex-1 min-h-0"
+						aria-busy={isMatchingMetadata}
+					>
+						<Box
+							className={`flex flex-1 min-h-0 ${isMatchingMetadata ? "invisible" : ""}`}
+						>
+							<BulkImportResultTable
+								items={visibleItems}
+								loading={loading}
+								emptyMessage={emptyMessage}
+								onDeleteItem={handleDeleteItem}
+								onEditItem={handleEditItem}
+								onExecutableChange={handleExecutableChange}
+								onOpenDirectory={handleOpenDirectory}
+							/>
+						</Box>
+						{isMatchingMetadata && (
+							<Box
+								className="absolute inset-0 flex items-center justify-center"
+								sx={{ bgcolor: "background.paper" }}
+							>
+								<Stack
+									spacing={2}
+									className="w-72 max-w-full px-4"
+									alignItems="center"
+								>
+									<Typography variant="subtitle1">
+										{t(
+											"components.BulkImportModal.matchingMetadata",
+											"正在匹配元数据",
+										)}
+									</Typography>
+									<LinearProgress
+										className="w-full rounded-full"
+										variant={
+											matchProgress && matchProgress.total > 0
+												? "determinate"
+												: "indeterminate"
+										}
+										value={
+											matchProgress && matchProgress.total > 0
+												? (matchProgress.completed / matchProgress.total) * 100
+												: undefined
+										}
+										aria-label={t(
+											"components.BulkImportModal.matchingMetadata",
+											"正在匹配元数据",
+										)}
+									/>
+									<Typography
+										variant="body2"
+										color="text.secondary"
+										className="tabular-nums"
+										role="status"
+										aria-live="polite"
+									>
+										{matchProgress?.phase === "primary"
+											? t(
+													"components.BulkImportModal.primaryMatchProgress",
+													"匹配主源 {{completed}} / {{total}}",
+													matchProgress,
+												)
+											: matchProgress
+												? t(
+														"components.BulkImportModal.expansionProgress",
+														"补全资料 {{completed}} / {{total}}",
+														matchProgress,
+													)
+												: null}
+									</Typography>
+								</Stack>
+							</Box>
+						)}
+					</Box>
 				</Stack>
 			</DialogContent>
 
@@ -1080,7 +1205,11 @@ const BulkImportTab = ({
 				}
 			>
 				<Box className="flex w-full grow md:w-auto">
-					<Button onClick={resetState} disabled={loading || items.length === 0}>
+					<Button
+						className="shrink-0"
+						onClick={resetState}
+						disabled={loading || items.length === 0}
+					>
 						{t("components.BulkImportModal.reset", "重置")}
 					</Button>
 				</Box>
@@ -1110,7 +1239,9 @@ const BulkImportTab = ({
 						variant="contained"
 						onClick={handleImportMatched}
 						disabled={matchedImportCount === 0 || loading}
-						startIcon={loading ? <CircularProgress size={20} /> : undefined}
+						startIcon={
+							isAddingGames ? <CircularProgress size={20} /> : undefined
+						}
 					>
 						{t(
 							"components.BulkImportModal.importMatched",

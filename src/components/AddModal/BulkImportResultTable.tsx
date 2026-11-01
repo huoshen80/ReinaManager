@@ -10,12 +10,13 @@ import {
 	MenuItem,
 	Select,
 	Stack,
+	Tooltip,
 	Typography,
 } from "@mui/material";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Virtuoso } from "react-virtuoso";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type {
 	BulkImportDuplicate,
 	BulkImportDuplicateGroup,
@@ -29,7 +30,6 @@ import {
 import type { GameLaunchType, GameMetadataDraft, SourceType } from "@/types";
 
 export type BulkImportOutcome =
-	| ({ kind: "duplicate" } & Omit<BulkImportDuplicate, "itemKey">)
 	| {
 			kind: "error";
 			phase: "preparation" | "insertion" | "request";
@@ -44,6 +44,9 @@ export interface BulkImportItem {
 	executables: string[];
 	status: "pending" | "matched" | "not found";
 	importOutcome?: BulkImportOutcome;
+	duplicate?: Omit<BulkImportDuplicate, "itemKey">;
+	// 保留尚未增强的主源，解除冲突或中断后可以继续，不重复获取详情。
+	pendingExpansionSource?: SourceType;
 	importMode?: BulkImportMode;
 	matchedData?: GameMetadataDraft;
 	failedSources?: SourceType[];
@@ -116,9 +119,9 @@ function getMatchedGameName(
 }
 
 function getStatusLabel(item: VisibleBulkImportItem, t: TFunction): string {
-	if (item.importOutcome?.kind === "duplicate") {
+	if (item.duplicate) {
 		// 列表内重复由组标题提示，混合冲突时优先显示仓库状态，保持单行高度。
-		return item.importOutcome.inLibrary
+		return item.duplicate.inLibrary
 			? t("components.BulkImportModal.statusLibraryDuplicate", "仓库已存在")
 			: t("components.BulkImportModal.statusBatchDuplicate", "列表内重复");
 	}
@@ -126,6 +129,8 @@ function getStatusLabel(item: VisibleBulkImportItem, t: TFunction): string {
 		return t("components.BulkImportModal.statusImportFailed", "导入失败");
 	if (item.importMode === "custom")
 		return t("components.BulkImportModal.statusCustom", "自定义");
+	if (item.pendingExpansionSource)
+		return t("components.BulkImportModal.statusExpansionPending", "待补全");
 	switch (item.status) {
 		case "pending":
 			return t("components.BulkImportModal.statusPending", "待处理");
@@ -134,6 +139,15 @@ function getStatusLabel(item: VisibleBulkImportItem, t: TFunction): string {
 		case "not found":
 			return t("components.BulkImportModal.statusNotFound", "未找到");
 	}
+}
+
+export function isBulkExpansionPending(item: BulkImportItem): boolean {
+	return (
+		Boolean(item.pendingExpansionSource) &&
+		!item.duplicate &&
+		!item.importOutcome &&
+		item.importMode !== "custom"
+	);
 }
 
 type BulkDisplayRow =
@@ -159,9 +173,9 @@ function buildDisplayRows(items: VisibleBulkImportItem[]): BulkDisplayRow[] {
 		while (pending.length) {
 			const key = pending.pop();
 			if (!key) break;
-			const outcome = byKey.get(key)?.importOutcome;
-			if (outcome?.kind !== "duplicate") continue;
-			for (const group of outcome.groups) {
+			const duplicate = byKey.get(key)?.duplicate;
+			if (!duplicate) continue;
+			for (const group of duplicate.groups) {
 				if (visitedGroups.has(group)) continue;
 				visitedGroups.add(group);
 				// 直接遍历共享成员列表，每个身份组只访问一次，不构造两两邻接表。
@@ -176,6 +190,7 @@ function buildDisplayRows(items: VisibleBulkImportItem[]): BulkDisplayRow[] {
 	// 按原顺序填充展示组，保留最早成员的位置，也避免对大组重新排序。
 	for (const item of items) componentByKey.get(item.key)?.push(item);
 	const rows: BulkDisplayRow[] = [];
+	const pendingRows: BulkDisplayRow[] = [];
 	for (const members of components) {
 		const grouped = members.length > 1;
 		if (grouped)
@@ -184,10 +199,12 @@ function buildDisplayRows(items: VisibleBulkImportItem[]): BulkDisplayRow[] {
 				key: `group:${members[0].key}`,
 				count: members.length,
 			});
-		for (const item of members)
-			rows.push({ kind: "item", key: item.key, item, grouped });
+		for (const item of members) {
+			const target = isBulkExpansionPending(item) ? pendingRows : rows;
+			target.push({ kind: "item", key: item.key, item, grouped });
+		}
 	}
-	return rows;
+	return [...pendingRows, ...rows];
 }
 
 function getFailurePhase(
@@ -207,7 +224,7 @@ function getFailurePhase(
 	}
 }
 
-export default function BulkImportResultTable({
+export default memo(function BulkImportResultTable({
 	items,
 	loading,
 	emptyMessage,
@@ -218,6 +235,20 @@ export default function BulkImportResultTable({
 }: BulkImportResultTableProps) {
 	const { t, i18n } = useTranslation();
 	const displayRows = useMemo(() => buildDisplayRows(items), [items]);
+	const listRef = useRef<VirtuosoHandle>(null);
+	const wasLoading = useRef(loading);
+	useEffect(() => {
+		// 匹配结束后让置顶警告进入视口，日常编辑不改变滚动位置。
+		const first = displayRows[0];
+		if (
+			wasLoading.current &&
+			!loading &&
+			first?.kind === "item" &&
+			isBulkExpansionPending(first.item)
+		)
+			listRef.current?.scrollToIndex(0);
+		wasLoading.current = loading;
+	}, [loading, displayRows]);
 
 	return (
 		<Box
@@ -280,6 +311,7 @@ export default function BulkImportResultTable({
 			) : (
 				<Box sx={{ flex: "1 1 auto", minHeight: 0, width: "100%" }}>
 					<Virtuoso
+						ref={listRef}
 						style={{ height: "100%", width: "100%" }}
 						data={displayRows}
 						computeItemKey={(_, item) => item.key}
@@ -307,6 +339,18 @@ export default function BulkImportResultTable({
 							const { item } = row;
 							const outcome = item.importOutcome;
 							const statusLabel = getStatusLabel(item, t);
+							const isExpansionPending = isBulkExpansionPending(item);
+							const statusHint = item.duplicate
+								? t(
+										"components.BulkImportModal.duplicateHint",
+										"重复项不会按匹配结果导入。可修改匹配或移除列表项，目录和启动文件会保留。",
+									)
+								: isExpansionPending
+									? t(
+											"components.BulkImportModal.expansionPendingHint",
+											"关联资料尚未补全。可再次点击“匹配元数据”继续，或按当前主源资料直接导入。",
+										)
+									: "";
 							const matchedName = getMatchedGameName(
 								item.importMode === "custom" ? undefined : item.matchedData,
 								i18n.language,
@@ -367,20 +411,27 @@ export default function BulkImportResultTable({
 									<Typography variant="body2" sx={cellSx} title={matchedName}>
 										{matchedName ?? "-"}
 									</Typography>
-									<Typography
-										variant="body2"
-										noWrap
-										title={statusLabel}
-										color={
-											outcome?.kind === "duplicate"
-												? "warning.main"
-												: outcome?.kind === "error"
-													? "error.main"
+									<Tooltip title={statusHint || statusLabel} arrow>
+										<Typography
+											variant="body2"
+											noWrap
+											tabIndex={statusHint ? 0 : undefined}
+											className={
+												statusHint
+													? "w-fit max-w-full cursor-help underline decoration-dotted underline-offset-4"
 													: undefined
-										}
-									>
-										{statusLabel}
-									</Typography>
+											}
+											color={
+												item.duplicate || isExpansionPending
+													? "warning.main"
+													: outcome?.kind === "error"
+														? "error.main"
+														: undefined
+											}
+										>
+											{statusLabel}
+										</Typography>
+									</Tooltip>
 									<Box sx={{ minWidth: 0 }}>
 										{item.launch_type === "steam" ? (
 											<Typography variant="body2" noWrap title={item.path}>
@@ -496,4 +547,4 @@ export default function BulkImportResultTable({
 			)}
 		</Box>
 	);
-}
+});

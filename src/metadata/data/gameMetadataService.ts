@@ -190,14 +190,17 @@ export class GameMetadataSession {
 		};
 	}
 
-	/** 对已获取的详情执行关联增强与最终清洗，避免导入去重后重新请求主源。 */
+	/** 对详情执行增强与清洗；批量匹配可先关闭增强，判重后再复用同一份详情。 */
 	async completeSingleSource(
 		draft: GameMetadataDraft,
 		origin: SourceType,
+		options: { expand?: boolean } = {},
 	): Promise<MetadataFetchResult> {
-		const result = this.context.autoExpandSources?.includes(origin)
-			? await this.expandAssociatedSources(draft, origin)
-			: { data: draft, failedSources: [] };
+		const result =
+			options.expand !== false &&
+			this.context.autoExpandSources?.includes(origin)
+				? await this.expandAssociatedSources(draft, origin)
+				: { data: draft, failedSources: [] };
 		// 主源始终保留；增强返回的间接关联也不能绕过 Mixed 选择。
 		return this.finalizeResult(
 			this.filterSingleSourceDraft(result.data, origin),
@@ -334,10 +337,15 @@ export class GameMetadataSession {
 	async searchBestMatchResult(params: {
 		query: string;
 		source: SourceType;
+		expand?: boolean;
 	}): Promise<MetadataFetchResult | null> {
-		const { query, source } = params;
+		const { query, source, expand } = params;
 		if (source === "dlsite" && this.shouldUseIdSearch(query, source)) {
-			return this.getGameByIdResult(query, source);
+			return this.completeSingleSource(
+				await this.getGameByIdDraft(query, source),
+				source,
+				{ expand },
+			);
 		}
 
 		const draft = await resolveAutoSelectedGameDraft({
@@ -345,7 +353,13 @@ export class GameMetadataSession {
 			adapter: this.getRuntimeAdapter(source),
 		});
 
-		return draft ? this.completeSingleSource(draft, source) : null;
+		return draft
+			? this.completeSingleSource(
+					this.filterSingleSourceDraft(draft, source),
+					source,
+					{ expand },
+				)
+			: null;
 	}
 
 	/**
