@@ -434,7 +434,7 @@ export async function fetchNextmoeWorkPreviews(
 					params: {
 						ids: ids.slice(index, index + 100).join(","),
 						nsfw: true,
-						include: "titles,companies",
+						include: "titles,companies,refs",
 					},
 				},
 			)

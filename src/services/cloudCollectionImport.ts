@@ -13,7 +13,11 @@ import {
 	type GameIdentityPayload,
 	getGameIdentityKeys,
 } from "@/metadata/data/metadata";
-import { getCandidateSourceData } from "@/metadata/sourceCandidate";
+import {
+	getCandidateSourceData,
+	getCandidateSourceId,
+} from "@/metadata/sourceCandidate";
+import { getSourceIdMap, type SourceIdMap } from "@/metadata/sourceRecord";
 import {
 	getBgmUsername,
 	getVndbToken,
@@ -55,6 +59,7 @@ export interface CloudCollectionItem {
 	playStatus?: PlayStatus;
 	releaseDate?: string;
 	source: CloudCollectionSource;
+	sourceIds?: SourceIdMap;
 	userRating?: number;
 	userReview?: string;
 }
@@ -244,21 +249,20 @@ async function loadKunCollection(signal?: AbortSignal) {
 			token,
 			context,
 		);
-		const dataById = new Map(
-			previews.flatMap((game) =>
-				game.sources
-					.filter((record) => record.source === "kun")
-					.map(
-						(record) => [record.external_id, record.data as KunData] as const,
-					),
-			),
+		const previewsById = new Map(
+			previews.flatMap((game) => {
+				const id = getCandidateSourceId(game, "kun");
+				return id ? [[id, game] as const] : [];
+			}),
 		);
 		return [...works.values()].map((work): CloudCollectionItem => {
-			const data = dataById.get(work.work_id);
+			const preview = previewsById.get(work.work_id);
+			const data = preview && getCandidateSourceData<KunData>(preview, "kun");
 			return {
 				key: createItemKey("kun", work.work_id),
 				source: "kun",
 				externalId: work.work_id,
+				sourceIds: preview ? getSourceIdMap(preview) : undefined,
 				name: data?.name || `Kungal #${work.work_id}`,
 				nameCn: data?.name_cn,
 				originalName: data?.name,
@@ -320,7 +324,12 @@ export async function prepareCloudCollectionItems(
 		item: CloudCollectionItem,
 		fetchDetails: (item: CloudCollectionItem) => Promise<GameMetadataDraft>,
 	): Promise<PreparedCloudCollectionItem> => {
-		if (isDuplicate({ sourceIds: { [item.source]: item.externalId } })) {
+		const sourceIds: SourceIdMap = { [item.source]: item.externalId };
+		for (const target of context.mixedEnabledSources ?? []) {
+			const id = item.sourceIds?.[target];
+			if (id && target !== item.source) sourceIds[target] = id;
+		}
+		if (isDuplicate({ sourceIds })) {
 			return { item, duplicate: true };
 		}
 		let metadata = item.metadata ?? (await fetchDetails(item));
