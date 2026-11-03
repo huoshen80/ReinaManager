@@ -16,6 +16,7 @@ import {
 import { getSourceIdFromRecords } from "@/metadata/sourceRecord";
 import i18n from "@/providers/i18n";
 import { createCloudPlayStatusContext } from "@/services/cloudPlayStatus";
+import { gameService } from "@/services/invoke";
 import type {
 	BatchOperationResult,
 	GameMetadataDraft,
@@ -167,11 +168,17 @@ export function useBulkGameAddActions() {
 	const addGamesFromBulkImport = useCallback(
 		async (
 			items: BulkImportActionInput[],
-			{ skipDuplicateCheck = false }: { skipDuplicateCheck?: boolean } = {},
+			{
+				skipBatchDuplicateCheck = false,
+			}: { skipBatchDuplicateCheck?: boolean } = {},
 		): Promise<BulkImportActionResult> => {
 			setIsPreparingGames(true);
 			try {
 				const payloads: InsertGameParams[] = [];
+				const prepared: Array<{
+					itemIndex: number;
+					payload: InsertGameParams;
+				}> = [];
 				const queuedIds = new Set<string>();
 				const duplicateItemIndices: number[] = [];
 				const preparationErrors: BulkImportPreparationError[] = [];
@@ -242,23 +249,27 @@ export function useBulkGameAddActions() {
 						continue;
 					}
 
-					if (!skipDuplicateCheck) {
+					prepared.push({ itemIndex: index, payload });
+				}
+
+				if (prepared.length > 0) {
+					// 网络准备期间后台安装可能入库，最终判重不能沿用开始时的缓存快照。
+					const games = await gameService.getAllGames();
+					const existingIds = new Set(games.flatMap(getGameIdentityKeys));
+					for (const { itemIndex, payload } of prepared) {
 						const identityKeys = getGameIdentityKeys(payload);
 						if (
-							checkGameExists(payload) ||
-							identityKeys.some((key) => queuedIds.has(key))
+							identityKeys.some((key) => existingIds.has(key)) ||
+							(!skipBatchDuplicateCheck &&
+								identityKeys.some((key) => queuedIds.has(key)))
 						) {
-							duplicateItemIndices.push(index);
+							duplicateItemIndices.push(itemIndex);
 							continue;
 						}
 						for (const key of identityKeys) queuedIds.add(key);
+						pendingPayloads.push({ itemIndex, payloadIndex: payloads.length });
+						payloads.push(payload);
 					}
-
-					pendingPayloads.push({
-						itemIndex: index,
-						payloadIndex: payloads.length,
-					});
-					payloads.push(payload);
 				}
 
 				if (payloads.length === 0) {
@@ -294,7 +305,7 @@ export function useBulkGameAddActions() {
 				setIsPreparingGames(false);
 			}
 		},
-		[batchAddGamesMutation, checkGameExists],
+		[batchAddGamesMutation],
 	);
 
 	return {

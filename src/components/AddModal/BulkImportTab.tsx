@@ -677,7 +677,7 @@ const BulkImportTab = ({
 
 	const importBulkItems = async (mode: BulkImportMode) => {
 		if (loading) return;
-		// 入库前使用最新的库内身份重新确认候选，避免沿用匹配时的重复状态。
+		// 先按当前缓存整理候选；准备完成后由共享入库流程读取最新库再次核对。
 		let nextItems = checkDuplicatesRef.current(items);
 		const requestedKeys = new Set(
 			nextItems
@@ -694,7 +694,7 @@ const BulkImportTab = ({
 			setItems(nextItems);
 			return;
 		}
-		const skipped =
+		let skipped =
 			mode === "metadata"
 				? nextItems.filter(
 						(item) => isVisibleBulkImportItem(item) && item.duplicate,
@@ -715,6 +715,7 @@ const BulkImportTab = ({
 
 		let success = 0;
 		let failed = 0;
+		const libraryDuplicateKeys = new Set<string>();
 		if (submitted.length > 0) {
 			try {
 				const result = await addGamesFromBulkImport(
@@ -723,8 +724,11 @@ const BulkImportTab = ({
 							? { ...item, matchedData: undefined, skipCloudStatusLookup: true }
 							: item,
 					),
-					{ skipDuplicateCheck: true },
+					{ skipBatchDuplicateCheck: true },
 				);
+				for (const index of result.duplicateItemIndices)
+					libraryDuplicateKeys.add(submitted[index].key);
+				skipped += libraryDuplicateKeys.size;
 				const outcomes = new Map<string, BulkImportItem["importOutcome"]>();
 				for (const error of result.preparationErrors) {
 					outcomes.set(submitted[error.itemIndex].key, {
@@ -782,7 +786,20 @@ const BulkImportTab = ({
 			}
 		}
 		setItems(
-			checkDuplicatesRef.current(nextItems.filter(isVisibleBulkImportItem)),
+			checkDuplicatesRef
+				.current(nextItems.filter(isVisibleBulkImportItem))
+				.map((item) =>
+					libraryDuplicateKeys.has(item.key)
+						? {
+								...item,
+								duplicate: {
+									itemKey: item.key,
+									inLibrary: true,
+									groups: item.duplicate?.groups ?? [],
+								},
+							}
+						: item,
+				),
 		);
 		const summary = t(
 			"components.BulkImportModal.importOutcomeSummary",
