@@ -14,10 +14,12 @@ import { useTranslation } from "react-i18next";
 import {
 	appendGamesToCaches,
 	patchGameCaches,
+	patchManyGameCaches,
 	removeGamesFromCaches,
 } from "@/hooks/queries/gameCachePatch";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke";
 import { gameService } from "@/services/invoke";
+import type { LibraryEnrichmentItem } from "@/services/librarySourceEnrichment";
 import type {
 	BatchOperationResult,
 	InsertGameParams,
@@ -225,6 +227,24 @@ function useUpdateGame() {
 			if (shouldInvalidateSourceIdCaches(updates)) {
 				invalidateSourceIdCaches(queryClient);
 			}
+		},
+	});
+}
+
+export function useApplyLibraryEnrichment() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (items: LibraryEnrichmentItem[]) => {
+			const { applyLibraryEnrichment } = await import(
+				"@/services/librarySourceEnrichment"
+			);
+			return applyLibraryEnrichment(items);
+		},
+		onSuccess: ({ games }) => {
+			if (!games.length) return;
+			patchManyGameCaches(queryClient, gameKeys, games);
+			queryClient.invalidateQueries({ queryKey: gameKeys.idLists() });
+			invalidateSourceIdCaches(queryClient);
 		},
 	});
 }

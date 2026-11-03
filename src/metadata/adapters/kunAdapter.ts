@@ -3,6 +3,7 @@ import {
 	cleanNextmoeTags,
 	fetchNextmoeById,
 	fetchNextmoeByName,
+	NEXTMOE_ASSOCIATED_SOURCE_KEYS,
 } from "../api/nextmoe";
 import {
 	DEFAULT_METADATA_SEARCH_LIMIT,
@@ -20,11 +21,18 @@ export const kunAdapter: MetadataSourceAdapter<KunData> = {
 	key: "kun",
 	label: "Kungal",
 	iconUrl: "https://www.kungal.com/favicon.ico",
+	associatedSourceKeys: NEXTMOE_ASSOCIATED_SOURCE_KEYS,
 	validateId: (id) => /^\d+$/.test(id),
 	getExternalUrl: (id) => `https://www.kungal.com/galgame/${id}`,
 	finalizeData: cleanNextmoeTags,
 	fetchById: (id, ctx) => {
-		return fetchNextmoeById(id, ctx.nextmoeToken, ctx.spoilerLevel, ctx);
+		return fetchNextmoeById(
+			id,
+			ctx.nextmoeToken,
+			ctx.spoilerLevel,
+			ctx,
+			ctx.referencesOnly,
+		);
 	},
 	async searchByName(name, ctx) {
 		const games = await fetchNextmoeByName(

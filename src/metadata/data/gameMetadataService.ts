@@ -11,7 +11,11 @@ import { isAbortError } from "@/utils/async";
 import { AppError, toError } from "@/utils/errors";
 import { fetchMixedData } from "../api/mixed";
 import { MIXED_SOURCE_MAX_COUNT } from "../constants";
-import type { MetadataRequestContext, SourceIdMap } from "../sourceAdapter";
+import type {
+	MetadataRequestContext,
+	MetadataSourceOptions,
+	SourceIdMap,
+} from "../sourceAdapter";
 import { resolveAutoSelectedGameDraft } from "../sourceAutoResolve";
 import {
 	getCandidateSourceData,
@@ -435,6 +439,7 @@ export class GameMetadataSession {
 	async getGameByIdDraft(
 		id: string,
 		source: SourceType,
+		options?: MetadataSourceOptions,
 	): Promise<GameMetadataDraft> {
 		if (import.meta.env.DEV) {
 			console.log(`[MetadataService] getGameById called:`, {
@@ -443,7 +448,10 @@ export class GameMetadataSession {
 			});
 		}
 		try {
-			const candidate = await this.getRuntimeAdapter(source).fetchById(id);
+			const candidate = await this.getRuntimeAdapter(source).fetchById(
+				id,
+				options,
+			);
 			return this.filterSingleSourceDraft(candidate, source);
 		} catch (error) {
 			throw createMetadataError(

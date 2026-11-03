@@ -3,6 +3,7 @@ import {
 	fetchHikarinagiById,
 	fetchHikarinagiByName,
 	getHikarinagiDataDisplayFields,
+	HIKARINAGI_ASSOCIATED_SOURCE_KEYS,
 	mergeHikarinagiSearchCandidate,
 } from "../api/hikarinagi";
 import {
@@ -15,6 +16,7 @@ export const hikarinagiAdapter: MetadataSourceAdapter<HikarinagiData> = {
 	key: "hikarinagi",
 	label: "Hikarinagi",
 	iconUrl: "https://www.hikarinagi.org/brand/hikarinagi-icon.webp",
+	associatedSourceKeys: HIKARINAGI_ASSOCIATED_SOURCE_KEYS,
 	validateId: (id) => /^\d+$/.test(id),
 	getExternalUrl: (id) => `https://www.hikarinagi.org/galgames/${id}`,
 	async fetchById(id, ctx) {

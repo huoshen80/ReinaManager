@@ -3,6 +3,7 @@ import type {
 	GameMetadataDraft,
 	HikarinagiAuth,
 	HikarinagiData,
+	SourceType,
 } from "@/types";
 import { AppError, isHttpStatus } from "@/utils/errors";
 import { USER_AGENT } from "../constants";
@@ -21,6 +22,15 @@ import http, {
 import { parseRateLimitSeconds } from "./rateLimit";
 
 const HIKARINAGI_API_BASE_URL = "https://api.hikarinagi.org/v3";
+
+const HIKARINAGI_REFERENCE_FIELDS = {
+	bgm: "bangumi",
+	vndb: "vndb",
+} as const;
+
+export const HIKARINAGI_ASSOCIATED_SOURCE_KEYS = Object.keys(
+	HIKARINAGI_REFERENCE_FIELDS,
+) as SourceType[];
 
 const HIKARINAGI_JSON_HEADERS = {
 	Accept: "application/json",
@@ -201,16 +211,15 @@ function toHikarinagiSearchData(
 }
 
 function toHikarinagiDraft(game: HikarinagiGameResponse): GameMetadataDraft {
-	const bgmId = game.external_source?.bangumi?.trim();
-	const vndbId = game.external_source?.vndb?.trim().toLowerCase();
-	const associatedSources = [
-		...(bgmId && /^\d+$/.test(bgmId)
-			? [createSourceCandidateRecord("bgm", bgmId, null)]
-			: []),
-		...(vndbId && /^v\d+$/.test(vndbId)
-			? [createSourceCandidateRecord("vndb", vndbId, null)]
-			: []),
-	];
+	const associatedSources = Object.entries(HIKARINAGI_REFERENCE_FIELDS).flatMap(
+		([source, field]) => {
+			const rawId = game.external_source?.[field]?.trim();
+			const id = source === "vndb" ? rawId?.toLowerCase() : rawId;
+			return id && (source === "vndb" ? /^v\d+$/ : /^\d+$/).test(id)
+				? [createSourceCandidateRecord(source as SourceType, id, null)]
+				: [];
+		},
+	);
 	return createGameCandidate({
 		idType: "hikarinagi",
 		sources: [

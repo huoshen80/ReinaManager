@@ -43,14 +43,20 @@ export interface MetadataRequestContext
 
 export interface MetadataSourceContext extends MetadataRequestContext {
 	limit?: number;
+	referencesOnly?: boolean;
 }
 
-export type MetadataSourceOptions = Pick<MetadataSourceContext, "limit">;
+export type MetadataSourceOptions = Pick<
+	MetadataSourceContext,
+	"limit" | "referencesOnly"
+>;
 
 export interface MetadataSourceAdapter<TData = unknown> {
 	key: SourceType;
 	label: string;
 	iconUrl: string;
+	/** 可由详情提供的关联身份，不保证每个作品都有；未声明时仍可补全已有 ID。 */
+	associatedSourceKeys?: readonly SourceType[];
 	validateId: (id: string) => boolean;
 	getExternalUrl(id: string): string;
 	finalizeData?(data: TData, adoptedIds: SourceIdMap): TData;

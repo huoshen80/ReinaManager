@@ -7,6 +7,7 @@ import {
 	Box,
 	Checkbox,
 	CircularProgress,
+	Divider,
 	FormControlLabel,
 	MenuItem,
 	Select,
@@ -17,7 +18,7 @@ import {
 } from "@mui/material";
 import Button from "@mui/material/Button";
 import type React from "react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -35,6 +36,8 @@ import {
 	SettingsGroup,
 	SettingsItem,
 } from "./SettingsLayout";
+
+const LibraryEnrichmentDialog = lazy(() => import("./LibraryEnrichmentDialog"));
 
 export const MixedSearchSourceSettings = () => {
 	const { t } = useTranslation();
@@ -212,6 +215,7 @@ const SpoilerLevelSettings = () => {
 
 export const DevSettings: React.FC = () => {
 	const { t } = useTranslation();
+	const [enrichmentOpen, setEnrichmentOpen] = useState(false);
 
 	return (
 		<Box>
@@ -233,9 +237,30 @@ export const DevSettings: React.FC = () => {
 					</Tooltip>
 				</AccordionSummary>
 				<AccordionDetails>
-					<BatchUpdateSettings />
+					<Stack spacing={3} divider={<Divider />}>
+						<SettingsGroup
+							title={t("libraryEnrichment.title", "补全关联元数据")}
+							description={t(
+								"libraryEnrichment.description",
+								"为已入库的 Kungal / Hikarinagi 游戏补全关联来源的元数据，保留已有内容。冲突项会标注并跳过。",
+							)}
+						>
+							<Button
+								variant="contained"
+								onClick={() => setEnrichmentOpen(true)}
+							>
+								{t("libraryEnrichment.open", "检查可补全游戏")}
+							</Button>
+						</SettingsGroup>
+						<BatchUpdateSettings />
+					</Stack>
 				</AccordionDetails>
 			</Accordion>
+			{enrichmentOpen && (
+				<Suspense fallback={null}>
+					<LibraryEnrichmentDialog onClose={() => setEnrichmentOpen(false)} />
+				</Suspense>
+			)}
 		</Box>
 	);
 };
@@ -392,7 +417,13 @@ const BatchUpdateSettings: React.FC = () => {
 				"批量更新功能可用于更新已存在游戏的 BGM/VNDB 数据。当游戏的元数据发生变化时，您可以使用此功能来同步最新的信息。一旦点击更新按钮请耐心等待，更新过程可能需要一些时间。推荐软件更新数据源获取字段时使用。",
 			)}
 		>
-			<Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+			<Stack
+				direction="row"
+				spacing={1.5}
+				useFlexGap
+				alignItems="center"
+				flexWrap="wrap"
+			>
 				<Button
 					variant="contained"
 					color="info"
@@ -405,7 +436,6 @@ const BatchUpdateSettings: React.FC = () => {
 							<UpdateIcon />
 						)
 					}
-					className="px-6 py-2"
 				>
 					{isUpdatingBgm
 						? t(
@@ -427,7 +457,6 @@ const BatchUpdateSettings: React.FC = () => {
 							<UpdateIcon />
 						)
 					}
-					className="px-6 py-2"
 				>
 					{isUpdatingVndb
 						? t(

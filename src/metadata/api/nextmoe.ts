@@ -41,6 +41,10 @@ const NEXTMOE_SOURCE_MAP: Partial<Record<string, SourceType>> = {
 	erogamescape: "erogamescape",
 };
 
+export const NEXTMOE_ASSOCIATED_SOURCE_KEYS = Object.values(
+	NEXTMOE_SOURCE_MAP,
+).filter((source): source is SourceType => source !== undefined);
+
 // 标签来源只在本次获取和清洗中使用，避免把多源原始结构泄漏到入库模型。
 const draftTagOrigins = new WeakMap<KunData, NextmoeWorkTag[]>();
 const draftRefOrigins = new WeakMap<KunData, SourceIdMap>();
@@ -308,6 +312,7 @@ export async function fetchNextmoeById(
 	token?: string,
 	spoilerLevel = 0,
 	context: NextmoeRequestContext = {},
+	referencesOnly = false,
 ): Promise<GameMetadataDraft> {
 	assertNextmoeWorkId(id);
 	const visited = new Set<string>();
@@ -323,8 +328,8 @@ export async function fetchNextmoeById(
 					{
 						...(await buildNextmoeOptions(token, context)),
 						params: {
-							include: NEXTMOE_DETAIL_INCLUDE,
-							fields: NEXTMOE_DETAIL_FIELDS,
+							include: referencesOnly ? "refs" : NEXTMOE_DETAIL_INCLUDE,
+							fields: referencesOnly ? "medium,refs" : NEXTMOE_DETAIL_FIELDS,
 							nsfw: true,
 							spoiler:
 								spoilerLevel >= 2
@@ -364,6 +369,17 @@ export async function fetchNextmoeById(
 			throw new AppError({
 				code: "metadata_not_found",
 				message: `NextMoe game not found: ${currentId}`,
+			});
+		}
+		if (referencesOnly) {
+			return createGameCandidate({
+				idType: "kun",
+				sources: [
+					createSourceCandidateRecord("kun", work.id, null),
+					...Object.entries(extractNextmoeSourceIds(work)).map(([source, id]) =>
+						createSourceCandidateRecord(source as SourceType, id, null),
+					),
+				],
 			});
 		}
 		return transformNextmoeWork(work, spoilerLevel);
