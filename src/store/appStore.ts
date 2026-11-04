@@ -29,7 +29,7 @@ import {
 } from "@/metadata/constants";
 import { type ProxyConfig, settingsService } from "@/services/invoke";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
-import type { CloudCollectionSource, SourceType } from "@/types";
+import type { CloudCollectionSource, GameScanMode, SourceType } from "@/types";
 import type {
 	CollectionEntitySortField,
 	PlayStatusFilter,
@@ -48,6 +48,13 @@ export type SelectedCategory =
 
 export type DataSourceUpdateMode = "search" | "manualId";
 export type StartupPage = "home" | "libraries" | "collection";
+export type AddGameMode = "single" | "mixed" | "custom";
+
+export interface ScanPreferences {
+	mode: GameScanMode;
+	maxDepth: number;
+	firstLevelExecutables: boolean;
+}
 
 export interface GameFilterSortConfig {
 	gameFilterType: GameType;
@@ -143,6 +150,10 @@ export interface AppState {
 	setTagFilters: (tags: string[]) => void;
 
 	// 数据来源选择
+	addMode: AddGameMode;
+	setAddMode: (mode: AddGameMode) => void;
+	scanPreferences: ScanPreferences;
+	setScanPreferences: (updates: Partial<ScanPreferences>) => void;
 	apiSource: SourceType;
 	setApiSource: (source: SourceType) => void;
 	mixedEnabledSources: SourceType[];
@@ -313,6 +324,17 @@ export const useStore = create<AppState>()(
 				})),
 
 			// 数据来源选择
+			addMode: "mixed",
+			setAddMode: (mode) => set({ addMode: mode }),
+			scanPreferences: {
+				mode: "executable",
+				maxDepth: 3,
+				firstLevelExecutables: false,
+			},
+			setScanPreferences: (updates) =>
+				set((state) => ({
+					scanPreferences: { ...state.scanPreferences, ...updates },
+				})),
 			apiSource: DEFAULT_API_SOURCE,
 			setApiSource: (source: SourceType) => {
 				set({ apiSource: source });
@@ -621,6 +643,7 @@ export const useStore = create<AppState>()(
 				// 筛选偏好
 				gameFilterType: state.gameFilterType,
 				playStatusFilter: state.playStatusFilter,
+				tagFilters: state.tagFilters,
 				collectionEntitySort: state.collectionEntitySort,
 				developerCategorySort: state.developerCategorySort,
 				// 关闭应用相关
@@ -637,6 +660,9 @@ export const useStore = create<AppState>()(
 					state.autoBackupLastScheduledAttemptAt,
 				autoBackupLastError: state.autoBackupLastError,
 				// 数据来源选择
+				// 自定义模式只在本次运行使用，下次启动恢复为混合模式。
+				addMode: state.addMode === "custom" ? "mixed" : state.addMode,
+				scanPreferences: state.scanPreferences,
 				apiSource: state.apiSource,
 				mixedEnabledSources: state.mixedEnabledSources,
 				kunAutoExpand: state.kunAutoExpand,

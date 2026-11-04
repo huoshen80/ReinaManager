@@ -33,7 +33,10 @@ import { useSingleGameAddActions } from "@/hooks/features/games/useGameMetadataF
 import { useMetadataSearchFlow } from "@/hooks/features/games/useMetadataSearchFlow";
 import { useAddGame } from "@/hooks/queries/useGames";
 import { useAllSettings } from "@/hooks/queries/useSettings";
-import { isDeprecatedSource } from "@/metadata/constants";
+import {
+	isDeprecatedSource,
+	SEARCHABLE_SOURCE_KEYS,
+} from "@/metadata/constants";
 import type { GameRuntimeInsertOptions } from "@/metadata/data/metadata";
 import { showGameAddedSuccess } from "@/providers/snackBar";
 import {
@@ -45,12 +48,7 @@ import {
 } from "@/services/fs/fileDialog";
 import type { SteamLaunchTarget } from "@/services/invoke/fileService";
 import { useStore } from "@/store/appStore";
-import type {
-	GameMetadataDraft,
-	GameScanMode,
-	InsertGameParams,
-	SourceType,
-} from "@/types";
+import type { GameMetadataDraft, InsertGameParams, SourceType } from "@/types";
 import { createAbortableRunner } from "@/utils/async";
 import { getUserErrorMessage } from "@/utils/errors";
 import { formatSteamAppIdWithPath } from "@/utils/steam";
@@ -59,7 +57,6 @@ import CloudCollectionTab from "./CloudCollectionTab";
 import GameSelectDialog from "./GameSelectDialog";
 import MixedSourceConfirmDialog from "./MixedSourceConfirmDialog";
 import {
-	type AddGameMode,
 	AddGameModeToggleGroup,
 	SingleSourceSelect,
 } from "./SourceMatchControls";
@@ -70,9 +67,6 @@ import { useTauriDragDrop } from "./useTauriDragDrop";
  */
 const REQUEST_TIMEOUT_MS = 100000; // 请求超时时间
 const ERROR_DISPLAY_DURATION_MS = 5000; // 错误提示显示时长
-const DEFAULT_SCAN_DEPTH = 3;
-const DEFAULT_SCAN_MODE: GameScanMode = "executable";
-const DEFAULT_SCAN_FIRST_LEVEL_EXECUTABLES = false;
 
 type AddModalTab = "single" | "bulk" | "cloud";
 
@@ -80,6 +74,22 @@ type SingleLaunchSelection =
 	| { kind: "none" }
 	| { kind: "local"; path: string }
 	| { kind: "steam"; target: SteamLaunchTarget };
+
+function resolveBulkApiSource(
+	preferredSource: SourceType,
+	hasBgmAuth: boolean,
+	hasHikarinagiAuth: boolean,
+): SourceType {
+	if (
+		SEARCHABLE_SOURCE_KEYS.includes(preferredSource) &&
+		(preferredSource !== "bgm" || hasBgmAuth) &&
+		(preferredSource !== "hikarinagi" || hasHikarinagiAuth)
+	) {
+		return preferredSource;
+	}
+	// 临时不可用时只回退本次使用的源，不覆盖用户保存的单源偏好。
+	return hasBgmAuth ? "bgm" : hasHikarinagiAuth ? "hikarinagi" : "vndb";
+}
 
 /**
  * 从文件路径中提取文件夹名称并清洗（纯函数，置于组件外以保证稳定引用）
@@ -133,6 +143,10 @@ const AddModal: React.FC = () => {
 
 	const {
 		apiSource,
+		addMode,
+		setAddMode,
+		scanPreferences,
+		setScanPreferences,
 		setApiSource,
 		mixedEnabledSources,
 		addModalOpen,
@@ -144,6 +158,10 @@ const AddModal: React.FC = () => {
 	} = useStore(
 		useShallow((s) => ({
 			apiSource: s.apiSource,
+			addMode: s.addMode,
+			setAddMode: s.setAddMode,
+			scanPreferences: s.scanPreferences,
+			setScanPreferences: s.setScanPreferences,
 			setApiSource: s.setApiSource,
 			mixedEnabledSources: s.mixedEnabledSources,
 			addModalOpen: s.addModalOpen,
@@ -157,15 +175,9 @@ const AddModal: React.FC = () => {
 	const [formText, setFormText] = useState("");
 	const [error, setError] = useState("");
 	const [customLoading, setCustomLoading] = useState(false);
-	const [addMode, setAddMode] = useState<AddGameMode>("mixed");
 	const isSourceUnavailable =
 		addMode === "single" && isDeprecatedSource(apiSource);
 	const [bulkApiSource, setBulkApiSource] = useState<SourceType>();
-	const [scanMode, setScanMode] = useState<GameScanMode>(DEFAULT_SCAN_MODE);
-	const [scanMaxDepth, setScanMaxDepth] = useState(DEFAULT_SCAN_DEPTH);
-	const [scanFirstLevelExecutables, setScanFirstLevelExecutables] = useState(
-		DEFAULT_SCAN_FIRST_LEVEL_EXECUTABLES,
-	);
 	const [activeTab, setActiveTab] = useState<AddModalTab>("single");
 	const [cloudBusy, setCloudBusy] = useState(false);
 	const [bulkDropQueue, setBulkDropQueue] = useState<BulkDropBatch[]>([]);
@@ -176,9 +188,11 @@ const AddModal: React.FC = () => {
 	const nextDropBatchIdRef = useRef(1);
 	const singleDropGenerationRef = useRef(0);
 	const pendingSingleDropPathRef = useRef<string | null>(null);
-	const resolvedBulkApiSource =
-		bulkApiSource ??
-		(hasBgmAuth ? "bgm" : hasHikarinagiAuth ? "hikarinagi" : "vndb");
+	const resolvedBulkApiSource = resolveBulkApiSource(
+		bulkApiSource ?? apiSource,
+		hasBgmAuth,
+		hasHikarinagiAuth,
+	);
 
 	// 请求取消控制器
 	const abortControllerRef = useRef<AbortController | null>(null);
@@ -593,12 +607,14 @@ const AddModal: React.FC = () => {
 					onAddModeChange={setAddMode}
 					bulkApiSource={resolvedBulkApiSource}
 					onBulkApiSourceChange={setBulkApiSource}
-					scanMode={scanMode}
-					onScanModeChange={setScanMode}
-					scanMaxDepth={scanMaxDepth}
-					onScanMaxDepthChange={setScanMaxDepth}
-					scanFirstLevelExecutables={scanFirstLevelExecutables}
-					onScanFirstLevelExecutablesChange={setScanFirstLevelExecutables}
+					scanMode={scanPreferences.mode}
+					onScanModeChange={(mode) => setScanPreferences({ mode })}
+					scanMaxDepth={scanPreferences.maxDepth}
+					onScanMaxDepthChange={(maxDepth) => setScanPreferences({ maxDepth })}
+					scanFirstLevelExecutables={scanPreferences.firstLevelExecutables}
+					onScanFirstLevelExecutablesChange={(firstLevelExecutables) =>
+						setScanPreferences({ firstLevelExecutables })
+					}
 					dropBatch={bulkDropQueue[0]}
 					onDropBatchHandled={handleBulkDropBatchHandled}
 				/>

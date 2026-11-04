@@ -12,9 +12,10 @@ import {
 	isDeprecatedSource,
 	SEARCHABLE_SOURCE_KEYS,
 } from "@/metadata";
+import type { AddGameMode } from "@/store/appStore";
 import type { SourceType } from "@/types";
 
-export type AddGameMode = "single" | "mixed" | "custom";
+export type { AddGameMode } from "@/store/appStore";
 export type MetadataMatchMode = "single" | "mixed";
 
 interface SourceModeToggleGroupProps<TValue extends string> {
