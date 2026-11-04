@@ -63,6 +63,11 @@ export interface CollectionGameFilterSortConfig
 	sortOption: SortOption | "manual";
 }
 
+interface CollectionEntitySortConfig {
+	field: CollectionEntitySortField;
+	order: SortOrder;
+}
+
 const DEFAULT_API_SOURCE: SourceType = "hikarinagi";
 
 /**
@@ -207,14 +212,12 @@ export interface AppState {
 	selectedCategory: SelectedCategory; // 当前选中的分类
 	setCurrentGroup: (groupId: string | null) => void; // 设置当前分组
 	setSelectedCategory: (category: SelectedCategory) => void; // 设置当前选中的分类
-	collectionEntitySortField: CollectionEntitySortField;
-	collectionEntitySortOrder: SortOrder;
+	collectionEntitySort: CollectionEntitySortConfig;
 	setCollectionEntitySort: (
 		field: CollectionEntitySortField,
 		order: SortOrder,
 	) => void;
-	developerCategorySortField: CollectionEntitySortField;
-	developerCategorySortOrder: SortOrder;
+	developerCategorySort: CollectionEntitySortConfig;
 	setDeveloperCategorySort: (
 		field: CollectionEntitySortField,
 		order: SortOrder,
@@ -526,10 +529,8 @@ export const useStore = create<AppState>()(
 			setCollectionGameSearch: (value) => set({ collectionGameSearch: value }),
 			currentGroupId: null,
 			selectedCategory: null,
-			collectionEntitySortField: "created_at",
-			collectionEntitySortOrder: "asc",
-			developerCategorySortField: "game_count",
-			developerCategorySortOrder: "desc",
+			collectionEntitySort: { field: "created_at", order: "asc" },
+			developerCategorySort: { field: "game_count", order: "desc" },
 			collectionGroupSearch: "",
 			collectionCategorySearch: "",
 			developerCategorySearch: "",
@@ -546,24 +547,10 @@ export const useStore = create<AppState>()(
 			setSelectedCategory: (category: SelectedCategory) => {
 				set({ selectedCategory: category });
 			},
-			setCollectionEntitySort: (
-				field: CollectionEntitySortField,
-				order: SortOrder,
-			) => {
-				set({
-					collectionEntitySortField: field,
-					collectionEntitySortOrder: order,
-				});
-			},
-			setDeveloperCategorySort: (
-				field: CollectionEntitySortField,
-				order: SortOrder,
-			) => {
-				set({
-					developerCategorySortField: field,
-					developerCategorySortOrder: order,
-				});
-			},
+			setCollectionEntitySort: (field, order) =>
+				set({ collectionEntitySort: { field, order } }),
+			setDeveloperCategorySort: (field, order) =>
+				set({ developerCategorySort: { field, order } }),
 			setCollectionGroupSearch: (value: string) => {
 				set({ collectionGroupSearch: value });
 			},
@@ -634,6 +621,8 @@ export const useStore = create<AppState>()(
 				// 筛选偏好
 				gameFilterType: state.gameFilterType,
 				playStatusFilter: state.playStatusFilter,
+				collectionEntitySort: state.collectionEntitySort,
+				developerCategorySort: state.developerCategorySort,
 				// 关闭应用相关
 				skipCloseRemind: state.skipCloseRemind,
 				defaultCloseAction: state.defaultCloseAction,

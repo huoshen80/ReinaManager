@@ -78,11 +78,9 @@ export const CollectionToolbar: React.FC = () => {
 		selectedCategory,
 		setCurrentGroup,
 		setSelectedCategory,
-		collectionEntitySortField,
-		collectionEntitySortOrder,
+		collectionEntitySort,
 		setCollectionEntitySort,
-		developerCategorySortField,
-		developerCategorySortOrder,
+		developerCategorySort,
 		setDeveloperCategorySort,
 	} = useStore(
 		useShallow((s) => ({
@@ -90,22 +88,20 @@ export const CollectionToolbar: React.FC = () => {
 			selectedCategory: s.selectedCategory,
 			setCurrentGroup: s.setCurrentGroup,
 			setSelectedCategory: s.setSelectedCategory,
-			collectionEntitySortField: s.collectionEntitySortField,
-			collectionEntitySortOrder: s.collectionEntitySortOrder,
+			collectionEntitySort: s.collectionEntitySort,
 			setCollectionEntitySort: s.setCollectionEntitySort,
-			developerCategorySortField: s.developerCategorySortField,
-			developerCategorySortOrder: s.developerCategorySortOrder,
+			developerCategorySort: s.developerCategorySort,
 			setDeveloperCategorySort: s.setDeveloperCategorySort,
 		})),
 	);
 	const backendEntitySortField =
-		collectionEntitySortField === "name"
+		collectionEntitySort.field === "name"
 			? undefined
-			: collectionEntitySortField;
+			: collectionEntitySort.field;
 	const categoriesQuery = useCategories(
 		currentGroupId,
 		backendEntitySortField,
-		backendEntitySortField ? collectionEntitySortOrder : undefined,
+		backendEntitySortField ? collectionEntitySort.order : undefined,
 	);
 	const currentCategories = categoriesQuery.data ?? [];
 	const createGroupMutation = useCreateGroup();
@@ -135,8 +131,8 @@ export const CollectionToolbar: React.FC = () => {
 		<FilterSortModal
 			mode="collection-entity"
 			sortFields={REAL_ENTITY_SORT_FIELDS}
-			sortField={collectionEntitySortField}
-			sortOrder={collectionEntitySortOrder}
+			sortField={collectionEntitySort.field}
+			sortOrder={collectionEntitySort.order}
 			onApply={(field, order) => {
 				resetCurrentListScroll();
 				setCollectionEntitySort(field, order);
@@ -147,8 +143,8 @@ export const CollectionToolbar: React.FC = () => {
 		<FilterSortModal
 			mode="collection-entity"
 			sortFields={DEVELOPER_SORT_FIELDS}
-			sortField={developerCategorySortField}
-			sortOrder={developerCategorySortOrder}
+			sortField={developerCategorySort.field}
+			sortOrder={developerCategorySort.order}
 			onApply={(field, order) => {
 				resetCurrentListScroll();
 				setDeveloperCategorySort(field, order);
