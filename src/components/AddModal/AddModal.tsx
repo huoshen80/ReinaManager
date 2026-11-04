@@ -623,7 +623,7 @@ const AddModal: React.FC = () => {
 						>
 							{t("components.AddModal.cancel", "取消")}
 						</Button>
-						{/* 确认按钮 */}
+						{/* 搜索按钮 */}
 						<Button
 							variant="contained"
 							onClick={handleSubmit}
@@ -632,7 +632,7 @@ const AddModal: React.FC = () => {
 						>
 							{isBusy
 								? t("components.AddModal.processing", "处理中...")
-								: t("components.AddModal.confirm", "确认")}
+								: t("components.AddModal.search", "搜索")}
 						</Button>
 					</DialogActions>
 				)}
