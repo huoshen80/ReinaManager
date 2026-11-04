@@ -75,7 +75,6 @@ const gridTemplateColumns =
 const gridSx = {
 	display: "grid",
 	gridTemplateColumns,
-	columnGap: 2,
 	alignItems: "center",
 	width: "100%",
 	minWidth: 0,
@@ -270,7 +269,7 @@ export default memo(function BulkImportResultTable({
 					flexShrink: 0,
 					fontWeight: 600,
 				}}
-				className="px-4 py-1.5"
+				className="overflow-y-auto px-4 py-1.5 [scrollbar-gutter:stable]"
 			>
 				<Typography variant="subtitle2" sx={cellSx}>
 					{t("components.BulkImportModal.searchName", "搜索名称")}
@@ -312,7 +311,7 @@ export default memo(function BulkImportResultTable({
 				<Box sx={{ flex: "1 1 auto", minHeight: 0, width: "100%" }}>
 					<Virtuoso
 						ref={listRef}
-						style={{ height: "100%", width: "100%" }}
+						style={{ height: "100%", width: "100%", scrollbarGutter: "stable" }}
 						data={displayRows}
 						computeItemKey={(_, item) => item.key}
 						overscan={300}
