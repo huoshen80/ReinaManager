@@ -252,59 +252,44 @@ export const Settings: React.FC = () => {
 
 	useEffect(() => {
 		const scrollContainer = document.querySelector<HTMLElement>("main");
+		if (!scrollContainer) return;
+
 		const lastSectionId = sections.at(-1)?.id;
 		const sectionElements = sections
 			.map((section) => document.getElementById(section.id))
 			.filter((element): element is HTMLElement => Boolean(element));
-		const isScrolledToBottom = () =>
-			scrollContainer !== null &&
-			scrollContainer.scrollHeight -
-				scrollContainer.scrollTop -
-				scrollContainer.clientHeight <=
-				1;
-		const activateLastSectionAtBottom = () => {
-			if (lastSectionId && isScrolledToBottom()) {
+		const updateActiveSection = () => {
+			if (
+				lastSectionId &&
+				scrollContainer.scrollHeight -
+					scrollContainer.scrollTop -
+					scrollContainer.clientHeight <=
+					1
+			) {
 				setActiveSectionId(lastSectionId);
+				return;
 			}
+
+			// 高亮比标题停靠位置提前 28px 切换，不改变点击后的滚动目标。
+			const activationTop = scrollContainer.getBoundingClientRect().top + 28;
+			const activeSection = sectionElements.findLast(
+				(element) =>
+					element.getBoundingClientRect().top -
+						Number.parseFloat(getComputedStyle(element).scrollMarginTop) <=
+					activationTop + 1,
+			);
+			setActiveSectionId(activeSection?.id ?? sections[0].id);
 		};
 
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (isScrolledToBottom()) {
-					activateLastSectionAtBottom();
-					return;
-				}
-
-				const visibleEntry = entries
-					.filter((entry) => entry.isIntersecting)
-					.toSorted((a, b) => b.intersectionRatio - a.intersectionRatio)
-					.at(0);
-
-				if (visibleEntry) {
-					setActiveSectionId(visibleEntry.target.id);
-				}
-			},
-			{
-				root: scrollContainer,
-				rootMargin: "-16px 0px -70% 0px",
-				threshold: [0.1, 0.3, 0.6],
-			},
-		);
-
-		for (const element of sectionElements) {
-			observer.observe(element);
-		}
-		scrollContainer?.addEventListener("scroll", activateLastSectionAtBottom, {
+		scrollContainer.addEventListener("scroll", updateActiveSection, {
 			passive: true,
 		});
-		activateLastSectionAtBottom();
+		window.addEventListener("resize", updateActiveSection);
+		updateActiveSection();
 
 		return () => {
-			observer.disconnect();
-			scrollContainer?.removeEventListener(
-				"scroll",
-				activateLastSectionAtBottom,
-			);
+			scrollContainer.removeEventListener("scroll", updateActiveSection);
+			window.removeEventListener("resize", updateActiveSection);
 		};
 	}, [sections]);
 
@@ -336,6 +321,7 @@ export const Settings: React.FC = () => {
 									<button
 										key={section.id}
 										type="button"
+										aria-current={isActive ? "location" : undefined}
 										onClick={() => handleSectionClick(section.id)}
 										className={`rounded-lg border-0 px-3 py-2 text-left text-sm transition-colors lg:w-full ${
 											isActive
