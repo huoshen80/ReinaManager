@@ -227,7 +227,10 @@ async fn launch_game_inner<R: Runtime>(
         ));
     }
 
-    let local_launch = validate_local_launch(&game)?;
+    let local_launch = match validate_local_launch(&game) {
+        Ok(launch) => launch,
+        Err(failure) => return Ok(failure),
+    };
     let game_dir = local_launch.game_dir;
     let executable_path = local_launch.executable_path;
     let game_path = executable_path.to_string_lossy().to_string();

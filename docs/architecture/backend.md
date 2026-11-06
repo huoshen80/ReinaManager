@@ -117,3 +117,5 @@ V2 按备份原名恢复完整对象，拒绝类型冲突和意外覆盖；实�
 Windows 应用内更新以当前 EXE 所在目录为目标，维护安装登记或便携模式数据边界，便携更新保留 `resources`。修改入口为 `utils/updater.rs` 和 `src-tauri/windows/`。
 
 Command 是文件系统和系统 API 的参数校验边界。多数 command 返回带中文上下文的 `Result<T, String>`，仓储保留 `DbErr`，安装失败提供稳定 `code`；前端 `BaseService` 统一转为 `AppError`。
+
+本地游戏启动的路径校验失败通过启动结果中的可选 `path_issue` 提供问题类型与实际路径，前端据此引导重新选择并在保存后重试；其他启动失败不进入路径修正流程，不能通过匹配错误文案判断是否需要修正。

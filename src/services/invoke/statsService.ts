@@ -11,9 +11,18 @@ import type {
 } from "@/types";
 import { BaseService } from "./base";
 
+export interface LaunchPathIssue {
+	kind:
+		| "directory_missing"
+		| "directory_not_directory"
+		| "executable_missing"
+		| "executable_not_file";
+	path: string;
+}
+
 export type LaunchGameResult =
 	| { status: "tracking"; message: string; process_id?: number }
-	| { status: "failed"; message: string };
+	| { status: "failed"; message: string; path_issue?: LaunchPathIssue };
 
 export interface StopGameResult {
 	success: boolean;

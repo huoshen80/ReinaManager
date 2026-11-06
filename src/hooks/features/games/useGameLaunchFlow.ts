@@ -1,5 +1,7 @@
+import { useDialogs } from "@toolpad/core/useDialogs";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { LaunchPathRepairDialog } from "@/components/LaunchPathRepairDialog";
 import { useUpdateGame } from "@/hooks/queries/useGames";
 import { snackbar } from "@/providers/snackBar";
 import { handleExeFile, splitExecutablePath } from "@/services/fs/fileDialog";
@@ -9,6 +11,7 @@ import { getUserErrorMessage } from "@/utils/errors";
 
 export function useGameLaunchFlow() {
 	const { t } = useTranslation();
+	const dialogs = useDialogs();
 	const { mutateAsync: updateGame } = useUpdateGame();
 	const launchGame = useGamePlayStore((s) => s.launchGame);
 
@@ -24,15 +27,7 @@ export function useGameLaunchFlow() {
 				return false;
 			}
 
-			if (!selectedPath) {
-				snackbar.warning(
-					t(
-						"components.LaunchModal.selectExecutableRequired",
-						"请选择可执行文件",
-					),
-				);
-				return false;
-			}
+			if (!selectedPath) return false;
 
 			try {
 				const executablePathParts = await splitExecutablePath(selectedPath);
@@ -86,17 +81,18 @@ export function useGameLaunchFlow() {
 					return;
 				}
 
-				if (!game.localpath) {
-					await syncLocalPath(game);
-					return;
-				}
-
-				if (!game.executable) {
+				if (!game.localpath || !game.executable) {
 					const synced = await syncLocalPath(game);
 					if (!synced) return;
 				}
 
-				const result = await launchGame(game.id);
+				let result = await launchGame(game.id);
+				if (result.status === "failed" && result.path_issue) {
+					if (!(await dialogs.open(LaunchPathRepairDialog, result.path_issue)))
+						return;
+					if (!(await syncLocalPath(game))) return;
+					result = await launchGame(game.id);
+				}
 				if (result.status === "failed") snackbar.error(result.message);
 			} catch (error) {
 				snackbar.error(
@@ -104,7 +100,7 @@ export function useGameLaunchFlow() {
 				);
 			}
 		},
-		[launchGame, syncLocalPath, t],
+		[dialogs, launchGame, syncLocalPath, t],
 	);
 
 	return {
