@@ -94,7 +94,9 @@ FullGameData.sources → sourceRecord → Adapter.toDisplayFields
 → displayMergeRules → custom_data 覆盖 / 补充 → GameData
 ```
 
-字段优先级集中在 `displayMergeRules.ts`；涉及基础字段优先级时，前后端 `MIXED_BASIC_SOURCE_PRIORITY` 必须一致。
+字段合并集中在 `displayMergeRules.ts`，可配置来源顺序及默认值由 `displayPreferences.ts` 管理。全局展示偏好持久化在前端 Store，单游戏自定义内容仍由数据库保存并优先应用；获取元数据时不依据展示偏好改写名称。
+
+Mixed 的原名与中文名按同一来源顺序独立回退，再应用原名偏好与界面语言。名称排序查询将有效偏好传给后端，前后端选择规则与默认顺序必须一致。展示偏好变更使派生索引重新计算。
 
 `metadata/api/http.ts` 统一处理 Tauri HTTP、代理与局域网绕过、取消、按源限流、退避及错误分类。源特有请求参数和限速策略见 [`metadata/api`](../../src/metadata/api)。
 

@@ -1,5 +1,9 @@
 import { REGISTERED_SOURCE_KEYS } from "@/metadata";
 import { getDisplayGameData } from "@/metadata/data/dataTransform";
+import {
+	DEFAULT_DISPLAY_PREFERENCES,
+	type DisplayPreferences,
+} from "@/metadata/data/displayPreferences";
 import { getSourceRecordMap } from "@/metadata/sourceRecord";
 import type { FullGameData, GameData, SourceType } from "@/types";
 import type { Category } from "@/types/collection";
@@ -7,6 +11,7 @@ import type { Category } from "@/types/collection";
 export type SourceAvailability = Record<SourceType, boolean>;
 
 export interface GameIndex {
+	preferences: DisplayPreferences;
 	rawList: FullGameData[];
 	rawById: Map<number, FullGameData>;
 	displayList: GameData[];
@@ -22,6 +27,7 @@ export const EMPTY_SOURCE_AVAILABILITY = Object.fromEntries(
 ) as SourceAvailability;
 
 export const EMPTY_GAME_INDEX: GameIndex = {
+	preferences: DEFAULT_DISPLAY_PREFERENCES,
 	rawList: [],
 	rawById: new Map(),
 	displayList: [],
@@ -108,9 +114,14 @@ function buildDeveloperIndex(games: GameData[], unknownDeveloper: string) {
 	};
 }
 
-export function buildGameIndex(fullGames: FullGameData[]): GameIndex {
+export function buildGameIndex(
+	fullGames: FullGameData[],
+	preferences: DisplayPreferences = DEFAULT_DISPLAY_PREFERENCES,
+): GameIndex {
 	if (fullGames.length === 0) {
-		return EMPTY_GAME_INDEX;
+		return preferences.key === DEFAULT_DISPLAY_PREFERENCES.key
+			? EMPTY_GAME_INDEX
+			: { ...EMPTY_GAME_INDEX, preferences };
 	}
 
 	const rawById = new Map<number, FullGameData>();
@@ -120,7 +131,7 @@ export function buildGameIndex(fullGames: FullGameData[]): GameIndex {
 	const sourceAvailabilityById = new Map<number, SourceAvailability>();
 
 	for (const fullGame of fullGames) {
-		const displayGame = getDisplayGameData(fullGame);
+		const displayGame = getDisplayGameData(fullGame, preferences);
 
 		rawById.set(fullGame.id, fullGame);
 		displayList.push(displayGame);
@@ -134,6 +145,7 @@ export function buildGameIndex(fullGames: FullGameData[]): GameIndex {
 	);
 
 	return {
+		preferences,
 		rawList: fullGames,
 		rawById,
 		displayList,
@@ -187,12 +199,15 @@ export function patchGameIndex(
 	updatedFullGame: FullGameData,
 ): GameIndex {
 	if (index === EMPTY_GAME_INDEX) {
-		return buildGameIndex([updatedFullGame]);
+		return buildGameIndex([updatedFullGame], index.preferences);
 	}
 
 	const gameId = updatedFullGame.id;
 	const previousDisplayGame = index.displayById.get(gameId);
-	const updatedDisplayGame = getDisplayGameData(updatedFullGame);
+	const updatedDisplayGame = getDisplayGameData(
+		updatedFullGame,
+		index.preferences,
+	);
 
 	const rawList = replaceById(index.rawList, gameId, updatedFullGame);
 	const displayList = replaceById(
@@ -239,7 +254,7 @@ export function patchManyGameIndex(
 	if (updatedFullGames.length === 0) return index;
 
 	if (index === EMPTY_GAME_INDEX) {
-		return buildGameIndex(updatedFullGames);
+		return buildGameIndex(updatedFullGames, index.preferences);
 	}
 
 	const updatedRawById = new Map(
@@ -256,7 +271,7 @@ export function patchManyGameIndex(
 	for (const fullGame of updatedFullGames) {
 		const gameId = fullGame.id;
 		const previousDisplayGame = index.displayById.get(gameId);
-		const updatedDisplayGame = getDisplayGameData(fullGame);
+		const updatedDisplayGame = getDisplayGameData(fullGame, index.preferences);
 
 		updatedDisplayById.set(gameId, updatedDisplayGame);
 		rawById.set(gameId, fullGame);
@@ -346,17 +361,22 @@ export function removeGameFromIndex(
 	return removeGamesFromIndex(index, [gameId]);
 }
 
-export function getGameIndex(fullGames: FullGameData[] | undefined): GameIndex {
+export function getGameIndex(
+	fullGames: FullGameData[] | undefined,
+	preferences: DisplayPreferences = DEFAULT_DISPLAY_PREFERENCES,
+): GameIndex {
 	if (!fullGames || fullGames.length === 0) {
-		return EMPTY_GAME_INDEX;
+		return preferences.key === DEFAULT_DISPLAY_PREFERENCES.key
+			? EMPTY_GAME_INDEX
+			: { ...EMPTY_GAME_INDEX, preferences };
 	}
 
 	const cached = gameIndexCache.get(fullGames);
-	if (cached) {
+	if (cached?.preferences.key === preferences.key) {
 		return cached;
 	}
 
-	const index = buildGameIndex(fullGames);
+	const index = buildGameIndex(fullGames, preferences);
 	gameIndexCache.set(fullGames, index);
 	return index;
 }

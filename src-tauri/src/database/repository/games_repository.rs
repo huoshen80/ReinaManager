@@ -47,6 +47,14 @@ pub enum GameType {
     IsCustom,
 }
 
+/// 仅随查询传入的显示偏好，不写入数据库。
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct NameDisplayPreferences {
+    pub source_priority: Vec<String>,
+    pub prefer_original_name: bool,
+}
+
 pub struct GamesRepository;
 
 #[derive(Clone, Copy, Default)]
@@ -733,11 +741,29 @@ impl GamesRepository {
         sort_order: SortOrder,
         language: Option<String>,
     ) -> Result<Vec<i32>, DbErr> {
-        // 名称排序：应用层排序，名称来自 JSON 列
-        if matches!(sort_option, SortOption::Namesort) {
-            return Self::find_name_sorted_ids(db, game_type, sort_order, language).await;
-        }
+        Self::find_ids_with_name_preferences(
+            db,
+            game_type,
+            sort_option,
+            sort_order,
+            language,
+            NameDisplayPreferences::default(),
+        )
+        .await
+    }
 
+    pub async fn find_ids_with_name_preferences(
+        db: &DatabaseConnection,
+        game_type: GameType,
+        sort_option: SortOption,
+        sort_order: SortOrder,
+        language: Option<String>,
+        preferences: NameDisplayPreferences,
+    ) -> Result<Vec<i32>, DbErr> {
+        if matches!(sort_option, SortOption::Namesort) {
+            return Self::find_name_sorted_ids(db, game_type, sort_order, language, &preferences)
+                .await;
+        }
         Self::find_ids_sql(db, game_type, sort_option, sort_order).await
     }
 
@@ -977,7 +1003,7 @@ impl GamesRepository {
     /// 从游戏记录中提取用于排序的显示名称
     ///
     /// 优先级与前端 `getGameDisplayName` 保持一致：
-    /// `custom_data.name` > `name_cn`（仅 zh-CN）> 按 `id_type` 取 `name`
+    /// 原名与中文名独立按来源回退，再应用原名偏好与界面语言；自定义名称始终优先。
     ///
     /// 返回值为排序键字符串：zh-CN 时汉字转拼音，其他情况转小写
     async fn find_name_sorted_ids(
@@ -985,6 +1011,7 @@ impl GamesRepository {
         game_type: GameType,
         sort_order: SortOrder,
         language: Option<String>,
+        preferences: &NameDisplayPreferences,
     ) -> Result<Vec<i32>, DbErr> {
         let where_clause = match game_type {
             GameType::All => "",
@@ -1040,10 +1067,23 @@ impl GamesRepository {
         }
 
         let use_cn = language.as_deref() == Some("zh-CN");
+        let mut priority: Vec<&str> = Vec::new();
+        for source in preferences
+            .source_priority
+            .iter()
+            .map(String::as_str)
+            .chain(Self::MIXED_BASIC_SOURCE_PRIORITY)
+        {
+            if Self::MIXED_BASIC_SOURCE_PRIORITY.contains(&source) && !priority.contains(&source) {
+                priority.push(source);
+            }
+        }
         let descending = matches!(sort_order, SortOrder::Desc);
         entries.sort_by(|left, right| {
-            let left_key = Self::name_sort_key(left, use_cn);
-            let right_key = Self::name_sort_key(right, use_cn);
+            let left_key =
+                Self::name_sort_key(left, use_cn, &priority, preferences.prefer_original_name);
+            let right_key =
+                Self::name_sort_key(right, use_cn, &priority, preferences.prefer_original_name);
             match (left_key, right_key) {
                 (None, None) => left.id.cmp(&right.id),
                 (None, Some(_)) => Ordering::Greater,
@@ -1059,33 +1099,40 @@ impl GamesRepository {
         Ok(entries.into_iter().map(|entry| entry.id).collect())
     }
 
-    fn name_sort_key(entry: &NameSortEntry, use_cn: bool) -> Option<String> {
+    fn name_sort_key(
+        entry: &NameSortEntry,
+        use_cn: bool,
+        priority: &[&str],
+        prefer_original_name: bool,
+    ) -> Option<String> {
         if let Some(custom_name) = non_empty(entry.custom_name.as_deref()) {
             return Some(Self::to_sort_key(custom_name, use_cn));
         }
-
-        let source_name = |source: &str| {
+        let source_field = |source: &str, chinese: bool| {
             entry.sources.get(source).and_then(|(name, name_cn)| {
-                if use_cn {
-                    non_empty(name_cn.as_deref()).or_else(|| non_empty(name.as_deref()))
+                non_empty(if chinese {
+                    name_cn.as_deref()
                 } else {
-                    non_empty(name.as_deref())
-                }
+                    name.as_deref()
+                })
             })
         };
-
-        let name = if entry.sources.contains_key(entry.id_type.as_str())
-            && !matches!(
-                entry.id_type.as_str(),
-                "mixed" | "custom" | "Whitecloud" | "Playnite"
-            ) {
-            source_name(&entry.id_type)
-        } else {
-            Self::MIXED_BASIC_SOURCE_PRIORITY
-                .iter()
-                .find_map(|source| source_name(source))
+        let field = |chinese: bool| {
+            if entry.id_type == "mixed" {
+                priority
+                    .iter()
+                    .find_map(|source| source_field(source, chinese))
+            } else {
+                source_field(&entry.id_type, chinese)
+            }
         };
-
+        let name = if prefer_original_name {
+            field(false).or_else(|| field(true))
+        } else if use_cn {
+            field(true).or_else(|| field(false))
+        } else {
+            field(false)
+        };
         name.map(|name| Self::to_sort_key(name, use_cn))
     }
 
@@ -1927,6 +1974,56 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(ids, vec![second.id, first.id]);
+    }
+
+    #[tokio::test]
+    async fn sorts_names_using_display_preferences_and_cross_source_chinese_fallback() {
+        let database = setup_database().await;
+        let first = GamesRepository::insert(
+            &database,
+            insert_data(
+                "mixed",
+                None,
+                vec![
+                    source("vndb", "v1", json!({"name": "Zulu", "name_cn": " "})),
+                    source("bgm", "1", json!({"name": "Alpha", "name_cn": "阿"})),
+                ],
+            ),
+        )
+        .await
+        .unwrap();
+        let second = GamesRepository::insert(
+            &database,
+            insert_data(
+                "mixed",
+                None,
+                vec![
+                    source("vndb", "v2", json!({"name": "Alpha"})),
+                    source("bgm", "2", json!({"name": "Zulu", "name_cn": "波"})),
+                ],
+            ),
+        )
+        .await
+        .unwrap();
+        for (prefer_original_name, expected) in [
+            (false, vec![first.id, second.id]),
+            (true, vec![second.id, first.id]),
+        ] {
+            let actual = GamesRepository::find_ids_with_name_preferences(
+                &database,
+                GameType::All,
+                SortOption::Namesort,
+                SortOrder::Asc,
+                Some("zh-CN".to_string()),
+                NameDisplayPreferences {
+                    source_priority: vec!["unknown".into(), "vndb".into(), "vndb".into()],
+                    prefer_original_name,
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(actual, expected);
+        }
     }
 
     #[tokio::test]

@@ -12,11 +12,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SmartImage } from "@/components/SmartImage";
 import { getRuntimeSourceAdapter, MIXED_SOURCE_KEYS } from "@/metadata";
+import { resolveDisplayName } from "@/metadata/data/displayPreferences";
 import type {
 	MixedSourceCandidates,
 	MixedSourceEnabled,
 	MixedSourceSelection,
 } from "@/metadata/data/metadata";
+import { useStore } from "@/store/appStore";
 import type { SourceType } from "@/types";
 import GameSelectDialog, {
 	extractSourceCandidateDisplayInfo,
@@ -88,7 +90,8 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 	loading = false,
 	title,
 }) => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const preferOriginalName = useStore((state) => state.preferOriginalName);
 	const [selection, setSelection] = useState<MixedSourceSelection>({});
 	const [enabled, setEnabled] = useState<MixedSourceEnabled>({});
 	const [activeSource, setActiveSource] = useState<SourceType | null>(null);
@@ -171,7 +174,11 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 												{displayInfo.image ? (
 													<SmartImage
 														src={displayInfo.image}
-														alt={displayInfo.name}
+														alt={resolveDisplayName(
+															displayInfo,
+															i18n.language,
+															preferOriginalName,
+														)}
 														className={`${coverClassName} flex-shrink-0 rounded object-cover`}
 													/>
 												) : (
@@ -189,18 +196,26 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 												)}
 												<div className="min-w-0 flex-1 pt-0.5">
 													<Typography variant="subtitle2" noWrap>
-														{displayInfo.name_cn || displayInfo.name}
+														{resolveDisplayName(
+															displayInfo,
+															i18n.language,
+															preferOriginalName,
+														)}
 													</Typography>
-													{displayInfo.name_cn && displayInfo.name && (
-														<Typography
-															variant="caption"
-															color="text.secondary"
-															noWrap
-															display="block"
-														>
-															{displayInfo.name}
-														</Typography>
-													)}
+													{displayInfo.name_cn &&
+														displayInfo.name &&
+														displayInfo.name_cn !== displayInfo.name && (
+															<Typography
+																variant="caption"
+																color="text.secondary"
+																noWrap
+																display="block"
+															>
+																{preferOriginalName || i18n.language !== "zh-CN"
+																	? displayInfo.name_cn
+																	: displayInfo.name}
+															</Typography>
+														)}
 													<Typography
 														variant="caption"
 														color="primary"

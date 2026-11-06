@@ -27,6 +27,10 @@ import {
 	MIXED_SOURCE_MAX_COUNT,
 	MIXED_SOURCE_MIN_COUNT,
 } from "@/metadata/constants";
+import {
+	normalizeSourcePriorityOverrides,
+	type SourcePriorityOverrides,
+} from "@/metadata/data/displayPreferences";
 import { type ProxyConfig, settingsService } from "@/services/invoke";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke/types";
 import type { CloudCollectionSource, GameScanMode, SourceType } from "@/types";
@@ -148,6 +152,14 @@ export interface AppState {
 	playStatusFilter: PlayStatusFilter;
 	tagFilters: string[];
 	setTagFilters: (tags: string[]) => void;
+
+	// 展示偏好与来源元数据分别保存，恢复默认时移除对应覆盖值。
+	sourcePriorityOverrides: SourcePriorityOverrides;
+	preferOriginalName: boolean;
+	setDisplayPreferences: (
+		overrides: SourcePriorityOverrides,
+		preferOriginalName: boolean,
+	) => void;
 
 	// 数据来源选择
 	addMode: AddGameMode;
@@ -339,6 +351,13 @@ export const useStore = create<AppState>()(
 			setApiSource: (source: SourceType) => {
 				set({ apiSource: source });
 			},
+			sourcePriorityOverrides: {},
+			preferOriginalName: false,
+			setDisplayPreferences: (overrides, preferOriginalName) =>
+				set({
+					sourcePriorityOverrides: normalizeSourcePriorityOverrides(overrides),
+					preferOriginalName,
+				}),
 			mixedEnabledSources: [...DEFAULT_MIXED_SOURCE_KEYS],
 			kunAutoExpand: false,
 			setKunAutoExpand: (enabled: boolean) => set({ kunAutoExpand: enabled }),
@@ -664,6 +683,8 @@ export const useStore = create<AppState>()(
 				addMode: state.addMode === "custom" ? "mixed" : state.addMode,
 				scanPreferences: state.scanPreferences,
 				apiSource: state.apiSource,
+				sourcePriorityOverrides: state.sourcePriorityOverrides,
+				preferOriginalName: state.preferOriginalName,
 				mixedEnabledSources: state.mixedEnabledSources,
 				kunAutoExpand: state.kunAutoExpand,
 				hikarinagiAutoExpand: state.hikarinagiAutoExpand,
@@ -695,6 +716,17 @@ export const useStore = create<AppState>()(
 				// 代理设置
 				proxyConfig: { url: state.proxyConfig.url },
 			}),
+			merge: (persisted, current) => {
+				const saved = (persisted ?? {}) as Partial<AppState>;
+				return {
+					...current,
+					...saved,
+					sourcePriorityOverrides: normalizeSourcePriorityOverrides(
+						saved.sourcePriorityOverrides,
+					),
+					preferOriginalName: saved.preferOriginalName === true,
+				};
+			},
 			version: APP_STORE_VERSION,
 			migrate: migrateAppStorePersistedState,
 		},

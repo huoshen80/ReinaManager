@@ -22,11 +22,13 @@ import type {
 	BulkImportDuplicateGroup,
 	BulkImportMode,
 } from "@/hooks/features/games/useGameMetadataFacade";
+import { getCandidateSourceData, getRuntimeSourceAdapter } from "@/metadata";
 import {
-	getCandidateSourceData,
-	getRuntimeSourceAdapter,
-	SEARCHABLE_SOURCE_KEYS,
-} from "@/metadata";
+	type DisplayPreferences,
+	getDisplayPreferences,
+	resolveDisplayName,
+} from "@/metadata/data/displayPreferences";
+import { useStore } from "@/store/appStore";
 import type { GameLaunchType, GameMetadataDraft, SourceType } from "@/types";
 
 export type BulkImportOutcome =
@@ -90,31 +92,29 @@ const cellSx = {
 function getMatchedGameName(
 	gameData: GameMetadataDraft | undefined,
 	language: string,
+	preferences: DisplayPreferences,
 ): string | undefined {
 	if (!gameData) {
 		return undefined;
 	}
 
-	const useChineseName = language === "zh-CN";
-	let fallbackName: string | undefined;
-
-	for (const source of SEARCHABLE_SOURCE_KEYS) {
-		const adapter = getRuntimeSourceAdapter(source);
+	let name: string | undefined;
+	let name_cn: string | undefined;
+	for (const source of preferences.priorities.title) {
+		if (gameData.id_type !== "mixed" && gameData.id_type !== source) continue;
 		const data = getCandidateSourceData(gameData, source);
 		if (!data) continue;
-
-		const display = adapter.toDisplayFields(data);
-		if (useChineseName && display.name_cn) {
-			return display.name_cn;
-		}
-
-		if (display.name) {
-			if (!useChineseName) return display.name;
-			fallbackName ??= display.name;
-		}
+		const display = getRuntimeSourceAdapter(source).toDisplayFields(data);
+		name ||= display.name?.trim();
+		name_cn ||= display.name_cn?.trim();
 	}
-
-	return fallbackName;
+	return (
+		resolveDisplayName(
+			{ name, name_cn },
+			language,
+			preferences.preferOriginalName,
+		) || undefined
+	);
 }
 
 function getStatusLabel(item: VisibleBulkImportItem, t: TFunction): string {
@@ -233,6 +233,7 @@ export default memo(function BulkImportResultTable({
 	onOpenDirectory,
 }: BulkImportResultTableProps) {
 	const { t, i18n } = useTranslation();
+	const preferences = useStore(getDisplayPreferences);
 	const displayRows = useMemo(() => buildDisplayRows(items), [items]);
 	const listRef = useRef<VirtuosoHandle>(null);
 	const wasLoading = useRef(loading);
@@ -353,6 +354,7 @@ export default memo(function BulkImportResultTable({
 							const matchedName = getMatchedGameName(
 								item.importMode === "custom" ? undefined : item.matchedData,
 								i18n.language,
+								preferences,
 							);
 							const directoryPath = item.path;
 							return (

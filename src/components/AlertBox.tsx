@@ -31,6 +31,8 @@ import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
 } from "@/metadata";
+import { resolveDisplayName } from "@/metadata/data/displayPreferences";
+import { useStore } from "@/store/appStore";
 import type { GameMetadataDraft, SourceType } from "@/types";
 
 interface ViewGameSourceItem {
@@ -251,7 +253,8 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 	isLoading = false,
 	warningMessage,
 }) => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const preferOriginalName = useStore((state) => state.preferOriginalName);
 	const viewGameSources: ViewGameSourceItem[] = [];
 
 	REGISTERED_SOURCE_KEYS.forEach((source) => {
@@ -259,14 +262,19 @@ export const ViewGameBox: React.FC<ViewGameBoxProps> = ({
 		const data = getCandidateSourceData(gameDraft, source);
 		if (data) {
 			const display = adapter.toDisplayFields(data);
+			const name = resolveDisplayName(
+				display,
+				i18n.language,
+				preferOriginalName,
+			);
 			viewGameSources.push({
 				key: source,
 				label: t("components.AlertBox.sourceData", "{{source}} 数据", {
 					source: adapter.label,
 				}),
-				name: display.name_cn || display.name,
+				name,
 				image: display.image,
-				alt: `${adapter.label} ${display.name ?? ""}`,
+				alt: `${adapter.label} ${name}`,
 			});
 		}
 	});

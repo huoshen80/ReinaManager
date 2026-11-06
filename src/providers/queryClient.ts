@@ -21,3 +21,6 @@ export const queryClient = new QueryClient({
 		},
 	},
 });
+
+// 索引包含 Map 和指向主缓存的数组引用，二次结构共享会破坏 rawList 的引用契约。
+queryClient.setQueryDefaults(["games", "index"], { structuralSharing: false });

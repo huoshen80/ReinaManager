@@ -20,6 +20,8 @@ import { useTranslation } from "react-i18next";
 import { SmartImage } from "@/components/SmartImage";
 import type { SourceCandidate, SourceDisplayFields } from "@/metadata";
 import { getRuntimeSourceAdapter } from "@/metadata";
+import { resolveDisplayName } from "@/metadata/data/displayPreferences";
+import { useStore } from "@/store/appStore";
 import type { SourceType } from "@/types";
 
 interface GameSelectDialogProps {
@@ -90,7 +92,8 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 	title,
 	apiSource,
 }) => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const preferOriginalName = useStore((state) => state.preferOriginalName);
 	const listItems = sourceCandidates.map((candidate, index) => ({
 		key: `${candidate.source}:${candidate.externalId || index}`,
 		displayInfo: extractSourceCandidateDisplayInfo(candidate, apiSource),
@@ -133,7 +136,11 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 										{displayInfo.image ? (
 											<SmartImage
 												src={displayInfo.image}
-												alt={displayInfo.name}
+												alt={resolveDisplayName(
+													displayInfo,
+													i18n.language,
+													preferOriginalName,
+												)}
 												className="w-[60px] h-[80px] object-cover rounded mr-2"
 											/>
 										) : (
@@ -148,18 +155,28 @@ const GameSelectDialog: React.FC<GameSelectDialogProps> = ({
 										primary={
 											<Box>
 												<Typography variant="subtitle1" component="span">
-													{displayInfo.name_cn || displayInfo.name}
+													{resolveDisplayName(
+														displayInfo,
+														i18n.language,
+														preferOriginalName,
+													)}
 												</Typography>
-												{displayInfo.name_cn && displayInfo.name && (
-													<Typography
-														variant="body2"
-														color="text.secondary"
-														component="span"
-														className="ml-1"
-													>
-														({displayInfo.name})
-													</Typography>
-												)}
+												{displayInfo.name_cn &&
+													displayInfo.name &&
+													displayInfo.name_cn !== displayInfo.name && (
+														<Typography
+															variant="body2"
+															color="text.secondary"
+															component="span"
+															className="ml-1"
+														>
+															(
+															{preferOriginalName || i18n.language !== "zh-CN"
+																? displayInfo.name_cn
+																: displayInfo.name}
+															)
+														</Typography>
+													)}
 											</Box>
 										}
 										secondary={

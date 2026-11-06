@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { gameKeys, useAllGames, useGameIdList } from "@/hooks/queries/useGames";
+import { getDisplayPreferences } from "@/metadata/data/displayPreferences";
 import {
 	type CollectionGameFilterSortConfig,
 	useStore,
@@ -87,16 +88,21 @@ function gameMatchesTagFilters(
 export function useGameIndex() {
 	const queryClient = useQueryClient();
 	const allGamesQuery = useAllGames();
+	const preferences = useStore(getDisplayPreferences);
 	const index = useMemo(() => {
 		const cachedIndex = queryClient.getQueryData<GameIndex>(gameKeys.index());
-		if (cachedIndex && cachedIndex.rawList === allGamesQuery.data) {
+		if (
+			cachedIndex &&
+			cachedIndex.rawList === allGamesQuery.data &&
+			cachedIndex.preferences.key === preferences.key
+		) {
 			return cachedIndex;
 		}
 
-		const nextIndex = getGameIndex(allGamesQuery.data);
+		const nextIndex = getGameIndex(allGamesQuery.data, preferences);
 		queryClient.setQueryData(gameKeys.index(), nextIndex);
 		return nextIndex;
-	}, [allGamesQuery.data, queryClient]);
+	}, [allGamesQuery.data, queryClient, preferences]);
 
 	return {
 		index,

@@ -1,17 +1,19 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import i18next from "i18next";
 import { join } from "pathe";
+import { resolveDisplayName } from "@/metadata/data/displayPreferences";
 import { getAppDataDirPath } from "@/services/fs/pathCache";
+import { useStore } from "@/store/appStore";
 import type { GameData } from "@/types";
 import { buildTauriProtocolUrl } from "@/utils/tauriProtocol";
 
-export const getGameDisplayName = (game: GameData): string => {
-	if (game.custom_data?.name) {
-		return game.custom_data.name;
-	}
-	return i18next.language === "zh-CN" && game.name_cn
-		? game.name_cn
-		: game.name || "";
+export const getGameDisplayName = (
+	game: GameData,
+	preferOriginalName = useStore.getState().preferOriginalName,
+): string => {
+	const customName = game.custom_data?.name?.trim();
+	if (customName) return customName;
+	return resolveDisplayName(game, i18next.language, preferOriginalName);
 };
 
 export const getcustomCoverFolder = (gameID: number): string => {

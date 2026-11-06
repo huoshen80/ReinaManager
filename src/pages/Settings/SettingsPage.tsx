@@ -19,6 +19,7 @@ import {
 	SourceExpansionSettings,
 	VndbDataSettings,
 } from "./DataSourceSettings";
+import { DisplayPreferenceSettings } from "./DisplayPreferenceSettings";
 import {
 	CardClickModeSettings,
 	InterfaceZoomSettings,
@@ -116,6 +117,8 @@ export const Settings: React.FC = () => {
 				content: (
 					<>
 						<MixedSearchSourceSettings />
+						<SettingsDivider />
+						<DisplayPreferenceSettings />
 						<SettingsDivider />
 						<VndbDataSettings />
 						<SettingsDivider />

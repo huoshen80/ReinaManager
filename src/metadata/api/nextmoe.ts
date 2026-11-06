@@ -222,6 +222,26 @@ export function transformNextmoeWork(
 	work: NextmoeWork,
 	spoilerLevel = 0,
 ): GameMetadataDraft {
+	// 原名在入库时固定，显示语言与用户偏好只影响展示层。
+	const originalTitle =
+		work.titles
+			?.find(
+				(title) =>
+					title.lang.toLowerCase() === work.olang?.toLowerCase() &&
+					title.title_kind === "official" &&
+					!title.is_machine &&
+					title.title?.trim(),
+			)
+			?.title?.trim() ||
+		Object.entries(work.localized ?? {})
+			.find(
+				([lang, title]) =>
+					lang.toLowerCase() === work.olang?.toLowerCase() &&
+					!title.is_machine &&
+					title.value?.trim(),
+			)?.[1]
+			.value.trim() ||
+		work.display_name;
 	const chineseTitle =
 		work.localized?.["zh-Hans"]?.value ||
 		work.titles?.find((title) => /^zh(-Hans|-CN)?$/i.test(title.lang))?.title ||
@@ -247,7 +267,7 @@ export function transformNextmoeWork(
 		...(work.titles ?? []).flatMap((title) => [title.title, title.latin]),
 	]);
 	const data: KunData = {
-		name: work.display_name,
+		name: originalTitle,
 		name_cn: chineseTitle,
 		image: work.cover?.url,
 		summary: summary?.value,
@@ -261,7 +281,7 @@ export function transformNextmoeWork(
 		nsfw: work.content_rating === "r18" || work.content_limit === "nsfw",
 		all_titles: allTitles,
 		aliases: allTitles.filter(
-			(title) => title !== work.display_name && title !== chineseTitle,
+			(title) => title !== originalTitle && title !== chineseTitle,
 		),
 		tags: cleanTags(rawTags, spoilerLevel),
 		// 不把来自其他站点的评分伪装成 NextMoe 或真实上游元数据。
@@ -409,7 +429,7 @@ export async function fetchNextmoeByName(
 							: 8,
 						include: "titles,companies",
 						fields:
-							"medium,display_name,latin,localized,olang,content_rating,content_limit,cover,companies",
+							"medium,display_name,latin,localized,olang,content_rating,content_limit,cover,titles,companies",
 					},
 				},
 			)

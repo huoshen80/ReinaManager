@@ -14,6 +14,7 @@ import type {
 	BatchOperationResult,
 	FullGameData,
 	InsertGameParams,
+	SourceType,
 	UpdateGameParams,
 } from "@/types";
 import { BaseService } from "./base";
@@ -85,12 +86,18 @@ class GameService extends BaseService {
 		sortOption: SortOption = "addtime",
 		sortOrder: SortOrder = "asc",
 		language?: string,
+		titlePriority?: readonly SourceType[],
+		preferOriginalName?: boolean,
 	): Promise<number[]> {
 		return this.invoke<number[]>("find_game_ids", {
 			gameType,
 			sortOption,
 			sortOrder,
 			language: language ?? null,
+			namePreferences: {
+				source_priority: titlePriority ?? [],
+				prefer_original_name: preferOriginalName ?? false,
+			},
 		});
 	}
 

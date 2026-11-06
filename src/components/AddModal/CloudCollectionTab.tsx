@@ -35,6 +35,7 @@ import { Virtuoso } from "react-virtuoso";
 import { PlayStatusIcon } from "@/components/PlayStatusIcon";
 import { SmartImage } from "@/components/SmartImage";
 import { useBulkGameAddActions } from "@/hooks/features/games/useGameMetadataFacade";
+import { resolveDisplayName } from "@/metadata/data/displayPreferences";
 import { getRuntimeSourceAdapter } from "@/metadata/sourceRegistry";
 import { snackbar } from "@/providers/snackBar";
 import {
@@ -42,6 +43,7 @@ import {
 	loadCloudCollection,
 	prepareCloudCollectionItems,
 } from "@/services/cloudCollectionImport";
+import { useStore } from "@/store/appStore";
 import type { CloudCollectionSource } from "@/types";
 import {
 	ALL_PLAY_STATUSES,
@@ -87,8 +89,16 @@ function getImportSummarySeverity(summary: ImportSummary) {
 	return "success";
 }
 
-function getDisplayName(item: CloudCollectionItem, language: string) {
-	return language === "zh-CN" && item.nameCn ? item.nameCn : item.name;
+function getDisplayName(
+	item: CloudCollectionItem,
+	language: string,
+	preferOriginalName: boolean,
+) {
+	return resolveDisplayName(
+		{ name: item.name, name_cn: item.nameCn },
+		language,
+		preferOriginalName,
+	);
 }
 
 export default function CloudCollectionTab({
@@ -99,6 +109,7 @@ export default function CloudCollectionTab({
 	open,
 }: CloudCollectionTabProps) {
 	const { t, i18n } = useTranslation();
+	const preferOriginalName = useStore((state) => state.preferOriginalName);
 	const { addGamesFromBulkImport, checkGameExists, isAddingGames } =
 		useBulkGameAddActions();
 	const [source, setSource] = useState<CloudCollectionSource>(
@@ -330,7 +341,7 @@ export default function CloudCollectionTab({
 			setPhase("importing");
 			const result = await addGamesFromBulkImport(
 				ready.map(({ item, metadata }) => ({
-					name: getDisplayName(item, i18n.language),
+					name: getDisplayName(item, i18n.language, preferOriginalName),
 					matchedData: metadata,
 					playStatus: item.playStatus,
 					skipCloudStatusLookup: true,
@@ -661,7 +672,11 @@ export default function CloudCollectionTab({
 								computeItemKey={(_, item) => item.key}
 								overscan={300}
 								itemContent={(_, item) => {
-									const name = getDisplayName(item, i18n.language);
+									const name = getDisplayName(
+										item,
+										i18n.language,
+										preferOriginalName,
+									);
 									const originalName =
 										item.originalName && item.originalName !== name
 											? item.originalName

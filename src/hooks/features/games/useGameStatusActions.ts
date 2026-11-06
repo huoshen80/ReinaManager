@@ -7,9 +7,11 @@ import {
 	useUpdatePlayStatus,
 } from "@/hooks/queries/usePlayStatus";
 import { getDisplayGameData } from "@/metadata/data/dataTransform";
+import { getDisplayPreferences } from "@/metadata/data/displayPreferences";
 import { getRuntimeSourceAdapter } from "@/metadata/sourceRegistry";
 import { snackbar } from "@/providers/snackBar";
 import { syncPlayStatusToCloud } from "@/services/cloudPlayStatus";
+import { useStore } from "@/store/appStore";
 import type { FullGameData, GameData } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import type { GameIndex } from "@/utils/game/gameIndex";
@@ -68,7 +70,10 @@ export function useGameStatusActions() {
 			{ ...params, invalidateScope },
 			{
 				onSuccess: async (updatedFullGame, variables) => {
-					const updatedGame = getDisplayGameData(updatedFullGame);
+					const updatedGame = getDisplayGameData(
+						updatedFullGame,
+						getDisplayPreferences(useStore.getState()),
+					);
 					const failedSources = await syncPlayStatusToCloud(
 						updatedGame,
 						variables.newStatus,
@@ -100,7 +105,12 @@ export function useGameStatusActions() {
 				},
 				onSettled: (updatedFullGame, error, variables) => {
 					options?.onSettled?.(
-						updatedFullGame ? getDisplayGameData(updatedFullGame) : undefined,
+						updatedFullGame
+							? getDisplayGameData(
+									updatedFullGame,
+									getDisplayPreferences(useStore.getState()),
+								)
+							: undefined,
 						error,
 						variables,
 					);

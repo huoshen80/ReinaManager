@@ -1,4 +1,5 @@
 import { getDisplayGameData } from "@/metadata/data/dataTransform";
+import { getDisplayPreferences } from "@/metadata/data/displayPreferences";
 import { GameMetadataSession } from "@/metadata/data/gameMetadataService";
 import { getGameIdentityKeys } from "@/metadata/data/metadata";
 import { candidateSourcesToGameSources } from "@/metadata/sourceCandidate";
@@ -6,6 +7,7 @@ import { getRuntimeSourceAdapter } from "@/metadata/sourceRegistry";
 import i18n from "@/providers/i18n";
 import { gameService, settingsService } from "@/services/invoke";
 import { getMetadataRequestContext } from "@/services/requestContext";
+import { useStore } from "@/store/appStore";
 import type {
 	FullGameData,
 	GameMetadataDraft,
@@ -84,7 +86,9 @@ export function createLibraryEnrichmentItems(
 		return [
 			{
 				game,
-				name: getGameDisplayName(getDisplayGameData(game)),
+				name: getGameDisplayName(
+					getDisplayGameData(game, getDisplayPreferences(useStore.getState())),
+				),
 				origin,
 				originId: id,
 				missingSources: targets.filter((source) =>
@@ -142,7 +146,12 @@ export function checkLibraryEnrichmentConflicts(
 		items.map((item) => [item.game.id, item.name]),
 	);
 	for (const game of games)
-		names.set(game.id, getGameDisplayName(getDisplayGameData(game)));
+		names.set(
+			game.id,
+			getGameDisplayName(
+				getDisplayGameData(game, getDisplayPreferences(useStore.getState())),
+			),
+		);
 	const owners = new Map<string, Set<number>>();
 	const register = (id: number, payload: FullGameData | GameMetadataDraft) => {
 		for (const key of getGameIdentityKeys(payload)) {

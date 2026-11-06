@@ -1,4 +1,6 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import { getDisplayPreferences } from "@/metadata/data/displayPreferences";
+import { useStore } from "@/store/appStore";
 import type { FullGameData } from "@/types";
 import type { GameIndex } from "@/utils/game/gameIndex";
 import {
@@ -19,10 +21,12 @@ function getCurrentIndex(
 	keys: GameCacheKeys,
 	currentGames: FullGameData[],
 ): GameIndex {
-	return (
-		queryClient.getQueryData<GameIndex>(keys.index()) ??
-		getGameIndex(currentGames)
-	);
+	const preferences = getDisplayPreferences(useStore.getState());
+	const cached = queryClient.getQueryData<GameIndex>(keys.index());
+	return cached?.rawList === currentGames &&
+		cached.preferences.key === preferences.key
+		? cached
+		: getGameIndex(currentGames, preferences);
 }
 
 function commitGameCaches(

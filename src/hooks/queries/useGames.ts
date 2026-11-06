@@ -17,12 +17,15 @@ import {
 	patchManyGameCaches,
 	removeGamesFromCaches,
 } from "@/hooks/queries/gameCachePatch";
+import { getDisplayPreferences } from "@/metadata/data/displayPreferences";
 import type { GameType, SortOption, SortOrder } from "@/services/invoke";
 import { gameService } from "@/services/invoke";
 import type { LibraryEnrichmentItem } from "@/services/librarySourceEnrichment";
+import { useStore } from "@/store/appStore";
 import type {
 	BatchOperationResult,
 	InsertGameParams,
+	SourceType,
 	UpdateGameParams,
 } from "@/types";
 
@@ -67,6 +70,8 @@ export const gameKeys = {
 		sortOption: SortOption;
 		sortOrder: SortOrder;
 		language: string;
+		titlePriority?: readonly SourceType[];
+		preferOriginalName?: boolean;
 	}) => [...gameKeys.idLists(), params] as const,
 	vndbIds: () => [...gameKeys.all, "vndbIds"] as const,
 	bgmIds: () => [...gameKeys.all, "bgmIds"] as const,
@@ -102,12 +107,31 @@ function useGameIdList(
 ) {
 	const { i18n } = useTranslation();
 	const language = i18n.language;
+	const preferences = useStore(getDisplayPreferences);
+	const titlePriority =
+		sortOption === "namesort" ? preferences.priorities.title : undefined;
+	const preferOriginalName =
+		sortOption === "namesort" ? preferences.preferOriginalName : undefined;
 
 	return useQuery({
-		queryKey: gameKeys.idList({ gameType, sortOption, sortOrder, language }),
+		queryKey: gameKeys.idList({
+			gameType,
+			sortOption,
+			sortOrder,
+			language,
+			titlePriority,
+			preferOriginalName,
+		}),
 		enabled,
 		queryFn: () =>
-			gameService.getGameIds(gameType, sortOption, sortOrder, language),
+			gameService.getGameIds(
+				gameType,
+				sortOption,
+				sortOrder,
+				language,
+				titlePriority,
+				preferOriginalName,
+			),
 		placeholderData: keepPreviousData,
 	});
 }

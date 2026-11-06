@@ -40,6 +40,7 @@ import {
 	getSourceDeveloperOptions,
 	getSourceSummaryOptions,
 } from "@/metadata/data/displayMergeRules";
+import { getDisplayPreferences } from "@/metadata/data/displayPreferences";
 import { buildGameProfileUpdatePayload } from "@/metadata/data/metadata";
 import {
 	getSourceImageMap,
@@ -54,6 +55,7 @@ import {
 	uploadSelectedImage,
 } from "@/services/game/customCover";
 import { fileService } from "@/services/invoke";
+import { useStore } from "@/store/appStore";
 import type {
 	FullGameData,
 	GameData,
@@ -89,6 +91,8 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	disabled = false,
 }) => {
 	const { t } = useTranslation();
+	const displayPreferences = useStore(getDisplayPreferences);
+	const { priorities } = displayPreferences;
 	const sourceImageMap = useMemo(
 		() => (rawGame ? getSourceImageMap(rawGame) : {}),
 		[rawGame],
@@ -98,12 +102,13 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		[rawGame],
 	);
 	const developerOptions = useMemo(
-		() => (rawGame ? getSourceDeveloperOptions(rawGame) : []),
-		[rawGame],
+		() =>
+			rawGame ? getSourceDeveloperOptions(rawGame, priorities.developer) : [],
+		[rawGame, priorities.developer],
 	);
 	const sourceSummaryOptions = useMemo(
-		() => (rawGame ? getSourceSummaryOptions(rawGame) : []),
-		[rawGame],
+		() => (rawGame ? getSourceSummaryOptions(rawGame, priorities.summary) : []),
+		[rawGame, priorities.summary],
 	);
 	const summaryLabelId = useId();
 	const selectedGameSourceIdSignature = (() => {
@@ -432,7 +437,12 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 			// 3. 执行保存
 			const updatedGame = await onSave(updateData);
-			initForm(getDisplayGameData(updatedGame));
+			initForm(
+				getDisplayGameData(
+					updatedGame,
+					getDisplayPreferences(useStore.getState()),
+				),
+			);
 
 			if (clipboardTempImagePath) {
 				await cleanupClipboardTempImage();

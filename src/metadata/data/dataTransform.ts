@@ -22,6 +22,10 @@ import {
 	applySingleSourceDisplay,
 	getSourceDisplayFields,
 } from "./displayMergeRules";
+import {
+	DEFAULT_DISPLAY_PREFERENCES,
+	type DisplayPreferences,
+} from "./displayPreferences";
 
 /**
  * 将 null 转换为 undefined
@@ -36,7 +40,10 @@ const nullToUndefined = <T>(value: T | null | undefined): T | undefined =>
  * @param fullData 完整游戏数据（单表架构，元数据嵌入）
  * @returns 展平的 GameData
  */
-export function getDisplayGameData(fullData: FullGameData): GameData {
+export function getDisplayGameData(
+	fullData: FullGameData,
+	preferences: DisplayPreferences = DEFAULT_DISPLAY_PREFERENCES,
+): GameData {
 	const { custom_data } = fullData;
 	const displayCustomData = nullToUndefined(custom_data);
 	const sourceDataMap: SourceDataMap = {};
@@ -107,6 +114,7 @@ export function getDisplayGameData(fullData: FullGameData): GameData {
 						baseData,
 						sourceDataMap,
 						custom_data?.cover_source,
+						preferences.priorities,
 					);
 				}
 				break;

@@ -10,6 +10,11 @@ import {
 	REGISTERED_SOURCE_KEYS,
 } from "../sourceRegistry";
 
+import {
+	DEFAULT_SOURCE_PRIORITIES,
+	type SourcePriorities,
+} from "./displayPreferences";
+
 export const SOURCE_COVER_PRIORITY: readonly SourceType[] = [
 	"hikarinagi",
 	"bgm",
@@ -19,33 +24,7 @@ export const SOURCE_COVER_PRIORITY: readonly SourceType[] = [
 	"kun",
 	"ymgal",
 ];
-
-export const MIXED_BASIC_SOURCE_PRIORITY: readonly SourceType[] = [
-	"bgm",
-	"vndb",
-	"hikarinagi",
-	"dlsite",
-	"erogamescape",
-	"ymgal",
-	"kun",
-];
-const SUMMARY_PRIORITY: readonly SourceType[] = [
-	"hikarinagi",
-	"ymgal",
-	"bgm",
-	"kun",
-	"vndb",
-	"dlsite",
-];
-const DEVELOPER_PRIORITY: readonly SourceType[] = [
-	"vndb",
-	"erogamescape",
-	"kun",
-	"dlsite",
-	"ymgal",
-	"hikarinagi",
-	"bgm",
-];
+export const MIXED_BASIC_SOURCE_PRIORITY = DEFAULT_SOURCE_PRIORITIES.title;
 const MIXED_TAG_SOURCES: readonly SourceType[] = [
 	"bgm",
 	"hikarinagi",
@@ -91,12 +70,15 @@ export function getSourceDisplayFields(
 	return getRuntimeSourceAdapter(source).toDisplayFields(data);
 }
 
-export function getSourceDeveloperOptions(game: SourceRecordPayload): string[] {
+export function getSourceDeveloperOptions(
+	game: SourceRecordPayload,
+	priority = DEFAULT_SOURCE_PRIORITIES.developer,
+): string[] {
 	const sourceMap = getSourceRecordMap(game);
 
 	return Array.from(
 		new Set(
-			DEVELOPER_PRIORITY.flatMap((source) => {
+			priority.flatMap((source) => {
 				const data = sourceMap.get(source)?.data;
 				if (data == null) return [];
 
@@ -112,10 +94,11 @@ export function getSourceDeveloperOptions(game: SourceRecordPayload): string[] {
 
 export function getSourceSummaryOptions(
 	game: SourceRecordPayload,
+	priority = DEFAULT_SOURCE_PRIORITIES.summary,
 ): SourceSummaryOption[] {
 	const sourceMap = getSourceRecordMap(game);
 
-	return SUMMARY_PRIORITY.flatMap((source) => {
+	return priority.flatMap((source) => {
 		const data = sourceMap.get(source)?.data;
 		if (data == null) return [];
 
@@ -175,7 +158,8 @@ function firstField<Key extends keyof SourceDisplayFields>(
 ): SourceDisplayFields[Key] | undefined {
 	for (const source of sources) {
 		const value = displays[source]?.[key];
-		if (value != null) return value;
+		if (value != null && (typeof value !== "string" || value.trim()))
+			return value;
 	}
 	return undefined;
 }
@@ -206,6 +190,7 @@ export function applyMixedSourceDisplay(
 	target: GameData,
 	sources: SourceDataMap,
 	coverSource?: SourceType | null,
+	priorities: SourcePriorities = DEFAULT_SOURCE_PRIORITIES,
 ): void {
 	const displays = buildDisplayMap(sources);
 	const primarySource = MIXED_BASIC_SOURCE_PRIORITY.find(
@@ -215,9 +200,12 @@ export function applyMixedSourceDisplay(
 		assignBasicFields(target, displays[primarySource] as SourceDisplayFields);
 	}
 
+	// 原名和中文名独立回退，避免高优先级来源缺少译名时截断查找。
+	target.name = firstField(displays, priorities.title, "name");
+	target.name_cn = firstField(displays, priorities.title, "name_cn");
 	target.image = resolveDisplayImage(displays, coverSource);
-	target.summary = firstField(displays, SUMMARY_PRIORITY, "summary");
-	target.developer = firstField(displays, DEVELOPER_PRIORITY, "developer");
+	target.summary = firstField(displays, priorities.summary, "summary");
+	target.developer = firstField(displays, priorities.developer, "developer");
 	target.tags = mergeArrays(displays, MIXED_TAG_SOURCES, "tags");
 	target.aliases = mergeArrays(displays, MIXED_ALIAS_SOURCES, "aliases");
 	target.score =

@@ -10,7 +10,7 @@ use crate::database::repository::{
         CategoryWithCount, CollectionBackendSortField, CollectionsRepository, GroupWithCount,
     },
     game_stats_repository::{GameLastPlayed, GameStatsRepository, StatisticsDistribution},
-    games_repository::{GameType, GamesRepository, SortOption, SortOrder},
+    games_repository::{GameType, GamesRepository, NameDisplayPreferences, SortOption, SortOrder},
     settings_repository::SettingsRepository,
 };
 use crate::entity::{savedata, user};
@@ -73,10 +73,18 @@ pub async fn find_game_ids(
     sort_option: SortOption,
     sort_order: SortOrder,
     language: Option<String>,
+    name_preferences: Option<NameDisplayPreferences>,
 ) -> Result<Vec<i32>, String> {
-    GamesRepository::find_ids(&db, game_type, sort_option, sort_order, language)
-        .await
-        .map_err(|e| format!("获取游戏 ID 列表失败: {}", e))
+    GamesRepository::find_ids_with_name_preferences(
+        &db,
+        game_type,
+        sort_option,
+        sort_order,
+        language,
+        name_preferences.unwrap_or_default(),
+    )
+    .await
+    .map_err(|e| format!("获取游戏 ID 列表失败: {}", e))
 }
 
 /// 更新游戏数据（聚合架构）
