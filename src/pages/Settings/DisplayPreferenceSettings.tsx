@@ -153,13 +153,13 @@ function DisplayPreferenceDialog({ onClose }: { onClose: () => void }) {
 			aria-labelledby="display-preferences-title"
 		>
 			<DialogTitle id="display-preferences-title">
-				{t("pages.Settings.displayPreferences.heading", "游戏资料显示")}
+				{t("pages.Settings.displayPreferences.heading", "游戏元数据显示")}
 			</DialogTitle>
 			<DialogContent dividers>
 				<Typography variant="body2" color="text.secondary" className="mb-4">
 					{t(
 						"pages.Settings.displayPreferences.description",
-						"Mixed 游戏按顺序选择已有资料，缺失时使用下一来源。单游戏的自定义内容优先。",
+						"Mixed 游戏按顺序选择已有元数据，缺失时使用下一来源。单游戏的自定义内容优先。",
 					)}
 				</Typography>
 				<SettingsItem
@@ -199,7 +199,7 @@ function DisplayPreferenceDialog({ onClose }: { onClose: () => void }) {
 					className="mt-4 border-0 border-b border-solid border-[var(--mui-palette-divider)]"
 					aria-label={t(
 						"pages.Settings.displayPreferences.priorityFields",
-						"选择资料字段",
+						"选择元数据字段",
 					)}
 				>
 					{SOURCE_PRIORITY_FIELDS.map((item) => (
@@ -327,16 +327,16 @@ export function DisplayPreferenceSettings() {
 	const [open, setOpen] = useState(false);
 	return (
 		<SettingsGroup
-			title={t("pages.Settings.displayPreferences.heading", "游戏资料显示")}
+			title={t("pages.Settings.displayPreferences.heading", "游戏元数据显示")}
 			description={t(
 				"pages.Settings.displayPreferences.entryDescription",
-				"调整 Mixed 游戏的资料来源优先级和名称显示偏好。",
+				"调整 Mixed 游戏的元数据来源优先级和名称显示偏好。",
 			)}
 		>
 			<Button variant="outlined" onClick={() => setOpen(true)}>
 				{t(
 					"pages.Settings.displayPreferences.openModal",
-					"打开游戏资料显示设置",
+					"打开游戏元数据显示设置",
 				)}
 			</Button>
 			{open && <DisplayPreferenceDialog onClose={() => setOpen(false)} />}

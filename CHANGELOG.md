@@ -1,3 +1,65 @@
+## [0.33.0](https://github.com/huoshen80/ReinaManager/compare/v0.32.2...v0.33.0) (2026-11-06)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ✨ 新功能
+
+- *(import)* 补全元数据前先去重 ([57118a3](https://github.com/huoshen80/ReinaManager/commit/57118a3b6b94a79c2e00d99e5ea071f605dd7964))
+- *(metadata)* 为库中已有游戏补全元数据 ([8ccc23d](https://github.com/huoshen80/ReinaManager/commit/8ccc23dbca6c44ee5d1745f75d16d874ce0ebad2))
+- *(collection)* 记住分类排序 ([c6b4416](https://github.com/huoshen80/ReinaManager/commit/c6b4416580794cd67255baf7eee230470bfe4efb))
+- *(preferences)* 保留筛选条件和导入选项 ([2f2b560](https://github.com/huoshen80/ReinaManager/commit/2f2b5607f0f53860733175a666ef0799b26ea91d))
+- *(metadata)* 自定义混合显示偏好 ([8f19f57](https://github.com/huoshen80/ReinaManager/commit/8f19f57733507a50d409c2f98365d426b8a16afa))
+
+### 🐛 Bug 修复
+
+- *(updater)* 支持重命名后的便携版可执行文件 ([9829550](https://github.com/huoshen80/ReinaManager/commit/982955009882340815b6b51ff8287e5571db5eef))
+- 更新 QQ 群邀请链接 ([d2d7c54](https://github.com/huoshen80/ReinaManager/commit/d2d7c5451ddbec4d33389bc96cd926fdda26a12a))
+- *(import)* 保持收藏导入进度布局稳定 ([eb1ea11](https://github.com/huoshen80/ReinaManager/commit/eb1ea1120cc8fdb7ab3ae8138a79c2aeebead40f))
+- *(import)* 写入前重新检查游戏库 ([739c9c2](https://github.com/huoshen80/ReinaManager/commit/739c9c24b9ef4bebef794ab80cbc290097b85a8f))
+- *(settings)* 使导航与分区锚点对应 ([647cf0d](https://github.com/huoshen80/ReinaManager/commit/647cf0df3c1975527233459979c276cb23f422ed))
+- *(ui)* 明确游戏搜索操作 ([40c0b80](https://github.com/huoshen80/ReinaManager/commit/40c0b8041b1f417015d3321d979e2d535c3d5ef6))
+- *(import)* 对齐结果表格列 ([a3aefd3](https://github.com/huoshen80/ReinaManager/commit/a3aefd35e7fe9b73fe1b6add5d8cd1e0570e4abf))
+- *(launch)* 支持从无效游戏路径中恢复 ([e83ae1a](https://github.com/huoshen80/ReinaManager/commit/e83ae1a31ba2a3921ded8631faf303cf925d88fd))
+
+### 🚀 性能优化
+
+- *(import)* 获取 Kun 预览前先去重 ([c0e1baa](https://github.com/huoshen80/ReinaManager/commit/c0e1baac911b1999ad57df70154e1cc816387101))
+
+### 🚜 重构
+
+- *(import)* 移除多余的重复检查 ([086ecf0](https://github.com/huoshen80/ReinaManager/commit/086ecf0843886f8e542ebe9972d2b08d49be5b51))
+
+</details>
+
+### ✨ Features
+
+- *(import)* Deduplicate before enriching metadata ([57118a3](https://github.com/huoshen80/ReinaManager/commit/57118a3b6b94a79c2e00d99e5ea071f605dd7964))
+- *(metadata)* Enrich games already in the library ([8ccc23d](https://github.com/huoshen80/ReinaManager/commit/8ccc23dbca6c44ee5d1745f75d16d874ce0ebad2))
+- *(collection)* Remember category sorting ([c6b4416](https://github.com/huoshen80/ReinaManager/commit/c6b4416580794cd67255baf7eee230470bfe4efb))
+- *(preferences)* Retain filters and import options ([2f2b560](https://github.com/huoshen80/ReinaManager/commit/2f2b5607f0f53860733175a666ef0799b26ea91d))
+- *(metadata)* Customize mixed display preferences ([8f19f57](https://github.com/huoshen80/ReinaManager/commit/8f19f57733507a50d409c2f98365d426b8a16afa))
+
+### 🐛 Bug Fixes
+
+- *(updater)* Allow renamed portable executables ([9829550](https://github.com/huoshen80/ReinaManager/commit/982955009882340815b6b51ff8287e5571db5eef))
+- Update QQ group invitation links ([d2d7c54](https://github.com/huoshen80/ReinaManager/commit/d2d7c5451ddbec4d33389bc96cd926fdda26a12a))
+- *(import)* Keep collection progress layout stable ([eb1ea11](https://github.com/huoshen80/ReinaManager/commit/eb1ea1120cc8fdb7ab3ae8138a79c2aeebead40f))
+- *(import)* Recheck the library before writing ([739c9c2](https://github.com/huoshen80/ReinaManager/commit/739c9c24b9ef4bebef794ab80cbc290097b85a8f))
+- *(settings)* Align navigation with section anchors ([647cf0d](https://github.com/huoshen80/ReinaManager/commit/647cf0df3c1975527233459979c276cb23f422ed))
+- *(ui)* Clarify the game search action ([40c0b80](https://github.com/huoshen80/ReinaManager/commit/40c0b8041b1f417015d3321d979e2d535c3d5ef6))
+- *(import)* Align result table columns ([a3aefd3](https://github.com/huoshen80/ReinaManager/commit/a3aefd35e7fe9b73fe1b6add5d8cd1e0570e4abf))
+- *(launch)* Recover from invalid game paths ([e83ae1a](https://github.com/huoshen80/ReinaManager/commit/e83ae1a31ba2a3921ded8631faf303cf925d88fd))
+
+### 🚀 Performance
+
+- *(import)* Deduplicate Kun previews before fetching ([c0e1baa](https://github.com/huoshen80/ReinaManager/commit/c0e1baac911b1999ad57df70154e1cc816387101))
+
+### 🚜 Refactor
+
+- *(import)* Remove redundant duplicate check ([086ecf0](https://github.com/huoshen80/ReinaManager/commit/086ecf0843886f8e542ebe9972d2b08d49be5b51))
+
+
 ## [0.32.2](https://github.com/huoshen80/ReinaManager/compare/v0.32.1...v0.32.2) (2026-10-28)
 
 <details>
