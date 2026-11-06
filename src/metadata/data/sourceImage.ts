@@ -4,7 +4,7 @@ import {
 	getRuntimeSourceAdapter,
 	REGISTERED_SOURCE_KEYS,
 } from "../sourceRegistry";
-import { SOURCE_COVER_PRIORITY } from "./displayMergeRules";
+import { DEFAULT_SOURCE_PRIORITIES } from "./displayPreferences";
 
 type SourceImageData = Partial<
 	Record<SourceType, { image?: string | null } | null | undefined>
@@ -29,28 +29,37 @@ export function getSourceImageMap(game: SourceRecordPayload): SourceImageData {
 	) as SourceImageData;
 }
 
-export function resolveSourceImage(
+export function resolveSourceCover(
 	sources: SourceImageData,
 	coverSource?: SourceType | null,
-): string | undefined {
+	priority = DEFAULT_SOURCE_PRIORITIES.image,
+): SourceImageOption | undefined {
 	if (coverSource) {
 		const selectedImage = sources[coverSource]?.image;
-		if (selectedImage) return selectedImage;
+		if (selectedImage?.trim())
+			return { source: coverSource, image: selectedImage };
 	}
 
-	for (const source of SOURCE_COVER_PRIORITY) {
+	for (const source of priority) {
 		const image = sources[source]?.image;
-		if (image) return image;
+		if (image?.trim()) return { source, image };
 	}
 
 	return undefined;
 }
 
-export function getSourceImageOptions(game: FullGameData): SourceImageOption[] {
+export function getSourceImageOptions(
+	game: FullGameData,
+	priority = DEFAULT_SOURCE_PRIORITIES.image,
+): SourceImageOption[] {
 	const sources = getSourceImageMap(game);
 
-	return SOURCE_COVER_PRIORITY.map((source) => ({
-		source,
-		image: sources[source]?.image,
-	})).filter((option): option is SourceImageOption => Boolean(option.image));
+	return priority
+		.map((source) => ({
+			source,
+			image: sources[source]?.image,
+		}))
+		.filter((option): option is SourceImageOption =>
+			Boolean(option.image?.trim()),
+		);
 }

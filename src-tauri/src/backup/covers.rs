@@ -13,14 +13,8 @@ use tauri::{State, command};
 /// 将自定义封面文件复制到临时目录后压缩为 7z 文件，
 /// 备份路径跟随数据库备份路径逻辑。
 ///
-/// 压缩包内结构（解压后直接覆盖到数据目录即可）：
-/// ```text
-/// covers/
-///   game_123/
-///     cover_123_jpg_1703123456789.jpg
-///   game_456/
-///     cover_456_png_1703123456789.png
-/// ```
+/// 新格式复制 covers/custom 下的 UUID 图片，同时兼容旧版 game_{id} 自定义文件。
+/// 解压至数据根目录即可保留数据库中的相对引用；云缓存不进入归档。
 #[command]
 pub async fn backup_custom_covers(
     db: State<'_, DatabaseConnection>,
@@ -157,6 +151,20 @@ fn scan_and_copy_custom_covers(
 
         let dir_name = entry.file_name().to_string_lossy().to_string();
 
+        if dir_name == "custom" {
+            fs::create_dir_all(temp_dir.join("custom")).map_err(|e| e.to_string())?;
+            for file in fs::read_dir(&entry_path).map_err(|e| e.to_string())? {
+                let file = file.map_err(|e| e.to_string())?;
+                if file.file_type().map_err(|e| e.to_string())?.is_file()
+                    && file.path().extension().is_some_and(|e| e != "part")
+                {
+                    fs::copy(file.path(), temp_dir.join("custom").join(file.file_name()))
+                        .map_err(|e| e.to_string())?;
+                    *has_covers = true;
+                }
+            }
+            continue;
+        }
         // 只处理 game_{id} 格式的目录
         let game_id_str = match dir_name.strip_prefix("game_") {
             Some(id) => id,
@@ -208,4 +216,38 @@ fn scan_and_copy_custom_covers(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn backs_up_uuid_and_legacy_custom_covers_without_cloud_or_partial_files() {
+        let root =
+            std::env::temp_dir().join(format!("reina-cover-backup-test-{}", uuid::Uuid::now_v7()));
+        let source = root.join("source");
+        let target = root.join("target");
+        for dir in ["custom", "cloud", "game_1"] {
+            fs::create_dir_all(source.join(dir)).unwrap();
+        }
+        let custom = format!("{}.png", uuid::Uuid::now_v7());
+        for file in [
+            format!("custom/{custom}"),
+            "custom/unfinished.part".into(),
+            "cloud/remote.png".into(),
+            "game_1/cover_1_png_123".into(),
+            "game_1/cloud_cover_1.png".into(),
+        ] {
+            fs::write(source.join(file), b"image fixture").unwrap();
+        }
+        let mut has_covers = false;
+        scan_and_copy_custom_covers(&source, &target, &mut has_covers).unwrap();
+        assert!(has_covers);
+        assert!(target.join("custom").join(custom).is_file());
+        assert!(target.join("game_1/cover_1_png_123").is_file());
+        assert!(!target.join("cloud").exists());
+        assert!(!target.join("custom/unfinished.part").exists());
+        assert!(!target.join("game_1/cloud_cover_1.png").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
 }

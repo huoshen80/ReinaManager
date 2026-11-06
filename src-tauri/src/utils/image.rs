@@ -62,6 +62,7 @@ pub fn make_image_response(
 pub fn make_status_response(status: StatusCode) -> Response<Vec<u8>> {
     Response::builder()
         .status(status)
+        .header("Cache-Control", "no-store")
         .body(Vec::new())
         .expect("failed to build status response")
 }

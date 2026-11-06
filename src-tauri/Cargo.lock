@@ -43,6 +43,7 @@ dependencies = [
  "tokio",
  "ureq",
  "url",
+ "uuid",
  "walkdir",
  "webview2-com",
  "windows",
@@ -3163,6 +3164,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "url",
+ "uuid",
 ]
 
 [[package]]

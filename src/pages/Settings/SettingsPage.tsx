@@ -27,7 +27,10 @@ import {
 	NsfwSettings,
 	StartupPageSettings,
 } from "./GeneralSettings";
-import { DatabaseBackupSettings } from "./MaintenanceSettings";
+import {
+	CoverCleanupSettings,
+	DatabaseBackupSettings,
+} from "./MaintenanceSettings";
 import { SettingsDivider, SettingsGroup } from "./SettingsLayout";
 import {
 	AutoStartSettings,
@@ -171,6 +174,8 @@ export const Settings: React.FC = () => {
 						<CloseBtnSettings />
 						<SettingsDivider />
 						<TimeTrackingModeSettings />
+						<SettingsDivider />
+						<CoverCleanupSettings />
 						{import.meta.env.TAURI_ENV_PLATFORM === "linux" && (
 							<>
 								<SettingsDivider />

@@ -1,3 +1,4 @@
+import type { SourceImageOption } from "@/metadata/data/sourceImage";
 import type { GameData } from "@/types";
 import { getGameCover } from "@/utils/game";
 
@@ -6,8 +7,7 @@ interface CoverPreviewParams {
 	shouldDeleteImage: boolean;
 	tempCoverUrl: string | null;
 	previewUrl: string | null;
-	sourceCoverImage?: string;
-	sourceCoverChanged: boolean;
+	sourceCover?: SourceImageOption;
 }
 
 export function getCoverPreviewUrl({
@@ -15,25 +15,20 @@ export function getCoverPreviewUrl({
 	shouldDeleteImage,
 	tempCoverUrl,
 	previewUrl,
-	sourceCoverImage,
-	sourceCoverChanged,
+	sourceCover,
 }: CoverPreviewParams): string {
-	if (shouldDeleteImage) {
-		return sourceCoverImage ?? "/images/default.png";
-	}
-	if (tempCoverUrl) {
+	if (!shouldDeleteImage && tempCoverUrl) {
 		return tempCoverUrl;
 	}
-	if (previewUrl) {
+	if (!shouldDeleteImage && previewUrl) {
 		return previewUrl;
-	}
-	if (sourceCoverChanged && sourceCoverImage) {
-		return sourceCoverImage;
 	}
 
 	return getGameCover({
 		...selectedGame,
-		image: sourceCoverImage ?? selectedGame.image,
+		image: sourceCover?.image ?? selectedGame.image,
+		image_source: sourceCover?.source ?? selectedGame.image_source,
+		custom_cover: shouldDeleteImage ? undefined : selectedGame.custom_cover,
 	});
 }
 

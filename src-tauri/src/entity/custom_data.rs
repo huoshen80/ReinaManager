@@ -26,14 +26,10 @@ pub enum SourceType {
 /// 用于用户自定义的游戏数据，包括：
 /// - 手动添加的游戏
 /// - 从 Whitecloud、Playnite 等其他来源导入的游戏
-/// - 用户自定义的名称和封面
+/// - 用户自定义的名称和封面来源偏好
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, FromJsonQueryResult)]
 #[serde(default)]
 pub struct CustomData {
-    /// 自定义封面图片路径或 URL
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub image: Option<String>,
-
     /// Mixed 模式下选定的封面数据源
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cover_source: Option<SourceType>,

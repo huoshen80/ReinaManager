@@ -53,6 +53,8 @@ export function getDisplayGameData(
 
 	// 基础数据 - 直接从 fullData 中获取根节点字段
 	const baseData: GameData = {
+		cloud_covers: fullData.cloud_covers,
+		custom_cover: fullData.custom_cover ?? undefined,
 		id: fullData.id,
 		id_type: fullData.id_type,
 		sourceIds: getSourceIdMap(fullData),

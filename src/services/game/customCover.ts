@@ -4,10 +4,6 @@
  */
 
 import { open } from "@tauri-apps/plugin-dialog";
-import { basename, join } from "pathe";
-import { fileService } from "@/services/invoke";
-import { toError } from "@/utils/errors";
-import { getcustomCoverFolder } from "@/utils/game";
 
 /**
  * 获取文件扩展名
@@ -40,72 +36,5 @@ export const selectImageFile = async (): Promise<string | null> => {
 	} catch (error) {
 		console.error("选择图片文件失败:", error);
 		throw error;
-	}
-};
-
-/**
- * 删除指定游戏现有的所有自定义封面文件
- * @param gameId 游戏ID
- */
-export const deleteGameCustomCovers = async (gameId: number): Promise<void> => {
-	const customCoverFolder = getcustomCoverFolder(gameId);
-
-	try {
-		await fileService.deleteGameCovers(gameId, customCoverFolder);
-	} catch (error) {
-		throw new Error(
-			`Custom cover delete failed: ${toError(error, "Custom cover delete failed").message}`,
-		);
-	}
-};
-
-/**
- * 上传已选择的图片文件到应用目录
- * @param gameId 游戏ID
- * @param imagePath 已选择的图片文件路径
- * @returns 包含版本信息的文件标识符
- */
-export const uploadSelectedImage = async (
-	gameId: number,
-	imagePath: string,
-): Promise<string> => {
-	try {
-		const fileName = basename(imagePath);
-		const extension = getFileExtension(fileName);
-
-		// 获取应用资源目录（使用缓存的路径）
-		const customCoverFolder = getcustomCoverFolder(gameId);
-		if (!customCoverFolder) {
-			throw new Error("资源目录路径未初始化");
-		}
-
-		// 生成版本化的文件标识符（扩展名_时间戳）
-		const timestamp = Date.now();
-		const versionedFileName = `${extension}_${timestamp}`;
-
-		// 构建目标路径
-		const targetPath = join(
-			customCoverFolder,
-			`cover_${gameId}_${versionedFileName}`,
-		);
-
-		// 删除该游戏的所有旧封面文件（通过模式匹配）
-		try {
-			await deleteGameCustomCovers(gameId);
-		} catch (error) {
-			console.warn(
-				`删除旧封面文件失败（可能没有旧文件）: ${toError(error, "删除旧封面文件失败").message}`,
-			);
-		}
-
-		// 复制文件到目标位置
-		await fileService.copyFile(imagePath, targetPath);
-
-		// 返回版本化的文件标识符，存储到数据库
-		return versionedFileName;
-	} catch (error) {
-		throw new Error(
-			`Custom cover upload failed: ${toError(error, "Custom cover upload failed").message}`,
-		);
 	}
 };

@@ -14,16 +14,8 @@ import {
 	DEFAULT_SOURCE_PRIORITIES,
 	type SourcePriorities,
 } from "./displayPreferences";
+import { resolveSourceCover } from "./sourceImage";
 
-export const SOURCE_COVER_PRIORITY: readonly SourceType[] = [
-	"hikarinagi",
-	"bgm",
-	"vndb",
-	"erogamescape",
-	"dlsite",
-	"kun",
-	"ymgal",
-];
 export const MIXED_BASIC_SOURCE_PRIORITY = DEFAULT_SOURCE_PRIORITIES.title;
 const MIXED_TAG_SOURCES: readonly SourceType[] = [
 	"bgm",
@@ -118,6 +110,7 @@ export function applySingleSourceDisplay(
 	assignBasicFields(target, fields);
 
 	target.image = fields.image;
+	target.image_source = fields.image ? source : undefined;
 	target.tags = fields.tags ?? target.tags;
 	target.rank = fields.rank;
 	target.score = fields.score;
@@ -174,18 +167,6 @@ function mergeArrays(
 	);
 }
 
-function resolveDisplayImage(
-	displays: SourceDisplayMap,
-	coverSource?: SourceType | null,
-): string | undefined {
-	if (coverSource) {
-		const selectedImage = displays[coverSource]?.image;
-		if (selectedImage) return selectedImage;
-	}
-
-	return firstField(displays, SOURCE_COVER_PRIORITY, "image");
-}
-
 export function applyMixedSourceDisplay(
 	target: GameData,
 	sources: SourceDataMap,
@@ -203,7 +184,9 @@ export function applyMixedSourceDisplay(
 	// 原名和中文名独立回退，避免高优先级来源缺少译名时截断查找。
 	target.name = firstField(displays, priorities.title, "name");
 	target.name_cn = firstField(displays, priorities.title, "name_cn");
-	target.image = resolveDisplayImage(displays, coverSource);
+	const cover = resolveSourceCover(displays, coverSource, priorities.image);
+	target.image = cover?.image;
+	target.image_source = cover?.source;
 	target.summary = firstField(displays, priorities.summary, "summary");
 	target.developer = firstField(displays, priorities.developer, "developer");
 	target.tags = mergeArrays(displays, MIXED_TAG_SOURCES, "tags");

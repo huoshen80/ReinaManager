@@ -2,6 +2,7 @@ import type { SourceType } from "@/types";
 
 export const SOURCE_PRIORITY_FIELDS = [
 	"title",
+	"image",
 	"summary",
 	"developer",
 ] as const;
@@ -15,6 +16,15 @@ export type SourcePriorities = Record<
 >;
 
 export const DEFAULT_SOURCE_PRIORITIES: SourcePriorities = {
+	image: [
+		"hikarinagi",
+		"bgm",
+		"vndb",
+		"erogamescape",
+		"dlsite",
+		"kun",
+		"ymgal",
+	],
 	title: [
 		"bgm",
 		"vndb",

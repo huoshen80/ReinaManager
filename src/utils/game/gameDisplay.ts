@@ -16,34 +16,30 @@ export const getGameDisplayName = (
 	return resolveDisplayName(game, i18next.language, preferOriginalName);
 };
 
-export const getcustomCoverFolder = (gameID: number): string => {
-	const resourceFolder = getAppDataDirPath();
-	return join(resourceFolder, "covers", `game_${gameID}`);
-};
-
-export const getGameCover = (game: GameData): string => {
-	if (game.custom_data?.image) {
-		const customCoverFolder = getcustomCoverFolder(game.id);
-		if (customCoverFolder) {
-			const customCoverPath = join(
-				customCoverFolder,
-				`cover_${game.id}_${game.custom_data.image}`,
+export const getGameCover = (
+	game: Pick<
+		GameData,
+		"id" | "custom_cover" | "image" | "image_source" | "cloud_covers"
+	>,
+): string => {
+	if (game.custom_cover) {
+		try {
+			return convertFileSrc(
+				join(getAppDataDirPath(), "covers", "custom", game.custom_cover),
 			);
-
-			try {
-				return convertFileSrc(customCoverPath);
-			} catch (error) {
-				console.error("转换自定义封面路径失败:", error);
-			}
+		} catch (error) {
+			console.error("转换自定义封面路径失败:", error);
+			return "/images/unavailable.svg";
 		}
 	}
 
 	if (game.image) {
-		const params = new URLSearchParams({
-			url: game.image,
-			v: String(game.updated_at ?? ""),
-		});
-		return buildTauriProtocolUrl("reina-cover", String(game.id), params);
+		const assetId = game.image_source
+			? game.cloud_covers?.[game.image_source]
+			: undefined;
+		return assetId
+			? buildTauriProtocolUrl("reina-cover", assetId, new URLSearchParams())
+			: "/images/unavailable.svg";
 	}
 
 	return "/images/default.png";
@@ -65,11 +61,11 @@ export function getVisibleGameCoverKey(
 	if (replaceNsfwCover && getGameNsfwStatus(game)) {
 		return "nsfw";
 	}
-	if (game.custom_data?.image) {
-		return `custom:${game.id}:${game.custom_data.image}`;
+	if (game.custom_cover) {
+		return `custom:${game.id}:${game.custom_cover}`;
 	}
 	if (game.image) {
-		return `cloud:${game.id}:${game.image}`;
+		return getGameCover(game);
 	}
 	return "default";
 }

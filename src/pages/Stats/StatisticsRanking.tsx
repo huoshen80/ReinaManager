@@ -13,6 +13,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Virtuoso } from "react-virtuoso";
+import { SmartImage } from "@/components/SmartImage";
 import { formatPlayTime } from "@/utils/dateTime";
 import { getGameDisplayName, getVisibleGameCover } from "@/utils/game";
 import type { StatisticsRankingItem } from "./statsData";
@@ -55,7 +56,7 @@ function RankingRow({
 			>
 				#{index + 1}
 			</Typography>
-			<img
+			<SmartImage
 				src={getVisibleGameCover(item.game, replaceNsfwCover)}
 				alt=""
 				loading="lazy"

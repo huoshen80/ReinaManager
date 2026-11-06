@@ -105,6 +105,7 @@ function DisplayPreferenceDialog({ onClose }: { onClose: () => void }) {
 	const order = preferences.priorities[field];
 	const labels: Record<SourcePriorityField, string> = {
 		title: t("pages.Settings.displayPreferences.title", "名称来源顺序"),
+		image: t("pages.Settings.displayPreferences.image", "封面来源顺序"),
 		summary: t("pages.Settings.displayPreferences.summary", "简介来源顺序"),
 		developer: t(
 			"pages.Settings.displayPreferences.developer",
@@ -229,6 +230,14 @@ function DisplayPreferenceDialog({ onClose }: { onClose: () => void }) {
 							{t(
 								"pages.Settings.displayPreferences.titleHint",
 								"原名与中文名分别按此顺序选取，缺失时使用下一来源。",
+							)}
+						</Typography>
+					)}
+					{field === "image" && (
+						<Typography variant="body2" color="text.secondary" className="mb-3">
+							{t(
+								"pages.Settings.displayPreferences.imageHint",
+								"自定义图片和单游戏指定的封面来源优先。切换时复用已有封面，缺失的图片在显示时下载。",
 							)}
 						</Typography>
 					)}

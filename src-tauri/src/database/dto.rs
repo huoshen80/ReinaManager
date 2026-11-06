@@ -271,6 +271,9 @@ pub struct UpsertGameSourceData {
 /// 完整游戏聚合读取 DTO。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FullGameData {
+    pub custom_cover: Option<String>,
+    #[serde(default)]
+    pub cloud_covers: std::collections::HashMap<String, String>,
     pub id: i32,
     pub id_type: String,
     pub date: Option<String>,
@@ -336,6 +339,9 @@ pub struct BatchOperationResult {
 /// 使用 Option<Option<T>> 来区分"未提供"和"设为 null"。
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UpdateGameData {
+    /// 未提供时保留，null 时移除，路径值由保存工作流读取并登记正式资产。
+    #[serde(default, deserialize_with = "double_option")]
+    pub custom_cover_path: Option<Option<String>>,
     pub id_type: Option<String>,
 
     // === 核心状态 ===
@@ -362,6 +368,9 @@ pub struct UpdateGameData {
     pub magpie: Option<Option<i32>>,
     #[serde(default, deserialize_with = "double_option")]
     pub custom_data: Option<Option<CustomData>>,
+    /// 仅强刷本次写入完整元数据的来源，批量更新默认复用。
+    #[serde(default)]
+    pub refresh_source_covers: bool,
     pub upsert_sources: Option<Vec<UpsertGameSourceData>>,
     pub remove_sources: Option<Vec<String>>,
 }
@@ -372,6 +381,21 @@ mod tests {
         UpsertGameSourceData, clean_double_option_local_path, clean_json_value, clean_local_path,
     };
     use serde_json::json;
+
+    #[test]
+    fn custom_cover_path_distinguishes_keep_remove_and_replace() {
+        let read = |value| {
+            serde_json::from_value::<super::UpdateGameData>(value)
+                .unwrap()
+                .custom_cover_path
+        };
+        assert_eq!(read(json!({})), None);
+        assert_eq!(read(json!({"custom_cover_path": null})), Some(None));
+        assert_eq!(
+            read(json!({"custom_cover_path": "E:/selected.png"})),
+            Some(Some("E:/selected.png".into()))
+        );
+    }
 
     #[test]
     fn clean_json_value_removes_empty_values_recursively() {

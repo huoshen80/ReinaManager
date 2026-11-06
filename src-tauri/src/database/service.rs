@@ -1,4 +1,4 @@
-use sea_orm::DatabaseConnection;
+use sea_orm::{DatabaseConnection, TransactionTrait};
 use tauri::State;
 
 use crate::database::dto::{
@@ -14,7 +14,7 @@ use crate::database::repository::{
     settings_repository::SettingsRepository,
 };
 use crate::entity::{savedata, user};
-use crate::game::cover::{DownloadState, delete_game_cover_dir};
+use crate::game::cover::{assets, delete_game_cover_dir};
 
 // ==================== 游戏数据相关 ====================
 
@@ -92,27 +92,86 @@ pub async fn find_game_ids(
 pub async fn update_game(
     db: State<'_, DatabaseConnection>,
     game_id: i32,
-    updates: UpdateGameData,
+    mut updates: UpdateGameData,
 ) -> Result<FullGameData, String> {
-    GamesRepository::update(&db, game_id, updates)
+    let _backup_guard = crate::backup::common::acquire_database_backup_operation_lock().await;
+    if let Some(path) = updates.custom_cover_path.take() {
+        let root = reina_path::get_base_data_dir()?.join("covers");
+        save_game_with_custom_cover(&db, &root, game_id, updates, path.as_deref()).await
+    } else {
+        let previous = if updates.upsert_sources.is_some() || updates.remove_sources.is_some() {
+            assets::game_asset_paths(&db, game_id as u32, Some("cloud")).await?
+        } else {
+            Vec::new()
+        };
+        let game = GamesRepository::update(&db, game_id, updates)
+            .await
+            .map_err(|e| format!("更新游戏数据失败: {e}"))?;
+        assets::clean_replaced_files(&db, game_id as u32, previous).await;
+        Ok(game)
+    }
+}
+
+async fn save_game_with_custom_cover(
+    db: &DatabaseConnection,
+    root: &std::path::Path,
+    game_id: i32,
+    updates: UpdateGameData,
+    image_path: Option<&str>,
+) -> Result<FullGameData, String> {
+    use crate::game::cover::{assets, custom::read_custom_cover};
+    let previous = assets::game_asset_paths_at(db, game_id as u32, root, None).await?;
+    let new_asset = if let Some(path) = image_path {
+        let bytes = read_custom_cover(std::path::Path::new(path)).await?;
+        Some(assets::write_asset(root, "custom", &bytes).await?)
+    } else {
+        None
+    };
+    let result = async {
+        let transaction = db.begin().await.map_err(|e| e.to_string())?;
+        assets::set_custom(
+            &transaction,
+            game_id as u32,
+            new_asset
+                .as_ref()
+                .map(|(id, ext)| (id.as_str(), ext.as_str())),
+        )
+        .await?;
+        let game = GamesRepository::update_aggregate(
+            &transaction,
+            game_id,
+            updates.cleaned(),
+            chrono::Utc::now().timestamp() as i32,
+        )
         .await
-        .map_err(|e| format!("更新游戏数据失败: {}", e))
+        .map_err(|e| e.to_string())?;
+        transaction.commit().await.map_err(|e| e.to_string())?;
+        Ok(game)
+    }
+    .await;
+    // 提交成功后清旧图，失败则回收本次新图；清理前仍核对数据库关联。
+    let obsolete = if result.is_ok() {
+        previous
+    } else if let Some((id, ext)) = new_asset {
+        vec![assets::asset_path(root, "custom", &id, &ext)?]
+    } else {
+        Vec::new()
+    };
+    assets::clean_replaced_files_at(db, game_id as u32, obsolete, root).await;
+    result
 }
 
 /// 删除游戏
 #[tauri::command]
-pub async fn delete_game(
-    db: State<'_, DatabaseConnection>,
-    cover_state: State<'_, DownloadState>,
-    id: i32,
-) -> Result<u64, String> {
+pub async fn delete_game(db: State<'_, DatabaseConnection>, id: i32) -> Result<u64, String> {
+    let _backup_guard = crate::backup::common::acquire_database_backup_operation_lock().await;
+    let previous = crate::game::cover::assets::game_asset_paths(&db, id as u32, None).await?;
     let rows_affected = GamesRepository::delete(&db, id)
         .await
         .map(|result| result.rows_affected)
         .map_err(|e| format!("删除游戏失败: {}", e))?;
 
     if rows_affected > 0 {
-        cover_state.mark_game_deleted(id as u32).await;
         log::info!(
             "游戏删除成功 game_id={} rows_affected={}",
             id,
@@ -126,6 +185,7 @@ pub async fn delete_game(
         log::warn!("删除游戏封面目录失败 game_id={}: {}", id, err);
     }
 
+    crate::game::cover::assets::clean_replaced_files(&db, id as u32, previous).await;
     Ok(rows_affected)
 }
 
@@ -133,19 +193,23 @@ pub async fn delete_game(
 #[tauri::command]
 pub async fn delete_games_batch(
     db: State<'_, DatabaseConnection>,
-    cover_state: State<'_, DownloadState>,
     ids: Vec<i32>,
 ) -> Result<u64, String> {
+    let _backup_guard = crate::backup::common::acquire_database_backup_operation_lock().await;
+    let mut previous_files = Vec::new();
+    for id in &ids {
+        previous_files.push((
+            *id,
+            crate::game::cover::assets::game_asset_paths(&db, *id as u32, None).await?,
+        ));
+    }
     let rows_affected = GamesRepository::delete_many(&db, ids.clone())
         .await
         .map(|result| result.rows_affected)
         .map_err(|e| format!("批量删除游戏失败: {}", e))?;
     let requested_count = ids.len();
-
-    for game_id in &ids {
-        if *game_id > 0 {
-            cover_state.mark_game_deleted(*game_id as u32).await;
-        }
+    for (id, files) in previous_files {
+        crate::game::cover::assets::clean_replaced_files(&db, id as u32, files).await;
     }
 
     for game_id in ids {
@@ -194,9 +258,23 @@ pub async fn update_games_batch(
     db: State<'_, DatabaseConnection>,
     updates: Vec<(i32, UpdateGameData)>,
 ) -> Result<Vec<FullGameData>, String> {
-    GamesRepository::update_batch(&db, updates)
+    let _backup_guard = crate::backup::common::acquire_database_backup_operation_lock().await;
+    let mut previous = Vec::new();
+    for (id, update) in &updates {
+        if update.upsert_sources.is_some() || update.remove_sources.is_some() {
+            previous.push((
+                *id,
+                assets::game_asset_paths(&db, *id as u32, Some("cloud")).await?,
+            ));
+        }
+    }
+    let games = GamesRepository::update_batch(&db, updates)
         .await
-        .map_err(|e| format!("批量更新数据失败: {}", e))
+        .map_err(|e| format!("批量更新数据失败: {e}"))?;
+    for (id, paths) in previous {
+        assets::clean_replaced_files(&db, id as u32, paths).await;
+    }
+    Ok(games)
 }
 
 // ==================== 存档备份相关 ====================
@@ -552,4 +630,130 @@ pub async fn get_categories_with_count(
     CollectionsRepository::get_categories_with_count(&db, group_id, sort)
         .await
         .map_err(|e| format!("获取分类列表失败: {}", e))
+}
+
+#[cfg(test)]
+mod cover_tests {
+    use super::*;
+    use crate::database::repository::games_repository::tests::{insert_data, setup_database};
+    use crate::game::cover::assets::tests::{png, temporary_root};
+    use sea_orm::ConnectionTrait;
+    use std::path::PathBuf;
+
+    async fn fixture() -> (DatabaseConnection, PathBuf, FullGameData) {
+        let db = setup_database().await;
+        let root = temporary_root();
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("selected.png");
+        std::fs::write(&source, png()).unwrap();
+        let game = GamesRepository::insert(&db, insert_data("custom", None, vec![]))
+            .await
+            .unwrap();
+        let saved = save_game_with_custom_cover(
+            &db,
+            &root,
+            game.id,
+            UpdateGameData::default(),
+            source.to_str(),
+        )
+        .await
+        .unwrap();
+        (db, root, saved)
+    }
+
+    #[tokio::test]
+    async fn replace_and_remove_custom_cover_without_affecting_other_updates() {
+        let (db, root, game) = fixture().await;
+        let original = game.custom_cover.unwrap();
+        let custom_dir = root.join("custom");
+        assert_eq!(std::fs::read(custom_dir.join(&original)).unwrap(), png());
+        let ordinary = GamesRepository::update(
+            &db,
+            game.id,
+            UpdateGameData {
+                custom_data: Some(None),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(ordinary.custom_cover.as_deref(), Some(original.as_str()));
+
+        let replacement = save_game_with_custom_cover(
+            &db,
+            &root,
+            game.id,
+            UpdateGameData {
+                clear: Some(Some(1)),
+                ..Default::default()
+            },
+            root.join("selected.png").to_str(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(replacement.clear, Some(1));
+        let reference = replacement.custom_cover.unwrap();
+        assert_ne!(original, reference);
+        assert!(!custom_dir.join(original).exists());
+        assert_eq!(std::fs::read(custom_dir.join(&reference)).unwrap(), png());
+        let removed =
+            save_game_with_custom_cover(&db, &root, game.id, UpdateGameData::default(), None)
+                .await
+                .unwrap();
+        assert!(removed.custom_cover.is_none());
+        assert!(!custom_dir.join(reference).exists());
+        assert!(root.join("selected.png").is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn failed_save_preserves_profile_and_old_cover_and_cleans_new_file() {
+        let (db, root, game) = fixture().await;
+        let source = root.join("selected.png");
+        std::fs::write(&source, b"invalid image").unwrap();
+        assert!(
+            save_game_with_custom_cover(
+                &db,
+                &root,
+                game.id,
+                UpdateGameData::default(),
+                source.to_str()
+            )
+            .await
+            .is_err()
+        );
+        std::fs::write(&source, png()).unwrap();
+        db.execute_unprepared("CREATE TRIGGER reject_profile BEFORE UPDATE ON games BEGIN SELECT RAISE(ABORT, 'fixture failure'); END").await.unwrap();
+        // 替换和移除都必须随资料事务一起回滚。
+        for path in [source.to_str(), None] {
+            assert!(
+                save_game_with_custom_cover(
+                    &db,
+                    &root,
+                    game.id,
+                    UpdateGameData {
+                        clear: Some(Some(1)),
+                        ..Default::default()
+                    },
+                    path
+                )
+                .await
+                .is_err()
+            );
+        }
+        let unchanged = GamesRepository::find_by_id(&db, game.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(unchanged.custom_cover, game.custom_cover);
+        assert_eq!(unchanged.clear, game.clear);
+        assert!(
+            root.join("custom")
+                .join(game.custom_cover.unwrap())
+                .is_file()
+        );
+        assert_eq!(std::fs::read_dir(root.join("custom")).unwrap().count(), 1);
+        assert!(source.is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

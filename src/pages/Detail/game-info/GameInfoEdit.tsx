@@ -45,15 +45,11 @@ import { buildGameProfileUpdatePayload } from "@/metadata/data/metadata";
 import {
 	getSourceImageMap,
 	getSourceImageOptions,
-	resolveSourceImage,
+	resolveSourceCover,
 } from "@/metadata/data/sourceImage";
 import { getSourceIdFromDisplay } from "@/metadata/sourceRecord";
 import { snackbar } from "@/providers/snackBar";
-import {
-	deleteGameCustomCovers,
-	selectImageFile,
-	uploadSelectedImage,
-} from "@/services/game/customCover";
+import { selectImageFile } from "@/services/game/customCover";
 import { fileService } from "@/services/invoke";
 import { useStore } from "@/store/appStore";
 import type {
@@ -98,8 +94,8 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		[rawGame],
 	);
 	const sourceImageOptions = useMemo(
-		() => (rawGame ? getSourceImageOptions(rawGame) : []),
-		[rawGame],
+		() => (rawGame ? getSourceImageOptions(rawGame, priorities.image) : []),
+		[rawGame, priorities.image],
 	);
 	const developerOptions = useMemo(
 		() =>
@@ -204,6 +200,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 		// 2. 只有当这些"静态属性"被保存更新后，才触发重置
 		selectedGameSourceIdSignature,
 		selectedGame.id_type,
+		selectedGame.custom_cover,
 		// 3. 对于对象类型，使用 JSON 字符串化进行"值比较"
 		//    否则每次父组件刷新，custom_data 对象引用都会变，导致无限重置
 		JSON.stringify(selectedGame.custom_data),
@@ -213,11 +210,11 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	// 当父级数据（selectedGame）已经更新到最新封面时，解除临时封面锁定
 	useEffect(() => {
 		if (!pendingCoverImage) return;
-		if (selectedGame.custom_data?.image === pendingCoverImage) {
+		if (selectedGame.custom_cover === pendingCoverImage) {
 			setPendingCoverImage(null);
 			setTempCoverUrl(null);
 		}
-	}, [pendingCoverImage, selectedGame.custom_data?.image]);
+	}, [pendingCoverImage, selectedGame.custom_cover]);
 
 	// 切换游戏或离开组件时，清理由本组件创建的剪贴板临时图片
 	useEffect(() => {
@@ -358,19 +355,17 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 
 	// 获取当前要显示的封面URL
 	const getCurrentCoverUrl = () => {
-		const sourceCoverImage =
+		const sourceCover =
 			selectedGame.id_type === "mixed"
-				? (resolveSourceImage(sourceImageMap, coverSource) ??
-					selectedGame.image)
-				: selectedGame.image;
+				? resolveSourceCover(sourceImageMap, coverSource, priorities.image)
+				: undefined;
 
 		return getCoverPreviewUrl({
 			selectedGame,
 			shouldDeleteImage,
 			tempCoverUrl,
 			previewUrl,
-			sourceCoverImage,
-			sourceCoverChanged: hasSourceCoverChanged(),
+			sourceCover,
 		});
 	};
 
@@ -385,36 +380,17 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 	const handleSaveAll = async () => {
 		if (!hasChanges()) return;
 
-		const coverSourceChanged = hasSourceCoverChanged();
-		const originalSourceCoverImage = resolveSourceImage(
-			sourceImageMap,
-			getOriginalCoverSource(),
-		);
-		const nextSourceCoverImage = resolveSourceImage(
-			sourceImageMap,
-			coverSource,
-		);
 		setIsLoading(true);
 
 		try {
-			let uploadedImageExt: string | null | undefined;
+			const customCoverPath = shouldDeleteImage
+				? null
+				: (selectedImagePath ?? undefined);
 
-			// 1. 先处理副作用：上传图片或删除图片
-			if (shouldDeleteImage) {
-				await deleteGameCustomCovers(selectedGame.id);
-				uploadedImageExt = null; // 标记删除
-			} else if (selectedImagePath) {
-				// 上传本地选择的图片
-				uploadedImageExt = await uploadSelectedImage(
-					selectedGame.id,
-					selectedImagePath,
-				);
-			}
-
-			// 2. 纯逻辑：使用纯函数构建 Payload
+			// 构建资料与封面的写入参数。
 			const updateData = buildGameProfileUpdatePayload(selectedGame, {
 				newName: gameNote,
-				newImageExt: uploadedImageExt,
+				newCustomCoverPath: customCoverPath,
 				newCoverSource: coverSource,
 				newAliases: aliases,
 				newSummary: summary,
@@ -428,14 +404,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 				return;
 			}
 
-			if (
-				coverSourceChanged &&
-				originalSourceCoverImage !== nextSourceCoverImage
-			) {
-				await fileService.deleteCloudCoverCache(selectedGame.id);
-			}
-
-			// 3. 执行保存
+			// 资料与正式封面关联由后端一起提交。
 			const updatedGame = await onSave(updateData);
 			initForm(
 				getDisplayGameData(
@@ -448,19 +417,16 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 				await cleanupClipboardTempImage();
 			}
 
-			// 4. 处理 UI 状态（乐观更新）
-			if (uploadedImageExt && typeof uploadedImageExt === "string") {
+			// 等待父级缓存刷新时继续展示刚保存的封面。
+			if (customCoverPath && updatedGame.custom_cover) {
 				// 锁定新封面直到父级数据刷新，避免出现"旧图 -> 新图"的闪回
-				setPendingCoverImage(uploadedImageExt);
+				setPendingCoverImage(updatedGame.custom_cover);
 				const newCoverUrl = getGameCover({
 					...selectedGame,
-					custom_data: {
-						...selectedGame.custom_data,
-						image: uploadedImageExt,
-					},
+					custom_cover: updatedGame.custom_cover,
 				});
 				setTempCoverUrl(newCoverUrl);
-			} else if (uploadedImageExt === null) {
+			} else if (customCoverPath === null) {
 				// 删除了封面
 				setPendingCoverImage(null);
 				setTempCoverUrl(null);
@@ -598,10 +564,11 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 								</Menu>
 								<SourceCoverDialog
 									open={sourceCoverDialogOpen}
+									game={selectedGame}
 									options={sourceImageOptions}
 									currentSource={coverSource}
 									hasCustomCover={Boolean(
-										selectedGame.custom_data?.image && !shouldDeleteImage,
+										selectedGame.custom_cover && !shouldDeleteImage,
 									)}
 									disabled={isLoading || disabled}
 									onClose={handleSourceCoverDialogClose}
@@ -609,7 +576,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 									onReset={() => void handleSourceCoverReset()}
 								/>
 
-								{selectedGame.custom_data?.image && !shouldDeleteImage && (
+								{selectedGame.custom_cover && !shouldDeleteImage && (
 									<Button
 										variant="outlined"
 										onClick={handleRemoveCustomCover}
@@ -625,7 +592,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 									</Button>
 								)}
 							</Stack>
-							{selectedGame.custom_data?.image &&
+							{selectedGame.custom_cover &&
 								!shouldDeleteImage &&
 								!selectedImagePath && (
 									<Typography variant="caption" color="textSecondary">
@@ -633,7 +600,7 @@ export const GameInfoEdit: React.FC<GameInfoEditProps> = ({
 											"pages.Detail.GameInfoEdit.hasCustomCover",
 											"已设置自定义封面",
 										)}
-										: {selectedGame.custom_data.image}
+										: {selectedGame.custom_cover}
 									</Typography>
 								)}
 

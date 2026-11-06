@@ -1,4 +1,5 @@
 import BackupIcon from "@mui/icons-material/Backup";
+import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ImageIcon from "@mui/icons-material/Image";
 import RestoreIcon from "@mui/icons-material/Restore";
@@ -34,8 +35,10 @@ import {
 	selectDatabaseImportFile,
 } from "@/services/fs/dataMaintenance";
 import { openDatabaseBackupFolder } from "@/services/fs/savedataBackup";
+import { fileService } from "@/services/invoke";
 import { useStore } from "@/store/appStore";
 import { getUserErrorMessage } from "@/utils/errors";
+import { formatFileSize } from "@/utils/fileSize";
 import { SettingsGroup, SettingsItem } from "./SettingsLayout";
 
 export const DatabaseBackupSettings = () => {
@@ -559,3 +562,56 @@ export const DatabaseBackupSettings = () => {
 		</SettingsGroup>
 	);
 };
+
+export function CoverCleanupSettings() {
+	const { t } = useTranslation();
+	const [isCleaning, setIsCleaning] = useState(false);
+	const handleCleanup = async () => {
+		if (isCleaning) return;
+		setIsCleaning(true);
+		try {
+			const result = await fileService.cleanUnusedCovers();
+			const text = t(
+				"pages.Settings.coverCleanup.result",
+				"已删除 {{deleted}} 个文件，释放 {{size}}；失败 {{failed}} 个",
+				{
+					deleted: result.deleted_files,
+					size: formatFileSize(result.freed_bytes),
+					failed: result.failed_files,
+				},
+			);
+			if (result.failed_files) snackbar.warning(text);
+			else snackbar.success(text);
+		} catch (error) {
+			snackbar.error(getUserErrorMessage(error, t));
+		} finally {
+			setIsCleaning(false);
+		}
+	};
+	return (
+		<SettingsItem
+			title={t("pages.Settings.coverCleanup.title", "清理无用封面文件")}
+			description={t(
+				"pages.Settings.coverCleanup.description",
+				"删除不再使用的云端和自定义封面残留，保留正在使用的封面。",
+			)}
+		>
+			<Button
+				variant="outlined"
+				onClick={handleCleanup}
+				disabled={isCleaning}
+				startIcon={
+					isCleaning ? (
+						<CircularProgress size={16} color="inherit" />
+					) : (
+						<CleaningServicesIcon />
+					)
+				}
+			>
+				{isCleaning
+					? t("pages.Settings.coverCleanup.cleaning", "清理中...")
+					: t("pages.Settings.coverCleanup.action", "清理无用文件")}
+			</Button>
+		</SettingsItem>
+	);
+}

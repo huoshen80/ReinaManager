@@ -7,6 +7,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { forwardRef, memo } from "react";
+import { SmartImage } from "@/components/SmartImage";
 import { useStore } from "@/store/appStore";
 import { getVisibleGameCover, getVisibleGameCoverKey } from "@/utils/game";
 import type { CardItemProps, GameCardItemProps } from "./types";
@@ -22,8 +23,7 @@ interface CardCoverImageProps {
 
 const CardCoverImage = memo(
 	({ src, alt }: CardCoverImageProps) => (
-		<Box
-			component="img"
+		<SmartImage
 			src={src}
 			alt={alt}
 			draggable="false"
@@ -87,7 +87,7 @@ const CardContent = memo(
 		</>
 	),
 	(previous, next) =>
-		// 封面 URL 含 updated_at；沿用封面语义键，避免其他字段保存时重新加载图片。
+		// 只按实际封面身份更新图片，来源或封面版本变化时才重新加载。
 		previous.coverKey === next.coverKey &&
 		previous.displayName === next.displayName &&
 		previous.sortFieldValue === next.sortFieldValue &&

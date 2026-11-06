@@ -44,7 +44,7 @@ import type { GameMetadataSession } from "./gameMetadataService";
 
 export interface GameProfileUpdateDraft {
 	newName: string;
-	newImageExt?: string | null;
+	newCustomCoverPath?: string | null;
 	newCoverSource?: SourceType | null;
 	newAliases?: string[];
 	newSummary?: string;
@@ -352,8 +352,8 @@ export function buildGameProfileUpdatePayload(
 		customData().name = nameDiff;
 	}
 
-	if (draft.newImageExt !== undefined) {
-		customData().image = draft.newImageExt;
+	if (draft.newCustomCoverPath !== undefined) {
+		payload.custom_cover_path = draft.newCustomCoverPath;
 	}
 
 	if (draft.newCoverSource !== undefined) {

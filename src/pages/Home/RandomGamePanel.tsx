@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { SmartImage } from "@/components/SmartImage";
 import type { GameData } from "@/types";
 import { getGameDisplayName } from "@/utils/game";
 import { getVisibleCover } from "./homeData";
@@ -59,8 +60,7 @@ export function RandomGamePanel({
 			</Box>
 			{game ? (
 				<Box className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-4 min-[1200px]:grid-cols-[140px_minmax(0,1fr)_auto]">
-					<Box
-						component="img"
+					<SmartImage
 						src={getVisibleCover(game, replaceNsfwCover)}
 						alt=""
 						className="h-21 w-full rounded-2xl object-cover"

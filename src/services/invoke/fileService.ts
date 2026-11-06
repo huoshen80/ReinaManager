@@ -6,6 +6,12 @@
 import type { GameDirectoryScanMode, ScanResult } from "@/types";
 import { BaseService } from "./base";
 
+export interface CoverCleanupResult {
+	deleted_files: number;
+	freed_bytes: number;
+	failed_files: number;
+}
+
 export interface BackupResult {
 	success: boolean;
 	path: string | null;
@@ -196,23 +202,10 @@ class FileService extends BaseService {
 		return this.invoke<string>("import_clipboard_image_to_temp", { gameId });
 	}
 
-	/**
-	 * 删除指定游戏的自定义封面
-	 */
-	async deleteGameCovers(gameId: number, coversDir: string): Promise<void> {
-		return this.invoke<void>("delete_game_covers", { gameId, coversDir });
+	async cleanUnusedCovers(): Promise<CoverCleanupResult> {
+		return this.invoke<CoverCleanupResult>("clean_unused_covers");
 	}
 
-	/**
-	 * 删除本地的云端封面缓存
-	 */
-	async deleteCloudCoverCache(gameId: number): Promise<void> {
-		return this.invoke<void>("delete_cloud_cache", { gameId });
-	}
-
-	/**
-	 * 备份数据库
-	 */
 	async backupDatabase(): Promise<BackupResult> {
 		return this.invoke<BackupResult>("backup_database");
 	}

@@ -982,6 +982,13 @@
 				"vndbDescription": "添加游戏时尝试读取 VNDB 收藏状态，本地修改状态时同步回 VNDB。",
 				"vndbTitle": "启用 VNDB 收藏同步"
 			},
+			"coverCleanup": {
+				"action": "清理无用文件",
+				"cleaning": "清理中...",
+				"description": "删除不再使用的云端和自定义封面残留，保留正在使用的封面。",
+				"result": "已删除 {{deleted}} 个文件，释放 {{size}}；失败 {{failed}} 个",
+				"title": "清理无用封面文件"
+			},
 			"databaseBackup": {
 				"autoBackupOnExit": "退出时自动备份",
 				"autoBackupOnExitDescription": "开启后，软件正常退出时会自动备份数据库；如果同时启用自定义封面备份，可能会延长退出时间。",
@@ -1042,6 +1049,8 @@
 				"dragStart": "已拾起 {{source}}。",
 				"entryDescription": "调整 Mixed 游戏的元数据来源优先级和名称显示偏好。",
 				"heading": "游戏元数据显示",
+				"image": "封面来源顺序",
+				"imageHint": "自定义图片和单游戏指定的封面来源优先。切换时复用已有封面，缺失的图片在显示时下载。",
 				"keyboardHint": "按空格键开始排序，使用上下方向键移动，再按空格键放下，按 Escape 取消。",
 				"openModal": "打开游戏元数据显示设置",
 				"orderHint": "拖动右侧手柄调整顺序，越靠上越优先。保存后对已有和新增的 Mixed 游戏生效。",

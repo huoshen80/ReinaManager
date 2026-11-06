@@ -19,7 +19,6 @@ import {
 	type MetadataFetchResult,
 } from "@/metadata/data/metadata";
 import { snackbar } from "@/providers/snackBar";
-import { fileService } from "@/services/invoke";
 import type { GameData, UpdateGameParams } from "@/types";
 import { getUserErrorMessage } from "@/utils/errors";
 import { EMPTY_SOURCE_AVAILABILITY } from "@/utils/game/gameIndex";
@@ -68,8 +67,10 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 	) => {
 		setIsSavingMetadata(true);
 		try {
-			await fileService.deleteCloudCoverCache(id);
-			await updateGameMutation.mutateAsync({ gameId: id, updates: payload });
+			await updateGameMutation.mutateAsync({
+				gameId: id,
+				updates: { ...payload, refresh_source_covers: true },
+			});
 			setOpenViewBox(false);
 			if (failedSources.length > 0) {
 				snackbar.warning(
@@ -136,7 +137,6 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 
 	// 只切换当前展示/合并使用的数据源，不重新拉取元数据
 	const handleSourceSwitch = async (idType: string) => {
-		await fileService.deleteCloudCoverCache(id);
 		await updateGameMutation.mutateAsync({
 			gameId: id,
 			updates: { id_type: idType },

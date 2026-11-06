@@ -14,10 +14,12 @@ import { useTranslation } from "react-i18next";
 import { SmartImage } from "@/components/SmartImage";
 import { getRuntimeSourceAdapter } from "@/metadata";
 import type { SourceImageOption } from "@/metadata/data/sourceImage";
-import type { SourceType } from "@/types";
+import type { GameData, SourceType } from "@/types";
+import { getGameCover } from "@/utils/game/gameDisplay";
 
 interface SourceCoverDialogProps {
 	open: boolean;
+	game: Pick<GameData, "id" | "cloud_covers">;
 	options: SourceImageOption[];
 	currentSource: SourceType | null;
 	hasCustomCover: boolean;
@@ -32,6 +34,7 @@ const getSourceLabel = (source: SourceType): string =>
 
 export function SourceCoverDialog({
 	open,
+	game,
 	options,
 	currentSource,
 	hasCustomCover,
@@ -103,7 +106,12 @@ export function SourceCoverDialog({
 									}}
 								>
 									<SmartImage
-										src={option.image}
+										src={getGameCover({
+											id: game.id,
+											cloud_covers: game.cloud_covers,
+											image: option.image,
+											image_source: option.source,
+										})}
 										alt={getSourceLabel(option.source)}
 										className="block w-full aspect-[3/4] object-cover"
 										sx={{ bgcolor: "action.hover" }}

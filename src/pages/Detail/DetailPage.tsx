@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { CollectionPickerDialog } from "@/components/Collection";
+import { SmartImage } from "@/components/SmartImage";
 import { useVirtualCategories } from "@/hooks/features/collections/useVirtualCollections";
 import { useGameById } from "@/hooks/features/games/useGameFacade";
 import { useGameIndex } from "@/hooks/features/games/useGameListFacade";
@@ -265,7 +266,7 @@ export const Detail: React.FC = () => {
 				<Stack direction={{ xs: "column", md: "row" }} spacing={3}>
 					{/* 左侧：游戏图片 */}
 					<Box>
-						<img
+						<SmartImage
 							src={getGameCover(selectedGame)}
 							loading="lazy"
 							alt={getGameDisplayName(selectedGame)}

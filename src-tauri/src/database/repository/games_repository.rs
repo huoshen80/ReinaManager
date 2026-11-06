@@ -93,6 +93,8 @@ impl GamesRepository {
             g.custom_data,
             g.created_at,
             g.updated_at,
+            (SELECT json_group_object(source, id) FROM cover_assets WHERE game_id = g.id AND kind = 'cloud') AS cloud_covers,
+            (SELECT id || '.' || extension FROM cover_assets WHERE game_id = g.id AND kind = 'custom') AS custom_cover,
             (
                 SELECT json_group_array(
                     json_object(
@@ -474,6 +476,7 @@ impl GamesRepository {
         db: &C,
         game_id: i32,
         sources: &[UpsertGameSourceData],
+        refresh_covers: bool,
     ) -> Result<(), DbErr>
     where
         C: ConnectionTrait,
@@ -481,13 +484,40 @@ impl GamesRepository {
         for source in sources {
             // ID-only 只补充缺失来源：同 ID 保留完整元数据，冲突 ID 保留原身份。
             // 显式替换必须携带完整元数据，删除则使用 remove_sources。
-            if source.data.is_none()
-                && GameSources::find_by_id((game_id, source.source.clone()))
-                    .one(db)
-                    .await?
-                    .is_some()
-            {
+            let previous = GameSources::find_by_id((game_id, source.source.clone()))
+                .one(db)
+                .await?;
+            if source.data.is_none() && previous.is_some() {
                 continue;
+            }
+            let image = source
+                .data
+                .as_ref()
+                .and_then(|data| data.get("image"))
+                .and_then(Value::as_str)
+                .filter(|url| !url.trim().is_empty());
+            let previous_image = previous
+                .as_ref()
+                .and_then(|record| record.data.as_ref())
+                .and_then(|data| data.get("image"))
+                .and_then(Value::as_str);
+            if previous
+                .as_ref()
+                .is_none_or(|record| record.external_id != source.external_id)
+                || previous_image != image
+                || (refresh_covers && source.data.is_some())
+            {
+                db.execute_raw(Statement::from_sql_and_values(
+                    DbBackend::Sqlite,
+                    "DELETE FROM cover_assets WHERE game_id = ? AND kind = 'cloud' AND source = ?",
+                    [game_id.into(), source.source.clone().into()],
+                ))
+                .await?;
+                if let Some(image) = image {
+                    db.execute_raw(Statement::from_sql_and_values(DbBackend::Sqlite,
+                        "INSERT INTO cover_assets(id, game_id, kind, source, original_url) VALUES (?, ?, 'cloud', ?, ?)",
+                        [uuid::Uuid::now_v7().to_string().into(), game_id.into(), source.source.clone().into(), image.into()])).await?;
+                }
             }
             GameSources::insert(Self::build_source_active_model(game_id, source))
                 .on_conflict(
@@ -512,6 +542,14 @@ impl GamesRepository {
             return Ok(());
         }
 
+        for source in sources {
+            db.execute_raw(Statement::from_sql_and_values(
+                DbBackend::Sqlite,
+                "DELETE FROM cover_assets WHERE game_id = ? AND kind = 'cloud' AND source = ?",
+                [game_id.into(), source.clone().into()],
+            ))
+            .await?;
+        }
         GameSources::delete_many()
             .filter(game_sources::Column::GameId.eq(game_id))
             .filter(game_sources::Column::Source.is_in(sources.iter().cloned()))
@@ -537,7 +575,7 @@ impl GamesRepository {
         let model = Self::build_insert_active_model(&game, now, defaults)
             .insert(db)
             .await?;
-        Self::upsert_sources(db, model.id, &game.sources).await?;
+        Self::upsert_sources(db, model.id, &game.sources, false).await?;
 
         Self::find_full_by_id(db, model.id)
             .await?
@@ -646,6 +684,9 @@ impl GamesRepository {
         let updates = Self::normalize_update_path_state(db, game_id, updates).await?;
         let updates = Self::normalize_update_launch_state(db, game_id, updates).await?;
 
+        if updates.custom_cover_path.is_some() {
+            return Err(DbErr::Custom("自定义封面必须通过资料保存工作流更新".into()));
+        }
         Self::build_update_active_model(game_id, &updates, now)
             .update(db)
             .await?;
@@ -659,6 +700,7 @@ impl GamesRepository {
             db,
             game_id,
             updates.upsert_sources.as_deref().unwrap_or_default(),
+            updates.refresh_source_covers,
         )
         .await?;
 
@@ -808,6 +850,9 @@ impl GamesRepository {
             .map_err(|error| DbErr::Custom(format!("sources 聚合结果解析失败: {}", error)))?;
 
         Ok(FullGameData {
+            custom_cover: row.try_get("", "custom_cover")?,
+            cloud_covers: serde_json::from_str(&row.try_get::<String>("", "cloud_covers")?)
+                .map_err(|e| DbErr::Custom(e.to_string()))?,
             id: row.try_get("", "id")?,
             id_type: row.try_get("", "id_type")?,
             date: row.try_get("", "date")?,
@@ -1217,13 +1262,13 @@ struct NameSortEntry {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::entity::custom_data::CustomData;
     use sea_orm::Database;
     use serde_json::json;
 
-    async fn setup_database() -> DatabaseConnection {
+    pub(crate) async fn setup_database() -> DatabaseConnection {
         let database = Database::connect("sqlite::memory:").await.unwrap();
         database
             .execute_unprepared(
@@ -1306,10 +1351,17 @@ mod tests {
             )
             .await
             .unwrap();
+        use migration::MigratorTrait;
+        migration::Migrator::migrations()
+            .last()
+            .unwrap()
+            .up(&migration::SchemaManager::new(&database))
+            .await
+            .unwrap();
         database
     }
 
-    fn insert_data(
+    pub(crate) fn insert_data(
         id_type: &str,
         custom_data: Option<CustomData>,
         sources: Vec<UpsertGameSourceData>,
@@ -1338,6 +1390,127 @@ mod tests {
             external_id: Some(id.to_string()),
             data: Some(data),
         }
+    }
+
+    #[tokio::test]
+    async fn cloud_assets_follow_source_identity_and_explicit_refresh() {
+        let db = setup_database().await;
+        let image = json!({"name":"Title", "image":"https://example.com/cover.png"});
+        let game = GamesRepository::insert(
+            &db,
+            insert_data(
+                "mixed",
+                None,
+                vec![
+                    source("bgm", "1", image.clone()),
+                    source("vndb", "v1", image.clone()),
+                ],
+            ),
+        )
+        .await
+        .unwrap();
+        let original = game.cloud_covers.clone();
+        assert_eq!(original.len(), 2);
+        // 普通批量更新、仅切换展示源均不换资产。
+        let batch = GamesRepository::update_batch(
+            &db,
+            vec![(
+                game.id,
+                UpdateGameData {
+                    upsert_sources: Some(vec![source("bgm", "1", image.clone())]),
+                    ..Default::default()
+                },
+            )],
+        )
+        .await;
+        assert_eq!(batch.unwrap()[0].cloud_covers, original);
+        let switched = GamesRepository::update(
+            &db,
+            game.id,
+            UpdateGameData {
+                id_type: Some("vndb".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(switched.cloud_covers, original);
+        // 单条强刷只作用于完整结果，ID-only（包括冲突 ID）保留旧资产。
+        let refreshed = GamesRepository::update(
+            &db,
+            game.id,
+            UpdateGameData {
+                refresh_source_covers: true,
+                upsert_sources: Some(vec![
+                    source("bgm", "1", image.clone()),
+                    source("vndb", "v2", Value::Null),
+                ]),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_ne!(refreshed.cloud_covers["bgm"], original["bgm"]);
+        assert_eq!(refreshed.cloud_covers["vndb"], original["vndb"]);
+        // 换 ID 即使 URL 相同也换资产，换 URL 同样如此。
+        let mut last = refreshed.cloud_covers["bgm"].clone();
+        for data in [image, json!({"image":"https://example.com/new.png"})] {
+            let changed = GamesRepository::update(
+                &db,
+                game.id,
+                UpdateGameData {
+                    upsert_sources: Some(vec![source("bgm", "2", data)]),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            assert_ne!(changed.cloud_covers["bgm"], last);
+            assert_eq!(changed.cloud_covers["vndb"], original["vndb"]);
+            last = changed.cloud_covers["bgm"].clone();
+        }
+        // 后续来源写入失败时，资产变化和元数据一起回滚。
+        db.execute_unprepared("CREATE TRIGGER reject_source BEFORE INSERT ON game_sources BEGIN SELECT RAISE(ABORT, '测试回滚'); END").await.unwrap();
+        assert!(
+            GamesRepository::update(
+                &db,
+                game.id,
+                UpdateGameData {
+                    refresh_source_covers: true,
+                    upsert_sources: Some(vec![source(
+                        "bgm",
+                        "2",
+                        json!({"image":"https://example.com/new.png"})
+                    )]),
+                    ..Default::default()
+                }
+            )
+            .await
+            .is_err()
+        );
+        assert_eq!(
+            GamesRepository::find_full_by_id(&db, game.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .cloud_covers["bgm"],
+            last
+        );
+        db.execute_unprepared("DROP TRIGGER reject_source")
+            .await
+            .unwrap();
+        let cleared = GamesRepository::update(
+            &db,
+            game.id,
+            UpdateGameData {
+                upsert_sources: Some(vec![source("bgm", "2", json!({"name":"无图"}))]),
+                remove_sources: Some(vec!["vndb".into()]),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(cleared.cloud_covers.is_empty());
     }
 
     #[tokio::test]

@@ -1010,6 +1010,13 @@
 				"vndbDescription": "Try to read the VNDB collection status when adding a game, and sync local status changes back to VNDB.",
 				"vndbTitle": "Enable VNDB collection sync"
 			},
+			"coverCleanup": {
+				"action": "Clean up unused files",
+				"cleaning": "Cleaning...",
+				"description": "Remove leftover cloud and custom cover files while keeping covers still in use.",
+				"result": "Deleted {{deleted}} files, freed {{size}}; {{failed}} failed",
+				"title": "Clean up unused cover files"
+			},
 			"databaseBackup": {
 				"autoBackupOnExit": "Auto backup on exit",
 				"autoBackupOnExitDescription": "When enabled, the database is backed up when the application exits normally. Also backing up custom covers may delay exit.",
@@ -1070,6 +1077,8 @@
 				"dragStart": "Picked up {{source}}.",
 				"entryDescription": "Set metadata source priorities and name display preferences for Mixed games.",
 				"heading": "Game metadata display",
+				"image": "Cover source order",
+				"imageHint": "Custom images and per-game cover source choices take priority. Existing covers are reused when switching; missing images download when displayed.",
 				"keyboardHint": "Press Space to start sorting, use the up and down arrow keys to move, press Space again to drop, or Escape to cancel.",
 				"openModal": "Open game metadata display settings",
 				"orderHint": "Drag the handles on the right to reorder sources. Higher sources take priority. Saving applies to existing and new Mixed games.",

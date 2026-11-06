@@ -16,6 +16,7 @@ import {
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { SmartImage } from "@/components/SmartImage";
 import type { GameData, TimeTrackingMode } from "@/types";
 import { formatPlayTime, formatRelativeTime } from "@/utils/dateTime";
 import { getGameDisplayName } from "@/utils/game";
@@ -144,8 +145,7 @@ export function FocusGamePanel({
 			) : null}
 			{game ? (
 				<>
-					<Box
-						component="img"
+					<SmartImage
 						src={coverUrl}
 						alt=""
 						className={`absolute inset-0 h-full w-full object-cover ${
@@ -170,8 +170,7 @@ export function FocusGamePanel({
 								maskImage: "linear-gradient(90deg, transparent 0%, black 28%)",
 							}}
 						>
-							<Box
-								component="img"
+							<SmartImage
 								src={coverUrl}
 								alt=""
 								className="h-full w-full object-contain object-right drop-shadow-[0_8px_24px_rgba(0,0,0,.45)]"
@@ -292,8 +291,7 @@ export function FocusGamePanel({
 															: "rgba(255,255,255,.22)",
 												}}
 											>
-												<Box
-													component="img"
+												<SmartImage
 													src={getVisibleCover(recentGame, replaceNsfwCover)}
 													alt=""
 													className="h-full w-[50px] shrink-0 object-cover"

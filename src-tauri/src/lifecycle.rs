@@ -100,12 +100,12 @@ fn read_silent_startup(app: &App) -> bool {
     }
 }
 
-fn migrate_legacy_files() -> Result<String, NativeDialog> {
-    let result = run_startup_migrations().map_err(|error| {
+async fn migrate_legacy_files(conn: &sea_orm::DatabaseConnection) -> Result<String, NativeDialog> {
+    let result = run_startup_migrations(conn).await.map_err(|error| {
         log::error!("文件迁移失败: {error}");
         NativeDialog::new(
             "Reina 启动失败",
-            "文件迁移未能完成，Reina 无法继续启动。\n请检查数据目录的访问权限和磁盘空间，错误已记录到日志。",
+            "文件迁移未能完成，Reina 无法继续启动。\n请查看下方错误信息，详细记录已写入日志。",
             MessageDialogKind::Error,
         )
         .details(error)
@@ -152,7 +152,7 @@ async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(
         }
         return Err(dialog);
     }
-    let file_migration_summary = match migrate_legacy_files() {
+    let file_migration_summary = match migrate_legacy_files(&conn).await {
         Ok(summary) => summary,
         Err(dialog) => {
             if let Err(error) = db::close_connection(conn).await {

@@ -2,7 +2,6 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import HistoryIcon from "@mui/icons-material/History";
 import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
 import {
-	Avatar,
 	Box,
 	ButtonBase,
 	CircularProgress,
@@ -15,6 +14,7 @@ import {
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { SmartImage } from "@/components/SmartImage";
 import {
 	formatDateLabel,
 	formatPlayTime,
@@ -159,10 +159,10 @@ export function ActivityPanel({
 											to={`/libraries/${activity.gameId}`}
 											className="w-full justify-start rounded-2xl p-1.5 text-left hover:bg-[var(--mui-palette-action-hover)]"
 										>
-											<Avatar
-												variant="rounded"
+											<SmartImage
 												src={activity.imageUrl}
-												className="mr-3 h-12 w-12"
+												alt=""
+												className="mr-3 h-12 w-12 shrink-0 rounded object-cover"
 											/>
 											<Box className="min-w-0">
 												<Typography variant="body2" fontWeight={700} noWrap>

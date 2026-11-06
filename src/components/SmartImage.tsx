@@ -14,10 +14,15 @@ export interface SmartImageProps
  * 默认使用 WebView2 原生网络加载，享受 Chromium 缓存；加载失败时自动切换下一个候选 URL。
  */
 export const SmartImage = forwardRef<HTMLImageElement, SmartImageProps>(
-	({ src, fallbackSrc = "/images/default.png", onError, ...props }, ref) => {
+	({ src, fallbackSrc, onError, ...props }, ref) => {
 		const { src: activeSrc, onError: handleFallbackError } = useImageFallback(
 			src,
-			{ fallbackSrc, onError },
+			{
+				fallbackSrc:
+					fallbackSrc ??
+					(src ? "/images/unavailable.svg" : "/images/default.png"),
+				onError,
+			},
 		);
 
 		return (

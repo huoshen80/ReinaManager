@@ -982,6 +982,13 @@
 				"vndbDescription": "新增遊戲時會嘗試讀取 VNDB 收藏狀態，本地修改狀態時會同步回 VNDB。",
 				"vndbTitle": "啟用 VNDB 收藏同步"
 			},
+			"coverCleanup": {
+				"action": "清理無用檔案",
+				"cleaning": "清理中...",
+				"description": "刪除不再使用的雲端和自訂封面殘留，保留正在使用的封面。",
+				"result": "已刪除 {{deleted}} 個檔案，釋放 {{size}}；失敗 {{failed}} 個",
+				"title": "清理無用封面檔案"
+			},
 			"databaseBackup": {
 				"autoBackupOnExit": "退出時自動備份",
 				"autoBackupOnExitDescription": "開啟後，軟體正常退出時會自動備份資料庫；如果同時啟用自訂封面備份，可能會延長退出時間。",
@@ -1042,6 +1049,8 @@
 				"dragStart": "已拾起 {{source}}。",
 				"entryDescription": "調整 Mixed 遊戲的中繼資料來源優先順序與名稱顯示偏好。",
 				"heading": "遊戲中繼資料顯示",
+				"image": "封面來源順序",
+				"imageHint": "自訂圖片與個別遊戲指定的封面來源優先。切換時重用現有封面，缺少的圖片在顯示時下載。",
 				"keyboardHint": "按空白鍵開始排序，使用上下方向鍵移動，再按空白鍵放下，按 Escape 取消。",
 				"openModal": "開啟遊戲中繼資料顯示設定",
 				"orderHint": "拖曳右側把手調整順序，越靠上越優先。儲存後對現有與新增的 Mixed 遊戲生效。",

@@ -15,8 +15,9 @@ use backup::savedata::{
     delete_savedata_backup_record, open_savedata_backup_folder, restore_savedata_backup,
 };
 use database::*;
-use game::cover::custom::{delete_game_covers, import_clipboard_image_to_temp};
-use game::cover::{delete_cloud_cache, register_game_cover_protocol};
+use game::cover::assets::clean_unused_covers;
+use game::cover::custom::import_clipboard_image_to_temp;
+use game::cover::register_game_cover_protocol;
 use game::drop_import::resolve_bulk_import_paths;
 use game::launch::{launch_game, stop_game};
 use game::scan::scan_directory_for_games;
@@ -141,12 +142,11 @@ pub fn run() {
             restore_savedata_backup,
             delete_file,
             import_clipboard_image_to_temp,
-            delete_game_covers,
-            delete_cloud_cache,
             backup_database,
             create_auto_backup,
             open_database_backup_folder,
             backup_custom_covers,
+            clean_unused_covers,
             import_database,
             // 游戏数据相关 commands
             insert_game,

@@ -27,6 +27,8 @@ mod m20260922_000020_savedata_backup_root_semantics;
 mod m20260923_000021_tool_integration_defaults;
 mod m20261006_000022_nextmoe_oauth;
 
+mod m20261106_000023_cover_assets;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -55,6 +57,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260922_000020_savedata_backup_root_semantics::Migration),
             Box::new(m20260923_000021_tool_integration_defaults::Migration),
             Box::new(m20261006_000022_nextmoe_oauth::Migration),
+            Box::new(m20261106_000023_cover_assets::Migration),
         ]
     }
 }

@@ -128,6 +128,11 @@ pub(crate) async fn import_installed_game(
         Some("bytes"),
     );
 
+    let _cover_guard = crate::backup::common::acquire_database_backup_operation_lock().await;
+    let cover_root = reina_path::get_base_data_dir()
+        .map_err(|e| TaskFailure::new("game_import_failed", e))?
+        .join("covers");
+    let mut previous_covers = Vec::new();
     let transaction = db
         .begin()
         .await
@@ -194,6 +199,14 @@ pub(crate) async fn import_installed_game(
             ..Default::default()
         }
         .cleaned();
+        previous_covers = crate::game::cover::assets::game_asset_paths_at(
+            &transaction,
+            source.game_id as u32,
+            &cover_root,
+            Some("cloud"),
+        )
+        .await
+        .map_err(|e| TaskFailure::new("game_import_failed", e))?;
         let game = GamesRepository::update_aggregate(&transaction, source.game_id, updates, now)
             .await
             .map_err(|error| TaskFailure::new("game_import_failed", error.to_string()))?;
@@ -228,6 +241,14 @@ pub(crate) async fn import_installed_game(
         .await
         .map_err(|error| TaskFailure::new("game_import_failed", error.to_string()))?;
 
+    crate::game::cover::assets::clean_replaced_files_at(
+        db,
+        game_id as u32,
+        previous_covers,
+        &cover_root,
+    )
+    .await;
+    drop(_cover_guard);
     let _ = app.emit(
         "game-install-completed",
         GameInstallCompletedEvent {

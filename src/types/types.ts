@@ -215,7 +215,6 @@ export interface HikarinagiData {
  * 注意：CustomData 是用户可编辑的，支持 null 用于清空字段
  */
 export interface CustomData {
-	image?: Nullable<string>;
 	cover_source?: Nullable<SourceType>;
 	name?: Nullable<string>;
 	aliases?: Nullable<string[]>;
@@ -299,6 +298,8 @@ export interface SourceCandidateRecord<TData = unknown> {
  * 数据库主键必定存在，`sources` 包含聚合的真实元数据（以 JSON 存储）。
  */
 export interface FullGameData extends GameRuntimePayload {
+	custom_cover?: Nullable<string>;
+	cloud_covers?: Partial<Record<SourceType, string>>;
 	// --- 主键 ---
 	id: number;
 	id_type?: IdType | string;
@@ -353,6 +354,7 @@ export interface InsertGameParams
  * 对应 Rust 后端的 Option<Option<T>> 反序列化
  */
 export interface UpdateGameParams {
+	custom_cover_path?: Nullable<string>;
 	id_type?: IdType | string;
 
 	// --- 核心状态（支持三态） ---
@@ -370,6 +372,7 @@ export interface UpdateGameParams {
 
 	// --- 元数据 Payload（支持三态） ---
 	custom_data?: Nullable<CustomData>;
+	refresh_source_covers?: boolean;
 	upsert_sources?: GameSourceRecord[];
 	remove_sources?: string[];
 }
@@ -407,6 +410,9 @@ export interface GameData
 		GameRuntimePayload,
 		"localpath" | "executable" | "savepath" | "steam_launch_id"
 	> {
+	custom_cover?: string;
+	cloud_covers?: Partial<Record<SourceType, string>>;
+	image_source?: SourceType;
 	// 基础字段
 	id: number;
 	id_type?: IdType | string;
