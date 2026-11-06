@@ -42,9 +42,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut startup_dialogs = StartupDialogs::default();
-    let file_migration_summary = migrate_legacy_files(&mut startup_dialogs);
     let startup_context = format!(
-        "version={} os={} arch={} mode={} silent_startup={} {}",
+        "version={} os={} arch={} mode={} silent_startup={}",
         app.package_info().version,
         std::env::consts::OS,
         std::env::consts::ARCH,
@@ -54,7 +53,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             "standard"
         },
         silent_startup,
-        file_migration_summary,
     );
 
     let result =
@@ -102,31 +100,29 @@ fn read_silent_startup(app: &App) -> bool {
     }
 }
 
-fn migrate_legacy_files(startup_dialogs: &mut StartupDialogs) -> String {
-    match run_startup_migrations() {
-        Ok(result) if result.executed == 0 => "file_migration=skipped".to_string(),
-        Ok(result) => format!(
+fn migrate_legacy_files() -> Result<String, NativeDialog> {
+    let result = run_startup_migrations().map_err(|error| {
+        log::error!("文件迁移失败: {error}");
+        NativeDialog::new(
+            "Reina 启动失败",
+            "文件迁移未能完成，Reina 无法继续启动。\n请检查数据目录的访问权限和磁盘空间，错误已记录到日志。",
+            MessageDialogKind::Error,
+        )
+        .details(error)
+        .button_label("退出")
+    })?;
+    Ok(if result.executed == 0 {
+        "file_migration=skipped".to_string()
+    } else {
+        format!(
             "file_migration=completed executed={} skipped={} moved={} replaced={} removed_legacy={}",
             result.executed,
             result.skipped,
             result.migrated_files,
             result.replaced_files,
             result.removed_legacy_files,
-        ),
-        Err(error) => {
-            log::error!("旧版文件迁移失败: {error}");
-            startup_dialogs.dialogs.push(
-                NativeDialog::new(
-                    "Reina 文件迁移提醒",
-                    "旧版文件迁移未完成，部分封面可能无法显示。\n错误已记录到日志。",
-                    MessageDialogKind::Warning,
-                )
-                .details(error)
-                .button_label("知道了"),
-            );
-            "file_migration=failed".to_string()
-        }
-    }
+        )
+    })
 }
 
 async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(), NativeDialog> {
@@ -156,7 +152,18 @@ async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(
         }
         return Err(dialog);
     }
-    log::info!("启动初始化完成: {startup_context} database_migration=completed");
+    let file_migration_summary = match migrate_legacy_files() {
+        Ok(summary) => summary,
+        Err(dialog) => {
+            if let Err(error) = db::close_connection(conn).await {
+                log::error!("文件迁移失败后关闭数据库连接失败: {error}");
+            }
+            return Err(dialog);
+        }
+    };
+    log::info!(
+        "启动初始化完成: {startup_context} database_migration=completed {file_migration_summary}"
+    );
     app.manage(conn.clone());
 
     match recover_interrupted_tasks(&conn).await {
@@ -167,7 +174,7 @@ async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(
 }
 
 fn create_main_window(app: &App, silent_startup: bool) -> tauri::Result<()> {
-    // 数据库就绪后才加载前端，避免启动失败时仍执行依赖数据库的请求。
+    // 数据库和文件迁移完成后才加载前端，避免访问尚未就绪的数据。
     let window =
         tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?.build()?;
 
