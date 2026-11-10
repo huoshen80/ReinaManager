@@ -7,7 +7,9 @@ use crate::install::{
     protocol::setup_install_protocol, recover_interrupted_tasks, resume_pending_tasks,
 };
 use crate::utils::{
-    dialog::NativeDialog, legacy_migration::run_startup_migrations, logs::setup_logging,
+    dialog::NativeDialog,
+    legacy_migration::{StartupMigrationResult, run_startup_migrations},
+    logs::setup_logging,
 };
 
 #[cfg(target_os = "windows")]
@@ -55,20 +57,27 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         silent_startup,
     );
 
-    let result =
-        tauri::async_runtime::block_on(initialize_database(app.handle(), &startup_context))
-            .and_then(|()| {
-                create_main_window(app, silent_startup).map_err(|error| {
-                    log::error!("创建主窗口失败: {error}");
-                    NativeDialog::new(
-                        "Reina 启动失败",
-                        "无法创建主窗口，Reina 无法继续启动。\n错误已记录到日志。",
-                        MessageDialogKind::Error,
-                    )
-                    .details(error)
-                    .button_label("退出")
-                })
-            });
+    let result = tauri::async_runtime::block_on(initialize_database(
+        app.handle(),
+        &startup_context,
+        silent_startup,
+    ))
+    .and_then(|warning| {
+        create_main_window(app, silent_startup).map_err(|error| {
+            log::error!("创建主窗口失败: {error}");
+            NativeDialog::new(
+                "Reina 启动失败",
+                "无法创建主窗口，Reina 无法继续启动。\n错误已记录到日志。",
+                MessageDialogKind::Error,
+            )
+            .details(error)
+            .button_label("退出")
+        })?;
+        if let Some(warning) = warning {
+            startup_dialogs.dialogs.push(warning);
+        }
+        Ok(())
+    });
 
     if let Err(dialog) = result {
         startup_dialogs.dialogs.push(dialog);
@@ -100,32 +109,65 @@ fn read_silent_startup(app: &App) -> bool {
     }
 }
 
-async fn migrate_legacy_files(conn: &sea_orm::DatabaseConnection) -> Result<String, NativeDialog> {
-    let result = run_startup_migrations(conn).await.map_err(|error| {
-        log::error!("文件迁移失败: {error}");
+fn summarize_file_migration(
+    result: Result<StartupMigrationResult, String>,
+    silent_startup: bool,
+) -> (String, Option<NativeDialog>) {
+    let (summary, warning) = match result {
+        Ok(result) => {
+            let incomplete = result.failed_files > 0 || result.scan_failures > 0;
+            let status = if incomplete {
+                "partial"
+            } else if result.executed == 0 {
+                "skipped"
+            } else {
+                "completed"
+            };
+            (
+                format!(
+                    "file_migration={status} executed={} skipped={} moved={} replaced={} removed_legacy={} failed_files={} scan_failures={}",
+                    result.executed,
+                    result.skipped,
+                    result.migrated_files,
+                    result.replaced_files,
+                    result.removed_legacy_files,
+                    result.failed_files,
+                    result.scan_failures
+                ),
+                incomplete.then(|| {
+                    format!(
+                        "{} 个封面文件迁移失败，{} 个目录未能完成扫描。",
+                        result.failed_files, result.scan_failures
+                    )
+                }),
+            )
+        }
+        Err(error) => {
+            log::warn!("旧封面迁移未完成，继续启动: {error}");
+            (
+                "file_migration=failed".into(),
+                Some("旧封面目录迁移或扫描未能完成，暂时无法统计受影响的封面数量。".into()),
+            )
+        }
+    };
+    let dialog = warning.filter(|_| !silent_startup).map(|warning| {
         NativeDialog::new(
-            "Reina 启动失败",
-            "文件迁移未能完成，Reina 无法继续启动。\n请查看下方错误信息，详细记录已写入日志。",
-            MessageDialogKind::Error,
+            "Reina 封面迁移提醒",
+            format!(
+                "{warning}\n部分封面可能暂时无法显示。未完成迁移的文件已保留，下次启动会重试。\n你可以继续使用 Reina，或查看日志了解原因。"
+            ),
+            MessageDialogKind::Warning,
         )
-        .details(error)
-        .button_label("退出")
-    })?;
-    Ok(if result.executed == 0 {
-        "file_migration=skipped".to_string()
-    } else {
-        format!(
-            "file_migration=completed executed={} skipped={} moved={} replaced={} removed_legacy={}",
-            result.executed,
-            result.skipped,
-            result.migrated_files,
-            result.replaced_files,
-            result.removed_legacy_files,
-        )
-    })
+        .button_label("继续使用")
+    });
+    (summary, dialog)
 }
 
-async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(), NativeDialog> {
+async fn initialize_database(
+    app: &AppHandle,
+    startup_context: &str,
+    silent_startup: bool,
+) -> Result<Option<NativeDialog>, NativeDialog> {
     let conn = db::establish_connection().await.map_err(|error| {
         log::error!("无法建立数据库连接: {startup_context} error={error}");
         NativeDialog::new(
@@ -152,15 +194,8 @@ async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(
         }
         return Err(dialog);
     }
-    let file_migration_summary = match migrate_legacy_files(&conn).await {
-        Ok(summary) => summary,
-        Err(dialog) => {
-            if let Err(error) = db::close_connection(conn).await {
-                log::error!("文件迁移失败后关闭数据库连接失败: {error}");
-            }
-            return Err(dialog);
-        }
-    };
+    let (file_migration_summary, warning) =
+        summarize_file_migration(run_startup_migrations(&conn).await, silent_startup);
     log::info!(
         "启动初始化完成: {startup_context} database_migration=completed {file_migration_summary}"
     );
@@ -170,11 +205,11 @@ async fn initialize_database(app: &AppHandle, startup_context: &str) -> Result<(
         Ok(task_ids) => resume_pending_tasks(app, &conn, task_ids),
         Err(error) => log::error!("恢复中断任务失败: {error}"),
     }
-    Ok(())
+    Ok(warning)
 }
 
 fn create_main_window(app: &App, silent_startup: bool) -> tauri::Result<()> {
-    // 数据库和文件迁移完成后才加载前端，避免访问尚未就绪的数据。
+    // 数据库必须就绪；封面迁移失败允许先显示占位图。
     let window =
         tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?.build()?;
 
@@ -221,5 +256,46 @@ fn shutdown(app: &AppHandle) {
                 Err(error) => log::error!("关闭数据库连接时出错: {error}"),
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod migration_warning_tests {
+    use super::*;
+
+    #[test]
+    fn only_incomplete_migrations_warn_and_silent_startup_suppresses_dialogs() {
+        for silent in [false, true] {
+            let (summary, warning) =
+                summarize_file_migration(Ok(StartupMigrationResult::default()), silent);
+            assert!(summary.contains("file_migration=skipped"));
+            assert!(warning.is_none());
+            let (summary, warning) = summarize_file_migration(
+                Ok(StartupMigrationResult {
+                    executed: 1,
+                    migrated_files: 3,
+                    ..Default::default()
+                }),
+                silent,
+            );
+            assert!(summary.contains("file_migration=completed"));
+            assert!(warning.is_none());
+            for (failed_files, scan_failures) in [(2, 0), (0, 1), (2, 1)] {
+                let (summary, warning) = summarize_file_migration(
+                    Ok(StartupMigrationResult {
+                        failed_files,
+                        scan_failures,
+                        ..Default::default()
+                    }),
+                    silent,
+                );
+                assert!(summary.contains("file_migration=partial"));
+                assert_eq!(warning.is_some(), !silent);
+            }
+            let (summary, warning) =
+                summarize_file_migration(Err("测试目录无法读取".into()), silent);
+            assert_eq!(summary, "file_migration=failed");
+            assert_eq!(warning.is_some(), !silent);
+        }
     }
 }

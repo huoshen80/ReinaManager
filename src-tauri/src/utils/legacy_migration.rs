@@ -16,6 +16,8 @@ pub struct StartupMigrationResult {
     pub removed_legacy_files: usize,
     pub skipped: usize,
     pub executed: usize,
+    pub failed_files: usize,
+    pub scan_failures: usize,
 }
 
 pub async fn run_startup_migrations(
@@ -54,6 +56,8 @@ fn append_migration_result(
     aggregate.removed_legacy_files += result.removed_legacy_files;
     aggregate.skipped += result.skipped;
     aggregate.executed += result.executed;
+    aggregate.failed_files += result.failed_files;
+    aggregate.scan_failures += result.scan_failures;
     Ok(())
 }
 
@@ -190,6 +194,7 @@ async fn m20261107_000002_migrate_cover_assets(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(result),
         Err(e) => return Err(e.to_string()),
     };
+
     while let Some(game) = games.next_entry().await.map_err(|e| e.to_string())? {
         let name = game.file_name().to_string_lossy().to_string();
         let Some(id) = name
@@ -198,73 +203,108 @@ async fn m20261107_000002_migrate_cover_assets(
         else {
             continue;
         };
-        if !game.file_type().await.map_err(|e| e.to_string())?.is_dir() {
-            continue;
-        }
-        result.executed = 1;
-        let mut entries = tokio::fs::read_dir(game.path())
-            .await
-            .map_err(|e| e.to_string())?;
-        while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
-            if !entry
-                .file_type()
-                .await
-                .map_err(|e| e.to_string())?
-                .is_file()
-            {
-                continue;
+        let scan = async {
+            if !game.file_type().await.map_err(|e| e.to_string())?.is_dir() {
+                return Ok::<_, String>(());
             }
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            if file_name.starts_with(&format!("cover_{id}_")) {
-                // 按完整旧文件名匹配，不能仅凭游戏 ID 恢复已被用户替换或删除的封面。
-                let row = db.query_one_raw(Statement::from_sql_and_values(
+            result.executed = 1;
+            let mut entries = tokio::fs::read_dir(game.path())
+                .await
+                .map_err(|e| e.to_string())?;
+            while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
+                let migration = async {
+                    if entry
+                        .file_type()
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .is_file()
+                    {
+                        migrate_cover_file(db, root, id, &entry.path(), &mut result).await?;
+                    }
+                    Ok::<_, String>(())
+                }
+                .await;
+                if let Err(error) = migration {
+                    result.failed_files += 1;
+                    log::warn!(
+                        "封面迁移失败，保留旧文件 {}: {error}",
+                        entry.path().display()
+                    );
+                }
+            }
+            drop(entries);
+            if let Err(error) = remove_dir_if_empty(&game.path()) {
+                log::warn!("清理旧封面空目录失败 {}: {error}", game.path().display());
+            }
+            Ok(())
+        }
+        .await;
+        if let Err(error) = scan {
+            result.scan_failures += 1;
+            log::warn!("扫描旧封面目录失败 {}: {error}", game.path().display());
+        }
+    }
+    Ok(result)
+}
+
+async fn migrate_cover_file(
+    db: &DatabaseConnection,
+    root: &Path,
+    id: u32,
+    path: &Path,
+    result: &mut StartupMigrationResult,
+) -> Result<(), String> {
+    let file_name = path
+        .file_name()
+        .ok_or("旧封面路径缺少文件名")?
+        .to_string_lossy()
+        .to_string();
+    if file_name.starts_with(&format!("cover_{id}_")) {
+        // 按完整旧文件名匹配，不能仅凭游戏 ID 恢复已被用户替换或删除的封面。
+        let row = db.query_one_raw(Statement::from_sql_and_values(
                     DbBackend::Sqlite,
                     "SELECT id, extension FROM cover_assets WHERE kind = 'custom' AND legacy_filename = ?",
                     [file_name.into()],
                 )).await.map_err(|e| e.to_string())?;
-                if let Some(row) = row {
-                    let asset_id: String = row.try_get("", "id").map_err(|e| e.to_string())?;
-                    let extension: String =
-                        row.try_get("", "extension").map_err(|e| e.to_string())?;
-                    let target = asset_path(root, "custom", &asset_id, &extension)?;
-                    match tokio::fs::metadata(&target).await {
-                        Ok(metadata) if metadata.is_file() => {
-                            // 迁移重入不覆盖已有图片；确认可识别后才清理旧副本。
-                            custom_cover_extension(&target).await?;
-                        }
-                        Ok(_) => return Err(format!("封面目标不是文件: {}", target.display())),
-                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            let actual_extension =
-                                save_custom_cover(root, &asset_id, &entry.path()).await?;
-                            // 旧文件后缀可能与内容不同，文件落盘后再纠正资产格式。
-                            if actual_extension != extension {
-                                db.execute_raw(Statement::from_sql_and_values(
-                                    DbBackend::Sqlite,
-                                    "UPDATE cover_assets SET extension = ? WHERE id = ?",
-                                    [actual_extension.into(), asset_id.into()],
-                                ))
-                                .await
-                                .map_err(|e| e.to_string())?;
-                            }
-                            result.migrated_files += 1;
-                        }
-                        Err(e) => return Err(format!("检查封面失败 {}: {e}", target.display())),
-                    }
-                } else {
-                    log::info!("清理无关联的旧自定义封面: {}", entry.path().display());
+        if let Some(row) = row {
+            let asset_id: String = row.try_get("", "id").map_err(|e| e.to_string())?;
+            let extension: String = row.try_get("", "extension").map_err(|e| e.to_string())?;
+            let target = asset_path(root, "custom", &asset_id, &extension)?;
+            match tokio::fs::metadata(&target).await {
+                Ok(metadata) if metadata.is_file() => {
+                    // 迁移重入不覆盖已有图片；确认可识别后才清理旧副本。
+                    custom_cover_extension(&target).await?;
                 }
-            } else if !file_name.starts_with(&format!("cloud_cover_{id}.")) {
-                continue;
+                Ok(_) => return Err(format!("封面目标不是文件: {}", target.display())),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    let actual_extension = save_custom_cover(root, &asset_id, path).await?;
+                    // 旧文件后缀可能与内容不同，文件落盘后再纠正资产格式。
+                    if actual_extension != extension {
+                        db.execute_raw(Statement::from_sql_and_values(
+                            DbBackend::Sqlite,
+                            "UPDATE cover_assets SET extension = ? WHERE id = ?",
+                            [actual_extension.into(), asset_id.into()],
+                        ))
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    }
+                    result.migrated_files += 1;
+                }
+                Err(e) => return Err(format!("检查封面失败 {}: {e}", target.display())),
             }
-            tokio::fs::remove_file(entry.path())
-                .await
-                .map_err(|e| e.to_string())?;
-            result.removed_legacy_files += 1;
+        } else {
+            log::info!("清理无关联的旧自定义封面: {}", path.display());
         }
-        drop(entries);
-        remove_dir_if_empty(&game.path())?;
+    } else if !file_name.starts_with(&format!("cloud_cover_{id}.")) {
+        return Ok(());
     }
-    Ok(result)
+
+    match tokio::fs::remove_file(path).await {
+        Ok(()) => result.removed_legacy_files += 1,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => log::warn!("封面已处理，清理旧文件失败 {}: {e}", path.display()),
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -279,6 +319,73 @@ mod tests {
 
     async fn legacy_database() -> DatabaseConnection {
         database_with_custom_data(Some(r#"{"name":"保留","image":"png_123"}"#)).await
+    }
+
+    #[tokio::test]
+    async fn failed_cover_does_not_stop_other_covers_and_retries_next_startup() {
+        let db = legacy_database().await;
+        let root = temporary_root();
+        let second_id = uuid::Uuid::now_v7().to_string();
+        db.execute_unprepared("INSERT INTO games(id) VALUES(2)")
+            .await
+            .unwrap();
+        db.execute_raw(Statement::from_sql_and_values(DbBackend::Sqlite,
+            "INSERT INTO cover_assets(id, game_id, kind, extension, legacy_filename) VALUES(?,2,'custom','png','cover_2_png_123')",
+            [second_id.clone().into()])).await.unwrap();
+        for id in [1, 2] {
+            fs::create_dir_all(root.join(format!("game_{id}"))).unwrap();
+        }
+        let broken = root.join("game_1/cover_1_png_123");
+        let valid = root.join("game_2/cover_2_png_123");
+        fs::write(&broken, b"invalid image").unwrap();
+        fs::write(&valid, png()).unwrap();
+        let result = run_startup_migrations_at(&db, &root, &root).await.unwrap();
+        assert_eq!(result.failed_files, 1);
+        assert_eq!(result.scan_failures, 0);
+        assert_eq!(result.migrated_files, 1);
+        assert!(broken.exists());
+        assert!(!valid.exists());
+        assert_eq!(
+            fs::read(asset_path(&root, "custom", &second_id, "png").unwrap()).unwrap(),
+            png()
+        );
+        fs::write(&broken, png()).unwrap();
+        assert_eq!(
+            run_startup_migrations_at(&db, &root, &root)
+                .await
+                .unwrap()
+                .failed_files,
+            0
+        );
+        assert!(!broken.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn old_file_deletion_failure_does_not_report_unavailable_cover() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let db = legacy_database().await;
+        let root = temporary_root();
+        let old = root.join("game_1/cover_1_png_123");
+        fs::create_dir_all(old.parent().unwrap()).unwrap();
+        fs::write(&old, png()).unwrap();
+        // 允许读取但拒绝删除，模拟其他程序占用旧文件。
+        let guard = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1)
+            .open(&old)
+            .unwrap();
+        let result = run_startup_migrations_at(&db, &root, &root).await.unwrap();
+        assert_eq!(result.failed_files, 0);
+        assert_eq!(result.scan_failures, 0);
+        assert_eq!(result.migrated_files, 1);
+        assert!(old.exists());
+        assert!(custom_path(&db, &root).await.exists());
+        drop(guard);
+        run_startup_migrations_at(&db, &root, &root).await.unwrap();
+        assert!(!old.exists());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]
@@ -298,7 +405,13 @@ mod tests {
         let original_target = custom_path(&db, &root).await;
         let compressed_target = original_target.with_extension("webp");
         db.execute_unprepared("CREATE TRIGGER reject_format BEFORE UPDATE ON cover_assets BEGIN SELECT RAISE(ABORT, 'test failure'); END").await.unwrap();
-        assert!(run_startup_migrations_at(&db, &root, &root).await.is_err());
+        assert_eq!(
+            run_startup_migrations_at(&db, &root, &root)
+                .await
+                .unwrap()
+                .failed_files,
+            1
+        );
         assert!(old.is_file());
         assert_eq!(custom_path(&db, &root).await, original_target);
         let compressed = fs::read(&compressed_target).unwrap();
@@ -456,17 +569,35 @@ mod tests {
         let old = root.join("game_1/cover_1_jpeg_123");
         fs::create_dir_all(old.parent().unwrap()).unwrap();
         fs::write(&old, b"invalid image").unwrap();
-        assert!(run_startup_migrations_at(&db, &root, &root).await.is_err());
+        assert_eq!(
+            run_startup_migrations_at(&db, &root, &root)
+                .await
+                .unwrap()
+                .failed_files,
+            1
+        );
         assert!(old.is_file());
         let target = custom_path(&db, &root).await;
         let partial = target.with_extension("part");
         fs::create_dir_all(&partial).unwrap();
         fs::write(&old, png()).unwrap();
-        assert!(run_startup_migrations_at(&db, &root, &root).await.is_err());
+        assert_eq!(
+            run_startup_migrations_at(&db, &root, &root)
+                .await
+                .unwrap()
+                .failed_files,
+            1
+        );
         assert!(old.is_file());
         fs::remove_dir(&partial).unwrap();
         db.execute_unprepared("CREATE TRIGGER reject_format BEFORE UPDATE ON cover_assets BEGIN SELECT RAISE(ABORT, 'test failure'); END").await.unwrap();
-        assert!(run_startup_migrations_at(&db, &root, &root).await.is_err());
+        assert_eq!(
+            run_startup_migrations_at(&db, &root, &root)
+                .await
+                .unwrap()
+                .failed_files,
+            1
+        );
         assert!(old.is_file());
         assert_eq!(fs::read(target.with_extension("png")).unwrap(), png());
         db.execute_unprepared("DROP TRIGGER reject_format")
