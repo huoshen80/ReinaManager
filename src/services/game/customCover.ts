@@ -6,14 +6,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 
 /**
- * 获取文件扩展名
- */
-export const getFileExtension = (filename: string): string => {
-	const lastDot = filename.lastIndexOf(".");
-	return lastDot !== -1 ? filename.substring(lastDot + 1).toLowerCase() : "";
-};
-
-/**
  * 选择图片文件（仅选择，不上传）
  * @returns Promise<string | null> 选择的图片文件路径或null
  */

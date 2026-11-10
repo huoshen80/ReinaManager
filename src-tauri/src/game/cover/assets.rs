@@ -29,6 +29,7 @@ pub fn image_extension(bytes: &[u8]) -> Result<&'static str, String> {
     }
 }
 
+#[cfg(test)]
 pub async fn write_asset(
     root: &Path,
     kind: &str,
@@ -42,16 +43,24 @@ pub async fn write_asset(
 }
 
 pub async fn write_asset_file(target: &Path, bytes: &[u8]) -> Result<(), String> {
+    write_asset_stream(target, bytes).await
+}
+
+pub async fn write_asset_stream(
+    target: &Path,
+    mut source: impl tokio::io::AsyncRead + Unpin,
+) -> Result<(), String> {
     tokio::fs::create_dir_all(target.parent().unwrap())
         .await
         .map_err(|e| e.to_string())?;
     let temporary = target.with_extension("part");
     let result = async {
-        use tokio::io::AsyncWriteExt;
         let mut file = tokio::fs::File::create(&temporary)
             .await
             .map_err(|e| e.to_string())?;
-        file.write_all(bytes).await.map_err(|e| e.to_string())?;
+        tokio::io::copy(&mut source, &mut file)
+            .await
+            .map_err(|e| e.to_string())?;
         file.sync_all().await.map_err(|e| e.to_string())?;
         drop(file);
         tokio::fs::rename(&temporary, &target)

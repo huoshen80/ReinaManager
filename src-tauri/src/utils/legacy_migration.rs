@@ -1,5 +1,5 @@
-use crate::game::cover::assets::{asset_path, image_extension, write_asset_file};
-use crate::game::cover::custom::read_custom_cover;
+use crate::game::cover::assets::asset_path;
+use crate::game::cover::custom::{custom_cover_extension, save_custom_cover};
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement};
 use std::fs;
 use std::path::Path;
@@ -230,23 +230,12 @@ async fn m20261107_000002_migrate_cover_assets(
                     match tokio::fs::metadata(&target).await {
                         Ok(metadata) if metadata.is_file() => {
                             // 迁移重入不覆盖已有图片；确认可识别后才清理旧副本。
-                            image_extension(&read_custom_cover(&target).await?)?;
+                            custom_cover_extension(&target).await?;
                         }
                         Ok(_) => return Err(format!("封面目标不是文件: {}", target.display())),
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            let bytes = read_custom_cover(&entry.path()).await?;
-                            let actual_extension = image_extension(&bytes)?;
-                            let target = asset_path(root, "custom", &asset_id, actual_extension)?;
-                            // 上次可能已写完图片，却在更新格式前中断。
-                            match tokio::fs::metadata(&target).await {
-                                Ok(_) => {
-                                    image_extension(&read_custom_cover(&target).await?)?;
-                                }
-                                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                                    write_asset_file(&target, &bytes).await?;
-                                }
-                                Err(e) => return Err(e.to_string()),
-                            }
+                            let actual_extension =
+                                save_custom_cover(root, &asset_id, &entry.path()).await?;
                             // 旧文件后缀可能与内容不同，文件落盘后再纠正资产格式。
                             if actual_extension != extension {
                                 db.execute_raw(Statement::from_sql_and_values(
@@ -290,6 +279,43 @@ mod tests {
 
     async fn legacy_database() -> DatabaseConnection {
         database_with_custom_data(Some(r#"{"name":"保留","image":"png_123"}"#)).await
+    }
+
+    #[tokio::test]
+    async fn compresses_large_legacy_cover_and_resumes_after_database_failure() {
+        let db = legacy_database().await;
+        let root = temporary_root();
+        let old = root.join("game_1/cover_1_png_123");
+        fs::create_dir_all(old.parent().unwrap()).unwrap();
+        fs::write(&old, png()).unwrap();
+        // 旧版未限制大小；使用带尾部填充的有效 PNG 验证超过原上传限制的迁移。
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&old)
+            .unwrap()
+            .set_len(33 * 1024 * 1024)
+            .unwrap();
+        let original_target = custom_path(&db, &root).await;
+        let compressed_target = original_target.with_extension("webp");
+        db.execute_unprepared("CREATE TRIGGER reject_format BEFORE UPDATE ON cover_assets BEGIN SELECT RAISE(ABORT, 'test failure'); END").await.unwrap();
+        assert!(run_startup_migrations_at(&db, &root, &root).await.is_err());
+        assert!(old.is_file());
+        assert_eq!(custom_path(&db, &root).await, original_target);
+        let compressed = fs::read(&compressed_target).unwrap();
+        assert_eq!(
+            image::load_from_memory(&compressed).unwrap().into_rgba8(),
+            image::load_from_memory(&png()).unwrap().into_rgba8()
+        );
+        db.execute_unprepared("DROP TRIGGER reject_format")
+            .await
+            .unwrap();
+        run_startup_migrations_at(&db, &root, &root).await.unwrap();
+        assert_eq!(custom_path(&db, &root).await, compressed_target);
+        assert_eq!(fs::read(&compressed_target).unwrap(), compressed);
+        assert!(!old.exists());
+        run_startup_migrations_at(&db, &root, &root).await.unwrap();
+        assert_eq!(fs::read(compressed_target).unwrap(), compressed);
+        fs::remove_dir_all(root).unwrap();
     }
 
     async fn custom_path(db: &DatabaseConnection, root: &Path) -> std::path::PathBuf {

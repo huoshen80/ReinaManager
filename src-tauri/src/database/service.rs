@@ -119,11 +119,12 @@ async fn save_game_with_custom_cover(
     updates: UpdateGameData,
     image_path: Option<&str>,
 ) -> Result<FullGameData, String> {
-    use crate::game::cover::{assets, custom::read_custom_cover};
+    use crate::game::cover::{assets, custom::save_custom_cover};
     let previous = assets::game_asset_paths_at(db, game_id as u32, root, None).await?;
     let new_asset = if let Some(path) = image_path {
-        let bytes = read_custom_cover(std::path::Path::new(path)).await?;
-        Some(assets::write_asset(root, "custom", &bytes).await?)
+        let id = uuid::Uuid::now_v7().to_string();
+        let extension = save_custom_cover(root, &id, std::path::Path::new(path)).await?;
+        Some((id, extension))
     } else {
         None
     };
