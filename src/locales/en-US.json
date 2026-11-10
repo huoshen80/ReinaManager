@@ -774,6 +774,7 @@
 			"Edit": {
 				"dataSourceEditAndUpdate": "Data Source Edit and Update",
 				"gameInfoEdit": "Game Info Edit",
+				"updatePartialSuccess": "Game information updated; fetching {{sources}} failed, so their existing data was kept.",
 				"updateSuccess": "Game information updated"
 			},
 			"editPart": "Edit",

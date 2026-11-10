@@ -62,13 +62,32 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 		gameIndex.sourceAvailabilityById.get(id) ?? EMPTY_SOURCE_AVAILABILITY;
 	const rawGame = gameIndex.rawById.get(id);
 
-	const saveMetadata = async (payload: UpdateGameParams) => {
+	const saveMetadata = async (
+		payload: UpdateGameParams,
+		failedSources: MetadataFetchResult["failedSources"] = [],
+	) => {
 		setIsSavingMetadata(true);
 		try {
 			await fileService.deleteCloudCoverCache(id);
 			await updateGameMutation.mutateAsync({ gameId: id, updates: payload });
 			setOpenViewBox(false);
-			snackbar.success(t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"));
+			if (failedSources.length > 0) {
+				snackbar.warning(
+					t(
+						"pages.Detail.Edit.updatePartialSuccess",
+						"游戏信息已更新；{{sources}} 获取失败，已保留其已有数据。",
+						{
+							sources: failedSources
+								.map((source) => getRuntimeSourceAdapter(source).label)
+								.join(" / "),
+						},
+					),
+				);
+			} else {
+				snackbar.success(
+					t("pages.Detail.Edit.updateSuccess", "游戏信息已更新"),
+				);
+			}
 		} finally {
 			setIsSavingMetadata(false);
 		}
@@ -77,7 +96,7 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 	const handleConfirmGameUpdate = async () => {
 		if (!metadataUpdate || isSavingMetadata) return;
 		try {
-			await saveMetadata(metadataUpdate.payload);
+			await saveMetadata(metadataUpdate.payload, metadataUpdate.failedSources);
 		} catch (error) {
 			snackbar.error(getUserErrorMessage(error, t));
 		}
@@ -108,12 +127,11 @@ function EditContent({ selectedGame }: { selectedGame: GameData }) {
 
 	const handleSelectedMetadata = async (result: MetadataFetchResult) => {
 		if (!rawGame || isSavingMetadata) return;
-		// 名称搜索已由用户确认候选，只有部分失败时才补充确认保留旧数据。
-		if (result.failedSources.length > 0) {
-			previewMetadata(result);
-			return;
-		}
-		await saveMetadata(buildMetadataUpdatePayload(result, rawGame));
+		// 名称搜索已确认候选，失败来源由写入计划保留，无需重复确认。
+		await saveMetadata(
+			buildMetadataUpdatePayload(result, rawGame),
+			result.failedSources,
+		);
 	};
 
 	// 只切换当前展示/合并使用的数据源，不重新拉取元数据

@@ -1,3 +1,4 @@
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -34,6 +35,7 @@ interface MixedSourceConfirmDialogProps {
 	) => void | Promise<void>;
 	loading?: boolean;
 	title?: string;
+	warningMessage?: string;
 }
 
 function getDialogMaxWidth(sourceCount: number): "xs" | "sm" | "md" | "lg" {
@@ -89,6 +91,7 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 	onConfirm,
 	loading = false,
 	title,
+	warningMessage,
 }) => {
 	const { t, i18n } = useTranslation();
 	const preferOriginalName = useStore((state) => state.preferOriginalName);
@@ -138,6 +141,11 @@ const MixedSourceConfirmDialog: React.FC<MixedSourceConfirmDialogProps> = ({
 					{title || t("components.AlertBox.confirmAddTitle", "确认添加游戏")}
 				</DialogTitle>
 				<DialogContent dividers>
+					{warningMessage && (
+						<Alert severity="warning" className="mb-3">
+							{warningMessage}
+						</Alert>
+					)}
 					<Box className={sourceGridClassName}>
 						{availableSources.map((source) => {
 							const selectedGame = selection[source] ?? null;

@@ -748,6 +748,7 @@
 			"Edit": {
 				"dataSourceEditAndUpdate": "数据源编辑与更新",
 				"gameInfoEdit": "游戏资料编辑",
+				"updatePartialSuccess": "游戏信息已更新；{{sources}} 获取失败，已保留其已有数据。",
 				"updateSuccess": "游戏信息已更新"
 			},
 			"editPart": "编辑",

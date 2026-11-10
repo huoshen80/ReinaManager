@@ -748,6 +748,7 @@
 			"Edit": {
 				"dataSourceEditAndUpdate": "データソース編集と更新",
 				"gameInfoEdit": "ゲーム情報編集",
+				"updatePartialSuccess": "ゲーム情報を更新しました。{{sources}} の取得に失敗したため、既存のデータを保持しました。",
 				"updateSuccess": "ゲーム情報を更新しました"
 			},
 			"editPart": "編集",

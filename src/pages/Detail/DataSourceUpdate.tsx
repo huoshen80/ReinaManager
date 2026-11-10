@@ -456,6 +456,20 @@ export const DataSourceUpdate: React.FC<DataSourceUpdateProps> = ({
 					open
 					onClose={metadataSearchFlow.closeMixedCandidates}
 					candidates={metadataSearchFlow.mixedCandidateState.candidates}
+					warningMessage={
+						metadataSearchFlow.mixedCandidateState.failedSources.length > 0
+							? t(
+									"components.AlertBox.metadataFetchFailed",
+									"{{sources}} 获取失败，将保留其已有数据。下方为本次成功获取的结果。",
+									{
+										sources:
+											metadataSearchFlow.mixedCandidateState.failedSources
+												.map((source) => getRuntimeSourceAdapter(source).label)
+												.join(" / "),
+									},
+								)
+							: undefined
+					}
 					onConfirm={metadataSearchFlow.confirmMixedSelection}
 					loading={metadataSearchFlow.isSearching}
 					title={t(
