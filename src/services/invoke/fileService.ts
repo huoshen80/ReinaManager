@@ -25,6 +25,7 @@ export interface ImportResult {
 	requires_backup_confirmation: boolean;
 	restart_required: boolean;
 	recovery_path: string | null;
+	covers_recovery_path: string | null;
 	warning: string | null;
 }
 
@@ -38,8 +39,7 @@ export interface AutoBackupRequest {
 
 export interface AutoBackupResult {
 	batchId: string;
-	database: BackupResult;
-	covers: BackupResult | null;
+	backup: BackupResult;
 	warnings: string[];
 }
 
@@ -206,19 +206,12 @@ class FileService extends BaseService {
 		return this.invoke<CoverCleanupResult>("clean_unused_covers");
 	}
 
-	async backupDatabase(): Promise<BackupResult> {
-		return this.invoke<BackupResult>("backup_database");
+	async backupDatabase(includeCovers: boolean): Promise<BackupResult> {
+		return this.invoke<BackupResult>("backup_database", { includeCovers });
 	}
 
 	async openDatabaseBackupFolder(): Promise<void> {
 		return this.invoke<void>("open_database_backup_folder");
-	}
-
-	/**
-	 * 备份自定义封面（仅自定义封面，不含云端缓存）
-	 */
-	async backupCustomCovers(): Promise<BackupResult> {
-		return this.invoke<BackupResult>("backup_custom_covers");
 	}
 
 	async createAutoBackup(

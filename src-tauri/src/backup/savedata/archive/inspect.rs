@@ -81,7 +81,7 @@ pub(in crate::backup::savedata) fn inspect_legacy_archive<R: Read + Seek>(
 
 type ParsedEntries = Vec<(Vec<String>, bool)>;
 
-fn validate_entries(
+pub(in crate::backup) fn validate_entries(
     entries: &[ArchiveEntry],
     allow_empty: bool,
 ) -> Result<(ParsedEntries, u64), Box<dyn std::error::Error>> {

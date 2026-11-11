@@ -149,7 +149,7 @@ fn create_restore_sibling_path(parent: &Path, prefix: &str) -> Result<PathBuf, S
     Err("无法创建唯一原存档暂存路径".to_string())
 }
 
-pub(super) fn extract_archive<R: Read + Seek>(
+pub(in crate::backup) fn extract_archive<R: Read + Seek>(
     reader: &mut ArchiveReader<R>,
     output_dir: &Path,
 ) -> Result<(), sevenz_rust2::Error> {

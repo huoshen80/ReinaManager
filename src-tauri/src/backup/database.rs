@@ -1,9 +1,10 @@
+use crate::backup::archive::{create_7z_archive, verify_7z_archive};
 use crate::backup::common::{
     BackupResult, acquire_database_backup_operation_lock, ensure_database_backup_available,
     mark_database_backup_unavailable, next_backup_filename, resolve_backup_dir,
     temporary_sibling_path,
 };
-use crate::backup::covers::backup_custom_covers_archive;
+use crate::backup::covers::scan_and_copy_custom_covers;
 use crate::database::db::close_connection;
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{
@@ -26,6 +27,7 @@ pub struct ImportResult {
     pub restart_required: bool,
     pub warning: Option<String>,
     pub recovery_path: Option<String>,
+    pub covers_recovery_path: Option<String>,
 }
 
 // ==================== 数据库备份和导入 ====================
@@ -36,23 +38,74 @@ fn generate_backup_filename(backup_dir: &Path) -> Result<String, String> {
     next_backup_filename(backup_dir, "reina_manager_", &timestamp, ".db")
 }
 
-/// 使用 VACUUM INTO 进行数据库热备份
-///
-/// 此方法使用 SQLite 的 VACUUM INTO 语句，可以在数据库正在使用时安全地创建备份。
-/// VACUUM INTO 会创建一个优化后的数据库副本，同时保持原数据库的完整性。
-///
-/// 备份路径从数据库的 user 表中读取配置：
-/// - 优先使用 user.db_backup_path（如果设置且非空）
-/// - 否则使用默认路径
-///
-/// # Returns
-///
-/// 备份结果，包含备份文件的路径
+/// 热备份数据库，可选包含自定义封面的完整数据包。
 #[command]
-pub async fn backup_database(db: State<'_, DatabaseConnection>) -> Result<BackupResult, String> {
+pub async fn backup_database(
+    db: State<'_, DatabaseConnection>,
+    include_covers: bool,
+) -> Result<BackupResult, String> {
     let _operation_guard = acquire_database_backup_operation_lock().await;
     ensure_database_backup_available()?;
-    backup_database_file(&db).await
+    if include_covers {
+        backup_data_file(&db, &reina_path::get_base_data_dir()?.join("covers")).await
+    } else {
+        backup_database_file(&db).await
+    }
+}
+
+async fn backup_data_file(db: &DatabaseConnection, covers: &Path) -> Result<BackupResult, String> {
+    let backup_dir = resolve_backup_dir(db).await?;
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+    let name = next_backup_filename(&backup_dir, "reina_data_", &timestamp, ".7z")?;
+    backup_data_archive_to(db, covers, &backup_dir.join(name), None).await
+}
+
+pub(super) async fn backup_data_archive_to(
+    db: &DatabaseConnection,
+    covers_dir: &Path,
+    archive_path: &Path,
+    cold_source: Option<&Path>,
+) -> Result<BackupResult, String> {
+    ensure_target_does_not_exist(archive_path, "数据备份")?;
+    let temporary_archive = temporary_sibling_path(archive_path, "reina-creating")?;
+    let staging = std::env::temp_dir().join(format!("reina-data-backup-{}", uuid::Uuid::now_v7()));
+    let result = async {
+        fs::create_dir_all(staging.join("data"))
+            .map_err(|e| format!("创建备份临时目录失败: {e}"))?;
+        if let Some(source) = cold_source {
+            copy_database_file_cold_to(source, &staging.join("data"), "reina_manager.db")?;
+        } else {
+            backup_database_file_to(db, &staging.join("data"), "reina_manager.db").await?;
+        }
+        // 缺少封面目录是正常情况，其他读取错误必须中止完整数据备份。
+        match fs::metadata(covers_dir) {
+            Ok(metadata) if metadata.is_dir() => {
+                scan_and_copy_custom_covers(covers_dir, &staging.join("covers"))?;
+            }
+            Ok(_) => return Err("封面路径不是目录，无法备份".into()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("读取封面目录失败: {e}")),
+        }
+        create_7z_archive(&staging, &temporary_archive)
+            .map_err(|e| format!("创建数据备份失败: {e}"))?;
+        verify_7z_archive(&temporary_archive).map_err(|e| format!("校验数据备份失败: {e}"))?;
+        ensure_target_does_not_exist(archive_path, "数据备份")?;
+        fs::rename(&temporary_archive, archive_path)
+            .map_err(|e| format!("发布数据备份失败: {e}"))?;
+        Ok(BackupResult {
+            success: true,
+            path: Some(archive_path.to_string_lossy().into_owned()),
+            message: "数据备份成功".to_string(),
+        })
+    }
+    .await;
+    if let Err(error) = fs::remove_dir_all(&staging) {
+        log::warn!("清理数据备份临时目录失败 {}: {error}", staging.display());
+    }
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary_archive);
+    }
+    result
 }
 
 #[command]
@@ -179,13 +232,91 @@ async fn import_database_at_paths(
     allow_backup_failure: bool,
     db: &DatabaseConnection,
 ) -> Result<ImportResult, String> {
+    if !source.is_absolute() || !source.is_file() {
+        return Err("请选择有效的备份文件绝对路径".into());
+    }
+    if source
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("7z"))
+    {
+        let extracted = temporary_sibling_path(covers, "reina-extracted")?;
+        fs::create_dir(&extracted).map_err(|e| format!("创建解压目录失败: {e}"))?;
+        let result = async {
+            extract_data_archive(source, &extracted)?;
+            import_prepared_database(
+                &extracted.join("data/reina_manager.db"),
+                target,
+                covers,
+                allow_backup_failure,
+                db,
+                Some(&extracted.join("covers")),
+            )
+            .await
+        }
+        .await;
+        if !matches!(&result, Ok(import) if import.recovery_path.is_some())
+            && let Err(error) = fs::remove_dir_all(&extracted)
+        {
+            log::warn!("清理解压目录失败 {}: {error}", extracted.display());
+        }
+        result
+    } else {
+        import_prepared_database(source, target, covers, allow_backup_failure, db, None).await
+    }
+}
+
+fn extract_data_archive(source: &Path, output: &Path) -> Result<(), String> {
+    use sevenz_rust2::{ArchiveReader, Password};
+    let mut reader = ArchiveReader::open(source, Password::empty())
+        .map_err(|e| format!("打开数据包失败: {e}"))?;
+    let (entries, _) =
+        crate::backup::savedata::archive::inspect::validate_entries(&reader.archive().files, false)
+            .map_err(|e| format!("数据包不安全: {e}"))?;
+    let mut has_database = false;
+    for (parts, directory) in entries {
+        let name = parts.join("/");
+        let allowed = if directory {
+            name == "data" || name == "covers" || name == "covers/custom"
+        } else if name == "data/reina_manager.db" {
+            has_database = true;
+            true
+        } else {
+            parts.len() == 3 && parts[0] == "covers" && parts[1] == "custom"
+        };
+        if !allowed {
+            return Err(format!("数据包包含不支持的内容: {name}"));
+        }
+    }
+    if !has_database {
+        return Err("数据包缺少 data/reina_manager.db".into());
+    }
+    crate::backup::savedata::restore::common::extract_archive(&mut reader, output)
+        .map_err(|e| format!("解压数据包失败: {e}"))?;
+    fs::create_dir_all(output.join("covers/custom"))
+        .map_err(|e| format!("准备封面目录失败: {e}"))?;
+    Ok(())
+}
+
+async fn import_prepared_database(
+    source: &Path,
+    target: &Path,
+    covers: &Path,
+    allow_backup_failure: bool,
+    db: &DatabaseConnection,
+    imported_covers: Option<&Path>,
+) -> Result<ImportResult, String> {
     if !source.is_absolute() {
         return Err("源数据库路径必须是绝对路径".into());
     }
     if !source.is_file() {
         return Err("请选择有效的数据库文件".into());
     }
-    if source.extension().and_then(|extension| extension.to_str()) != Some("db") {
+    if !source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("db"))
+    {
         return Err("无效的数据库文件，请选择 .db 文件".into());
     }
     if fs::canonicalize(source).map_err(|error| import_error("无法访问待导入数据库", error))?
@@ -212,25 +343,23 @@ async fn import_database_at_paths(
     }
 
     // 常规备份失败时仍保持连接可用；确认跳过只影响备份，不影响改名回滚保障。
-    let mut backup_path = None;
-    let mut backup_errors = Vec::new();
-    match backup_database_file(db).await {
-        Ok(result) => backup_path = result.path,
-        Err(error) => backup_errors.push(import_error("旧数据库备份失败", error)),
-    }
-    if let Err(error) = backup_custom_covers_archive(db).await {
-        backup_errors.push(import_error("自定义封面备份失败", error));
-    }
-    if !backup_errors.is_empty() && !allow_backup_failure {
+    let (backup_path, backup_error) = match backup_data_file(db, covers).await {
+        Ok(result) => (result.path, None),
+        Err(error) => (None, Some(import_error("旧数据备份失败", error))),
+    };
+    if let Some(error) = &backup_error
+        && !allow_backup_failure
+    {
         fs::remove_file(&staged).ok();
         return Ok(ImportResult {
             success: false,
-            message: backup_errors.join("；"),
+            message: error.clone(),
             backup_path,
             requires_backup_confirmation: true,
             restart_required: false,
             warning: None,
             recovery_path: None,
+            covers_recovery_path: None,
         });
     }
 
@@ -246,31 +375,42 @@ async fn import_database_at_paths(
             import_error("关闭数据库失败，旧数据未改动", error),
             backup_path,
             None,
+            None,
         ));
     }
 
-    let commit = commit_import_files(&staged, target, &rollback, covers, &covers_rollback);
+    let commit = commit_import_files_with(
+        &staged,
+        target,
+        &rollback,
+        covers,
+        &covers_rollback,
+        imported_covers,
+        |from, to| fs::rename(from, to),
+    );
     match commit {
         Ok(()) => {
-            // 保留同卷旧库和封面，直到用户确认新库可用后仍可手动找回。
-            log::info!(
-                "导入成功，旧数据库保留在 {}，旧封面目录（如存在）保留在 {}",
-                rollback.display(),
-                covers_rollback.display()
-            );
-            let warning = if backup_errors.is_empty() {
-                None
-            } else {
-                Some("已跳过失败的常规备份，旧数据库和封面已保留".into())
-            };
+            // 清理函数会自行取得操作锁，且必须读取已经替换的新库。
+            drop(_operation_guard);
+            let mut warnings = Vec::new();
+            if backup_error.is_some() {
+                warnings.push("已跳过失败的保护备份");
+            }
+            if let Err(error) =
+                cleanup_after_import(target, covers, &rollback, &covers_rollback).await
+            {
+                log::warn!("导入成功，后续清理未完成: {error}");
+                warnings.push("后续清理未完成，请查看日志");
+            }
             Ok(ImportResult {
                 success: true,
                 message: "数据库导入成功".into(),
-                backup_path: backup_path.or_else(|| Some(rollback.to_string_lossy().into_owned())),
+                backup_path,
                 requires_backup_confirmation: false,
                 restart_required: true,
-                warning,
+                warning: (!warnings.is_empty()).then(|| warnings.join("；")),
                 recovery_path: None,
+                covers_recovery_path: None,
             })
         }
         Err(error) => {
@@ -282,9 +422,57 @@ async fn import_database_at_paths(
                 error.message,
                 backup_path,
                 error.recovery_path,
+                error.covers_recovery_path,
             ))
         }
     }
+}
+
+async fn cleanup_after_import(
+    target: &Path,
+    covers: &Path,
+    rollback: &Path,
+    covers_rollback: &Path,
+) -> Result<(), String> {
+    let mut cleanup_failed = false;
+    for (path, directory) in [(rollback, false), (covers_rollback, true)] {
+        let removal = if directory {
+            fs::remove_dir_all(path)
+        } else {
+            fs::remove_file(path)
+        };
+        if let Err(error) = removal
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            cleanup_failed = true;
+            log::warn!("清理导入回滚副本失败 {}: {error}", path.display());
+        }
+    }
+    // 原连接已关闭；只读打开新库，避免清理时重建数据库或更改持久化设置。
+    let url = url::Url::from_file_path(target).map_err(|_| "导入数据库路径无效")?;
+    let mut options = ConnectOptions::new(format!("sqlite:{}?mode=ro", url.path()));
+    options
+        .max_connections(1)
+        .min_connections(1)
+        .sqlx_logging(false);
+    let connection = Database::connect(options)
+        .await
+        .map_err(|e| e.to_string())?;
+    let result = crate::game::cover::assets::clean_unused_covers_at(&connection, covers).await;
+    let close = connection.close().await.map_err(|e| e.to_string());
+    let result = result?;
+    if result.failed_files > 0 || cleanup_failed {
+        return Err(format!(
+            "回滚副本或无用封面清理未完成，封面失败数 {}",
+            result.failed_files
+        ));
+    }
+    close?;
+    log::info!(
+        "导入后清理无用封面完成，删除 {} 个文件",
+        result.deleted_files
+    );
+    Ok(())
 }
 
 // 界面只显示简短原因，底层错误和路径保留在日志中供排查。
@@ -297,6 +485,7 @@ fn import_failure(
     message: String,
     backup_path: Option<String>,
     recovery_path: Option<PathBuf>,
+    covers_recovery_path: Option<PathBuf>,
 ) -> ImportResult {
     ImportResult {
         success: false,
@@ -306,6 +495,7 @@ fn import_failure(
         restart_required: recovery_path.is_none(),
         warning: None,
         recovery_path: recovery_path.map(|path| path.to_string_lossy().into_owned()),
+        covers_recovery_path: covers_recovery_path.map(|path| path.to_string_lossy().into_owned()),
     }
 }
 
@@ -423,6 +613,7 @@ async fn verify_import_integrity(connection: &DatabaseConnection) -> Result<(), 
 struct ImportCommitError {
     message: String,
     recovery_path: Option<PathBuf>,
+    covers_recovery_path: Option<PathBuf>,
 }
 
 fn ensure_database_logs_flushed(path: &Path) -> Result<(), String> {
@@ -445,6 +636,7 @@ fn ensure_database_logs_flushed(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
 fn commit_import_files(
     staged: &Path,
     target: &Path,
@@ -458,6 +650,7 @@ fn commit_import_files(
         rollback,
         covers,
         covers_rollback,
+        None,
         |from, to| fs::rename(from, to),
     )
 }
@@ -468,32 +661,56 @@ fn commit_import_files_with(
     rollback: &Path,
     covers: &Path,
     covers_rollback: &Path,
+    imported_covers: Option<&Path>,
     mut rename: impl FnMut(&Path, &Path) -> std::io::Result<()>,
 ) -> Result<(), ImportCommitError> {
     let mut old_moved = false;
     let mut new_moved = false;
+    let mut old_custom_moved = false;
+    let mut covers_rollback_created = false;
+    let custom = covers.join("custom");
+    let custom_rollback = covers_rollback.join("custom");
     let result = (|| {
         // 关闭池后仍有事务日志时不能只移动主文件，避免遗漏旧数据或污染新库。
         ensure_database_logs_flushed(target)?;
         ensure_target_does_not_exist(rollback, "回滚数据库")?;
-        ensure_target_does_not_exist(covers_rollback, "回滚封面")?;
+
         rename(target, rollback)
             .map_err(|error| import_error("无法保留旧数据库，已停止导入", error))?;
         old_moved = true;
         ensure_target_does_not_exist(target, "正式数据库")?;
         rename(staged, target).map_err(|error| import_error("替换数据库失败", error))?;
         new_moved = true;
-        // 封面最后处理，整目录改名而不删除，保留旧库 ID 对应的所有封面。
-        match fs::symlink_metadata(covers) {
-            Ok(_) => rename(covers, covers_rollback)
-                .map_err(|error| import_error("无法保留旧封面", error))?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(import_error("无法读取封面目录", error)),
+        if let Some(source) = imported_covers {
+            ensure_target_does_not_exist(covers_rollback, "回滚封面")?;
+            fs::create_dir_all(covers).map_err(|e| import_error("准备封面目录失败", e))?;
+            fs::create_dir(covers_rollback).map_err(|e| import_error("准备封面回滚目录失败", e))?;
+            covers_rollback_created = true;
+            // 数据包只包含 custom，其他目录（包括 cloud）留在原位。
+            match fs::symlink_metadata(&custom) {
+                Ok(_) => {
+                    rename(&custom, &custom_rollback)
+                        .map_err(|e| import_error("无法保留旧自定义封面", e))?;
+                    old_custom_moved = true;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(import_error("无法读取自定义封面目录", e)),
+            }
+            ensure_target_does_not_exist(&custom, "正式自定义封面")?;
+            rename(&source.join("custom"), &custom).map_err(|e| import_error("恢复封面失败", e))?;
         }
         Ok(())
     })();
     if let Err(message) = result {
         let recovery = (|| {
+            if old_custom_moved {
+                ensure_target_does_not_exist(&custom, "待恢复封面")?;
+                rename(&custom_rollback, &custom).map_err(|e| format!("恢复旧封面失败: {e}"))?;
+                old_custom_moved = false;
+            }
+            if covers_rollback_created && let Err(error) = fs::remove_dir(covers_rollback) {
+                log::warn!("清理封面回滚空目录失败: {error}");
+            }
             if new_moved {
                 ensure_target_does_not_exist(staged, "导入临时库")?;
                 rename(target, staged).map_err(|error| format!("移回导入临时库失败: {error}"))?;
@@ -518,16 +735,19 @@ fn commit_import_files_with(
                     }
                 ),
                 recovery_path: None,
+                covers_recovery_path: None,
             },
             Err(error) => {
                 log::error!(
-                    "{message}；回滚失败: {error}；旧数据库位置: {}；封面位置: {}",
+                    "{message}；回滚失败: {error}；旧数据库位置: {}；封面位置: {}；旧自定义封面位置: {}",
                     rollback.display(),
-                    covers.display()
+                    covers.display(),
+                    covers_rollback.display()
                 );
                 ImportCommitError {
                     message: "自动回滚未完成，需手动恢复旧数据".into(),
                     recovery_path: Some(rollback.to_path_buf()),
+                    covers_recovery_path: old_custom_moved.then_some(custom_rollback),
                 }
             }
         });
@@ -578,6 +798,115 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
     use url::Url;
+
+    #[tokio::test]
+    async fn data_backup_contains_database_and_custom_covers_and_never_publishes_failures() {
+        let root =
+            std::env::temp_dir().join(format!("reina-data-backup-test-{}", uuid::Uuid::now_v7()));
+        fs::create_dir_all(root.join("covers/custom")).unwrap();
+        fs::create_dir_all(root.join("covers/cloud")).unwrap();
+        fs::create_dir_all(root.join("covers/game_1")).unwrap();
+        fs::write(root.join("covers/custom/cover.webp"), b"custom").unwrap();
+        fs::write(root.join("covers/custom/unfinished.part"), b"partial").unwrap();
+        fs::write(root.join("covers/cloud/cloud.webp"), b"cloud").unwrap();
+        fs::write(root.join("covers/game_1/cover_1_png_123.png"), b"legacy").unwrap();
+        let source_url = Url::from_file_path(root.join("source.db")).unwrap();
+        let mut options = ConnectOptions::new(format!("sqlite:{}?mode=rwc", source_url.path()));
+        options.max_connections(1).min_connections(1);
+        let db = Database::connect(options).await.unwrap();
+        db.execute_unprepared(
+            "CREATE TABLE example (id INTEGER PRIMARY KEY); INSERT INTO example VALUES (42)",
+        )
+        .await
+        .unwrap();
+        let archive = root.join("data.7z");
+        super::backup_data_archive_to(&db, &root.join("covers"), &archive, None)
+            .await
+            .unwrap();
+        let mut reader =
+            sevenz_rust2::ArchiveReader::open(&archive, sevenz_rust2::Password::empty()).unwrap();
+        let mut files = std::collections::BTreeMap::new();
+        reader
+            .for_each_entries(|entry, input| {
+                if !entry.is_directory() {
+                    let mut bytes = Vec::new();
+                    input.read_to_end(&mut bytes)?;
+                    files.insert(entry.name().replace('\\', "/"), bytes);
+                }
+                Ok(true)
+            })
+            .unwrap();
+        assert_eq!(files.len(), 2);
+        assert_eq!(files["covers/custom/cover.webp"], b"custom");
+        fs::write(root.join("restored.db"), &files["data/reina_manager.db"]).unwrap();
+        let restored = Database::connect(format!(
+            "sqlite:{}?mode=ro",
+            root.join("restored.db")
+                .to_string_lossy()
+                .replace('\\', "/")
+        ))
+        .await
+        .unwrap();
+        let row = restored
+            .query_one_raw(sea_orm::Statement::from_string(
+                sea_orm::DbBackend::Sqlite,
+                "SELECT id FROM example",
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.try_get::<i32>("", "id").unwrap(), 42);
+        restored.close().await.unwrap();
+        drop(reader);
+        let extracted = root.join("extracted");
+        fs::create_dir(&extracted).unwrap();
+        super::extract_data_archive(&archive, &extracted).unwrap();
+        assert_eq!(
+            fs::read(extracted.join("covers/custom/cover.webp")).unwrap(),
+            b"custom"
+        );
+        assert_eq!(
+            fs::read(extracted.join("data/reina_manager.db")).unwrap(),
+            files["data/reina_manager.db"]
+        );
+        let original = fs::read(&archive).unwrap();
+        assert!(
+            super::backup_data_archive_to(&db, &root.join("covers"), &archive, None)
+                .await
+                .is_err()
+        );
+        assert_eq!(fs::read(&archive).unwrap(), original);
+        let empty_archive = root.join("no-covers.7z");
+        super::backup_data_archive_to(&db, &root.join("missing"), &empty_archive, None)
+            .await
+            .unwrap();
+        fs::write(root.join("invalid-covers"), b"not a directory").unwrap();
+        let failed_archive = root.join("failed.7z");
+        assert!(
+            super::backup_data_archive_to(&db, &root.join("invalid-covers"), &failed_archive, None)
+                .await
+                .is_err()
+        );
+        assert!(!failed_archive.exists());
+        db.clone().close().await.unwrap();
+        let cold_archive = root.join("cold.7z");
+        super::backup_data_archive_to(
+            &db,
+            &root.join("covers"),
+            &cold_archive,
+            Some(&root.join("source.db")),
+        )
+        .await
+        .unwrap();
+        let cold_output = root.join("cold-output");
+        fs::create_dir(&cold_output).unwrap();
+        super::extract_data_archive(&cold_archive, &cold_output).unwrap();
+        assert_eq!(
+            fs::read(cold_output.join("data/reina_manager.db")).unwrap(),
+            fs::read(root.join("source.db")).unwrap()
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[tokio::test]
     async fn hot_backup_keeps_database_connection_usable() {
@@ -963,9 +1292,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn failed_pre_import_backup_keeps_current_connection_usable() {
+    async fn uppercase_database_import_keeps_connection_usable_when_backup_fails() {
         let root = test_directory("backup_failure");
-        let source = root.join("source.db");
+        let source = root.join("source.DB");
         let source_db = test_connection(&source).await;
         Migrator::up(&source_db, None).await.unwrap();
         source_db.close().await.unwrap();
@@ -974,7 +1303,7 @@ mod tests {
         fs::create_dir(&covers).unwrap();
         fs::write(covers.join("custom.jpg"), b"original cover").unwrap();
         let db = test_connection(&target).await;
-        // 缺少设置表使两项真实备份都失败，测试不访问用户的默认备份或封面目录。
+        // 缺少设置表使保护备份失败，测试不访问用户的默认备份或封面目录。
         db.execute_unprepared("CREATE TABLE example(id INTEGER)")
             .await
             .unwrap();
@@ -986,8 +1315,7 @@ mod tests {
         assert!(result.requires_backup_confirmation);
         assert!(!result.restart_required);
         assert!(result.recovery_path.is_none());
-        assert!(result.message.contains("旧数据库备份失败"));
-        assert!(result.message.contains("自定义封面备份失败"));
+        assert!(result.message.contains("旧数据备份失败"));
         assert_eq!(fs::read(&target).unwrap(), original);
         assert_eq!(
             fs::read(covers.join("custom.jpg")).unwrap(),
@@ -1010,31 +1338,162 @@ mod tests {
         ];
         fs::write(&paths[0], b"new database").unwrap();
         fs::write(&paths[1], b"old database").unwrap();
-        fs::create_dir(&paths[3]).unwrap();
-        fs::write(paths[3].join("custom.jpg"), b"old cover").unwrap();
+        fs::create_dir_all(paths[3].join("custom")).unwrap();
+        fs::create_dir_all(paths[3].join("cloud")).unwrap();
+        fs::write(paths[3].join("custom/old.jpg"), b"old cover").unwrap();
+        fs::write(paths[3].join("cloud/cached.jpg"), b"cloud cache").unwrap();
         paths
     }
 
     #[test]
-    fn import_commit_keeps_old_database_and_covers() {
+    fn database_import_preserves_existing_cover_directory() {
         let root = test_directory("commit");
         let [staged, target, rollback, covers, covers_rollback] = commit_fixture(&root);
         commit_import_files(&staged, &target, &rollback, &covers, &covers_rollback).unwrap();
         assert_eq!(fs::read(target).unwrap(), b"new database");
         assert_eq!(fs::read(rollback).unwrap(), b"old database");
-        assert!(!covers.exists());
+        assert!(!covers_rollback.exists());
         assert_eq!(
-            fs::read(covers_rollback.join("custom.jpg")).unwrap(),
+            fs::read(covers.join("custom/old.jpg")).unwrap(),
+            b"old cover"
+        );
+        assert_eq!(
+            fs::read(covers.join("cloud/cached.jpg")).unwrap(),
+            b"cloud cache"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn data_import_commits_covers_or_rolls_back_both() {
+        for failure_at in 0..=4 {
+            let root = test_directory("data_commit");
+            let [staged, target, rollback, covers, covers_rollback] = commit_fixture(&root);
+            let incoming = root.join("incoming-covers");
+            fs::create_dir_all(incoming.join("custom")).unwrap();
+            fs::write(incoming.join("custom/new.webp"), b"new cover").unwrap();
+            let mut call = 0;
+            let result = commit_import_files_with(
+                &staged,
+                &target,
+                &rollback,
+                &covers,
+                &covers_rollback,
+                Some(&incoming),
+                |from, to| {
+                    call += 1;
+                    if call == failure_at {
+                        return Err(std::io::Error::other("模拟提交失败"));
+                    }
+                    fs::rename(from, to)
+                },
+            );
+            if failure_at != 0 {
+                assert!(result.unwrap_err().recovery_path.is_none());
+                assert_eq!(fs::read(&target).unwrap(), b"old database");
+                assert_eq!(
+                    fs::read(covers.join("custom/old.jpg")).unwrap(),
+                    b"old cover"
+                );
+                assert_eq!(fs::read(&staged).unwrap(), b"new database");
+                assert!(!rollback.exists());
+                assert!(incoming.join("custom/new.webp").is_file());
+                assert!(!covers_rollback.exists());
+            } else {
+                result.unwrap();
+                assert_eq!(fs::read(&target).unwrap(), b"new database");
+                assert_eq!(
+                    fs::read(covers.join("custom/new.webp")).unwrap(),
+                    b"new cover"
+                );
+                assert_eq!(
+                    fs::read(covers_rollback.join("custom/old.jpg")).unwrap(),
+                    b"old cover"
+                );
+            }
+            assert_eq!(
+                fs::read(covers.join("cloud/cached.jpg")).unwrap(),
+                b"cloud cache"
+            );
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn empty_cover_archive_clears_custom_but_keeps_cloud() {
+        let root = test_directory("empty_covers");
+        let [staged, target, rollback, covers, covers_rollback] = commit_fixture(&root);
+        let input = root.join("input");
+        fs::create_dir_all(input.join("data")).unwrap();
+        fs::write(input.join("data/reina_manager.db"), b"database").unwrap();
+        let archive = root.join("data.7z");
+        crate::backup::archive::create_7z_archive(&input, &archive).unwrap();
+        let output = root.join("output");
+        fs::create_dir(&output).unwrap();
+        super::extract_data_archive(&archive, &output).unwrap();
+        commit_import_files_with(
+            &staged,
+            &target,
+            &rollback,
+            &covers,
+            &covers_rollback,
+            Some(&output.join("covers")),
+            |from, to| fs::rename(from, to),
+        )
+        .unwrap();
+        assert_eq!(fs::read_dir(covers.join("custom")).unwrap().count(), 0);
+        assert_eq!(
+            fs::read(covers.join("cloud/cached.jpg")).unwrap(),
+            b"cloud cache"
+        );
+        assert_eq!(
+            fs::read(covers_rollback.join("custom/old.jpg")).unwrap(),
             b"old cover"
         );
         fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
-    fn failed_replacement_and_cover_move_restore_old_state() {
-        for failure_at in [1, 2, 3] {
-            let root = test_directory("rollback");
+    fn data_import_rejects_unexpected_or_missing_database() {
+        for file in [
+            "covers/custom/only.webp",
+            "covers/game_1/cover_1.jpg",
+            "covers/cloud/cache.jpg",
+            "data/other.db",
+            "unexpected.txt",
+        ] {
+            let root = test_directory("invalid_data_archive");
+            let input = root.join("input");
+            fs::create_dir_all(input.join(file).parent().unwrap()).unwrap();
+            fs::write(input.join(file), b"fixture").unwrap();
+            if file != "covers/custom/only.webp" {
+                fs::create_dir_all(input.join("data")).unwrap();
+                fs::write(input.join("data/reina_manager.db"), b"database").unwrap();
+            }
+            let archive = root.join("invalid.7z");
+            crate::backup::archive::create_7z_archive(&input, &archive).unwrap();
+            let output = root.join("output");
+            fs::create_dir(&output).unwrap();
+            let error = super::extract_data_archive(&archive, &output).unwrap_err();
+            assert!(error.contains(if file == "covers/custom/only.webp" {
+                "缺少 data/reina_manager.db"
+            } else {
+                "不支持的内容"
+            }));
+            assert_eq!(fs::read_dir(&output).unwrap().count(), 0);
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn rollback_failure_reports_remaining_recovery_paths() {
+        for (with_covers, rollback_failure_at) in [(false, 2), (true, 4), (true, 6)] {
+            let root = test_directory("rollback_failure");
             let [staged, target, rollback, covers, covers_rollback] = commit_fixture(&root);
+            let incoming = root.join("incoming-covers");
+            fs::create_dir_all(incoming.join("custom")).unwrap();
+            fs::write(incoming.join("custom/new.jpg"), b"new cover").unwrap();
+            let commit_failure_at = if with_covers { 4 } else { 2 };
             let mut call = 0;
             let error = commit_import_files_with(
                 &staged,
@@ -1042,49 +1501,58 @@ mod tests {
                 &rollback,
                 &covers,
                 &covers_rollback,
+                with_covers.then_some(incoming.as_path()),
                 |from, to| {
                     call += 1;
-                    if call == failure_at {
-                        Err(std::io::Error::other("模拟提交失败"))
+                    if call == commit_failure_at || call >= rollback_failure_at {
+                        Err(std::io::Error::other("模拟替换和恢复失败"))
                     } else {
                         fs::rename(from, to)
                     }
                 },
             )
             .unwrap_err();
-            assert!(error.recovery_path.is_none());
-            assert_eq!(fs::read(target).unwrap(), b"old database");
-            assert_eq!(fs::read(covers.join("custom.jpg")).unwrap(), b"old cover");
+            let result = super::import_failure(
+                error.message,
+                None,
+                error.recovery_path,
+                error.covers_recovery_path,
+            );
+            assert!(!result.restart_required);
+            assert_eq!(result.recovery_path.as_deref(), rollback.to_str());
+            let custom_still_moved = with_covers && rollback_failure_at == 4;
+            assert_eq!(
+                result.covers_recovery_path,
+                custom_still_moved.then(|| covers_rollback
+                    .join("custom")
+                    .to_string_lossy()
+                    .into_owned())
+            );
+            assert_eq!(fs::read(rollback).unwrap(), b"old database");
+            if with_covers {
+                assert_eq!(fs::read(&target).unwrap(), b"new database");
+                assert_eq!(
+                    fs::read(if custom_still_moved {
+                        covers_rollback.join("custom/old.jpg")
+                    } else {
+                        covers.join("custom/old.jpg")
+                    })
+                    .unwrap(),
+                    b"old cover"
+                );
+                assert_eq!(
+                    fs::read(incoming.join("custom/new.jpg")).unwrap(),
+                    b"new cover"
+                );
+            } else {
+                assert_eq!(fs::read(staged).unwrap(), b"new database");
+            }
+            assert_eq!(
+                fs::read(covers.join("cloud/cached.jpg")).unwrap(),
+                b"cloud cache"
+            );
             fs::remove_dir_all(root).unwrap();
         }
-    }
-
-    #[test]
-    fn rollback_failure_reports_preserved_old_database() {
-        let root = test_directory("rollback_failure");
-        let [staged, target, rollback, covers, covers_rollback] = commit_fixture(&root);
-        let mut call = 0;
-        let error = commit_import_files_with(
-            &staged,
-            &target,
-            &rollback,
-            &covers,
-            &covers_rollback,
-            |from, to| {
-                call += 1;
-                if call >= 2 {
-                    Err(std::io::Error::other("模拟替换和恢复失败"))
-                } else {
-                    fs::rename(from, to)
-                }
-            },
-        )
-        .unwrap_err();
-        assert_eq!(error.recovery_path, Some(rollback.clone()));
-        assert_eq!(fs::read(rollback).unwrap(), b"old database");
-        assert_eq!(fs::read(staged).unwrap(), b"new database");
-        assert!(covers.is_dir());
-        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

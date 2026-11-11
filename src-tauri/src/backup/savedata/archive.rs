@@ -1,5 +1,5 @@
 mod create;
-mod inspect;
+pub(in crate::backup) mod inspect;
 
 pub(super) use create::create_savedata_archive;
 pub(super) use inspect::{

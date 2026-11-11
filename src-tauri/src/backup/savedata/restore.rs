@@ -1,4 +1,4 @@
-mod common;
+pub(in crate::backup) mod common;
 mod legacy;
 mod rooted;
 mod service;

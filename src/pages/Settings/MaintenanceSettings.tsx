@@ -1,14 +1,16 @@
 import BackupIcon from "@mui/icons-material/Backup";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import ImageIcon from "@mui/icons-material/Image";
 import RestoreIcon from "@mui/icons-material/Restore";
+import StorageIcon from "@mui/icons-material/Storage";
 import {
 	CircularProgress,
 	Dialog,
 	DialogActions,
 	DialogContent,
 	DialogTitle,
+	Menu,
+	MenuItem,
 	Switch,
 	TextField,
 	Typography,
@@ -17,8 +19,9 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import { message } from "@tauri-apps/plugin-dialog";
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useBlocker } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useRefreshSettings } from "@/hooks/queries/useSettings";
 import { snackbar } from "@/providers/snackBar";
@@ -29,7 +32,6 @@ import {
 	restartApp,
 } from "@/services/appExit";
 import {
-	backupCustomCovers,
 	backupDatabase,
 	importDatabase,
 	selectDatabaseImportFile,
@@ -45,13 +47,19 @@ export const DatabaseBackupSettings = () => {
 	const { t } = useTranslation();
 	const refreshSettings = useRefreshSettings();
 	const [isBackingUp, setIsBackingUp] = useState(false);
-	const [isBackingCovers, setIsBackingCovers] = useState(false);
+	const [backupAnchor, setBackupAnchor] = useState<HTMLElement | null>(null);
 	const [isImporting, setIsImporting] = useState(false);
 	const [needsRestart, setNeedsRestart] = useState(false);
 	const [importRecovery, setImportRecovery] = useState<{
 		message: string;
 		canRestart: boolean;
 	} | null>(null);
+	const blocker = useBlocker(isImporting || needsRestart);
+	useEffect(() => {
+		if (blocker.state === "blocked") {
+			blocker.reset();
+		}
+	}, [blocker]);
 	const {
 		autoBackupIncludeCovers,
 		autoBackupLastError,
@@ -105,17 +113,18 @@ export const DatabaseBackupSettings = () => {
 		: t("pages.Settings.databaseBackup.autoNever", "从未自动备份");
 	const autoBackupEnabled = scheduledBackupEnabled || autoBackupOnExit;
 
-	const handleBackupDatabase = async () => {
+	const handleBackupDatabase = async (includeCovers: boolean) => {
+		setBackupAnchor(null);
 		setIsBackingUp(true);
 
 		try {
-			const result = await backupDatabase();
+			const result = await backupDatabase(includeCovers);
 			if (result.success) {
 				refreshSettings();
 				snackbar.success(
 					t(
 						"pages.Settings.databaseBackup.backupSuccess",
-						"数据库备份成功: {{path}}",
+						"备份成功: {{path}}",
 						{
 							path: result.path,
 						},
@@ -125,7 +134,7 @@ export const DatabaseBackupSettings = () => {
 				snackbar.error(
 					t(
 						"pages.Settings.databaseBackup.backupError",
-						"数据库备份失败: {{error}}",
+						"备份失败: {{error}}",
 						{
 							error: result.message,
 						},
@@ -139,69 +148,12 @@ export const DatabaseBackupSettings = () => {
 				t("pages.Settings.databaseBackup.backupFailed", "备份失败"),
 			);
 			snackbar.error(
-				t(
-					"pages.Settings.databaseBackup.backupError",
-					"数据库备份失败: {{error}}",
-					{ error: errorMessage },
-				),
+				t("pages.Settings.databaseBackup.backupError", "备份失败: {{error}}", {
+					error: errorMessage,
+				}),
 			);
 		} finally {
 			setIsBackingUp(false);
-		}
-	};
-
-	const handleBackupCustomCovers = async () => {
-		setIsBackingCovers(true);
-
-		try {
-			const result = await backupCustomCovers();
-			if (result.success) {
-				refreshSettings();
-				snackbar.success(
-					result.path
-						? t(
-								"pages.Settings.databaseBackup.coverBackupSuccess",
-								"自定义封面备份成功: {{path}}",
-								{
-									path: result.path,
-								},
-							)
-						: t(
-								"pages.Settings.databaseBackup.noCoversToBackup",
-								"没有自定义封面需要备份",
-							),
-				);
-			} else {
-				snackbar.error(
-					t(
-						"pages.Settings.databaseBackup.coverBackupError",
-						"自定义封面备份失败: {{error}}",
-						{
-							error: result.message,
-						},
-					),
-				);
-			}
-		} catch (error) {
-			const errorMessage = getUserErrorMessage(
-				error,
-				t,
-				t(
-					"pages.Settings.databaseBackup.coverBackupFailed",
-					"备份自定义封面失败",
-				),
-			);
-			snackbar.error(
-				t(
-					"pages.Settings.databaseBackup.coverBackupError",
-					"自定义封面备份失败: {{error}}",
-					{
-						error: errorMessage,
-					},
-				),
-			);
-		} finally {
-			setIsBackingCovers(false);
 		}
 	};
 
@@ -230,6 +182,8 @@ export const DatabaseBackupSettings = () => {
 		permit?: AppTerminationPermit,
 		failureMessage?: string,
 	) => {
+		setIsImporting(true);
+		setImportRecovery(null);
 		if (failureMessage) {
 			try {
 				await message(
@@ -248,7 +202,9 @@ export const DatabaseBackupSettings = () => {
 			}
 		}
 		try {
-			await restartApp(permit);
+			if (!(await restartApp(permit))) {
+				throw new Error("未取得应用重启许可");
+			}
 		} catch (error) {
 			console.error("数据库导入后重启应用失败:", error);
 			setImportRecovery({
@@ -258,6 +214,8 @@ export const DatabaseBackupSettings = () => {
 				),
 				canRestart: true,
 			});
+		} finally {
+			setIsImporting(false);
 		}
 	};
 
@@ -284,11 +242,19 @@ export const DatabaseBackupSettings = () => {
 				console.error("数据库导入失败:", result);
 				if (result.recovery_path) {
 					setImportRecovery({
-						message: t(
-							"pages.Settings.databaseBackup.manualRecovery",
-							"自动回滚未完成，请关闭应用后手动恢复旧的数据库和封面，不要直接重新导入。\n\n旧数据位置：{{path}}",
-							{ path: result.recovery_path },
-						),
+						message:
+							t(
+								"pages.Settings.databaseBackup.manualRecovery",
+								"自动回滚未完成，请关闭应用后手动恢复旧数据，不要直接重新导入。\n\n旧数据库位置：{{path}}",
+								{ path: result.recovery_path },
+							) +
+							(result.covers_recovery_path
+								? `\n\n${t(
+										"pages.Settings.databaseBackup.coversRecoveryPath",
+										"旧自定义封面位置：{{path}}",
+										{ path: result.covers_recovery_path },
+									)}`
+								: ""),
 						canRestart: false,
 					});
 				} else if (result.restart_required) {
@@ -307,27 +273,13 @@ export const DatabaseBackupSettings = () => {
 				return;
 			}
 
-			snackbar.success(
-				result.warning
-					? t(
-							"pages.Settings.databaseBackup.importSuccessWithoutBackup",
-							"数据库导入成功，旧数据已保留，应用将自动重启",
-						)
-					: t(
-							"pages.Settings.databaseBackup.importSuccess",
-							"数据库导入成功，旧数据库和自定义封面已备份，应用将自动重启",
-						),
-			);
 			if (result.warning) {
 				console.warn("数据库导入提示:", result.warning);
 			}
 
 			const confirmedPermit = restartPermit;
 			restartPermit = null;
-			// 延迟重启应用，让用户看到成功提示。
-			setTimeout(() => {
-				void restartAfterImport(confirmedPermit);
-			}, 3000);
+			await restartAfterImport(confirmedPermit);
 		} catch (error) {
 			const errorMessage = getUserErrorMessage(
 				error,
@@ -352,17 +304,44 @@ export const DatabaseBackupSettings = () => {
 			title={t("pages.Settings.databaseBackup.title", "数据备份与恢复")}
 			description={t(
 				"pages.Settings.databaseBackup.restoreWarning",
-				"恢复数据库会备份自定义封面和旧数据库，恢复成功会清空封面并重启软件，失败时会尝试回滚数据。",
+				"恢复前会备份当前数据，成功后重启，失败时尝试回滚。数据包恢复包含封面。",
 			)}
 		>
-			<Dialog open={importRecovery !== null} disableEscapeKeyDown>
-				<DialogTitle>
-					{t("pages.Settings.databaseBackup.recoveryTitle", "数据库恢复提醒")}
+			<Dialog
+				open={isImporting || needsRestart || importRecovery !== null}
+				disableEscapeKeyDown
+				aria-labelledby="database-import-title"
+				aria-describedby="database-import-status"
+			>
+				<DialogTitle id="database-import-title">
+					{importRecovery
+						? t("pages.Settings.databaseBackup.recoveryTitle", "数据库恢复提醒")
+						: t("pages.Settings.databaseBackup.importing", "导入中...")}
 				</DialogTitle>
 				<DialogContent>
-					<Typography className="whitespace-pre-wrap break-all">
-						{importRecovery?.message}
-					</Typography>
+					{importRecovery ? (
+						<Typography
+							id="database-import-status"
+							className="whitespace-pre-wrap break-all"
+						>
+							{importRecovery.message}
+						</Typography>
+					) : (
+						<Stack
+							direction="row"
+							spacing={2}
+							alignItems="center"
+							role="status"
+						>
+							<CircularProgress size={24} aria-hidden="true" />
+							<Typography id="database-import-status">
+								{t(
+									"pages.Settings.databaseBackup.importProgress",
+									"正在恢复数据，完成后将自动重启。请勿关闭应用。",
+								)}
+							</Typography>
+						</Stack>
+					)}
 				</DialogContent>
 				{importRecovery?.canRestart && (
 					<DialogActions>
@@ -381,8 +360,7 @@ export const DatabaseBackupSettings = () => {
 			>
 				<Button
 					variant="contained"
-					color="primary"
-					onClick={handleBackupDatabase}
+					onClick={(event) => setBackupAnchor(event.currentTarget)}
 					disabled={isBackingUp || isImporting || needsRestart}
 					startIcon={
 						isBackingUp ? (
@@ -391,49 +369,65 @@ export const DatabaseBackupSettings = () => {
 							<BackupIcon />
 						)
 					}
+					aria-haspopup="menu"
+					aria-expanded={Boolean(backupAnchor)}
+					aria-controls={backupAnchor ? "backup-options" : undefined}
 					className="px-6 py-2"
 				>
 					{isBackingUp
 						? t("pages.Settings.databaseBackup.backing", "备份中...")
-						: t("pages.Settings.databaseBackup.backup", "备份数据库")}
+						: t("pages.Settings.databaseBackup.backupMenu", "备份")}
 				</Button>
-
-				<Button
-					variant="outlined"
-					color="primary"
-					onClick={handleBackupCustomCovers}
-					disabled={isBackingCovers || isImporting || needsRestart}
-					startIcon={
-						isBackingCovers ? (
-							<CircularProgress size={16} color="inherit" />
-						) : (
-							<ImageIcon />
-						)
-					}
-					className="px-6 py-2"
+				<Menu
+					id="backup-options"
+					anchorEl={backupAnchor}
+					open={Boolean(backupAnchor)}
+					onClose={() => setBackupAnchor(null)}
+					anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+					transformOrigin={{ vertical: "top", horizontal: "left" }}
+					slotProps={{
+						paper: { elevation: 3, className: "mt-1 !rounded-lg min-w-56" },
+						list: { className: "!py-1" },
+					}}
 				>
-					{isBackingCovers
-						? t("pages.Settings.databaseBackup.backingCovers", "备份封面中...")
-						: t("pages.Settings.databaseBackup.backupCovers", "备份自定义封面")}
-				</Button>
-
-				<Button
-					variant="outlined"
-					color="primary"
-					onClick={handleOpenBackupFolder}
-					startIcon={<FolderOpenIcon />}
-					className="px-6 py-2"
-				>
-					{t("pages.Settings.databaseBackup.openFolder", "打开备份文件夹")}
-				</Button>
+					<MenuItem
+						onClick={() => void handleBackupDatabase(true)}
+						disabled={isBackingUp || isImporting || needsRestart}
+						className="!gap-3 !py-2"
+					>
+						<BackupIcon fontSize="small" color="action" />
+						<Box>
+							<Typography variant="body2">
+								{t("pages.Settings.databaseBackup.backup", "备份数据")}
+							</Typography>
+							<Typography variant="caption" color="text.secondary">
+								{t(
+									"pages.Settings.databaseBackup.dataScope",
+									"数据库和自定义封面",
+								)}
+							</Typography>
+						</Box>
+					</MenuItem>
+					<MenuItem
+						onClick={() => void handleBackupDatabase(false)}
+						disabled={isBackingUp || isImporting || needsRestart}
+						className="!gap-3 !py-2"
+					>
+						<StorageIcon fontSize="small" color="action" />
+						<Typography variant="body2">
+							{t(
+								"pages.Settings.databaseBackup.backupDatabaseOnly",
+								"仅备份数据库",
+							)}
+						</Typography>
+					</MenuItem>
+				</Menu>
 
 				<Button
 					variant="outlined"
 					color="warning"
 					onClick={handleImportDatabase}
-					disabled={
-						isImporting || isBackingUp || isBackingCovers || needsRestart
-					}
+					disabled={isImporting || isBackingUp || needsRestart}
 					startIcon={
 						isImporting ? (
 							<CircularProgress size={16} color="inherit" />
@@ -445,9 +439,26 @@ export const DatabaseBackupSettings = () => {
 				>
 					{isImporting
 						? t("pages.Settings.databaseBackup.importing", "导入中...")
-						: t("pages.Settings.databaseBackup.restore", "恢复数据库")}
+						: t("pages.Settings.databaseBackup.restore", "恢复备份")}
+				</Button>
+
+				<Button
+					variant="outlined"
+					color="primary"
+					onClick={handleOpenBackupFolder}
+					startIcon={<FolderOpenIcon />}
+					className="px-6 py-2"
+				>
+					{t("pages.Settings.databaseBackup.openFolder", "打开备份文件夹")}
 				</Button>
 			</Stack>
+
+			<Typography variant="caption" color="text.secondary" className="block">
+				{t(
+					"pages.Settings.databaseBackup.backupContentsHelp",
+					"数据备份包含数据库和自定义封面；恢复支持 .7z 数据包和 .db 数据库文件。",
+				)}
+			</Typography>
 
 			<SettingsItem
 				title={t(
@@ -530,6 +541,10 @@ export const DatabaseBackupSettings = () => {
 					title={t(
 						"pages.Settings.databaseBackup.autoIncludeCovers",
 						"同时备份自定义封面",
+					)}
+					description={t(
+						"pages.Settings.databaseBackup.autoIncludeCoversHelp",
+						"关闭时仅备份数据库。开启后生成完整数据包，会增加耗时和体积，退出时可能需要等待。",
 					)}
 				>
 					<Switch

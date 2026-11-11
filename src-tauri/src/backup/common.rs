@@ -119,6 +119,11 @@ fn extract_auto_backup_batch_id(file_name: &str) -> Option<&str> {
                 .strip_prefix(COVERS_AUTO_PREFIX)
                 .and_then(|name| name.strip_suffix(COVERS_AUTO_EXTENSION))
         })
+        .or_else(|| {
+            file_name
+                .strip_prefix("reina_data_auto_")
+                .and_then(|name| name.strip_suffix(".7z"))
+        })
         .filter(|batch_id| !batch_id.is_empty())
 }
 
@@ -171,6 +176,11 @@ mod tests {
         );
         assert!(root.join("reina_manager_20250101_000000.db").exists());
 
+        fs::write(root.join("reina_data_auto_20260103_000000.7z"), b"data").unwrap();
+        let deleted = cleanup_auto_backup_batches(&root, 1).unwrap();
+        assert_eq!(deleted.len(), 2);
+        assert!(root.join("reina_data_auto_20260103_000000.7z").exists());
+        assert!(root.join("reina_manager_20250101_000000.db").exists());
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -1,8 +1,8 @@
-mod archive;
+pub(super) mod archive;
 mod create;
 mod fs_safety;
 mod maintenance;
-mod restore;
+pub(super) mod restore;
 
 pub use create::create_savedata_backup;
 pub use maintenance::{

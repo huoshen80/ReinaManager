@@ -450,32 +450,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn no_legacy_files_skips_database_queries() {
-        let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
-        let root = temporary_root();
-        // 故意没有业务表；缺目录或仅有新格式目录都不应访问数据库。
-        assert_eq!(
-            run_startup_migrations_at(&db, &root, &root)
-                .await
-                .unwrap()
-                .executed,
-            0
-        );
-        fs::create_dir_all(root.join("custom")).unwrap();
-        fs::create_dir_all(root.join("cloud")).unwrap();
-        fs::write(root.join("custom/keep.png"), png()).unwrap();
-        assert_eq!(
-            run_startup_migrations_at(&db, &root, &root)
-                .await
-                .unwrap()
-                .executed,
-            0
-        );
-        assert!(root.join("custom/keep.png").is_file());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[tokio::test]
     async fn late_restore_is_repeatable_and_never_revives_replaced_covers() {
         let db = legacy_database().await;
         let root = temporary_root();

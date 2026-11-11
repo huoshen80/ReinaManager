@@ -3,12 +3,12 @@ use crate::backup::common::{
     ensure_database_backup_available, mark_database_backup_unavailable, next_backup_id,
     resolve_backup_dir,
 };
-use crate::backup::covers::backup_custom_covers_archive_to;
-use crate::backup::database::{backup_database_file_to, copy_database_file_cold_to};
+use crate::backup::database::{
+    backup_data_archive_to, backup_database_file_to, copy_database_file_cold_to,
+};
 use crate::database::db::close_connection;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use tauri::{State, command};
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -30,8 +30,7 @@ pub struct AutoBackupRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AutoBackupResult {
     pub batch_id: String,
-    pub database: BackupResult,
-    pub covers: Option<BackupResult>,
+    pub backup: BackupResult,
     pub warnings: Vec<String>,
 }
 
@@ -52,6 +51,7 @@ pub async fn create_auto_backup(
         &[
             ("reina_manager_auto_", ".db"),
             ("custom_covers_auto_", ".7z"),
+            ("reina_data_auto_", ".7z"),
         ],
     )?;
     let cold_database_path = match request.trigger {
@@ -60,52 +60,26 @@ pub async fn create_auto_backup(
     };
     let mut warnings = Vec::new();
 
-    let covers = if request.include_covers {
-        let archive_name = format!("custom_covers_auto_{batch_id}.7z");
-        match backup_custom_covers_archive_to(&backup_dir, &archive_name) {
-            Ok(result) => Some(result),
-            Err(error) => {
-                log::warn!("自动备份批次 {batch_id} 的自定义封面备份失败: {error}");
-                warnings.push(format!("自定义封面备份失败: {error}"));
-                None
-            }
-        }
+    if cold_database_path.is_some() {
+        close_connection(db.inner().clone())
+            .await
+            .map_err(|e| format!("关闭数据库连接失败: {e}"))?;
+        mark_database_backup_unavailable();
+    }
+    let backup = if request.include_covers {
+        backup_data_archive_to(
+            &db,
+            &reina_path::get_base_data_dir()?.join("covers"),
+            &backup_dir.join(format!("reina_data_auto_{batch_id}.7z")),
+            cold_database_path.as_deref(),
+        )
+        .await?
     } else {
-        None
-    };
-
-    let database_name = format!("reina_manager_auto_{batch_id}.db");
-    let database_result = match request.trigger {
-        AutoBackupTrigger::Scheduled => {
-            backup_database_file_to(&db, &backup_dir, &database_name).await
-        }
-        AutoBackupTrigger::Exit => match close_connection(db.inner().clone()).await {
-            Ok(()) => {
-                mark_database_backup_unavailable();
-                log::info!("数据库连接已关闭，准备执行退出自动备份");
-                copy_database_file_cold_to(
-                    cold_database_path
-                        .as_deref()
-                        .expect("退出自动备份应预先获取数据库路径"),
-                    &backup_dir,
-                    &database_name,
-                )
-            }
-            Err(error) => Err(format!("关闭数据库连接失败: {error}")),
-        },
-    };
-
-    let database = match database_result {
-        Ok(result) => result,
-        Err(error) => {
-            if let Some(path) = covers.as_ref().and_then(|result| result.path.as_deref())
-                && let Err(cleanup_error) = fs::remove_file(path)
-            {
-                log::warn!(
-                    "数据库自动备份失败后清理同批次封面失败 batch_id={batch_id}: {cleanup_error}"
-                );
-            }
-            return Err(error);
+        let name = format!("reina_manager_auto_{batch_id}.db");
+        if let Some(source) = cold_database_path.as_deref() {
+            copy_database_file_cold_to(source, &backup_dir, &name)?
+        } else {
+            backup_database_file_to(&db, &backup_dir, &name).await?
         }
     };
 
@@ -122,8 +96,7 @@ pub async fn create_auto_backup(
 
     Ok(AutoBackupResult {
         batch_id,
-        database,
-        covers,
+        backup,
         warnings,
     })
 }
