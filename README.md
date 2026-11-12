@@ -15,7 +15,7 @@ Development time tracked since v0.9.0
 
 <p align="center">English|<a href="./README.zh_CN.md">中文</a>|<a href="./README.zh_TW.md">繁體中文</a>|<a href="./README.ja_JP.md">日本語</a></p>
 
-<h5>A lightweight galgame/visual-novel manager,Under development...</h5>
+<h5>A lightweight Galgame / Visual Novel manager, under development...</h5>
 
 The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>妃 玲奈(Kisaki Reina)</b></a> from game <a href="https://vndb.org/v21852"><b>金色ラブリッチェ(Kin'iro Loveriche)</b></a>
 
@@ -23,7 +23,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 ## Stacks
 
-- Tauri 2.0
+- Tauri 2
 
 - React
 
@@ -43,7 +43,7 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 
 ## Features
 
-- 🌐 **Multi-source Data Integration** - Seamlessly fetch and merge game metadata from multiple source APIs
+- 🌐 **Multi-source Data Integration** - Seamlessly fetch, merge and display game metadata from multiple source APIs
 - 🔍 **Powerful Search** - Quickly search games by titles, aliases, custom names, and other information
 - 🗂️ **Filter and Sort** - Filter and sort games across multiple dimensions, such as source, status, tags, and more
 - 📚 **Collection Management** - Organize your game library with groups and categories, with support for drag and drop sorting
@@ -53,26 +53,8 @@ The `Reina` in the name is the character <a href="https://vndb.org/c64303"><b>�
 - 🌍 **Multi-language Support** - Complete i18n support, including Simplified Chinese, Traditional Chinese, English, Japanese, and more
 - 🔒 **NSFW Filter** - Hide or cover NSFW content with a simple toggle
 - 💾 **Savedata Backup** - Support manual and automatic backup of game savedata
-- 🚀 **System Integration** - Auto-start on boot and minimize to system tray
 - 🛠️ **Tool Integration** - Launch games with Locale Emulator locale switching and Magpie upscaling integration
-
-## Todo
-
-- [x] Bulk import games from folders
-- [x] Basic support for the Linux platform
-- [x] Sync game status with Bangumi and VNDB
-- [ ] Beautify individual pages
-
-## Migration
-
-Need to migrate your data from other galgame/visual-novel managers? Check out [reina_migrator](https://github.com/huoshen80/reina_migrator) - a tool for migrating others manager data into ReinaManager.
-
-Currently supports:
-
-- **WhiteCloud v0.4.0** data migration
-- **Playnite 10** data migration (requires the [Reina Exporter](https://github.com/huoshen80/Reina-Playnite-Exporter) plugin)
-
-The migrator helps you seamlessly transfer your game library, play time records, and other data from supported managers to ReinaManager.
+- 🔄 **Cloud Collection Sync** - Import collections from cloud platforms and sync game status, ratings, and reviews
 
 ## Screenshots
 
@@ -85,36 +67,38 @@ The migrator helps you seamlessly transfer your game library, play time records,
 
 For more, you can download the latest Release Version: [Download](https://github.com/huoshen80/ReinaManager/releases)
 
-## Contribution
-##### Start
-Contributions are welcome! If you have suggestions for improvements, bug reports, or want to submit a pull request, please follow these steps:
+## Migrate from Other Managers
 
-1. Fork this repository and create your branch from `main`.
-2. If you have fixed a bug or added a feature, please try to conduct the corresponding tests (This project uses Biome to format and lint code).
-3. Ensure your code follows the existing style and passes all checks.
-4. Submit a pull request with a clear description of your changes.
+[reina_migrator](https://github.com/huoshen80/reina_migrator) can migrate game libraries, play records, and other data from other managers to ReinaManager. Currently supported:
 
-##### How to build and run the project locally
-1. Make sure you have [Node.js](https://nodejs.org/) and [Rust](https://www.rust-lang.org/) installed on your machine.
-2. Clone the repository:
+- **WhiteCloud v0.4.0**
+- **Playnite 10** (requires the [Reina Exporter](https://github.com/huoshen80/Reina-Playnite-Exporter) plugin)
+
+## Development and Contributions
+
+Issues, suggestions, and pull requests are welcome. Before development, read the [project documentation](docs/README.md) for module boundaries and development conventions.
+
+### Run Locally
+
+Install [Node.js](https://nodejs.org/), [pnpm](https://pnpm.io/), [Rust](https://www.rust-lang.org/), and the Tauri build dependencies for your platform. Use the pnpm version specified by `packageManager` in `package.json`.
+
+1. Clone the repository:
    ```bash
    git clone https://github.com/huoshen80/ReinaManager.git
    cd ReinaManager
    ```
-3. Install the dependencies:
+2. Install dependencies:
    ```bash
    pnpm install
    ```
-4. Run the development server:
+3. Start development mode:
    ```bash
    pnpm tauri dev
    ```
-5. Build the application for production:
+4. Build the application:
    ```bash
    pnpm tauri build
    ```
-
-Thank you for all the contributions you have made to ReinaManager!
 
 ## Sponsor
 If you find this project helpful and would like to support its development, you can consider sponsoring. Your support is greatly appreciated!

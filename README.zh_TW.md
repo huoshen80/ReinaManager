@@ -15,7 +15,7 @@
 
 <p align="center"><a href="./README.md">English</a>|<a href="./README.zh_CN.md">中文</a>|繁體中文|<a href="./README.ja_JP.md">日本語</a></p>
 
-<h5>一個輕量級的galgame/視覺小說管理工具，正在開發中...</h5>
+<h5>一個輕量級的 Galgame / 視覺小說管理工具，正在開發中...</h5>
 
 名稱中的 `Reina` 來源於遊戲 <a href="https://vndb.org/v21852"><b>金色ラブリッチェ(Kin'iro Loveriche)</b></a> 中的角色 <a href="https://vndb.org/c64303"><b>妃 玲奈(Kisaki Reina)</b></a>
 
@@ -23,7 +23,7 @@
 
 ## 技術棧
 
-- Tauri 2.0
+- Tauri 2
 
 - React
 
@@ -43,7 +43,7 @@
 
 ## 功能特性
 
-- 🌐 **多源數據整合** - 無縫獲取並合併多個來源 API 的遊戲元數據
+- 🌐 **多源數據整合** - 無縫獲取、合併並展示多個來源 API 的遊戲元數據
 - 🔍 **強大的搜尋** - 透過遊戲標題、別名、自訂名稱及其他資訊快速搜尋遊戲
 - 🗂️ **篩選排序** - 對遊戲進行多維度的篩選和排序，如按來源、狀態、標籤等
 - 📚 **收藏管理** - 透過分組和分類組織遊戲庫，並支援拖曳排序
@@ -53,26 +53,8 @@
 - 🌍 **多語言支持** - 提供完整的國際化支持，包含簡體中文、繁體中文、英文、日文等語言
 - 🔒 **NSFW 過濾** - 通過簡單的開關隱藏或遮蓋 NSFW 內容
 - 💾 **存檔備份** - 支援手動和自動備份遊戲存檔
-- 🚀 **系統集成** - 開機自啟動和最小化到系統托盤
 - 🛠️ **工具整合** - 啟動遊戲可聯動 Locale Emulator 轉區和 Magpie 放大
-
-## 待辦事項
-
-- [x] 從資料夾批量匯入遊戲
-- [x] 對 Linux 平台的基礎支持
-- [x] 與 Bangumi 和 VNDB 同步遊戲狀態
-- [ ] 美化各個頁面
-
-## 遷移
-
-需要從其他 galgame/視覺小說管理器遷移數據？請查看 [reina_migrator](https://github.com/huoshen80/reina_migrator) - 一個用於將其他管理器數據遷移到 ReinaManager 的工具。
-
-當前支持：
-
-- **WhiteCloud v0.4.0** 數據遷移
-- **Playnite 10** 數據遷移（需使用 [Reina Exporter](https://github.com/huoshen80/Reina-Playnite-Exporter) 外掛）
-
-該遷移工具可幫助您無縫轉移遊戲庫、遊玩時間記錄和其他數據到 ReinaManager。
+- 🔄 **雲端收藏同步** - 支援從雲端平台匯入收藏，並同步遊戲狀態、評分和評價
 
 ## 截圖
 
@@ -85,36 +67,38 @@
 
 更多資訊，您可以下載最新的發布版本：[下載](https://github.com/huoshen80/ReinaManager/releases)
 
-## 貢獻
-##### 開始
-歡迎各種形式的貢獻！如果你有改進建議、發現了 bug，或想提交 Pull Request，請依照以下步驟：
+## 從其他管理器遷移
 
-1. Fork 本倉庫，並從 `main` 分支建立新分支。
-2. 若修復了 bug 或新增功能，請盡量進行相關測試（本專案使用 Biome 格式化和檢查程式碼）。
-3. 請確保程式碼風格與現有代碼一致，並通過所有檢查。
-4. 提交 Pull Request，並清楚描述你的更改內容。
+[reina_migrator](https://github.com/huoshen80/reina_migrator) 可將其他管理器的遊戲庫、遊玩記錄等資料遷移到 ReinaManager，目前支援：
 
-##### 本機建構與執行專案
-1. 確保已安裝 [Node.js](https://nodejs.org/) 及 [Rust](https://www.rust-lang.org/)。
-2. Clone 倉庫：
+- **WhiteCloud v0.4.0**
+- **Playnite 10**（需使用 [Reina Exporter](https://github.com/huoshen80/Reina-Playnite-Exporter) 外掛）
+
+## 開發與貢獻
+
+歡迎提交問題、建議和 Pull Request。開發前請閱讀[專案文件](docs/README.md)，了解模組邊界與開發慣例。
+
+### 本機執行
+
+準備好 [Node.js](https://nodejs.org/)、[pnpm](https://pnpm.io/)、[Rust](https://www.rust-lang.org/) 以及對應平台的 Tauri 建構相依套件。pnpm 版本以 `package.json` 的 `packageManager` 為準。
+
+1. 複製儲存庫：
    ```bash
    git clone https://github.com/huoshen80/ReinaManager.git
    cd ReinaManager
    ```
-3. 安裝依賴：
+2. 安裝相依套件：
    ```bash
    pnpm install
    ```
-4. 啟動開發伺服器：
+3. 啟動開發模式：
    ```bash
    pnpm tauri dev
    ```
-5. 建構生產版本：
+4. 建構應用程式：
    ```bash
    pnpm tauri build
    ```
-
-感謝你為 ReinaManager 做出的所有貢獻！
 
 ## 贊助
 如果你覺得這個專案好用，並希望支持項目的開發，可以考慮贊助。非常感謝每個支持者！

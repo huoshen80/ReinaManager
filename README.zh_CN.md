@@ -15,7 +15,7 @@
 
 <p align="center"><a href="./README.md">English</a>|中文|<a href="./README.zh_TW.md">繁體中文</a>|<a href="./README.ja_JP.md">日本語</a></p>
 
-<h5>一个轻量级的galgame/视觉小说管理工具，正在开发中...</h5>
+<h5>一个轻量级的 Galgame / 视觉小说管理工具，正在开发中...</h5>
 
 名称中的 `Reina` 来源于游戏 <a href="https://vndb.org/v21852"><b>金色ラブリッチェ(Kin'iro Loveriche)</b></a> 中的角色 <a href="https://vndb.org/c64303"><b>妃 玲奈(Kisaki Reina)</b></a>
 
@@ -23,7 +23,7 @@
 
 ## 技术栈
 
-- Tauri 2.0
+- Tauri 2
 
 - React
 
@@ -53,26 +53,8 @@
 - 🌍 **多语言支持** - 提供完整的国际化支持，包含简体中文、繁体中文、英文、日文等语言
 - 🔒 **NSFW 过滤** - 通过简单的开关隐藏或遮盖 NSFW 内容
 - 💾 **存档备份** - 支持手动和自动备份游戏存档
-- 🚀 **系统集成** - 开机自启动和最小化到系统托盘
 - 🛠️ **工具集成** - 启动游戏可联动 Locale Emulator 转区和 Magpie 放大
-
-## 待办事项
-
-- [x] 从文件夹批量导入游戏
-- [x] 对 Linux 平台的基础支持 
-- [x] 与 Bangumi 和 VNDB 同步游戏状态
-- [ ] 美化各个页面
-
-## 迁移
-
-需要从其他 galgame/视觉小说管理器迁移数据？请查看 [reina_migrator](https://github.com/huoshen80/reina_migrator) - 一个用于将其他管理器数据迁移到 ReinaManager 的工具。
-
-当前支持：
-
-- **WhiteCloud v0.4.0** 数据迁移
-- **Playnite 10** 数据迁移（需使用 [Reina Exporter](https://github.com/huoshen80/Reina-Playnite-Exporter) 插件）
-
-该迁移工具可帮助您无缝转移游戏库、游玩时间记录和其他数据到 ReinaManager。
+- 🔄 **云端收藏同步** - 支持从云端平台导入收藏，并同步游戏状态、评分和评价
 
 ## 截图
 
@@ -85,36 +67,40 @@
 
 更多内容，你可以下载最新的发布版本：[下载](https://github.com/huoshen80/ReinaManager/releases)
 
-## 贡献
-##### 开始
-欢迎任何形式的贡献！如果你有改进建议、发现了 bug，或希望提交 Pull Request，请按照以下步骤操作：
+## 从其他管理器迁移
 
-1. Fork 本仓库，并从 `main` 分支创建新分支。
-2. 如果修复了 bug 或新增了功能，请尽量进行相应测试（本项目使用 Biome 格式化和检查代码）。
-3. 保证代码风格与现有代码一致，并通过所有检查。
-4. 提交 Pull Request，并清晰描述你的更改内容。
+[reina_migrator](https://github.com/huoshen80/reina_migrator) 可将其他管理器的游戏库、游玩记录等数据迁移到 ReinaManager，目前支持：
 
-##### 本地构建与运行项目
-1. 确保你已安装 [Node.js](https://nodejs.org/) 和 [Rust](https://www.rust-lang.org/)。
-2. 克隆仓库：
+- **WhiteCloud v0.4.0**
+- **Playnite 10**（需使用 [Reina Exporter](https://github.com/huoshen80/Reina-Playnite-Exporter) 插件）
+
+## 开发与贡献
+
+欢迎提交问题、建议和 Pull Request。开发前请阅读[项目文档](docs/README.md)，了解模块边界与开发约定。
+
+### 本地运行
+
+准备好 [Node.js](https://nodejs.org/)、[pnpm](https://pnpm.io/)、[Rust](https://www.rust-lang.org/) 以及对应平台的 Tauri 构建依赖。pnpm 版本以 `package.json` 的 `packageManager` 为准。
+
+1. 克隆仓库：
    ```bash
    git clone https://github.com/huoshen80/ReinaManager.git
    cd ReinaManager
    ```
-3. 安装依赖：
+2. 安装依赖：
    ```bash
    pnpm install
    ```
-4. 运行开发服务器：
+3. 启动开发模式：
    ```bash
    pnpm tauri dev
    ```
-5. 构建生产版本：
+4. 构建应用：
    ```bash
    pnpm tauri build
    ```
 
-感谢你为 ReinaManager 做出的所有贡献！
+
 
 ## 赞助
 如果你觉得这个项目好用，并希望支持项目的开发，可以考虑赞助。非常感谢每个支持者！
