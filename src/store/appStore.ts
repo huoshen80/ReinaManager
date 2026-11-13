@@ -105,11 +105,10 @@ export interface AppState {
 	setSkipCloseRemind: (skip: boolean) => void;
 	setDefaultCloseAction: (action: "hide" | "close") => void;
 
-	// 数据库自动备份
+	// 数据自动备份
 	scheduledBackupEnabled: boolean;
 	scheduledBackupIntervalHours: number;
 	autoBackupOnExit: boolean;
-	autoBackupIncludeCovers: boolean;
 	exitBackupMinIntervalHours: number;
 	autoBackupRetentionCount: number;
 	autoBackupLastSuccessAt: number | null;
@@ -118,7 +117,6 @@ export interface AppState {
 	setScheduledBackupEnabled: (enabled: boolean) => void;
 	setScheduledBackupIntervalHours: (hours: number) => void;
 	setAutoBackupOnExit: (enabled: boolean) => void;
-	setAutoBackupIncludeCovers: (enabled: boolean) => void;
 	setExitBackupMinIntervalHours: (hours: number) => void;
 	setAutoBackupRetentionCount: (count: number) => void;
 	setAutoBackupLastScheduledAttemptAt: (attemptAt: number) => void;
@@ -290,11 +288,10 @@ export const useStore = create<AppState>()(
 			setDefaultCloseAction: (action: "hide" | "close") =>
 				set({ defaultCloseAction: action }),
 
-			// 数据库自动备份
+			// 数据自动备份
 			scheduledBackupEnabled: false,
 			scheduledBackupIntervalHours: 12,
 			autoBackupOnExit: false,
-			autoBackupIncludeCovers: false,
 			exitBackupMinIntervalHours: 6,
 			autoBackupRetentionCount: 7,
 			autoBackupLastSuccessAt: null,
@@ -310,8 +307,6 @@ export const useStore = create<AppState>()(
 			},
 			setAutoBackupOnExit: (enabled: boolean) =>
 				set({ autoBackupOnExit: enabled }),
-			setAutoBackupIncludeCovers: (enabled: boolean) =>
-				set({ autoBackupIncludeCovers: enabled }),
 			setExitBackupMinIntervalHours: (hours: number) => {
 				const nextHours = Number.isFinite(hours) ? hours : 0;
 				set({
@@ -671,7 +666,6 @@ export const useStore = create<AppState>()(
 				autoBackupOnExit: state.autoBackupOnExit,
 				scheduledBackupEnabled: state.scheduledBackupEnabled,
 				scheduledBackupIntervalHours: state.scheduledBackupIntervalHours,
-				autoBackupIncludeCovers: state.autoBackupIncludeCovers,
 				exitBackupMinIntervalHours: state.exitBackupMinIntervalHours,
 				autoBackupRetentionCount: state.autoBackupRetentionCount,
 				autoBackupLastSuccessAt: state.autoBackupLastSuccessAt,

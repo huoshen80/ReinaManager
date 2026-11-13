@@ -81,7 +81,6 @@ async function runScheduledBackup(): Promise<void> {
 		try {
 			const result = await createAutoBackup(
 				"scheduled",
-				state.autoBackupIncludeCovers,
 				state.autoBackupRetentionCount,
 			);
 			const warning =

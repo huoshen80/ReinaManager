@@ -5,10 +5,15 @@ use sea_orm_migration::sea_orm::{
 };
 
 /// 统一执行启动迁移：新库不备份，已有库在整轮迁移前只备份一次。
-pub async fn migrate_database(
+pub async fn migrate_database<F, Fut>(
     connection: &DatabaseConnection,
     target_version: &str,
-) -> Result<(), DbErr> {
+    complete_backup: F,
+) -> Result<(), DbErr>
+where
+    F: FnOnce(std::path::PathBuf) -> Fut,
+    Fut: std::future::Future<Output = Result<std::path::PathBuf, DbErr>>,
+{
     // 必须在建表前判断，初始化生成的业务表不能被后续迁移误认为历史数据库。
     let existing_schema = has_existing_schema(connection).await?;
     let pending = Migrator::get_pending_migrations_read_only(connection).await?;
@@ -22,6 +27,10 @@ pub async fn migrate_database(
         let path = backup_sqlite(&db_path, target_version)
             .await
             .map_err(|error| DbErr::Custom(format!("迁移前数据库备份失败，已停止迁移: {error}")))?;
+        // 应用层补齐封面快照；完整备份失败时不得进入数据库迁移。
+        let path = complete_backup(path)
+            .await
+            .map_err(|error| DbErr::Custom(format!("迁移前数据备份失败，已停止迁移: {error}")))?;
         log::info!(
             "[MIGRATION] 迁移前备份完成，target_version={}，pending={}，backup={}",
             target_version,
@@ -73,6 +82,10 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
+    async fn migrate_database(connection: &DatabaseConnection, version: &str) -> Result<(), DbErr> {
+        super::migrate_database(connection, version, |path| async { Ok(path) }).await
+    }
+
     struct TestDatabase {
         directory: PathBuf,
         connection: DatabaseConnection,
@@ -112,6 +125,25 @@ mod tests {
             self.connection.close().await.unwrap();
             fs::remove_dir_all(self.directory).unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn incomplete_data_backup_stops_migration() {
+        let test = TestDatabase::new("cover_backup_failure").await;
+        Migrator::up(&test.connection, Some(22)).await.unwrap();
+        let error = super::migrate_database(&test.connection, "0.33.0", |snapshot| async move {
+            assert!(snapshot.is_file());
+            Err(DbErr::Custom("封面读取失败".into()))
+        })
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains("已停止迁移"));
+        assert!(!SchemaManager::new(&test.connection)
+            .has_table("cover_assets")
+            .await
+            .unwrap());
+        assert_eq!(test.backups().len(), 1);
+        test.cleanup().await;
     }
 
     #[tokio::test]

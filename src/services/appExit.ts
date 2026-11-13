@@ -180,15 +180,10 @@ async function runAutoBackupOnExitIfNeeded(): Promise<void> {
 	}
 
 	exitAutoBackupPromise = (async () => {
-		const { autoBackupIncludeCovers, autoBackupRetentionCount } =
-			useStore.getState();
+		const { autoBackupRetentionCount } = useStore.getState();
 
 		try {
-			const result = await createAutoBackup(
-				"exit",
-				autoBackupIncludeCovers,
-				autoBackupRetentionCount,
-			);
+			const result = await createAutoBackup("exit", autoBackupRetentionCount);
 			const warning =
 				result.warnings.length > 0 ? result.warnings.join("；") : null;
 			useStore.getState().setAutoBackupLastResult(Date.now(), warning);

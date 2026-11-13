@@ -389,7 +389,9 @@ mod tests {
         let (url, arrived, release, server) = test_server(2).await;
         let id = register_asset(&db, "bgm", &url).await;
         assert!(resolve_cover(&db, &test_state(), &id, &root).await.is_err());
-        assets::clean_unused_covers_at(&db, &root).await.unwrap();
+        assets::clean_unused_covers_at(&db, &root, true)
+            .await
+            .unwrap();
         let state = test_state();
         let download = resolve_cover(&db, &state, &id, &root);
         let respond = async {

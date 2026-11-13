@@ -28,7 +28,7 @@ pub async fn run_startup_migrations(
     run_startup_migrations_at(db, &legacy_covers, &current_covers).await
 }
 
-async fn run_startup_migrations_at(
+pub(crate) async fn run_startup_migrations_at(
     db: &DatabaseConnection,
     legacy_covers: &Path,
     current_covers: &Path,
@@ -469,7 +469,7 @@ mod tests {
             serde_json::json!({"name":"保留"})
         );
         run_startup_migrations_at(&db, &root, &root).await.unwrap();
-        clean_unused_covers_at(&db, &root).await.unwrap();
+        clean_unused_covers_at(&db, &root, true).await.unwrap();
         assert_eq!(custom_path(&db, &root).await, target);
         assert!(!target.exists());
 
@@ -494,7 +494,7 @@ mod tests {
         fs::create_dir_all(old.parent().unwrap()).unwrap();
         fs::write(&old, png()).unwrap();
         run_startup_migrations_at(&db, &root, &root).await.unwrap();
-        clean_unused_covers_at(&db, &root).await.unwrap();
+        clean_unused_covers_at(&db, &root, true).await.unwrap();
         assert!(!old.exists());
         assert!(!target.exists());
         assert_eq!(

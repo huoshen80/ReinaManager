@@ -33,7 +33,6 @@ export type AutoBackupTrigger = "scheduled" | "exit";
 
 export interface AutoBackupRequest {
 	trigger: AutoBackupTrigger;
-	includeCovers: boolean;
 	maxAutoBackups: number;
 }
 
@@ -206,8 +205,8 @@ class FileService extends BaseService {
 		return this.invoke<CoverCleanupResult>("clean_unused_covers");
 	}
 
-	async backupDatabase(includeCovers: boolean): Promise<BackupResult> {
-		return this.invoke<BackupResult>("backup_database", { includeCovers });
+	async backupDatabase(): Promise<BackupResult> {
+		return this.invoke<BackupResult>("backup_database");
 	}
 
 	async openDatabaseBackupFolder(): Promise<void> {

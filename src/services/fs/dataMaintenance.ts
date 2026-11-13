@@ -8,12 +8,10 @@ import {
 	type ImportResult,
 } from "@/services/invoke";
 
-/** 备份数据库，可选将自定义封面一起打包。 */
-export async function backupDatabase(
-	includeCovers: boolean,
-): Promise<BackupResult> {
+/** 备份数据库和自定义封面的完整数据包。 */
+export async function backupDatabase(): Promise<BackupResult> {
 	try {
-		const result = await fileService.backupDatabase(includeCovers);
+		const result = await fileService.backupDatabase();
 		console.log(`备份已保存到: ${result.path}`);
 		return result;
 	} catch (error) {
@@ -29,13 +27,11 @@ export async function backupDatabase(
  */
 export async function createAutoBackup(
 	trigger: AutoBackupTrigger,
-	includeCovers: boolean,
 	maxBackups: number,
 ): Promise<AutoBackupResult> {
 	try {
 		const result = await fileService.createAutoBackup({
 			trigger,
-			includeCovers,
 			maxAutoBackups: maxBackups,
 		});
 		console.log(`自动备份完成: ${result.backup.path}`);

@@ -2,15 +2,12 @@ import BackupIcon from "@mui/icons-material/Backup";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import RestoreIcon from "@mui/icons-material/Restore";
-import StorageIcon from "@mui/icons-material/Storage";
 import {
 	CircularProgress,
 	Dialog,
 	DialogActions,
 	DialogContent,
 	DialogTitle,
-	Menu,
-	MenuItem,
 	Switch,
 	TextField,
 	Typography,
@@ -47,7 +44,6 @@ export const DatabaseBackupSettings = () => {
 	const { t } = useTranslation();
 	const refreshSettings = useRefreshSettings();
 	const [isBackingUp, setIsBackingUp] = useState(false);
-	const [backupAnchor, setBackupAnchor] = useState<HTMLElement | null>(null);
 	const [isImporting, setIsImporting] = useState(false);
 	const [needsRestart, setNeedsRestart] = useState(false);
 	const [importRecovery, setImportRecovery] = useState<{
@@ -61,7 +57,6 @@ export const DatabaseBackupSettings = () => {
 		}
 	}, [blocker]);
 	const {
-		autoBackupIncludeCovers,
 		autoBackupLastError,
 		autoBackupLastSuccessAt,
 		autoBackupOnExit,
@@ -69,7 +64,6 @@ export const DatabaseBackupSettings = () => {
 		exitBackupMinIntervalHours,
 		scheduledBackupEnabled,
 		scheduledBackupIntervalHours,
-		setAutoBackupIncludeCovers,
 		setAutoBackupOnExit,
 		setAutoBackupRetentionCount,
 		setExitBackupMinIntervalHours,
@@ -77,7 +71,6 @@ export const DatabaseBackupSettings = () => {
 		setScheduledBackupIntervalHours,
 	} = useStore(
 		useShallow((s) => ({
-			autoBackupIncludeCovers: s.autoBackupIncludeCovers,
 			autoBackupLastError: s.autoBackupLastError,
 			autoBackupLastSuccessAt: s.autoBackupLastSuccessAt,
 			autoBackupOnExit: s.autoBackupOnExit,
@@ -85,7 +78,6 @@ export const DatabaseBackupSettings = () => {
 			exitBackupMinIntervalHours: s.exitBackupMinIntervalHours,
 			scheduledBackupEnabled: s.scheduledBackupEnabled,
 			scheduledBackupIntervalHours: s.scheduledBackupIntervalHours,
-			setAutoBackupIncludeCovers: s.setAutoBackupIncludeCovers,
 			setAutoBackupOnExit: s.setAutoBackupOnExit,
 			setAutoBackupRetentionCount: s.setAutoBackupRetentionCount,
 			setExitBackupMinIntervalHours: s.setExitBackupMinIntervalHours,
@@ -113,12 +105,11 @@ export const DatabaseBackupSettings = () => {
 		: t("pages.Settings.databaseBackup.autoNever", "从未自动备份");
 	const autoBackupEnabled = scheduledBackupEnabled || autoBackupOnExit;
 
-	const handleBackupDatabase = async (includeCovers: boolean) => {
-		setBackupAnchor(null);
+	const handleBackupDatabase = async () => {
 		setIsBackingUp(true);
 
 		try {
-			const result = await backupDatabase(includeCovers);
+			const result = await backupDatabase();
 			if (result.success) {
 				refreshSettings();
 				snackbar.success(
@@ -360,7 +351,7 @@ export const DatabaseBackupSettings = () => {
 			>
 				<Button
 					variant="contained"
-					onClick={(event) => setBackupAnchor(event.currentTarget)}
+					onClick={handleBackupDatabase}
 					disabled={isBackingUp || isImporting || needsRestart}
 					startIcon={
 						isBackingUp ? (
@@ -369,59 +360,12 @@ export const DatabaseBackupSettings = () => {
 							<BackupIcon />
 						)
 					}
-					aria-haspopup="menu"
-					aria-expanded={Boolean(backupAnchor)}
-					aria-controls={backupAnchor ? "backup-options" : undefined}
 					className="px-6 py-2"
 				>
 					{isBackingUp
 						? t("pages.Settings.databaseBackup.backing", "备份中...")
-						: t("pages.Settings.databaseBackup.backupMenu", "备份")}
+						: t("pages.Settings.databaseBackup.backup", "备份数据")}
 				</Button>
-				<Menu
-					id="backup-options"
-					anchorEl={backupAnchor}
-					open={Boolean(backupAnchor)}
-					onClose={() => setBackupAnchor(null)}
-					anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-					transformOrigin={{ vertical: "top", horizontal: "left" }}
-					slotProps={{
-						paper: { elevation: 3, className: "mt-1 !rounded-lg min-w-56" },
-						list: { className: "!py-1" },
-					}}
-				>
-					<MenuItem
-						onClick={() => void handleBackupDatabase(true)}
-						disabled={isBackingUp || isImporting || needsRestart}
-						className="!gap-3 !py-2"
-					>
-						<BackupIcon fontSize="small" color="action" />
-						<Box>
-							<Typography variant="body2">
-								{t("pages.Settings.databaseBackup.backup", "备份数据")}
-							</Typography>
-							<Typography variant="caption" color="text.secondary">
-								{t(
-									"pages.Settings.databaseBackup.dataScope",
-									"数据库和自定义封面",
-								)}
-							</Typography>
-						</Box>
-					</MenuItem>
-					<MenuItem
-						onClick={() => void handleBackupDatabase(false)}
-						disabled={isBackingUp || isImporting || needsRestart}
-						className="!gap-3 !py-2"
-					>
-						<StorageIcon fontSize="small" color="action" />
-						<Typography variant="body2">
-							{t(
-								"pages.Settings.databaseBackup.backupDatabaseOnly",
-								"仅备份数据库",
-							)}
-						</Typography>
-					</MenuItem>
-				</Menu>
 
 				<Button
 					variant="outlined"
@@ -484,7 +428,7 @@ export const DatabaseBackupSettings = () => {
 				)}
 				description={t(
 					"pages.Settings.databaseBackup.autoBackupOnExitDescription",
-					"开启后，软件正常退出时会自动备份数据库；如果同时启用自定义封面备份，可能会延长退出时间。",
+					"开启后，软件正常退出时会备份数据库和自定义封面，备份完成后退出。",
 				)}
 			>
 				<Switch
@@ -536,26 +480,6 @@ export const DatabaseBackupSettings = () => {
 						slotProps={{ htmlInput: { min: 1 } }}
 					/>
 				</Stack>
-
-				<SettingsItem
-					title={t(
-						"pages.Settings.databaseBackup.autoIncludeCovers",
-						"同时备份自定义封面",
-					)}
-					description={t(
-						"pages.Settings.databaseBackup.autoIncludeCoversHelp",
-						"关闭时仅备份数据库。开启后生成完整数据包，会增加耗时和体积，退出时可能需要等待。",
-					)}
-				>
-					<Switch
-						checked={autoBackupIncludeCovers}
-						onChange={(event) =>
-							setAutoBackupIncludeCovers(event.target.checked)
-						}
-						disabled={!autoBackupEnabled}
-						color="primary"
-					/>
-				</SettingsItem>
 
 				<Typography variant="caption" color="text.secondary" className="block">
 					{t(

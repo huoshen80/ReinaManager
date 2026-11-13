@@ -180,7 +180,11 @@ async fn initialize_database(
     })?;
     log::debug!("数据库连接建立成功");
 
-    if let Err(error) = migration::migrate_database(&conn, env!("CARGO_PKG_VERSION")).await {
+    if let Err(error) = migration::migrate_database(&conn, env!("CARGO_PKG_VERSION"), |snapshot| {
+        crate::backup::database::complete_migration_backup(&conn, snapshot)
+    })
+    .await
+    {
         log::error!("数据库迁移失败: {startup_context} error={error}");
         let dialog = NativeDialog::new(
             "Reina 启动失败",

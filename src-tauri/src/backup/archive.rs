@@ -21,8 +21,45 @@ pub fn create_7z_archive(
     Ok(fs::metadata(archive_path)?.len())
 }
 
-/// 重新打开归档并读取头部，避免发布无法被解析的正式备份文件。
-pub fn verify_7z_archive(archive_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    ArchiveReader::open(archive_path, Password::empty())?;
+/// 普通备份只检查归档头部；迁移保护备份还需完整读取内容。
+pub fn verify_7z_archive(
+    archive_path: &Path,
+    verify_contents: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut reader = ArchiveReader::open(archive_path, Password::empty())?;
+    if !verify_contents {
+        return Ok(());
+    }
+    reader.for_each_entries(|entry, input| {
+        if !entry.is_directory() {
+            std::io::copy(input, &mut std::io::sink())?;
+        }
+        Ok(true)
+    })?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn full_verification_detects_payload_damage_beyond_readable_headers() {
+        let root =
+            std::env::temp_dir().join(format!("reina-archive-check-{}", uuid::Uuid::now_v7()));
+        let source = root.join("source");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("data"), vec![42; 4096]).unwrap();
+        let archive = root.join("backup.7z");
+        create_7z_archive(&source, &archive).unwrap();
+        verify_7z_archive(&archive, false).unwrap();
+        verify_7z_archive(&archive, true).unwrap();
+        let mut bytes = fs::read(&archive).unwrap();
+        // 7z 固定起始头之后是压缩数据；只破坏载荷，保留归档元数据。
+        bytes[32] ^= 0xff;
+        fs::write(&archive, bytes).unwrap();
+        verify_7z_archive(&archive, false).unwrap();
+        assert!(verify_7z_archive(&archive, true).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
 }

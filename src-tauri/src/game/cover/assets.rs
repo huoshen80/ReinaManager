@@ -215,12 +215,13 @@ pub async fn clean_unused_covers(
     db: tauri::State<'_, DatabaseConnection>,
 ) -> Result<CoverCleanupResult, String> {
     let root = reina_path::get_base_data_dir()?.join("covers");
-    clean_unused_covers_at(&db, &root).await
+    clean_unused_covers_at(&db, &root, true).await
 }
 
 pub async fn clean_unused_covers_at(
     db: &DatabaseConnection,
     root: &Path,
+    include_custom: bool,
 ) -> Result<CoverCleanupResult, String> {
     // 与自定义保存、云图落盘和备份恢复互斥，扫描期间不会出现未提交的新文件。
     let _guard = crate::backup::common::acquire_database_backup_operation_lock().await;
@@ -247,6 +248,9 @@ pub async fn clean_unused_covers_at(
     }
     let mut result = CoverCleanupResult::default();
     for kind in ["custom", "cloud"] {
+        if kind == "custom" && !include_custom {
+            continue;
+        }
         let directory = root.join(kind);
         match tokio::fs::symlink_metadata(&directory).await {
             Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {}
@@ -376,7 +380,7 @@ pub(crate) mod tests {
         tokio::fs::write(&partial, b"partial").await.unwrap();
         // 清理必须等待写入事务，不能在文件落盘到登记关联的窗口内运行。
         let guard = crate::backup::common::acquire_database_backup_operation_lock().await;
-        let cleanup = clean_unused_covers_at(&db, &root);
+        let cleanup = clean_unused_covers_at(&db, &root, false);
         tokio::pin!(cleanup);
         assert!(
             tokio::time::timeout(std::time::Duration::from_millis(20), &mut cleanup)
@@ -385,8 +389,13 @@ pub(crate) mod tests {
         );
         drop(guard);
         let result = cleanup.await.unwrap();
-        assert_eq!(result.deleted_files, 2);
-        assert_eq!(result.freed_bytes, png().len() as u64 + 7);
+        assert_eq!(result.deleted_files, 1);
+        assert_eq!(result.freed_bytes, 7);
+        assert_eq!(result.failed_files, 0);
+        assert!(orphan.exists());
+        let result = clean_unused_covers_at(&db, &root, true).await.unwrap();
+        assert_eq!(result.deleted_files, 1);
+        assert_eq!(result.freed_bytes, png().len() as u64);
         assert_eq!(result.failed_files, 0);
         assert!(unrelated.exists());
         assert!(pending_path.exists());

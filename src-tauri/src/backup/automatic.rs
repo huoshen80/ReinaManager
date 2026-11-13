@@ -3,9 +3,7 @@ use crate::backup::common::{
     ensure_database_backup_available, mark_database_backup_unavailable, next_backup_id,
     resolve_backup_dir,
 };
-use crate::backup::database::{
-    backup_data_archive_to, backup_database_file_to, copy_database_file_cold_to,
-};
+use crate::backup::database::backup_data_archive_to;
 use crate::database::db::close_connection;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -22,7 +20,6 @@ pub enum AutoBackupTrigger {
 #[serde(rename_all = "camelCase")]
 pub struct AutoBackupRequest {
     pub trigger: AutoBackupTrigger,
-    pub include_covers: bool,
     pub max_auto_backups: usize,
 }
 
@@ -34,7 +31,7 @@ pub struct AutoBackupResult {
     pub warnings: Vec<String>,
 }
 
-/// 创建一个数据库自动备份批次，并按批次统一清理数据库和封面文件。
+/// 创建完整数据自动备份，并按批次清理历史备份。
 #[command]
 pub async fn create_auto_backup(
     request: AutoBackupRequest,
@@ -66,22 +63,14 @@ pub async fn create_auto_backup(
             .map_err(|e| format!("关闭数据库连接失败: {e}"))?;
         mark_database_backup_unavailable();
     }
-    let backup = if request.include_covers {
-        backup_data_archive_to(
-            &db,
-            &reina_path::get_base_data_dir()?.join("covers"),
-            &backup_dir.join(format!("reina_data_auto_{batch_id}.7z")),
-            cold_database_path.as_deref(),
-        )
-        .await?
-    } else {
-        let name = format!("reina_manager_auto_{batch_id}.db");
-        if let Some(source) = cold_database_path.as_deref() {
-            copy_database_file_cold_to(source, &backup_dir, &name)?
-        } else {
-            backup_database_file_to(&db, &backup_dir, &name).await?
-        }
-    };
+    let backup = backup_data_archive_to(
+        &db,
+        &[&reina_path::get_base_data_dir()?.join("covers")],
+        &backup_dir.join(format!("reina_data_auto_{batch_id}.7z")),
+        cold_database_path.as_deref(),
+        false,
+    )
+    .await?;
 
     if let Err(error) = cleanup_auto_backup_batches(&backup_dir, request.max_auto_backups) {
         log::warn!("自动备份批次 {batch_id} 已创建，但清理旧批次失败: {error}");

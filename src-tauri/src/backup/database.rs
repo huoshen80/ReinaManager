@@ -32,39 +32,60 @@ pub struct ImportResult {
 
 // ==================== 数据库备份和导入 ====================
 
-/// 生成不会覆盖同秒已有备份的文件名。
-fn generate_backup_filename(backup_dir: &Path) -> Result<String, String> {
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    next_backup_filename(backup_dir, "reina_manager_", &timestamp, ".db")
-}
-
-/// 热备份数据库，可选包含自定义封面的完整数据包。
+/// 手动备份数据库和自定义封面的完整数据包。
 #[command]
-pub async fn backup_database(
-    db: State<'_, DatabaseConnection>,
-    include_covers: bool,
-) -> Result<BackupResult, String> {
+pub async fn backup_database(db: State<'_, DatabaseConnection>) -> Result<BackupResult, String> {
     let _operation_guard = acquire_database_backup_operation_lock().await;
     ensure_database_backup_available()?;
-    if include_covers {
-        backup_data_file(&db, &reina_path::get_base_data_dir()?.join("covers")).await
-    } else {
-        backup_database_file(&db).await
-    }
+    backup_data_file(&db, &reina_path::get_base_data_dir()?.join("covers")).await
 }
 
 async fn backup_data_file(db: &DatabaseConnection, covers: &Path) -> Result<BackupResult, String> {
     let backup_dir = resolve_backup_dir(db).await?;
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     let name = next_backup_filename(&backup_dir, "reina_data_", &timestamp, ".7z")?;
-    backup_data_archive_to(db, covers, &backup_dir.join(name), None).await
+    backup_data_archive_to(db, &[covers], &backup_dir.join(name), None, false).await
+}
+
+/// 将迁移前数据库快照和所有待迁移自定义封面发布为同一恢复包。
+pub(crate) async fn complete_migration_backup(
+    db: &DatabaseConnection,
+    snapshot: PathBuf,
+) -> Result<PathBuf, sea_orm::DbErr> {
+    let result = async {
+        let current = reina_path::get_base_data_dir()?.join("covers");
+        let legacy = reina_path::get_base_data_dir_for_mode(true)?.join("covers");
+        let mut roots = vec![current.as_path()];
+        if legacy != current {
+            roots.push(legacy.as_path());
+        }
+        let parent = snapshot.parent().ok_or("数据库快照缺少父目录")?;
+        let stem = snapshot
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or("数据库快照名称无效")?;
+        let archive = parent.join(next_backup_filename(parent, stem, "", ".7z")?);
+        backup_data_archive_to(db, &roots, &archive, Some(&snapshot), true).await?;
+        if let Err(error) = fs::remove_file(&snapshot) {
+            log::warn!(
+                "完整备份已生成，删除中间数据库快照失败 {}: {error}",
+                snapshot.display()
+            );
+        }
+        Ok::<_, String>(archive)
+    }
+    .await;
+    result.map_err(|error| {
+        sea_orm::DbErr::Custom(format!("{error}；数据库快照保留在 {}", snapshot.display()))
+    })
 }
 
 pub(super) async fn backup_data_archive_to(
     db: &DatabaseConnection,
-    covers_dir: &Path,
+    covers_dirs: &[&Path],
     archive_path: &Path,
     cold_source: Option<&Path>,
+    verify_contents: bool,
 ) -> Result<BackupResult, String> {
     ensure_target_does_not_exist(archive_path, "数据备份")?;
     let temporary_archive = temporary_sibling_path(archive_path, "reina-creating")?;
@@ -78,20 +99,24 @@ pub(super) async fn backup_data_archive_to(
             backup_database_file_to(db, &staging.join("data"), "reina_manager.db").await?;
         }
         // 缺少封面目录是正常情况，其他读取错误必须中止完整数据备份。
-        match fs::metadata(covers_dir) {
-            Ok(metadata) if metadata.is_dir() => {
-                scan_and_copy_custom_covers(covers_dir, &staging.join("covers"))?;
+        for covers_dir in covers_dirs {
+            match fs::symlink_metadata(covers_dir) {
+                Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+                    scan_and_copy_custom_covers(covers_dir, &staging.join("covers"))?;
+                }
+                Ok(_) => return Err("封面路径不是目录，无法备份".into()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(format!("读取封面目录失败: {e}")),
             }
-            Ok(_) => return Err("封面路径不是目录，无法备份".into()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("读取封面目录失败: {e}")),
         }
         create_7z_archive(&staging, &temporary_archive)
             .map_err(|e| format!("创建数据备份失败: {e}"))?;
-        verify_7z_archive(&temporary_archive).map_err(|e| format!("校验数据备份失败: {e}"))?;
+        verify_7z_archive(&temporary_archive, verify_contents)
+            .map_err(|e| format!("校验数据备份失败: {e}"))?;
         ensure_target_does_not_exist(archive_path, "数据备份")?;
         fs::rename(&temporary_archive, archive_path)
             .map_err(|e| format!("发布数据备份失败: {e}"))?;
+        log::info!("数据备份成功: {}", archive_path.display());
         Ok(BackupResult {
             success: true,
             path: Some(archive_path.to_string_lossy().into_owned()),
@@ -112,12 +137,6 @@ pub(super) async fn backup_data_archive_to(
 pub async fn open_database_backup_folder(db: State<'_, DatabaseConnection>) -> Result<(), String> {
     let path = resolve_backup_dir(&db).await?;
     crate::utils::fs::open_directory(path.to_string_lossy().into_owned()).await
-}
-
-pub async fn backup_database_file(db: &DatabaseConnection) -> Result<BackupResult, String> {
-    let backup_dir = resolve_backup_dir(db).await?;
-    let backup_name = generate_backup_filename(&backup_dir)?;
-    backup_database_file_to(db, &backup_dir, &backup_name).await
 }
 
 pub(super) async fn backup_database_file_to(
@@ -277,12 +296,20 @@ fn extract_data_archive(source: &Path, output: &Path) -> Result<(), String> {
     for (parts, directory) in entries {
         let name = parts.join("/");
         let allowed = if directory {
-            name == "data" || name == "covers" || name == "covers/custom"
+            name == "data"
+                || name == "covers"
+                || name == "covers/custom"
+                || (parts.len() == 2
+                    && parts[0] == "covers"
+                    && crate::backup::covers::legacy_game_id(&parts[1]).is_some())
         } else if name == "data/reina_manager.db" {
             has_database = true;
             true
         } else {
-            parts.len() == 3 && parts[0] == "covers" && parts[1] == "custom"
+            parts.len() == 3
+                && parts[0] == "covers"
+                && (parts[1] == "custom"
+                    || crate::backup::covers::is_legacy_custom_cover(&parts[1], &parts[2]))
         };
         if !allowed {
             return Err(format!("数据包包含不支持的内容: {name}"));
@@ -334,7 +361,7 @@ async fn import_prepared_database(
         ensure_database_logs_flushed(source)?;
         copy_file_fully(source, &staged)
             .map_err(|error| import_error("复制数据库失败，请检查磁盘空间和访问权限", error))?;
-        validate_and_migrate_import(&staged).await
+        validate_and_migrate_import(&staged, imported_covers).await
     }
     .await;
     if let Err(error) = preparation {
@@ -396,8 +423,14 @@ async fn import_prepared_database(
             if backup_error.is_some() {
                 warnings.push("已跳过失败的保护备份");
             }
-            if let Err(error) =
-                cleanup_after_import(target, covers, &rollback, &covers_rollback).await
+            if let Err(error) = cleanup_after_import(
+                target,
+                covers,
+                &rollback,
+                &covers_rollback,
+                imported_covers.is_some(),
+            )
+            .await
             {
                 log::warn!("导入成功，后续清理未完成: {error}");
                 warnings.push("后续清理未完成，请查看日志");
@@ -433,6 +466,7 @@ async fn cleanup_after_import(
     covers: &Path,
     rollback: &Path,
     covers_rollback: &Path,
+    include_custom: bool,
 ) -> Result<(), String> {
     let mut cleanup_failed = false;
     for (path, directory) in [(rollback, false), (covers_rollback, true)] {
@@ -458,7 +492,9 @@ async fn cleanup_after_import(
     let connection = Database::connect(options)
         .await
         .map_err(|e| e.to_string())?;
-    let result = crate::game::cover::assets::clean_unused_covers_at(&connection, covers).await;
+    let result =
+        crate::game::cover::assets::clean_unused_covers_at(&connection, covers, include_custom)
+            .await;
     let close = connection.close().await.map_err(|e| e.to_string());
     let result = result?;
     if result.failed_files > 0 || cleanup_failed {
@@ -517,7 +553,10 @@ async fn checkpoint_database(db: &DatabaseConnection) -> Result<(), String> {
     Ok(())
 }
 
-async fn validate_and_migrate_import(path: &Path) -> Result<(), String> {
+async fn validate_and_migrate_import(
+    path: &Path,
+    imported_covers: Option<&Path>,
+) -> Result<(), String> {
     if fs::metadata(path)
         .map_err(|error| import_error("无法读取待导入数据库", error))?
         .len()
@@ -556,6 +595,17 @@ async fn validate_and_migrate_import(path: &Path) -> Result<(), String> {
         Migrator::up(&connection, None)
             .await
             .map_err(|error| import_error("数据库迁移失败，旧数据未改动", error))?;
+        if let Some(covers) = imported_covers {
+            let result = crate::utils::legacy_migration::run_startup_migrations_at(
+                &connection,
+                covers,
+                covers,
+            )
+            .await?;
+            if result.failed_files > 0 || result.scan_failures > 0 {
+                return Err("数据包封面迁移失败，当前数据未改动".into());
+            }
+        }
         verify_import_integrity(&connection).await?;
         // integrity_check 不检查外键，启用外键约束也不会追查已有的孤立记录。
         if connection
@@ -820,7 +870,7 @@ mod tests {
         .await
         .unwrap();
         let archive = root.join("data.7z");
-        super::backup_data_archive_to(&db, &root.join("covers"), &archive, None)
+        super::backup_data_archive_to(&db, &[&root.join("covers")], &archive, None, false)
             .await
             .unwrap();
         let mut reader =
@@ -836,7 +886,8 @@ mod tests {
                 Ok(true)
             })
             .unwrap();
-        assert_eq!(files.len(), 2);
+        assert_eq!(files.len(), 3);
+        assert_eq!(files["covers/game_1/cover_1_png_123.png"], b"legacy");
         assert_eq!(files["covers/custom/cover.webp"], b"custom");
         fs::write(root.join("restored.db"), &files["data/reina_manager.db"]).unwrap();
         let restored = Database::connect(format!(
@@ -871,30 +922,37 @@ mod tests {
         );
         let original = fs::read(&archive).unwrap();
         assert!(
-            super::backup_data_archive_to(&db, &root.join("covers"), &archive, None)
+            super::backup_data_archive_to(&db, &[&root.join("covers")], &archive, None, false)
                 .await
                 .is_err()
         );
         assert_eq!(fs::read(&archive).unwrap(), original);
         let empty_archive = root.join("no-covers.7z");
-        super::backup_data_archive_to(&db, &root.join("missing"), &empty_archive, None)
+        super::backup_data_archive_to(&db, &[&root.join("missing")], &empty_archive, None, false)
             .await
             .unwrap();
         fs::write(root.join("invalid-covers"), b"not a directory").unwrap();
         let failed_archive = root.join("failed.7z");
         assert!(
-            super::backup_data_archive_to(&db, &root.join("invalid-covers"), &failed_archive, None)
-                .await
-                .is_err()
+            super::backup_data_archive_to(
+                &db,
+                &[&root.join("invalid-covers")],
+                &failed_archive,
+                None,
+                false
+            )
+            .await
+            .is_err()
         );
         assert!(!failed_archive.exists());
         db.clone().close().await.unwrap();
         let cold_archive = root.join("cold.7z");
         super::backup_data_archive_to(
             &db,
-            &root.join("covers"),
+            &[&root.join("covers")],
             &cold_archive,
             Some(&root.join("source.db")),
+            false,
         )
         .await
         .unwrap();
@@ -905,6 +963,77 @@ mod tests {
             fs::read(cold_output.join("data/reina_manager.db")).unwrap(),
             fs::read(root.join("source.db")).unwrap()
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn migration_archive_restores_legacy_covers_before_commit_and_rejects_broken_images() {
+        let root = test_directory("legacy_archive");
+        let source = root.join("source.db");
+        let db = test_connection(&source).await;
+        Migrator::up(&db, Some(22)).await.unwrap();
+        db.execute_unprepared(r#"INSERT INTO games(id, id_type, custom_data) VALUES(1, 'bgm', '{"image":"png_123"}')"#).await.unwrap();
+        let covers = root.join("covers");
+        fs::create_dir_all(covers.join("game_1")).unwrap();
+        let old = covers.join("game_1/cover_1_png_123");
+        let png = crate::game::cover::assets::tests::png();
+        fs::write(&old, &png).unwrap();
+        fs::write(covers.join("game_1/cloud_cover_1.png"), b"cache").unwrap();
+        let archive = root.join("migration.7z");
+        // 使用正式迁移入口，确认归档取的是升级前的数据库和封面。
+        migration::migrate_database(&db, "0.33.0", |snapshot| {
+            let (db, covers, archive) = (&db, &covers, &archive);
+            async move {
+                super::backup_data_archive_to(db, &[covers], archive, Some(&snapshot), true)
+                    .await
+                    .map_err(sea_orm::DbErr::Custom)?;
+                Ok(archive.clone())
+            }
+        })
+        .await
+        .unwrap();
+        for broken in [false, true] {
+            let extracted = root.join(if broken { "broken" } else { "valid" });
+            fs::create_dir(&extracted).unwrap();
+            super::extract_data_archive(&archive, &extracted).unwrap();
+            assert!(!extracted.join("covers/game_1/cloud_cover_1.png").exists());
+            let imported = extracted.join("data/reina_manager.db");
+            let imported_covers = extracted.join("covers");
+            let imported_old = imported_covers.join("game_1/cover_1_png_123");
+            if broken {
+                fs::write(&imported_old, b"invalid image").unwrap();
+            }
+            let result = validate_and_migrate_import(&imported, Some(&imported_covers)).await;
+            if broken {
+                assert!(result.unwrap_err().contains("封面迁移失败"));
+                assert!(imported_old.is_file());
+            } else {
+                result.unwrap();
+                let restored = test_connection(&imported).await;
+                let paths = crate::game::cover::assets::game_asset_paths_at(
+                    &restored,
+                    1,
+                    &imported_covers,
+                    Some("custom"),
+                )
+                .await
+                .unwrap();
+                assert_eq!(paths.len(), 1);
+                assert!(paths[0].is_file());
+                assert!(!imported_old.exists());
+                crate::game::cover::assets::clean_unused_covers_at(
+                    &restored,
+                    &imported_covers,
+                    true,
+                )
+                .await
+                .unwrap();
+                assert!(paths[0].is_file());
+                restored.close().await.unwrap();
+            }
+            assert_eq!(fs::read(&old).unwrap(), png);
+        }
+        db.close().await.unwrap();
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1030,7 +1159,7 @@ mod tests {
         .unwrap();
         db.close().await.unwrap();
         assert!(
-            validate_and_migrate_import(&corrupt)
+            validate_and_migrate_import(&corrupt, None)
                 .await
                 .unwrap_err()
                 .contains("完整性检查失败")
@@ -1116,7 +1245,7 @@ mod tests {
         let db = test_connection(&source).await;
         Migrator::up(&db, None).await.unwrap();
         db.close().await.unwrap();
-        validate_and_migrate_import(&source).await.unwrap();
+        validate_and_migrate_import(&source, None).await.unwrap();
         let db = test_connection(&source).await;
         let count = db
             .query_one_raw(sea_orm::Statement::from_string(
@@ -1152,7 +1281,7 @@ mod tests {
         let original = fs::read(&source).unwrap();
         let staged = root.join("staged.db");
         fs::copy(&source, &staged).unwrap();
-        validate_and_migrate_import(&staged).await.unwrap();
+        validate_and_migrate_import(&staged, None).await.unwrap();
         assert_eq!(fs::read(&source).unwrap(), original);
         let db = test_connection(&staged).await;
         let row = db
@@ -1209,7 +1338,9 @@ mod tests {
             let original = fs::read(&source).unwrap();
             let staged = root.join("staged.db");
             fs::copy(&source, &staged).unwrap();
-            let error = validate_and_migrate_import(&staged).await.unwrap_err();
+            let error = validate_and_migrate_import(&staged, None)
+                .await
+                .unwrap_err();
             assert!(error.contains("外键检查失败"), "{error}");
             assert_eq!(fs::read(&source).unwrap(), original);
             fs::remove_dir_all(root).unwrap();
@@ -1227,7 +1358,7 @@ mod tests {
         let original = fs::read(&source).unwrap();
         let staged = root.join("staged.db");
         fs::copy(&source, &staged).unwrap();
-        validate_and_migrate_import(&staged).await.unwrap();
+        validate_and_migrate_import(&staged, None).await.unwrap();
         assert_eq!(fs::read(&source).unwrap(), original);
         let upgraded = test_connection(&staged).await;
         assert!(
@@ -1262,7 +1393,7 @@ mod tests {
         db.execute_unprepared("INSERT INTO seaql_migrations(version, applied_at) VALUES('m20990101_000999_future', 1)").await.unwrap();
         db.close().await.unwrap();
         assert!(
-            validate_and_migrate_import(&path)
+            validate_and_migrate_import(&path, None)
                 .await
                 .unwrap_err()
                 .contains("版本不兼容")
@@ -1282,7 +1413,7 @@ mod tests {
         let staged = root.join("staged.db");
         fs::copy(&source, &staged).unwrap();
         assert!(
-            validate_and_migrate_import(&staged)
+            validate_and_migrate_import(&staged, None)
                 .await
                 .unwrap_err()
                 .contains("迁移失败")
