@@ -3,7 +3,7 @@ members = ["reina-path", "migration", "reina-download"]
 
 [package]
 name = "ReinaManager"
-version = "0.33.0"
+version = "0.34.0"
 description = "A lightweight visual novel manager"
 authors = ["huoshen80"]
 license = "GNU AFFERO GENERAL PUBLIC LICENSE"

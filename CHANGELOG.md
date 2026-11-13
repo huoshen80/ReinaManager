@@ -1,3 +1,59 @@
+## [0.34.0](https://github.com/huoshen80/ReinaManager/compare/v0.33.0...v0.34.0) (2026-11-13)
+
+<details>
+<summary>查看中文版本</summary>
+
+### ⚙️ 杂类任务
+
+- *(build)* 直接上传构建产物 [skip ci] ([6942ada](https://github.com/huoshen80/ReinaManager/commit/6942ada6836526690f714e79aabb0ec22f1076a8))
+
+### ✨ 新功能
+
+- *(covers)* [**破坏性变更**] 新增封面来源优先级和 UUID 资源管理 ([a1e58f7](https://github.com/huoshen80/ReinaManager/commit/a1e58f747e9fab435c94c7a0b9471df36d09faae))
+- *(covers)* 缩放并压缩自定义图片 ([0e0e288](https://github.com/huoshen80/ReinaManager/commit/0e0e28861d51fe00fbd765f1f0f90ad1a90b4013))
+- *(backup)* 恢复整包数据备份 ([8a9945a](https://github.com/huoshen80/ReinaManager/commit/8a9945afe5873d5265ce82a6b23032ef6f53c501))
+
+### 🐛 Bug 修复
+
+- *(metadata)* 避免重复确认元数据更新 ([bf56d5e](https://github.com/huoshen80/ReinaManager/commit/bf56d5e1ba6610354f809fc3af0d18a7358d1a3d))
+- *(startup)* 容忍封面迁移失败 ([b422ac0](https://github.com/huoshen80/ReinaManager/commit/b422ac0b497c92c18bf8f99fef474e51cf10c482))
+- *(backup)* 恢复数据时保留封面 ([34b8795](https://github.com/huoshen80/ReinaManager/commit/34b87958f93e7130ffeb7c76705dfbfc13f42d1f))
+
+### 📚 文档
+
+- *(readme)* 更新功能介绍和开发环境说明 ([37005a2](https://github.com/huoshen80/ReinaManager/commit/37005a21b8a846108d7446873af455e0e4961e4f))
+
+### 🚜 重构
+
+- *(startup)* 在数据库迁移后迁移文件 ([33b8499](https://github.com/huoshen80/ReinaManager/commit/33b8499d9852e95ac3aa8834ff70e524211c565d))
+
+</details>
+
+### ⚙️ Miscellaneous Tasks
+
+- *(build)* Upload artifacts directly [skip ci] ([6942ada](https://github.com/huoshen80/ReinaManager/commit/6942ada6836526690f714e79aabb0ec22f1076a8))
+
+### ✨ Features
+
+- *(covers)* [**breaking**] Add source priority and UUID assets ([a1e58f7](https://github.com/huoshen80/ReinaManager/commit/a1e58f747e9fab435c94c7a0b9471df36d09faae))
+- *(covers)* Resize and compress custom images ([0e0e288](https://github.com/huoshen80/ReinaManager/commit/0e0e28861d51fe00fbd765f1f0f90ad1a90b4013))
+- *(backup)* Restore bundled data archives ([8a9945a](https://github.com/huoshen80/ReinaManager/commit/8a9945afe5873d5265ce82a6b23032ef6f53c501))
+
+### 🐛 Bug Fixes
+
+- *(metadata)* Avoid duplicate update confirmation ([bf56d5e](https://github.com/huoshen80/ReinaManager/commit/bf56d5e1ba6610354f809fc3af0d18a7358d1a3d))
+- *(startup)* Tolerate cover migration failures ([b422ac0](https://github.com/huoshen80/ReinaManager/commit/b422ac0b497c92c18bf8f99fef474e51cf10c482))
+- *(backup)* Preserve covers across data restores ([34b8795](https://github.com/huoshen80/ReinaManager/commit/34b87958f93e7130ffeb7c76705dfbfc13f42d1f))
+
+### 📚 Documentation
+
+- *(readme)* Refresh features and development setup ([37005a2](https://github.com/huoshen80/ReinaManager/commit/37005a21b8a846108d7446873af455e0e4961e4f))
+
+### 🚜 Refactor
+
+- *(startup)* Migrate files after database ([33b8499](https://github.com/huoshen80/ReinaManager/commit/33b8499d9852e95ac3aa8834ff70e524211c565d))
+
+
 ## [0.33.0](https://github.com/huoshen80/ReinaManager/compare/v0.32.2...v0.33.0) (2026-11-06)
 
 <details>
