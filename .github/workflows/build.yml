@@ -194,7 +194,7 @@ jobs:
           New-Item -ItemType Directory -Path $resourcesDataDir -Force | Out-Null
           Copy-Item "src-tauri/target/$target/release/ReinaManager.exe" "$portableRoot/ReinaManager.exe"
           # 先压缩以保留空的 resources/data，直接上传目录会丢失便携模式标识目录。
-          Compress-Archive -Path "$portableRoot/*" -DestinationPath "$portableRoot.zip" -Force
+          Compress-Archive -Path "$portableRoot/*" -DestinationPath "$portableRoot-portable.zip" -Force
 
       # 显示构建状态
       - name: Build status
@@ -212,43 +212,43 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable
-          path: src-tauri/target/${{ matrix.rust_target }}/release/portable/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}.zip
+          path: src-tauri/target/${{ matrix.rust_target }}/release/portable/ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-portable.zip
+          archive: false
           if-no-files-found: warn
 
       - name: Upload MSI Installer (Artifact)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-msi
           path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi/*.msi
+          archive: false
           if-no-files-found: warn
 
       - name: Upload NSIS Installer (Artifact)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-setup
           path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe
+          archive: false
           if-no-files-found: warn
       - name: Upload deb (Artifact)
         if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-deb
           path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/deb/*.deb
+          archive: false
           if-no-files-found: warn
       - name: Upload rpm (Artifact)
         if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-rpm
           path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/rpm/*.rpm
+          archive: false
           if-no-files-found: warn
       - name: Upload AppImage (Artifact)
         if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
         uses: actions/upload-artifact@v7
         with:
-          name: ReinaManager-${{ steps.get_version.outputs.VERSION }}-${{ steps.short.outputs.SHORT }}-appimage
           path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage/*.AppImage
+          archive: false
           if-no-files-found: warn
